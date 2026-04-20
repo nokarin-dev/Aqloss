@@ -1,0 +1,54 @@
+[package]
+name = "aqloss_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "aqloss_core"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.12.0"
+
+# Audio decoding
+symphonia = { version = "0.5", features = ["all"] }
+
+# Audio output (cross-platform)
+cpal = "0.15"
+
+# High-quality resampling
+rubato = "0.15"
+
+# Metadata & tag parsing
+lofty = "0.18"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Logging
+log = "0.4"
+
+walkdir = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.52", features = [
+    "Win32_Media_Audio",
+    "Win32_System_Com",
+    "Win32_Foundation",
+] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = "symbols"
+
+[profile.dev]
+opt-level = 1
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

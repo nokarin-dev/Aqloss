@@ -1,0 +1,59 @@
+name: aqloss
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  rust_lib_aqloss:
+    path: rust_builder
+  flutter_rust_bridge: 2.12.0
+
+  # State management
+  flutter_riverpod: ^3.3.1
+  riverpod_annotation: ^4.0.2
+
+  # Data models
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
+
+  # Database
+  drift: ^2.18.0
+  sqlite3_flutter_libs: ^0.6.0+eol
+
+  # File picking
+  file_picker: ^11.0.2
+
+  # Audio focus / media keys (mobile)
+  audio_service: ^0.18.13
+
+  # Utilities
+  path: ^1.9.0
+  path_provider: ^2.1.3
+  shared_preferences: ^2.5.5
+  window_manager: ^0.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.9
+  freezed: ^3.2.5
+  json_serializable: ^6.8.0
+  riverpod_generator: ^4.0.3
+  drift_dev: ^2.18.0
+
+  flutter_lints: ^6.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
