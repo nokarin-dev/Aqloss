@@ -1,20 +1,16 @@
 # Aqloss
-**Lossless everywhere.**
-
-A cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback — on every device you own.
-
-> Windows · Linux · macOS · Android · iOS
+A cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback - on every device you own.
 
 ---
 
 ## Why Aqloss?
 Most music players resample, normalize, or quietly degrade your audio before it reaches your ears. Aqloss does not. It decodes your files exactly as they were recorded and sends them to your hardware without touching a single sample.
 
-- **Bit-perfect output** — WASAPI Exclusive (Windows), CoreAudio (macOS/iOS), PipeWire/ALSA (Linux), AAudio (Android)
-- **Hi-res support** — up to 32-bit / 384kHz
-- **True lossless formats** — FLAC, WAV, AIFF, ALAC, DSD (DSF/DFF)
-- **One codebase** — Flutter UI runs natively on all 5 platforms
-- **Rust audio engine** — high-performance, memory-safe, zero compromises
+- **Bit-perfect output** - WASAPI Exclusive (Windows), CoreAudio (macOS/iOS), PipeWire/ALSA (Linux), AAudio (Android)
+- **Hi-res support** - up to 32-bit / 384kHz
+- **True lossless formats** - FLAC, WAV, AIFF, ALAC, DSD (DSF/DFF)
+- **One codebase** - Flutter UI runs natively on all 5 platforms
+- **Rust audio engine** - high-performance, memory-safe, zero compromises
 
 ---
 
@@ -33,42 +29,9 @@ Most music players resample, normalize, or quietly degrade your audio before it 
 | AIFF   | `.aiff`       | 32-bit        | 384 kHz         |
 | ALAC   | `.m4a`        | 24-bit        | 192 kHz         |
 | DSD    | `.dsf` `.dff` | 1-bit DSD     | DSD256          |
-| MP3    | `.mp3`        | —             | 48 kHz          |
-| AAC    | `.aac` `.m4a` | —             | 48 kHz          |
-| OGG    | `.ogg`        | —             | 48 kHz          |
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────┐
-│         Flutter UI (Dart)           │
-│  Player · Library · Settings · EQ   │
-└────────────────┬────────────────────┘
-                 │ flutter_rust_bridge (FFI)
-┌────────────────▼────────────────────┐
-│        Rust Audio Engine            │
-│  Symphonia · CPAL · Rubato · lofty  │
-└────────────────┬────────────────────┘
-                 │ Native audio API
-   ┌─────────────┼──────────────────┐
-   │             │                  │
-WASAPI      CoreAudio          PipeWire
-(Windows)  (macOS/iOS)    (Linux / Android AAudio)
-```
-
-**Key libraries:**
-
-| Library                                                               | Role                                      |
-|-----------------------------------------------------------------------|-------------------------------------------|
-| [Symphonia](https://github.com/pdeljanov/Symphonia)                   | Audio decoding (FLAC, WAV, MP3, AAC, OGG) |
-| [CPAL](https://github.com/RustAudio/cpal)                             | Cross-platform audio output               |
-| [Rubato](https://github.com/HEnquist/rubato)                          | High-quality sample rate conversion       |
-| [lofty-rs](https://github.com/Serial-ATA/lofty-rs)                    | Metadata & tag parsing                    |
-| [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge) | Dart ↔ Rust FFI bridge                    |
-| [drift](https://drift.simonbinder.eu/)                                | SQLite ORM for music library              |
-| [riverpod](https://riverpod.dev/)                                     | State management                          |
+| MP3    | `.mp3`        | -             | 48 kHz          |
+| AAC    | `.aac` `.m4a` | -             | 48 kHz          |
+| OGG    | `.ogg`        | -             | 48 kHz          |
 
 ---
 
@@ -76,7 +39,7 @@ WASAPI      CoreAudio          PipeWire
 
 ### Prerequisites
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) ≥ 3.19
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) ≥ 3.41
 - [Rust toolchain](https://rustup.rs/) (stable)
 - [flutter_rust_bridge CLI](https://cjycode.com/flutter_rust_bridge/integrate/quickstart.html)
 
@@ -131,85 +94,6 @@ flutter run -d ios
 
 ---
 
-## Project Structure
-
-```
-aqloss/
-├── rust/                        # Rust audio engine
-│   └── src/
-│       ├── lib.rs               # Bridge API exposed to Dart
-│       ├── audio_engine.rs      # Main engine: decode → resample → output
-│       ├── decoder.rs           # Symphonia-based format decoder
-│       ├── output.rs            # CPAL audio output abstraction
-│       ├── resampler.rs         # Rubato resampler wrapper
-│       └── metadata.rs          # lofty-rs tag & album art reader
-│
-├── flutter/
-│   └── lib/
-│       ├── main.dart            # Entry point
-│       ├── app.dart             # App root, theme, routing
-│       ├── screens/
-│       │   ├── home_screen.dart
-│       │   ├── player_screen.dart
-│       │   ├── library_screen.dart
-│       │   └── settings_screen.dart
-│       ├── widgets/
-│       │   ├── player_controls.dart
-│       │   ├── track_tile.dart
-│       │   ├── waveform_bar.dart
-│       │   └── spectrum_display.dart
-│       ├── models/
-│       │   ├── track.dart
-│       │   ├── playlist.dart
-│       │   └── audio_format.dart
-│       ├── services/
-│       │   ├── audio_service.dart
-│       │   ├── library_service.dart
-│       │   └── metadata_service.dart
-│       └── providers/
-│           ├── player_provider.dart
-│           ├── library_provider.dart
-│           └── settings_provider.dart
-│
-├── assets/
-│   ├── icons/
-│   └── fonts/
-│
-└── README.md
-```
-
----
-
-## Roadmap
-
-### v0.1 — MVP
-- [x] Project structure & bridge setup
-- [ ] FLAC + WAV playback
-- [ ] Basic player UI (play / pause / skip / seek)
-- [ ] Folder scan & library indexing
-- [ ] Metadata display (title, artist, album art)
-
-### v0.2 — Hi-Res
-- [ ] Full format support (ALAC, AIFF, DSD)
-- [ ] Bit-perfect output (WASAPI Exclusive, CoreAudio)
-- [ ] Sample rate & bit depth display
-- [ ] Gapless playback
-
-### v0.3 — Features
-- [ ] Parametric equalizer
-- [ ] ReplayGain normalization
-- [ ] Playlist management
-- [ ] Search & filter
-- [ ] Cue sheet support
-
-### v0.4 — Polish
-- [ ] Last.fm scrobbling
-- [ ] Theme customization
-- [ ] Keyboard & media key support
-- [ ] Lock screen controls (mobile)
-
----
-
 ## Contributing
 
 Contributions are welcome. Please open an issue first to discuss what you'd like to change.
@@ -224,8 +108,20 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+```
+Aqless
+Copyright © 2025-2026 nokarin-dev
 
----
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-*Nothing lost.*
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+```
