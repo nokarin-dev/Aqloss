@@ -4,6 +4,7 @@ import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/services/discord_service.dart';
 
 enum PlayerStatus { idle, playing, paused, loading, error }
 
@@ -99,6 +100,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       await AudioService.play();
       if (!mounted) return;
       state = state.copyWith(status: PlayerStatus.playing);
+      DiscordService.update(state);
       _startTimer();
     } catch (e) {
       if (mounted) {
@@ -111,12 +113,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> play() async {
     await AudioService.play();
     state = state.copyWith(status: PlayerStatus.playing);
+    DiscordService.update(state);
     _startTimer();
   }
 
   Future<void> pause() async {
     await AudioService.pause();
     state = state.copyWith(status: PlayerStatus.paused);
+    DiscordService.update(state);
     _stopTimer();
   }
 
@@ -274,6 +278,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
             status: PlayerStatus.paused,
             position: s.currentTrack?.duration ?? Duration.zero,
           );
+          DiscordService.update(state);
         }
         break;
     }
@@ -293,6 +298,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   void dispose() {
     _disposed = true;
     _stopTimer();
+    DiscordService.dispose();
     super.dispose();
   }
 }

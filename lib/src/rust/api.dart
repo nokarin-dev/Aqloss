@@ -39,3 +39,33 @@ Future<Uint8List?> readAlbumArt({required String path}) =>
 
 Future<List<String>> scanDirectory({required String path}) =>
     AqlossCore.instance.api.crateApiScanDirectory(path: path);
+
+Future<String?> readEmbeddedLyrics({required String path}) =>
+    AqlossCore.instance.api.crateApiReadEmbeddedLyrics(path: path);
+
+Future<Float32List> getSpectrumData({required int bucketCount}) =>
+    AqlossCore.instance.api.crateApiGetSpectrumData(bucketCount: bucketCount);
+
+Future<void> discordUpdatePlaying({
+  required String title,
+  required String artist,
+  required String album,
+  required double positionSecs,
+  required double durationSecs,
+}) => AqlossCore.instance.api.crateApiDiscordUpdatePlaying(
+  title: title,
+  artist: artist,
+  album: album,
+  positionSecs: positionSecs,
+  durationSecs: durationSecs,
+);
+
+Future<void> discordUpdatePaused({
+  required String title,
+  required String artist,
+}) => AqlossCore.instance.api.crateApiDiscordUpdatePaused(
+  title: title,
+  artist: artist,
+);
+
+Future<void> discordClear() => AqlossCore.instance.api.crateApiDiscordClear();

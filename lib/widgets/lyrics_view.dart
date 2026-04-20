@@ -61,13 +61,17 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Add a .lrc file next to your audio file',
+              'Embed lyrics in the audio file tags,\nor add a .lrc file next to it',
               style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.12)),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       );
     }
+
+    // Source badge
+    final sourceBadge = _SourceBadge(source: lyrics.source);
 
     // Synced LRC
     if (lyrics.hasSynced) {
@@ -81,45 +85,91 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         });
       }
 
-      return NotificationListener<ScrollNotification>(
-        onNotification: (n) {
-          if (n is ScrollStartNotification && n.dragDetails != null) {
-            _userScrolling = true;
-          } else if (n is ScrollEndNotification) {
-            Future.delayed(const Duration(seconds: 3), () {
-              if (mounted) _userScrolling = false;
-            });
-          }
-          return false;
-        },
-        child: ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
-          itemCount: doc.lines.length,
-          itemBuilder: (_, i) {
-            final isCurrent = i == currentIdx;
-            final isPast = i < currentIdx;
-            return _LyricLine(
-              text: doc.lines[i].text,
-              isCurrent: isCurrent,
-              isPast: isPast,
-            );
-          },
-        ),
+      return Column(
+        children: [
+          sourceBadge,
+          Expanded(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (n) {
+                if (n is ScrollStartNotification && n.dragDetails != null) {
+                  _userScrolling = true;
+                } else if (n is ScrollEndNotification) {
+                  Future.delayed(const Duration(seconds: 3), () {
+                    if (mounted) _userScrolling = false;
+                  });
+                }
+                return false;
+              },
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                itemCount: doc.lines.length,
+                itemBuilder: (_, i) {
+                  final isCurrent = i == currentIdx;
+                  final isPast = i < currentIdx;
+                  return _LyricLine(
+                    text: doc.lines[i].text,
+                    isCurrent: isCurrent,
+                    isPast: isPast,
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       );
     }
 
     // Plain text fallback
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Text(
-        lyrics.rawText!,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Colors.white54,
-          height: 1.8,
+    return Column(
+      children: [
+        sourceBadge,
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              lyrics.rawText!,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white54,
+                height: 1.8,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
-        textAlign: TextAlign.center,
+      ],
+    );
+  }
+}
+
+class _SourceBadge extends StatelessWidget {
+  final LyricsSource source;
+  const _SourceBadge({required this.source});
+
+  @override
+  Widget build(BuildContext context) {
+    if (source == LyricsSource.none) return const SizedBox.shrink();
+
+    final (icon, label) = switch (source) {
+      LyricsSource.embedded  => (Icons.music_note, 'Embedded'),
+      LyricsSource.lrcFile   => (Icons.text_snippet_outlined, '.lrc file'),
+      LyricsSource.txtFile   => (Icons.text_fields, '.txt file'),
+      LyricsSource.none      => (Icons.close, ''),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 11, color: Colors.white24),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, color: Colors.white24, letterSpacing: 0.5),
+          ),
+        ],
       ),
     );
   }

@@ -61,6 +61,30 @@ impl AudioEngine {
         Ok(())
     }
 
+    pub fn get_spectrum_data(&self, n: usize) -> Vec<f32> {
+        if n == 0 { return vec![]; }
+        let ring = self.output.ring.lock().unwrap();
+        let samples: Vec<f32> = ring.iter().copied().collect();
+        drop(ring);
+        if samples.is_empty() { return vec![0.0; n]; }
+
+        let chunk = (samples.len() / n).max(1);
+        (0..n)
+            .map(|i| {
+                let start = i * chunk;
+                let end = ((i + 1) * chunk).min(samples.len());
+                if start >= end { return 0.0; }
+                let rms = (samples[start..end]
+                    .iter()
+                    .map(|s| s * s)
+                    .sum::<f32>()
+                    / (end - start) as f32)
+                    .sqrt();
+                rms.clamp(0.0, 1.0)
+            })
+            .collect()
+    }
+
     pub fn global() -> Arc<Mutex<Self>> {
         ENGINE.get().expect("AudioEngine not initialized").clone()
     }

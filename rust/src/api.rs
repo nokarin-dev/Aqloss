@@ -66,3 +66,35 @@ pub fn read_album_art(path: String) -> Result<Option<Vec<u8>>> {
 pub fn scan_directory(path: String) -> Result<Vec<String>> {
     metadata::scan_directory(&path)
 }
+
+pub fn read_embedded_lyrics(path: String) -> Result<Option<String>> {
+    metadata::read_embedded_lyrics(&path)
+}
+
+pub fn get_spectrum_data(bucket_count: u32) -> Vec<f32> {
+    let Some(arc) = AudioEngine::global_opt() else {
+        return vec![];
+    };
+    let engine = arc.lock().unwrap();
+    engine.get_spectrum_data(bucket_count as usize)
+}
+
+pub fn discord_update_playing(
+    title: String,
+    artist: String,
+    album: String,
+    position_secs: f64,
+    duration_secs: f64,
+) -> Result<()> {
+    crate::discord_rpc::update_playing(&title, &artist, &album, position_secs, duration_secs)
+}
+
+// Paused state.
+pub fn discord_update_paused(title: String, artist: String) -> Result<()> {
+    crate::discord_rpc::update_paused(&title, &artist)
+}
+
+// Clear Discord Rich Presence
+pub fn discord_clear() -> Result<()> {
+    crate::discord_rpc::clear()
+}

@@ -8,8 +8,15 @@ class TrackTile extends ConsumerWidget {
   final Track track;
   final int? index;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
-  const TrackTile({super.key, required this.track, this.index, this.onTap});
+  const TrackTile({
+    super.key,
+    required this.track,
+    this.index,
+    this.onTap,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,15 +25,19 @@ class TrackTile extends ConsumerWidget {
     final format = AudioFormat.fromExtension(track.format);
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: _buildLeading(context, isPlaying, format),
       title: Text(
         track.displayTitle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
-          color: isPlaying ? Theme.of(context).colorScheme.primary : null,
+          fontWeight: isPlaying ? FontWeight.w500 : FontWeight.normal,
+          color: isPlaying
+              ? Theme.of(context).colorScheme.primary
+              : null,
+          fontSize: 14,
         ),
       ),
       subtitle: Text(
@@ -35,23 +46,20 @@ class TrackTile extends ConsumerWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 12,
-          color: Colors.white.withValues(alpha: 0.45),
+          color: Colors.white.withValues(alpha: 0.38),
         ),
       ),
       trailing: _buildTrailing(context, format),
-      onTap:
-          onTap ??
+      onTap: onTap ??
           () {
             ref.read(playerProvider.notifier).load(track);
           },
+      onLongPress: onLongPress,
     );
   }
 
   Widget _buildLeading(
-    BuildContext context,
-    bool isPlaying,
-    AudioFormat format,
-  ) {
+      BuildContext context, bool isPlaying, AudioFormat format) {
     return SizedBox(
       width: 44,
       height: 44,
@@ -65,21 +73,18 @@ class TrackTile extends ConsumerWidget {
             ),
             child: Center(
               child: isPlaying
-                  ? Icon(
-                      Icons.equalizer,
+                  ? Icon(Icons.equalizer,
                       size: 18,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
+                      color: Theme.of(context).colorScheme.primary)
                   : Text(
                       index != null ? '${index! + 1}' : '♪',
                       style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.35),
                       ),
                     ),
             ),
           ),
-          // Lossless badge dot
           if (format.isLossless)
             Positioned(
               top: 2,
@@ -106,8 +111,8 @@ class TrackTile extends ConsumerWidget {
         Text(
           track.durationLabel,
           style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 11,
+            color: Colors.white.withValues(alpha: 0.35),
           ),
         ),
         const SizedBox(height: 4),
@@ -115,7 +120,7 @@ class TrackTile extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
           decoration: BoxDecoration(
             color: format.isLossless
-                ? Colors.white.withValues(alpha: 0.1)
+                ? Colors.white.withValues(alpha: 0.08)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(3),
           ),
@@ -126,8 +131,8 @@ class TrackTile extends ConsumerWidget {
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
               color: format.isLossless
-                  ? Colors.white.withValues(alpha: 0.7)
-                  : Colors.white.withValues(alpha: 0.25),
+                  ? Colors.white.withValues(alpha: 0.6)
+                  : Colors.white.withValues(alpha: 0.2),
             ),
           ),
         ),

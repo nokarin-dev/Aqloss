@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/src/rust/api.dart' as backend;
 
 // LRC parser
 class LrcLine {
@@ -50,6 +51,10 @@ class LrcDocument {
     lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     return LrcDocument(lines);
   }
+
+  static bool looksLikeLrc(String content) {
+    return RegExp(r'\[\d+:\d+[.:]\d+\]').hasMatch(content);
+  }
 }
 
 // State
@@ -58,17 +63,21 @@ class LyricsState {
   final String? rawText;
   final bool isLoading;
   final String? trackPath;
+  final LyricsSource source;
 
   const LyricsState({
     this.document,
     this.rawText,
     this.isLoading = false,
     this.trackPath,
+    this.source = LyricsSource.none,
   });
 
   bool get hasLyrics => document != null || rawText != null;
   bool get hasSynced => document != null;
 }
+
+enum LyricsSource { none, embedded, lrcFile, txtFile }
 
 // Notifier
 class LyricsNotifier extends StateNotifier<LyricsState> {
@@ -79,15 +88,40 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
     state = LyricsState(isLoading: true, trackPath: trackPath);
 
     try {
-      final base = trackPath.replaceAll(RegExp(r'\.[^.]+$'), '');
-      final lrcPath = '$base.lrc';
-      final lrcFile = File(lrcPath);
+      // Embedded lyrics
+      final embedded = await backend.readEmbeddedLyrics(path: trackPath);
+      if (embedded != null && embedded.trim().isNotEmpty) {
+        if (LrcDocument.looksLikeLrc(embedded)) {
+          final doc = LrcDocument.parse(embedded);
+          if (doc != null) {
+            state = LyricsState(
+              document: doc,
+              trackPath: trackPath,
+              source: LyricsSource.embedded,
+            );
+            return;
+          }
+        }
+        state = LyricsState(
+          rawText: embedded.trim(),
+          trackPath: trackPath,
+          source: LyricsSource.embedded,
+        );
+        return;
+      }
 
+      // Sidecar .lrc file
+      final base = trackPath.replaceAll(RegExp(r'\.[^.]+$'), '');
+      final lrcFile = File('$base.lrc');
       if (await lrcFile.exists()) {
         final content = await lrcFile.readAsString();
         final doc = LrcDocument.parse(content);
         if (doc != null) {
-          state = LyricsState(document: doc, trackPath: trackPath);
+          state = LyricsState(
+            document: doc,
+            trackPath: trackPath,
+            source: LyricsSource.lrcFile,
+          );
           return;
         }
         final plain = content
@@ -95,17 +129,25 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
             .where((l) => !l.startsWith('[') && l.trim().isNotEmpty)
             .join('\n');
         if (plain.isNotEmpty) {
-          state = LyricsState(rawText: plain, trackPath: trackPath);
+          state = LyricsState(
+            rawText: plain,
+            trackPath: trackPath,
+            source: LyricsSource.lrcFile,
+          );
           return;
         }
       }
 
-      final txtPath = '$base.txt';
-      final txtFile = File(txtPath);
+      // Plain .txt file
+      final txtFile = File('$base.txt');
       if (await txtFile.exists()) {
         final content = await txtFile.readAsString();
         if (content.trim().isNotEmpty) {
-          state = LyricsState(rawText: content.trim(), trackPath: trackPath);
+          state = LyricsState(
+            rawText: content.trim(),
+            trackPath: trackPath,
+            source: LyricsSource.txtFile,
+          );
           return;
         }
       }

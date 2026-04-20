@@ -8,8 +8,6 @@ pub mod resampler;
 
 use flutter_rust_bridge::frb;
 
-// ── Public types (exposed to Dart via FRB) ────────────────────────────────────
-
 /// Full track metadata returned by `load_track` and `read_metadata`.
 #[frb(dart_metadata = ("freezed"))]
 pub struct TrackInfo {
@@ -34,3 +32,5 @@ pub struct PlaybackPosition {
     pub sample_rate: u32,
     pub bit_depth: u32,
 }
+
+pub mod discord_rpc;
