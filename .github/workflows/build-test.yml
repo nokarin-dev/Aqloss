@@ -35,6 +35,12 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Get build_tool dependencies
+        run: |
+          cd rust_builder/cargokit/build_tool
+          flutter pub get
+          cd ../../../
+
       - name: Install dependencies
         run: flutter pub get
 
