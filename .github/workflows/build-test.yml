@@ -1,0 +1,508 @@
+name: Build Test
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  # Dart & Flutter analysis
+  analyze:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Dart analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run unit tests
+        run: flutter test --reporter=github
+        continue-on-error: true
+
+  # Rust & flutter_rust_bridge compile check
+  rust-check:
+    name: Rust Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-check-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-check-
+
+      - name: cargo check
+        working-directory: rust
+        run: cargo check --release
+
+  # Linux
+  test-linux:
+    name: Build Test — Linux (deb + AppImage + portable)
+    needs: [analyze, rust-check]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            dpkg-dev fakeroot wget file \
+            libasound2-dev libpulse-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: linux-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: linux-cargo-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      # Installer build
+      - name: Build Linux release (installer)
+        run: flutter build linux --release --dart-define=PORTABLE=false
+
+      - name: Build .deb package
+        run: |
+          VERSION="0.0.0-test"
+          PKG="aqloss_${VERSION}_amd64"
+          BUNDLE="build/linux/x64/release/bundle"
+
+          mkdir -p "$PKG/DEBIAN"
+          mkdir -p "$PKG/opt/aqloss"
+          mkdir -p "$PKG/usr/bin"
+          mkdir -p "$PKG/usr/share/applications"
+          mkdir -p "$PKG/usr/share/icons/hicolor/256x256/apps"
+
+          cp -r "$BUNDLE/." "$PKG/opt/aqloss/"
+
+          EXE=$(find "$PKG/opt/aqloss" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | head -1)
+          EXE_NAME=$(basename "$EXE")
+          [ "$EXE_NAME" != "aqloss" ] && mv "$EXE" "$PKG/opt/aqloss/aqloss"
+
+          ln -s /opt/aqloss/aqloss "$PKG/usr/bin/aqloss"
+
+          cat > "$PKG/usr/share/applications/aqloss.desktop" << 'DESKTOP'
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Aqloss
+          GenericName=Music Player
+          Comment=High-quality local music player
+          Exec=/opt/aqloss/aqloss
+          Icon=aqloss
+          Categories=Audio;Music;Player;AudioVideo;
+          Terminal=false
+          StartupWMClass=aqloss
+          DESKTOP
+
+          [ -f "assets/icons/icon_256.png" ] && \
+            cp "assets/icons/icon_256.png" "$PKG/usr/share/icons/hicolor/256x256/apps/aqloss.png"
+
+          cat > "$PKG/DEBIAN/control" << CTRL
+          Package: aqloss
+          Version: ${VERSION}
+          Architecture: amd64
+          Maintainer: nokarin <contact@nokarin.my.id>
+          Description: High-quality local music player powered by a Rust audio engine.
+          Depends: libgtk-3-0, libblkid1, liblzma5, libasound2
+          Section: sound
+          Priority: optional
+          CTRL
+
+          printf '#!/bin/sh\nchmod +x /opt/aqloss/aqloss 2>/dev/null||true\nupdate-desktop-database /usr/share/applications 2>/dev/null||true\nexit 0' \
+            > "$PKG/DEBIAN/postinst"
+          chmod 755 "$PKG/DEBIAN/postinst"
+
+          fakeroot dpkg-deb --build "$PKG"
+          echo "✓ .deb built: $(du -h ${PKG}.deb | cut -f1)"
+          dpkg-deb --info "${PKG}.deb"
+
+      - name: Build .AppImage
+        run: |
+          BUNDLE="build/linux/x64/release/bundle"
+
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+            -O /tmp/appimagetool.AppImage
+          chmod +x /tmp/appimagetool.AppImage
+          cd /tmp && ./appimagetool.AppImage --appimage-extract > /dev/null 2>&1
+          APPIMAGETOOL="/tmp/squashfs-root/AppRun"
+          cd "$GITHUB_WORKSPACE"
+
+          mkdir -p AppDir/app
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          cp -r "$BUNDLE/." AppDir/app/
+
+          [ -f "assets/icons/icon_256.png" ] \
+            && cp "assets/icons/icon_256.png" AppDir/usr/share/icons/hicolor/256x256/apps/aqloss.png \
+            && cp "assets/icons/icon_64.png"  AppDir/aqloss.png \
+            || printf 'PNG' > AppDir/aqloss.png
+
+          cat > AppDir/aqloss.desktop << 'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Aqloss
+          Exec=aqloss
+          Icon=aqloss
+          Categories=Audio;Music;AudioVideo;
+          Terminal=false
+          DESKTOP
+
+          cat > AppDir/AppRun << 'APPRUN'
+          #!/bin/sh
+          APPDIR="$(dirname "$(readlink -f "$0")")"
+          export LD_LIBRARY_PATH="$APPDIR/app/lib:$LD_LIBRARY_PATH"
+          EXE_NAME=$(find "$APPDIR/app" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" \
+            | xargs -I{} basename {} | head -1)
+          [ -z "$EXE_NAME" ] && echo "Executable not found" >&2 && exit 1
+          cd "$APPDIR/app"
+          exec "./$EXE_NAME" "$@"
+          APPRUN
+          chmod +x AppDir/AppRun
+
+          ARCH=x86_64 "$APPIMAGETOOL" --no-appstream AppDir "Aqloss-linux.AppImage"
+          echo "✓ AppImage built: $(du -h Aqloss-linux.AppImage | cut -f1)"
+
+      # Portable build
+      - name: Build Linux release (portable)
+        run: flutter build linux --release --dart-define=PORTABLE=true
+
+      - name: Package portable (.tar.gz)
+        run: |
+          tar -czf Aqloss-linux-portable.tar.gz \
+            -C build/linux/x64/release/bundle .
+          echo "✓ portable tarball: $(du -h Aqloss-linux-portable.tar.gz | cut -f1)"
+
+      - name: Verify all Linux artifacts
+        run: |
+          echo "=== Linux build artifacts ==="
+          ls -lh aqloss_*_amd64.deb Aqloss-linux.AppImage Aqloss-linux-portable.tar.gz
+          echo "✓ All Linux builds OK"
+
+  # Linux RPM
+  test-linux-rpm:
+    name: Build Test — Linux (RPM)
+    needs: [analyze, rust-check]
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    env:
+      GIT_CONFIG_GLOBAL: /root/.gitconfig-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo dnf install -y @development-tools \
+            clang cmake ninja-build pkg-config \
+            gtk3-devel xz-devel libstdc++-devel \
+            alsa-lib-devel pulseaudio-libs-devel \
+            rpm-build jq which curl
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory '*'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Linux (debug)
+        run: flutter build linux --debug --dart-define=PORTABLE=false
+
+      - name: Build .rpm package
+        run: |
+          VERSION="0.0.0"
+          BUNDLE_DIR="$GITHUB_WORKSPACE/build/linux/x64/debug/bundle"
+          RPMROOT="$GITHUB_WORKSPACE/rpmbuild"
+
+          mkdir -p "$RPMROOT"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          echo "$BUNDLE_DIR" > "$RPMROOT/SOURCES/bundle_path.txt"
+
+          [ -f "$GITHUB_WORKSPACE/assets/icons/icon_256.png" ] && \
+            cp "$GITHUB_WORKSPACE/assets/icons/icon_256.png" "$RPMROOT/SOURCES/aqloss.png"
+
+          cat > "$RPMROOT/SOURCES/aqloss.desktop" << 'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Aqloss
+          Exec=/opt/aqloss/aqloss
+          Icon=aqloss
+          Categories=Audio;Music;AudioVideo;
+          Terminal=false
+          DESKTOP
+
+          cat > "$RPMROOT/SPECS/aqloss.spec" << SPEC
+          Name:           Aqloss
+          Version:        ${VERSION}
+          Release:        1%{?dist}
+          Summary:        High-quality local music player
+          License:        GPLv3
+          BuildArch:      x86_64
+          Requires:       gtk3, xz-libs, alsa-lib
+
+          %description
+          Aqloss — high-quality local music player powered by a Rust audio engine.
+
+          %install
+          BUNDLE=\$(cat $RPMROOT/SOURCES/bundle_path.txt)
+          mkdir -p %{buildroot}/opt/aqloss
+          mkdir -p %{buildroot}/usr/bin
+          mkdir -p %{buildroot}/usr/share/applications
+          mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
+          cp -r \$BUNDLE/. %{buildroot}/opt/aqloss/
+          EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | head -1)
+          EXE_NAME=\$(basename \$EXE)
+          [ "\$EXE_NAME" != "aqloss" ] && \
+            mv "\$EXE" %{buildroot}/opt/aqloss/aqloss
+          chmod +x %{buildroot}/opt/aqloss/aqloss
+          ln -s /opt/aqloss/aqloss %{buildroot}/usr/bin/aqloss
+          cp $RPMROOT/SOURCES/aqloss.desktop \
+            %{buildroot}/usr/share/applications/aqloss.desktop
+          if [ -f "$RPMROOT/SOURCES/aqloss.png" ]; then
+            cp $RPMROOT/SOURCES/aqloss.png \
+              %{buildroot}/usr/share/icons/hicolor/256x256/apps/aqloss.png
+          fi
+
+          %files
+          %attr(0755, root, root) /usr/bin/aqloss
+          /opt/aqloss/*
+          /usr/share/applications/aqloss.desktop
+          /usr/share/icons/hicolor/256x256/apps/aqloss.png
+          SPEC
+
+          rpmbuild -bb \
+            --define "_topdir $RPMROOT" \
+            --define "_builddir $RPMROOT/BUILD" \
+            --define "__os_install_post %{nil}" \
+            "$RPMROOT/SPECS/aqloss.spec"
+
+      - name: Verify RPM
+        run: |
+          find $GITHUB_WORKSPACE/rpmbuild/RPMS -name "*.rpm" | grep . \
+            && echo "✓ RPM build OK" \
+            || (echo "✗ RPM not found" && exit 1)
+
+  # Windows
+  test-windows:
+    name: Build Test — Windows (installer + portable)
+    needs: [analyze, rust-check]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      # Installer
+      - name: Build Windows release (installer)
+        run: flutter build windows --release --dart-define=PORTABLE=false
+
+      - name: Create Inno Setup script
+        shell: pwsh
+        run: |
+          @"
+          [Setup]
+          AppName=Aqloss
+          AppVersion=0.0.0-test
+          AppPublisher=nokarin
+          DefaultDirName={localappdata}\Aqloss
+          DefaultGroupName=Aqloss
+          AllowNoIcons=yes
+          OutputDir=.
+          OutputBaseFilename=Aqloss-windows-installer
+          Compression=lzma2/ultra64
+          SolidCompression=yes
+          WizardStyle=modern
+          PrivilegesRequired=lowest
+          PrivilegesRequiredOverridesAllowed=dialog
+          UninstallDisplayIcon={app}\aqloss.exe
+
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+
+          [Icons]
+          Name: "{userprograms}\Aqloss"; Filename: "{app}\aqloss.exe"
+          "@ | Out-File -FilePath "installer.iss" -Encoding UTF8
+
+      - name: Compile Inno Setup installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+          if (!(Test-Path "Aqloss-windows-installer.exe")) {
+            Write-Error "Installer .exe not produced"; exit 1
+          }
+          Write-Host "✓ Installer: $('{0:N1} MB' -f ((Get-Item 'Aqloss-windows-installer.exe').Length / 1MB))"
+
+      # Portable
+      - name: Build Windows release (portable)
+        run: flutter build windows --release --dart-define=PORTABLE=true
+
+      - name: Package Windows portable
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" `
+            -DestinationPath "Aqloss-windows-portable.zip"
+          Write-Host "✓ Portable: $('{0:N1} MB' -f ((Get-Item 'Aqloss-windows-portable.zip').Length / 1MB))"
+
+      - name: Verify Windows artifacts
+        shell: pwsh
+        run: |
+          $ok = $true
+          @("Aqloss-windows-installer.exe", "Aqloss-windows-portable.zip") | ForEach-Object {
+            if (Test-Path $_) { Write-Host "✓ $_" }
+            else              { Write-Error "✗ $_ missing"; $ok = $false }
+          }
+          if (!$ok) { exit 1 }
+
+  # Android
+  test-android:
+    name: Build Test — Android (arm64 + arm32 + x86_64)
+    needs: [analyze, rust-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable + Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Build split APKs (debug)
+        run: flutter build apk --debug --dart-define=PORTABLE=false --split-per-abi
+
+      - name: Verify all three APK ABIs
+        run: |
+          ok=true
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            APK="build/app/outputs/flutter-apk/app-${abi}-debug.apk"
+            if [ -f "$APK" ]; then
+              echo "✓ $abi — $(du -h $APK | cut -f1)"
+            else
+              echo "✗ $abi — NOT FOUND"
+              ok=false
+            fi
+          done
+          $ok || exit 1
+
+  # Gate
+  all-tests-pass:
+    name: All build tests passed
+    needs:
+      [
+        analyze,
+        rust-check,
+        test-linux,
+        test-linux-rpm,
+        test-windows,
+        test-android,
+      ]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          echo "analyze: ${{ needs.analyze.result }}"
+          echo "rust-check: ${{ needs.rust-check.result }}"
+          echo "test-linux: ${{ needs.test-linux.result }}"
+          echo "test-linux-rpm: ${{ needs.test-linux-rpm.result }}"
+          echo "test-windows: ${{ needs.test-windows.result }}"
+          echo "test-android: ${{ needs.test-android.result }}"
+
+          if [[ \
+            "${{ needs.analyze.result }}"        == "success" && \
+            "${{ needs.rust-check.result }}"     == "success" && \
+            "${{ needs.test-linux.result }}"     == "success" && \
+            "${{ needs.test-linux-rpm.result }}" == "success" && \
+            "${{ needs.test-windows.result }}"   == "success" && \
+            "${{ needs.test-android.result }}"   == "success" \
+          ]]; then
+            echo "✅ All build tests passed."
+          else
+            echo "❌ One or more build tests failed."
+            exit 1
+          fi

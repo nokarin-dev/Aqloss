@@ -1,0 +1,617 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  # Windows
+  build-windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: win-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: win-cargo-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Get version
+        shell: pwsh
+        run: |
+          $v = (Get-Content pubspec.yaml | Select-String "^version:" |
+            ForEach-Object { ($_ -replace "version:\s*","") -replace "\+.*","" }).Trim()
+          echo "VERSION=$v" >> $env:GITHUB_ENV
+
+      # Installer
+      - name: Build Windows (installer)
+        run: flutter build windows --release --dart-define=PORTABLE=false
+
+      - name: Generate app_icon.ico
+        shell: pwsh
+        run: |
+          magick convert `
+            assets/icons/icon_256.png `
+            -define icon:auto-resize=256,128,64,48,32,16 `
+            windows/runner/resources/app_icon.ico
+          Write-Host "✓ app_icon.ico generated"
+
+      - name: Create Inno Setup script
+        shell: pwsh
+        run: |
+          @"
+          [Setup]
+          AppName=Aqloss
+          AppVersion=${{ env.VERSION }}
+          AppPublisher=nokarin
+          AppPublisherURL=https://github.com/nokarin-dev/aqloss
+          AppSupportURL=https://github.com/nokarin-dev/aqloss/issues
+          DefaultDirName={localappdata}\Aqloss
+          DefaultGroupName=Aqloss
+          AllowNoIcons=yes
+          OutputDir=.
+          OutputBaseFilename=Aqloss-windows-installer
+          Compression=lzma2/ultra64
+          SolidCompression=yes
+          WizardStyle=modern
+          PrivilegesRequired=lowest
+          PrivilegesRequiredOverridesAllowed=dialog
+          UninstallDisplayIcon={app}\aqloss.exe
+          SetupIconFile=windows\runner\resources\app_icon.ico
+
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+
+          [Icons]
+          Name: "{userprograms}\Aqloss"; Filename: "{app}\aqloss.exe"
+          Name: "{userprograms}\Uninstall Aqloss"; Filename: "{uninstallexe}"
+          Name: "{userdesktop}\Aqloss"; Filename: "{app}\aqloss.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\aqloss.exe"; Description: "{cm:LaunchProgram,Aqloss}"; Flags: nowait postinstall skipifsilent
+          "@ | Out-File -FilePath "installer.iss" -Encoding UTF8
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+          if (!(Test-Path "Aqloss-windows-installer.exe")) {
+            Write-Error "Installer .exe not produced"; exit 1
+          }
+          Write-Host "✓ Installer built"
+
+      # Portable
+      - name: Build Windows (portable)
+        run: flutter build windows --release --dart-define=PORTABLE=true
+
+      - name: Package Windows portable
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" `
+            -DestinationPath "Aqloss-windows-portable.zip"
+          Write-Host "✓ Portable packaged"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            Aqloss-windows-installer.exe
+            Aqloss-windows-portable.zip
+
+  # Linux
+  build-linux:
+    name: Linux (deb + AppImage + portable)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libasound2-dev libpulse-dev \
+            dpkg-dev fakeroot wget
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: linux-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: linux-cargo-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Get version
+        run: |
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      # Release build
+      - name: Build Linux release
+        run: flutter build linux --release --dart-define=PORTABLE=false
+
+      # deb
+      - name: Build .deb package
+        run: |
+          PKG="aqloss_${{ env.VERSION }}_amd64"
+          BUNDLE="build/linux/x64/release/bundle"
+
+          mkdir -p "$PKG/DEBIAN"
+          mkdir -p "$PKG/opt/aqloss"
+          mkdir -p "$PKG/usr/bin"
+          mkdir -p "$PKG/usr/share/applications"
+          mkdir -p "$PKG/usr/share/icons/hicolor/256x256/apps"
+
+          cp -r "$BUNDLE/." "$PKG/opt/aqloss/"
+
+          EXE=$(find "$PKG/opt/aqloss" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | head -1)
+          EXE_NAME=$(basename "$EXE")
+          if [ "$EXE_NAME" != "aqloss" ]; then
+            mv "$EXE" "$PKG/opt/aqloss/aqloss"
+            echo "Renamed $EXE_NAME → aqloss"
+          fi
+
+          ln -s /opt/aqloss/aqloss "$PKG/usr/bin/aqloss"
+
+          cat > "$PKG/usr/share/applications/aqloss.desktop" << 'DESKTOP'
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Aqloss
+          GenericName=Music Player
+          Comment=High-quality local music player
+          Exec=/opt/aqloss/aqloss
+          Icon=aqloss
+          Categories=Audio;Music;Player;AudioVideo;
+          Terminal=false
+          StartupWMClass=aqloss
+          DESKTOP
+
+          [ -f "assets/icons/icon_256.png" ] && \
+            cp "assets/icons/icon_256.png" "$PKG/usr/share/icons/hicolor/256x256/apps/aqloss.png"
+
+          cat > "$PKG/DEBIAN/control" << EOF
+          Package: aqloss
+          Version: ${{ env.VERSION }}
+          Architecture: amd64
+          Maintainer: nokarin <contact@nokarin.my.id>
+          Description: Aqloss is a high-quality local music player with a clean UI built with Flutter, powered by a Rust audio engine with WASAPI exclusive mode on Windows.
+          Depends: libgtk-3-0, libblkid1, liblzma5, libasound2
+          Section: sound
+          Priority: optional
+          Homepage: https://github.com/nokarin-dev/aqloss
+          EOF
+
+          cat > "$PKG/DEBIAN/postinst" << 'POSTINST'
+          #!/bin/sh
+          chmod +x /opt/aqloss/aqloss 2>/dev/null || true
+          update-desktop-database /usr/share/applications 2>/dev/null || true
+          exit 0
+          POSTINST
+          chmod 755 "$PKG/DEBIAN/postinst"
+
+          cat > "$PKG/DEBIAN/postrm" << 'POSTRM'
+          #!/bin/sh
+          update-desktop-database /usr/share/applications 2>/dev/null || true
+          exit 0
+          POSTRM
+          chmod 755 "$PKG/DEBIAN/postrm"
+
+          fakeroot dpkg-deb --build "$PKG"
+          mv "$PKG.deb" "Aqloss-linux-installer.deb"
+          echo "✓ .deb built"
+          dpkg-deb --info "Aqloss-linux-installer.deb"
+
+      # AppImage
+      - name: Build .AppImage
+        run: |
+          BUNDLE="build/linux/x64/release/bundle"
+
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+            -O /tmp/appimagetool.AppImage
+          chmod +x /tmp/appimagetool.AppImage
+          cd /tmp && ./appimagetool.AppImage --appimage-extract > /dev/null 2>&1
+          APPIMAGETOOL="/tmp/squashfs-root/AppRun"
+          cd "$GITHUB_WORKSPACE"
+
+          mkdir -p AppDir/app
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          cp -r "$BUNDLE/." AppDir/app/
+
+          if [ -f "assets/icons/icon_256.png" ]; then
+            cp "assets/icons/icon_256.png" AppDir/usr/share/icons/hicolor/256x256/apps/aqloss.png
+            cp "assets/icons/icon_64.png"  AppDir/aqloss.png
+          else
+            printf 'PNG' > AppDir/aqloss.png
+          fi
+
+          cat > AppDir/aqloss.desktop << 'DESKTOP'
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Aqloss
+          GenericName=Music Player
+          Comment=High-quality local music player
+          Exec=aqloss
+          Icon=aqloss
+          Categories=Audio;Music;AudioVideo;
+          Terminal=false
+          DESKTOP
+
+          cat > AppDir/AppRun << 'APPRUN'
+          #!/bin/sh
+          APPDIR="$(dirname "$(readlink -f "$0")")"
+          export LD_LIBRARY_PATH="$APPDIR/app/lib:$LD_LIBRARY_PATH"
+          EXE_NAME=$(find "$APPDIR/app" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" \
+            | xargs -I{} basename {} | head -1)
+          [ -z "$EXE_NAME" ] && echo "Aqloss: executable not found" >&2 && exit 1
+          cd "$APPDIR/app"
+          exec "./$EXE_NAME" "$@"
+          APPRUN
+          chmod +x AppDir/AppRun
+
+          ARCH=x86_64 "$APPIMAGETOOL" --no-appstream AppDir "Aqloss-linux.AppImage"
+          chmod +x "Aqloss-linux.AppImage"
+          echo "✓ AppImage built"
+
+      # Portable
+      - name: Build Linux (portable)
+        run: flutter build linux --release --dart-define=PORTABLE=true
+
+      - name: Package portable (.tar.gz)
+        run: |
+          tar -czf Aqloss-linux-portable.tar.gz \
+            -C build/linux/x64/release/bundle .
+          echo "✓ portable tarball built"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            Aqloss-linux-installer.deb
+            Aqloss-linux.AppImage
+            Aqloss-linux-portable.tar.gz
+
+  # Linux RPM
+  build-linux-rpm:
+    name: Linux (RPM)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    env:
+      GIT_CONFIG_GLOBAL: /root/.gitconfig-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo dnf install -y @development-tools \
+            clang cmake ninja-build pkg-config \
+            gtk3-devel xz-devel libstdc++-devel \
+            alsa-lib-devel pulseaudio-libs-devel \
+            rpm-build desktop-file-utils hicolor-icon-theme jq which
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory '*'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Get version
+        run: |
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      - name: Build Linux (release)
+        run: flutter build linux --release --dart-define=PORTABLE=false
+
+      - name: Build .rpm package
+        run: |
+          VERSION="${{ env.VERSION }}"
+          BUNDLE_DIR="$GITHUB_WORKSPACE/build/linux/x64/release/bundle"
+          RPMROOT="$GITHUB_WORKSPACE/rpmbuild"
+
+          mkdir -p "$RPMROOT"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          echo "$BUNDLE_DIR" > "$RPMROOT/SOURCES/bundle_path.txt"
+
+          [ -f "$GITHUB_WORKSPACE/assets/icons/icon_256.png" ] && \
+            cp "$GITHUB_WORKSPACE/assets/icons/icon_256.png" "$RPMROOT/SOURCES/aqloss.png"
+
+          cat > "$RPMROOT/SOURCES/aqloss.desktop" << 'DESKTOP'
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Aqloss
+          Exec=/opt/aqloss/aqloss
+          Icon=aqloss
+          Categories=Audio;Music;AudioVideo;
+          Terminal=false
+          StartupWMClass=aqloss
+          DESKTOP
+
+          cat > "$RPMROOT/SPECS/aqloss.spec" << SPEC
+          Name:           Aqloss
+          Version:        ${VERSION}
+          Release:        1%{?dist}
+          Summary:        High-quality local music player
+          License:        GPLv3
+          URL:            https://github.com/nokarin-dev/aqloss
+          BuildArch:      x86_64
+          Requires:       gtk3, xz-libs, alsa-lib
+
+          %description
+          Aqloss is a high-quality local music player with a clean UI
+          built with Flutter, powered by a Rust audio engine.
+
+          %install
+          BUNDLE=\$(cat $RPMROOT/SOURCES/bundle_path.txt)
+          mkdir -p %{buildroot}/opt/aqloss
+          mkdir -p %{buildroot}/usr/bin
+          mkdir -p %{buildroot}/usr/share/applications
+          mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
+
+          cp -r \$BUNDLE/. %{buildroot}/opt/aqloss/
+
+          EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | head -1)
+          EXE_NAME=\$(basename \$EXE)
+          if [ "\$EXE_NAME" != "aqloss" ]; then
+            mv "\$EXE" %{buildroot}/opt/aqloss/aqloss
+          fi
+          chmod +x %{buildroot}/opt/aqloss/aqloss
+
+          ln -s /opt/aqloss/aqloss %{buildroot}/usr/bin/aqloss
+
+          cp $RPMROOT/SOURCES/aqloss.desktop \
+            %{buildroot}/usr/share/applications/aqloss.desktop
+
+          if [ -f "$RPMROOT/SOURCES/aqloss.png" ]; then
+            cp $RPMROOT/SOURCES/aqloss.png \
+              %{buildroot}/usr/share/icons/hicolor/256x256/apps/aqloss.png
+          fi
+
+          %post
+          chmod +x /opt/aqloss/aqloss 2>/dev/null || true
+          update-desktop-database /usr/share/applications 2>/dev/null || true
+          /usr/bin/gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
+          exit 0
+
+          %postun
+          update-desktop-database /usr/share/applications 2>/dev/null || true
+          /usr/bin/gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
+          exit 0
+
+          %files
+          %attr(0755, root, root) /usr/bin/aqloss
+          /opt/aqloss/*
+          /usr/share/applications/aqloss.desktop
+          /usr/share/icons/hicolor/256x256/apps/aqloss.png
+          SPEC
+
+          rpmbuild -bb \
+            --define "_topdir $RPMROOT" \
+            --define "_builddir $RPMROOT/BUILD" \
+            --define "__os_install_post %{nil}" \
+            "$RPMROOT/SPECS/aqloss.spec"
+
+          RPM_FILE=$(find "$RPMROOT/RPMS/x86_64" -name "*.rpm" | head -1)
+          [ -z "$RPM_FILE" ] && echo "✗ RPM not found!" && exit 1
+          cp "$RPM_FILE" "$GITHUB_WORKSPACE/Aqloss-linux-installer.rpm"
+          echo "✓ RPM built"
+          rpm -qip "$GITHUB_WORKSPACE/Aqloss-linux-installer.rpm"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-rpm-build
+          path: Aqloss-linux-installer.rpm
+
+  # Android
+  build-android:
+    name: Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable + Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: android-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: android-cargo-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Setup release signing
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/keystore.jks
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=keystore.jks
+          EOF
+          echo "SIGNING_CONFIGURED=true" >> $GITHUB_ENV
+
+      - name: Build split APKs (release)
+        run: flutter build apk --release --dart-define=PORTABLE=false --split-per-abi
+
+      - name: Verify APK signing
+        if: env.SIGNING_CONFIGURED == 'true'
+        run: |
+          for apk in \
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+            build/app/outputs/flutter-apk/app-x86_64-release.apk; do
+            echo "Verifying $apk..."
+            $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | tail -1)/apksigner \
+              verify --verbose "$apk" 2>&1 | grep -E "Verified|error" || true
+          done
+          echo "✓ APK signing verified"
+
+      - name: Rename APKs
+        run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk   Aqloss-android-arm64.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Aqloss-android-arm32.apk
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk      Aqloss-android-x86_64.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: |
+            Aqloss-android-arm64.apk
+            Aqloss-android-arm32.apk
+            Aqloss-android-x86_64.apk
+
+  # GitHub Release
+  release:
+    name: Create Release
+    needs: [build-windows, build-linux, build-linux-rpm, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: "*-build*"
+          merge-multiple: true
+
+      - name: Generate changelog
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_BARE="${VERSION#v}"
+
+          SECTION=$(awk \
+            "/^## \[$VERSION_BARE\]/{found=1; next} found && /^## \[/{exit} found{print}" \
+            changelog.md 2>/dev/null || true)
+
+          if [ -z "$SECTION" ]; then
+            PREV_TAG=$(git tag --sort=-version:refname | sed -n '2p')
+            if [ -z "$PREV_TAG" ]; then
+              SECTION=$(git log --oneline --no-decorate | head -20)
+            else
+              SECTION=$(git log --oneline --no-decorate ${PREV_TAG}..HEAD)
+            fi
+          fi
+
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$SECTION" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Aqloss ${{ github.ref_name }}"
+          body: |
+            ${{ env.CHANGELOG }}
+
+            ---
+
+            ## Downloads
+
+            ### Windows
+            [![Windows-Installer](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-windows-installer.exe?style=for-the-badge&logo=windows&logoColor=white&label=Installer&color=blue)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-windows-installer.exe)
+            [![Windows-Portable](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-windows-portable.zip?style=for-the-badge&logo=windows&logoColor=white&label=Portable&color=blue)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-windows-portable.zip)
+
+            ### Linux
+            [![Linux-Debian](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-installer.deb?style=for-the-badge&logo=linux&logoColor=white&label=.deb&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.deb)
+            [![Linux-RPM](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-installer.rpm?style=for-the-badge&logo=linux&logoColor=white&label=.rpm&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.rpm)
+            [![Linux-AppImage](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux.AppImage?style=for-the-badge&logo=linux&logoColor=white&label=AppImage&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux.AppImage)
+            [![Linux-Portable](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-portable.tar.gz?style=for-the-badge&logo=linux&logoColor=white&label=Portable&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-portable.tar.gz)
+
+            ### Android
+            [![Android-ARM64](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-arm64.apk?style=for-the-badge&logo=android&logoColor=white&label=ARM64&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm64.apk)
+            [![Android-ARM32](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-arm32.apk?style=for-the-badge&logo=android&logoColor=white&label=ARM32&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm32.apk)
+            [![Android-x86_64](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-x86_64.apk?style=for-the-badge&logo=android&logoColor=white&label=x86_64&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-x86_64.apk)
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            dist/Aqloss-windows-installer.exe
+            dist/Aqloss-windows-portable.zip
+            dist/Aqloss-linux-installer.deb
+            dist/Aqloss-linux-installer.rpm
+            dist/Aqloss-linux.AppImage
+            dist/Aqloss-linux-portable.tar.gz
+            dist/Aqloss-android-arm64.apk
+            dist/Aqloss-android-arm32.apk
+            dist/Aqloss-android-x86_64.apk
+          fail_on_unmatched_files: false
+          token: ${{ secrets.GITHUB_TOKEN }}
