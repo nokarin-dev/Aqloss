@@ -55,16 +55,17 @@ impl AudioOutput {
         let supported = device.default_output_config()?;
         let sample_rate = supported.sample_rate().0;
         let channels = supported.channels() as u32;
+        let buffer_size = cpal::BufferSize::Fixed(256);
 
         let config = cpal::StreamConfig {
             channels: supported.channels(),
             sample_rate: supported.sample_rate(),
-            buffer_size: cpal::BufferSize::Default,
+            buffer_size,
         };
 
-        let ring: RingBuffer = std::sync::Arc::new(std::sync::Mutex::new(Vec::with_capacity(
-            sample_rate as usize * channels as usize,
-        )));
+        let ring_cap = sample_rate as usize * channels as usize * 2;
+        let ring: RingBuffer =
+            std::sync::Arc::new(std::sync::Mutex::new(Vec::with_capacity(ring_cap)));
         let ring_cb = ring.clone();
 
         let stream = device.build_output_stream(
@@ -73,9 +74,7 @@ impl AudioOutput {
                 let mut buf = ring_cb.lock().unwrap();
                 let n = buf.len().min(output.len());
                 output[..n].copy_from_slice(&buf[..n]);
-                for s in &mut output[n..] {
-                    *s = 0.0;
-                }
+                output[n..].fill(f32::default());
                 buf.drain(..n);
             },
             |err| eprintln!("[cpal] stream error: {err}"),
@@ -83,6 +82,11 @@ impl AudioOutput {
         )?;
 
         stream.play()?;
+
+        eprintln!(
+            "[aqloss] shared-mode output: {}Hz {}ch (buffer=256 frames)",
+            sample_rate, channels
+        );
 
         Ok(Self {
             _stream: AudioStream::Cpal(stream),
@@ -137,6 +141,11 @@ mod wasapi_exclusive {
                 device.Activate(CLSCTX_ALL, None)?;
 
             let candidates: &[(u32, u16, u16)] = &[
+                (192000, 32, 2),
+                (96000, 32, 2),
+                (88200, 32, 2),
+                (48000, 32, 2),
+                (44100, 32, 2),
                 (192000, 24, 2),
                 (96000, 24, 2),
                 (88200, 24, 2),
@@ -223,9 +232,7 @@ mod wasapi_exclusive {
                 let mut ring_lock = ring_cb.lock().unwrap();
                 let n = ring_lock.len().min(output.len());
                 output[..n].copy_from_slice(&ring_lock[..n]);
-                for s in &mut output[n..] {
-                    *s = 0.0;
-                }
+                output[n..].fill(0.0);
                 ring_lock.drain(..n);
                 drop(ring_lock);
                 let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);

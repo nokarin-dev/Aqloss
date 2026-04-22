@@ -1,12 +1,15 @@
 use anyhow::Result;
-use rubato::{FftFixedIn, Resampler as RubatoResampler};
+use rubato::FftFixedIn;
 
-const CHUNK_FRAMES: usize = 1024;
+const CHUNK_FRAMES: usize = 2048;
+const SINC_OVERSAMPLING: usize = 2;
 
 pub struct Resampler {
     inner: FftFixedIn<f32>,
     channels: usize,
     in_buf: Vec<Vec<f32>>,
+    source_rate: usize,
+    target_rate: usize,
 }
 
 impl Resampler {
@@ -15,13 +18,15 @@ impl Resampler {
             source_rate as usize,
             target_rate as usize,
             CHUNK_FRAMES,
-            2,
+            SINC_OVERSAMPLING,
             channels as usize,
         )?;
         Ok(Self {
             inner,
             channels: channels as usize,
-            in_buf: vec![Vec::new(); channels as usize],
+            in_buf: vec![Vec::with_capacity(source_rate as usize); channels as usize],
+            source_rate: source_rate as usize,
+            target_rate: target_rate as usize,
         })
     }
 
@@ -43,7 +48,7 @@ impl Resampler {
                 .map(|ch| ch.drain(..CHUNK_FRAMES).collect())
                 .collect();
 
-            let processed = self.inner.process(&chunk, None)?;
+            let processed = rubato::Resampler::process(&mut self.inner, &chunk, None)?;
             let out_frames = processed[0].len();
 
             out_interleaved.reserve(out_frames * self.channels);
@@ -72,7 +77,7 @@ impl Resampler {
             .iter_mut()
             .map(|ch| ch.drain(..).collect())
             .collect();
-        let processed = self.inner.process(&chunk, None)?;
+        let processed = rubato::Resampler::process(&mut self.inner, &chunk, None)?;
 
         let ratio = leftover as f64 / CHUNK_FRAMES as f64;
         let keep_frames = (processed[0].len() as f64 * ratio).round() as usize;
@@ -89,6 +94,15 @@ impl Resampler {
     pub fn reset(&mut self) {
         for ch in &mut self.in_buf {
             ch.clear();
+        }
+        if let Ok(fresh) = FftFixedIn::<f32>::new(
+            self.source_rate,
+            self.target_rate,
+            CHUNK_FRAMES,
+            SINC_OVERSAMPLING,
+            self.channels,
+        ) {
+            self.inner = fresh;
         }
     }
 }

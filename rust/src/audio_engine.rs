@@ -28,6 +28,7 @@ pub struct AudioEngine {
     decoder: Option<Arc<Mutex<Decoder>>>,
     resampler: Option<Resampler>,
     volume: f32,
+    smooth_volume: f32,
     dec_sample_rate: u32,
     dec_channels: u32,
     flags: Arc<PlayFlags>,
@@ -35,6 +36,8 @@ pub struct AudioEngine {
 
 unsafe impl Send for AudioEngine {}
 unsafe impl Sync for AudioEngine {}
+
+const VOLUME_RAMP_RATE: f32 = 0.002;
 
 impl AudioEngine {
     pub fn init() -> Result<()> {
@@ -54,6 +57,7 @@ impl AudioEngine {
             decoder: None,
             resampler: None,
             volume: 1.0,
+            smooth_volume: 1.0,
             dec_sample_rate: 44100,
             dec_channels: 2,
             flags: PlayFlags::new(),
@@ -75,9 +79,9 @@ impl AudioEngine {
             return vec![0.0; n];
         }
 
-        let volume_norm = self.volume.max(0.05);
-
+        let volume_norm = self.smooth_volume.max(0.05);
         let chunk = (samples.len() / n).max(1);
+
         (0..n)
             .map(|i| {
                 let start = i * chunk;
@@ -197,8 +201,6 @@ impl AudioEngine {
         if self.flags.alive.load(Ordering::SeqCst) {
             self.flags.playing.store(false, Ordering::SeqCst);
             self.flags.alive.store(false, Ordering::SeqCst);
-            // Poll until the decode thread actually exits instead of a fixed sleep.
-            // Prevents the race where play() fires before the old thread fully stops.
             let mut waited_ms = 0u32;
             while self.flags.alive.load(Ordering::SeqCst) && waited_ms < 500 {
                 thread::sleep(Duration::from_millis(5));
@@ -214,6 +216,19 @@ impl AudioEngine {
         let flags = self.flags.clone();
         thread::spawn(move || decode_loop(engine_arc, flags));
     }
+}
+
+// Soft-clipping
+#[inline(always)]
+fn soft_clip(x: f32) -> f32 {
+    if x > 3.0 {
+        return 1.0;
+    }
+    if x < -3.0 {
+        return -1.0;
+    }
+    let x2 = x * x;
+    x * (27.0 + x2) / (27.0 + 9.0 * x2)
 }
 
 fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
@@ -256,52 +271,98 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
         match result {
             Ok(Some(raw_samples)) => {
-                let mut e = engine_arc.lock().unwrap();
-                let volume = e.volume;
-                let dec_ch = e.dec_channels;
+                let (resampled, target_vol, dec_ch) = {
+                    let mut e = engine_arc.lock().unwrap();
 
-                let resampled = if let Some(ref mut rs) = e.resampler {
-                    rs.process(&raw_samples).unwrap_or(raw_samples)
-                } else {
-                    raw_samples
+                    let target_vol = e.volume;
+                    let dec_ch = e.dec_channels;
+
+                    let resampled = if let Some(rs) = e.resampler.as_mut() {
+                        rs.process(&raw_samples).unwrap_or(raw_samples)
+                    } else {
+                        raw_samples
+                    };
+
+                    (resampled, target_vol, dec_ch)
                 };
 
                 let converted = adapt_channels(&resampled, dec_ch, out_channels);
-                let mut ring = e.output.ring.lock().unwrap();
-                ring.reserve(converted.len());
-                for s in converted {
-                    ring.push(s * volume);
+
+                let mut e = engine_arc.lock().unwrap();
+                let mut smooth = e.smooth_volume;
+
+                {
+                    let mut ring = e.output.ring.lock().unwrap();
+                    ring.reserve(converted.len());
+
+                    for s in converted {
+                        if (smooth - target_vol).abs() > VOLUME_RAMP_RATE {
+                            smooth += if target_vol > smooth {
+                                VOLUME_RAMP_RATE
+                            } else {
+                                -VOLUME_RAMP_RATE
+                            };
+                        } else {
+                            smooth = target_vol;
+                        }
+
+                        ring.push(soft_clip(s * smooth));
+                    }
                 }
+
+                e.smooth_volume = smooth;
             }
 
             Ok(None) => {
-                let mut e = engine_arc.lock().unwrap();
-                let volume = e.volume;
-                let dec_ch = e.dec_channels;
+                let (tail, target_vol, dec_ch) = {
+                    let mut e = engine_arc.lock().unwrap();
 
-                if let Some(ref mut rs) = e.resampler {
-                    if let Ok(tail) = rs.flush() {
-                        if !tail.is_empty() {
-                            let converted = adapt_channels(&tail, dec_ch, out_channels);
-                            let mut ring = e.output.ring.lock().unwrap();
-                            for s in converted {
-                                ring.push(s * volume);
+                    let target_vol = e.volume;
+                    let dec_ch = e.dec_channels;
+
+                    let tail = if let Some(rs) = e.resampler.as_mut() {
+                        rs.flush().unwrap_or_default()
+                    } else {
+                        vec![]
+                    };
+
+                    (tail, target_vol, dec_ch)
+                };
+
+                if !tail.is_empty() {
+                    let converted = adapt_channels(&tail, dec_ch, out_channels);
+
+                    let mut e = engine_arc.lock().unwrap();
+                    let mut smooth = e.smooth_volume;
+
+                    {
+                        let mut ring = e.output.ring.lock().unwrap();
+
+                        for s in converted {
+                            ring.push(soft_clip(s * smooth));
+
+                            if (smooth - target_vol).abs() > VOLUME_RAMP_RATE {
+                                smooth += if target_vol > smooth {
+                                    VOLUME_RAMP_RATE
+                                } else {
+                                    -VOLUME_RAMP_RATE
+                                };
                             }
                         }
                     }
+
+                    e.smooth_volume = smooth;
                 }
-                drop(e);
 
                 loop {
                     let rem = engine_arc.lock().unwrap().output.ring.lock().unwrap().len();
                     if rem == 0 {
                         break;
                     }
-                    thread::sleep(Duration::from_millis(10));
+                    thread::sleep(Duration::from_millis(5));
                 }
 
                 flags.playing.store(false, Ordering::SeqCst);
-                // Mark alive=false LAST so stop_thread() polling detects exit correctly
                 flags.alive.store(false, Ordering::SeqCst);
                 break;
             }
@@ -322,7 +383,21 @@ fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
     }
     match (src, dst) {
         (1, 2) => input.iter().flat_map(|&s| [s, s]).collect(),
-        (2, 1) => input.chunks_exact(2).map(|c| (c[0] + c[1]) * 0.5).collect(),
+        (2, 1) => input
+            .chunks_exact(2)
+            .map(|c| (c[0] + c[1]) * std::f32::consts::FRAC_1_SQRT_2)
+            .collect(),
+        (src_ch, 2) if src_ch > 2 => {
+            let ch = src_ch as usize;
+            input
+                .chunks_exact(ch)
+                .flat_map(|frame| {
+                    let l = frame.iter().step_by(2).sum::<f32>() / (ch as f32 / 2.0);
+                    let r = frame.iter().skip(1).step_by(2).sum::<f32>() / (ch as f32 / 2.0);
+                    [l, r]
+                })
+                .collect()
+        }
         _ => input.to_vec(),
     }
 }
