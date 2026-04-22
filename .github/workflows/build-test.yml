@@ -52,6 +52,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+          libasound2-dev libpulse-dev pkg-config
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -91,6 +97,12 @@ jobs:
           flutter-version: "3.x"
           channel: stable
           cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+          libasound2-dev libpulse-dev pkg-config
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -258,6 +270,12 @@ jobs:
           flutter-version: "3.x"
           channel: stable
           cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+          libasound2-dev libpulse-dev pkg-config
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
