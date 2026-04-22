@@ -13,7 +13,6 @@ import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/mini_player_bar.dart';
 
-// Route index constants
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -50,7 +49,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     if (_route == 1) return const PlayerScreen();
     if (_route == 2) return const SettingsScreen();
 
-    // Playlist detail
     final playlists = ref.read(playlistProvider);
     final idx = _route - 10;
     if (idx >= 0 && idx < playlists.length) {
@@ -131,66 +129,20 @@ class _SideNav extends ConsumerStatefulWidget {
 class _SideNavState extends ConsumerState<_SideNav> {
   String? _dragOverId;
 
-  Future<void> _pickFolder() async {
-    final result = await FilePicker.getDirectoryPath(
-      dialogTitle: 'Select music folder',
-    );
-    if (result != null && mounted) {
-      ref.read(libraryProvider.notifier).addFolder(result);
-    }
+  // Manage Folders popup
+  void _showFolderManager() {
+    showDialog(context: context, builder: (ctx) => _FolderManagerDialog());
   }
 
   Future<void> _createPlaylist() async {
     final ctrl = TextEditingController();
     final name = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
-          'New Playlist',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w400,
-            fontSize: 16,
-          ),
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: InputDecoration(
-            hintText: 'Playlist name',
-            hintStyle: const TextStyle(color: Colors.white30),
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.06),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-          ),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white38, fontSize: 13),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            child: const Text(
-              'Create',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-          ),
-        ],
+      builder: (ctx) => _InputDialog(
+        title: 'New Playlist',
+        hint: 'Playlist name',
+        confirmLabel: 'Create',
+        controller: ctrl,
       ),
     );
     if (name != null && name.isNotEmpty) {
@@ -232,7 +184,7 @@ class _SideNavState extends ConsumerState<_SideNav> {
             onTap: () => widget.onSelect(1),
           ),
 
-          // Library tools
+          // Library section
           const _SectionDivider('LIBRARY'),
           _NavItem(
             icon: Icons.folder_open_outlined,
@@ -249,7 +201,7 @@ class _SideNavState extends ConsumerState<_SideNav> {
                     ),
                   )
                 : null,
-            onTap: _pickFolder,
+            onTap: _showFolderManager,
           ),
           _NavItem(
             icon: Icons.refresh_rounded,
@@ -260,7 +212,7 @@ class _SideNavState extends ConsumerState<_SideNav> {
                 ? null
                 : () => ref.read(libraryProvider.notifier).rescanAll(),
           ),
-          if (library.totalTracks > 0) ...[
+          if (library.totalTracks > 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: Text(
@@ -268,9 +220,8 @@ class _SideNavState extends ConsumerState<_SideNav> {
                 style: const TextStyle(fontSize: 10, color: Colors.white24),
               ),
             ),
-          ],
 
-          // Playlists
+          // Playlists section
           Row(
             children: [
               const _SectionDivider('PLAYLISTS'),
@@ -292,7 +243,7 @@ class _SideNavState extends ConsumerState<_SideNav> {
                 ? Padding(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
                     child: Text(
-                      'Drag tracks here\nto create a playlist',
+                      'No playlists yet',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.white.withValues(alpha: 0.18),
@@ -317,61 +268,42 @@ class _SideNavState extends ConsumerState<_SideNav> {
                           ref
                               .read(playlistProvider.notifier)
                               .addTrack(pl.id, details.data);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Added to "${pl.name}"',
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                              backgroundColor: const Color(0xFF1E1E1E),
-                              behavior: SnackBarBehavior.floating,
-                              duration: const Duration(seconds: 2),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          );
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(_snackBar('Added to "${pl.name}"'));
                         },
-                        builder: (_, candidates, _) {
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isOver
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(6),
-                              border: isOver
-                                  ? Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      width: 1,
-                                    )
-                                  : null,
-                            ),
-                            child: _PlaylistNavItem(
-                              playlist: pl,
-                              isActive: widget.route == (i + 10),
-                              onTap: () => widget.onSelect(i + 10),
-                              onDelete: () => ref
-                                  .read(playlistProvider.notifier)
-                                  .delete(pl.id),
-                              onRename: () => _renamePlaylist(context, pl),
-                              onPlay: pl.tracks.isNotEmpty
-                                  ? () => ref
-                                        .read(playerProvider.notifier)
-                                        .loadWithQueue(
-                                          pl.tracks.first,
-                                          pl.tracks,
-                                        )
-                                  : null,
-                            ),
-                          );
-                        },
+                        builder: (_, _, _) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isOver
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                            border: isOver
+                                ? Border.all(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                  )
+                                : null,
+                          ),
+                          child: _PlaylistNavItem(
+                            playlist: pl,
+                            isActive: widget.route == (i + 10),
+                            onTap: () => widget.onSelect(i + 10),
+                            onDelete: () => ref
+                                .read(playlistProvider.notifier)
+                                .delete(pl.id),
+                            onRename: () => _renamePlaylist(context, pl),
+                            onPlay: pl.tracks.isNotEmpty
+                                ? () => ref
+                                      .read(playerProvider.notifier)
+                                      .loadWithQueue(pl.tracks.first, pl.tracks)
+                                : null,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -397,51 +329,11 @@ class _SideNavState extends ConsumerState<_SideNav> {
     final ctrl = TextEditingController(text: pl.name);
     final name = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
-          'Rename',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w400,
-            fontSize: 16,
-          ),
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.06),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-          ),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white38, fontSize: 13),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            child: const Text(
-              'Save',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-          ),
-        ],
+      builder: (ctx) => _InputDialog(
+        title: 'Rename',
+        hint: pl.name,
+        confirmLabel: 'Save',
+        controller: ctrl,
       ),
     );
     if (name != null && name.isNotEmpty) {
@@ -450,7 +342,617 @@ class _SideNavState extends ConsumerState<_SideNav> {
   }
 }
 
-// Nav item
+// Folder Manager Dialog
+class _FolderManagerDialog extends ConsumerWidget {
+  const _FolderManagerDialog();
+
+  Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
+    final result = await FilePicker.getDirectoryPath(
+      dialogTitle: 'Select music folder',
+    );
+    if (result != null) {
+      ref.read(libraryProvider.notifier).addFolder(result);
+    }
+  }
+
+  String _shortPath(String path) {
+    final parts = path.replaceAll('\\', '/').split('/');
+    if (parts.length <= 3) return path;
+    return '…/${parts.sublist(parts.length - 2).join('/')}';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final library = ref.watch(libraryProvider);
+    final folders = library.folders;
+    final isScanning = library.status == LibraryStatus.scanning;
+
+    return Dialog(
+      backgroundColor: const Color(0xFF141414),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480, minWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  const Text(
+                    'Music Folders',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (isScanning)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: Colors.white24,
+                      ),
+                    ),
+                  if (!isScanning && folders.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () =>
+                          ref.read(libraryProvider.notifier).rescanAll(),
+                      icon: const Icon(Icons.refresh_rounded, size: 13),
+                      label: const Text('Rescan'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white38,
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Folder list
+              if (folders.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text(
+                      'No folders added yet',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: folders.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (ctx, i) {
+                      final folder = folders[i];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.folder_rounded,
+                              size: 16,
+                              color: Colors.white30,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _shortPath(folder),
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    folder,
+                                    style: const TextStyle(
+                                      color: Colors.white24,
+                                      fontSize: 10,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => ref
+                                  .read(libraryProvider.notifier)
+                                  .removeFolder(folder),
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.remove_rounded,
+                                  size: 14,
+                                  color: Colors.white38,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+              const SizedBox(height: 12),
+              const Divider(color: Colors.white10, height: 1),
+              const SizedBox(height: 12),
+
+              // Add folder button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: isScanning ? null : () => _addFolder(context, ref),
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('Add folder'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white54,
+                    side: const BorderSide(color: Colors.white12),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Playlist nav item
+class _PlaylistNavItem extends StatefulWidget {
+  final Playlist playlist;
+  final bool isActive;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onRename;
+  final VoidCallback? onPlay;
+
+  const _PlaylistNavItem({
+    required this.playlist,
+    required this.isActive,
+    required this.onTap,
+    required this.onDelete,
+    required this.onRename,
+    this.onPlay,
+  });
+
+  @override
+  State<_PlaylistNavItem> createState() => _PlaylistNavItemState();
+}
+
+class _PlaylistNavItemState extends State<_PlaylistNavItem> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            color: widget.isActive
+                ? Colors.white.withValues(alpha: 0.07)
+                : _hovered
+                ? Colors.white.withValues(alpha: 0.03)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.queue_music_rounded,
+                size: 14,
+                color: widget.isActive ? Colors.white70 : Colors.white30,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.playlist.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: widget.isActive ? Colors.white : Colors.white60,
+                        fontWeight: widget.isActive
+                            ? FontWeight.w500
+                            : FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${widget.playlist.length} tracks',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white24,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Context menu
+              if (_hovered || widget.isActive)
+                GestureDetector(
+                  onTap: () {},
+                  child: PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.more_horiz_rounded,
+                      size: 14,
+                      color: Colors.white38,
+                    ),
+                    color: const Color(0xFF1E1E1E),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    itemBuilder: (_) => [
+                      if (widget.onPlay != null)
+                        const PopupMenuItem(
+                          value: 'play',
+                          height: 36,
+                          child: Text(
+                            'Play',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'rename',
+                        height: 36,
+                        child: Text(
+                          'Rename',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        height: 36,
+                        child: Text(
+                          'Delete',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onSelected: (v) {
+                      if (v == 'play') widget.onPlay?.call();
+                      if (v == 'rename') widget.onRename();
+                      if (v == 'delete') widget.onDelete();
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Playlist detail
+class _PlaylistDetailScreen extends ConsumerWidget {
+  final Playlist playlist;
+  const _PlaylistDetailScreen({required this.playlist});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playlists = ref.watch(playlistProvider);
+    final current = playlists.firstWhere(
+      (p) => p.id == playlist.id,
+      orElse: () => playlist,
+    );
+    final notifier = ref.read(playlistProvider.notifier);
+    final playerNotifier = ref.read(playerProvider.notifier);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0A0A),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        current.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${current.length} tracks · ${current.durationLabel}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (current.tracks.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => playerNotifier.loadWithQueue(
+                      current.tracks.first,
+                      current.tracks,
+                    ),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.black,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+          Expanded(
+            child: current.tracks.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.queue_music_rounded,
+                          size: 36,
+                          color: Colors.white12,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No tracks yet',
+                          style: TextStyle(color: Colors.white38, fontSize: 14),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Drag tracks here or long-press in Library',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ReorderableListView.builder(
+                    onReorder: (old, newIdx) =>
+                        notifier.reorderTrack(current.id, old, newIdx),
+                    itemCount: current.tracks.length,
+                    itemBuilder: (ctx, i) {
+                      final t = current.tracks[i];
+                      return Dismissible(
+                        key: ValueKey('${current.id}_${t.path}_$i'),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red.withValues(alpha: 0.15),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.redAccent,
+                            size: 18,
+                          ),
+                        ),
+                        onDismissed: (_) => notifier.removeTrack(current.id, i),
+                        child: _PlaylistTrackTile(
+                          key: ValueKey('tile_${t.path}_$i'),
+                          track: t,
+                          index: i,
+                          onTap: () =>
+                              playerNotifier.loadWithQueue(t, current.tracks),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Playlist track tile
+class _PlaylistTrackTile extends ConsumerWidget {
+  final Track track;
+  final int index;
+  final VoidCallback onTap;
+  const _PlaylistTrackTile({
+    super.key,
+    required this.track,
+    required this.index,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isPlaying =
+        ref.watch(playerProvider).currentTrack?.path == track.path;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.only(left: 16, right: 0),
+      leading: SizedBox(
+        width: 36,
+        height: 36,
+        child: Center(
+          child: Text(
+            isPlaying ? '▶' : '${index + 1}',
+            style: TextStyle(
+              fontSize: isPlaying ? 12 : 11,
+              color: isPlaying ? Colors.white : Colors.white30,
+            ),
+          ),
+        ),
+      ),
+      title: Text(
+        track.displayTitle,
+        style: TextStyle(
+          color: isPlaying ? Colors.white : Colors.white70,
+          fontSize: 13,
+          fontWeight: isPlaying ? FontWeight.w500 : FontWeight.w400,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        track.displayArtist,
+        style: const TextStyle(color: Colors.white30, fontSize: 11),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            track.durationLabel,
+            style: const TextStyle(fontSize: 11, color: Colors.white24),
+          ),
+          const SizedBox(width: 4),
+          ReorderableDragStartListener(
+            index: index,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+              child: Icon(
+                Icons.drag_handle_rounded,
+                size: 16,
+                color: Colors.white24,
+              ),
+            ),
+          ),
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+// Shared helpers
+SnackBar _snackBar(String text) => SnackBar(
+  content: Text(text, style: const TextStyle(fontSize: 12)),
+  backgroundColor: const Color(0xFF1E1E1E),
+  behavior: SnackBarBehavior.floating,
+  duration: const Duration(seconds: 2),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+);
+
+class _InputDialog extends StatelessWidget {
+  final String title;
+  final String hint;
+  final String confirmLabel;
+  final TextEditingController controller;
+  const _InputDialog({
+    required this.title,
+    required this.hint,
+    required this.confirmLabel,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w400,
+          fontSize: 16,
+        ),
+      ),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.white30),
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.06),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+        ),
+        onSubmitted: (v) => Navigator.pop(context, v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: Colors.white38, fontSize: 13),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, controller.text),
+          child: Text(
+            confirmLabel,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Nav helpers
 class _NavItem extends StatefulWidget {
   final IconData icon;
   final IconData activeIcon;
@@ -533,126 +1035,6 @@ class _NavItemState extends State<_NavItem> {
   }
 }
 
-class _PlaylistNavItem extends StatefulWidget {
-  final Playlist playlist;
-  final bool isActive;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
-  final VoidCallback onRename;
-  final VoidCallback? onPlay;
-
-  const _PlaylistNavItem({
-    required this.playlist,
-    required this.isActive,
-    required this.onTap,
-    required this.onDelete,
-    required this.onRename,
-    this.onPlay,
-  });
-
-  @override
-  State<_PlaylistNavItem> createState() => _PlaylistNavItemState();
-}
-
-class _PlaylistNavItemState extends State<_PlaylistNavItem> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            children: [
-              Icon(
-                Icons.queue_music_rounded,
-                size: 14,
-                color: widget.isActive ? Colors.white70 : Colors.white30,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.playlist.name,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: widget.isActive ? Colors.white : Colors.white60,
-                        fontWeight: widget.isActive
-                            ? FontWeight.w500
-                            : FontWeight.w400,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '${widget.playlist.length} tracks',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white24,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_hovered || widget.isActive)
-                PopupMenuButton<String>(
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(
-                    Icons.more_horiz_rounded,
-                    size: 14,
-                    color: Colors.white38,
-                  ),
-                  color: const Color(0xFF1E1E1E),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  itemBuilder: (_) => [
-                    if (widget.onPlay != null)
-                      const PopupMenuItem(
-                        value: 'play',
-                        height: 36,
-                        child: Text(
-                          'Play',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
-                        ),
-                      ),
-                    const PopupMenuItem(
-                      value: 'rename',
-                      height: 36,
-                      child: Text(
-                        'Rename',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      height: 36,
-                      child: Text(
-                        'Delete',
-                        style: TextStyle(color: Colors.redAccent, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                  onSelected: (v) {
-                    if (v == 'play') widget.onPlay?.call();
-                    if (v == 'rename') widget.onRename();
-                    if (v == 'delete') widget.onDelete();
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SectionDivider extends StatelessWidget {
   final String label;
   const _SectionDivider(this.label);
@@ -719,210 +1101,6 @@ class _NowPlayingDot extends StatelessWidget {
             : Colors.white24,
         shape: BoxShape.circle,
       ),
-    );
-  }
-}
-
-// Playlist details
-class _PlaylistDetailScreen extends ConsumerWidget {
-  final Playlist playlist;
-  const _PlaylistDetailScreen({required this.playlist});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final playlists = ref.watch(playlistProvider);
-    final current = playlists.firstWhere(
-      (p) => p.id == playlist.id,
-      orElse: () => playlist,
-    );
-    final notifier = ref.read(playlistProvider.notifier);
-    final playerNotifier = ref.read(playerProvider.notifier);
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        current.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w300,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${current.length} tracks · ${current.durationLabel}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white38,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (current.tracks.isNotEmpty)
-                  _PlayBtn(
-                    onTap: () => playerNotifier.loadWithQueue(
-                      current.tracks.first,
-                      current.tracks,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(color: Colors.white10, height: 1),
-          Expanded(
-            child: current.tracks.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.queue_music_rounded,
-                          size: 36,
-                          color: Colors.white12,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'No tracks yet',
-                          style: TextStyle(color: Colors.white38, fontSize: 14),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Drag tracks from the library',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ReorderableListView.builder(
-                    onReorder: (old, newIdx) =>
-                        notifier.reorderTrack(current.id, old, newIdx),
-                    itemCount: current.tracks.length,
-                    itemBuilder: (ctx, i) {
-                      final t = current.tracks[i];
-                      return Dismissible(
-                        key: ValueKey('${current.id}_${t.path}_$i'),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red.withValues(alpha: 0.15),
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          child: const Icon(
-                            Icons.delete_outline_rounded,
-                            color: Colors.redAccent,
-                            size: 18,
-                          ),
-                        ),
-                        onDismissed: (_) => notifier.removeTrack(current.id, i),
-                        child: _PlaylistTrackTile(
-                          key: ValueKey('tile_${t.path}_$i'),
-                          track: t,
-                          index: i,
-                          onTap: () =>
-                              playerNotifier.loadWithQueue(t, current.tracks),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlayBtn extends StatelessWidget {
-  final VoidCallback onTap;
-  const _PlayBtn({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Icon(
-          Icons.play_arrow_rounded,
-          color: Colors.black,
-          size: 20,
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaylistTrackTile extends ConsumerWidget {
-  final Track track;
-  final int index;
-  final VoidCallback onTap;
-  const _PlaylistTrackTile({
-    super.key,
-    required this.track,
-    required this.index,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isPlaying =
-        ref.watch(playerProvider).currentTrack?.path == track.path;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: SizedBox(
-        width: 36,
-        height: 36,
-        child: Center(
-          child: Text(
-            isPlaying ? '▶' : '${index + 1}',
-            style: TextStyle(
-              fontSize: isPlaying ? 12 : 11,
-              color: isPlaying ? Colors.white : Colors.white30,
-            ),
-          ),
-        ),
-      ),
-      title: Text(
-        track.displayTitle,
-        style: TextStyle(
-          color: isPlaying ? Colors.white : Colors.white70,
-          fontSize: 13,
-          fontWeight: isPlaying ? FontWeight.w500 : FontWeight.w400,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        track.displayArtist,
-        style: const TextStyle(color: Colors.white30, fontSize: 11),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Text(
-        track.durationLabel,
-        style: const TextStyle(fontSize: 11, color: Colors.white24),
-      ),
-      onTap: onTap,
     );
   }
 }

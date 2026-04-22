@@ -1,7 +1,13 @@
 use anyhow::{anyhow, Result};
 pub type RingBuffer = std::sync::Arc<std::sync::Mutex<Vec<f32>>>;
 
-// AudioOutput
+#[allow(dead_code)]
+enum AudioStream {
+    Cpal(cpal::Stream),
+    #[cfg(target_os = "windows")]
+    WasapiExclusive(wasapi_exclusive::ExclusiveStream),
+}
+
 pub struct AudioOutput {
     _stream: AudioStream,
     pub ring: RingBuffer,
@@ -10,15 +16,9 @@ pub struct AudioOutput {
     pub exclusive: bool,
 }
 
-#[allow(dead_code)]
-enum AudioStream {
-    Cpal(cpal::Stream),
-    #[cfg(target_os = "windows")]
-    WasapiExclusive(wasapi_exclusive::ExclusiveStream),
-}
-
 impl AudioOutput {
     pub fn new() -> Result<Self> {
+        // WASAPI Exclusive Mode (Windows)
         #[cfg(target_os = "windows")]
         {
             match wasapi_exclusive::ExclusiveStream::open() {
@@ -35,11 +35,12 @@ impl AudioOutput {
                     });
                 }
                 Err(e) => {
-                    eprintln!("[wasapi-exclusive] falling back to shared mode: {e}");
+                    eprintln!("[wasapi-exclusive] falling back to shared: {e}");
                 }
             }
         }
 
+        // CPAL shared mode
         Self::new_cpal_shared()
     }
 
@@ -99,12 +100,13 @@ mod wasapi_exclusive {
     use anyhow::{anyhow, Result};
     use std::sync::{Arc, Mutex};
     use std::thread;
+    use std::time::Duration;
     use windows::{
         core::PCWSTR,
         Win32::{
             Foundation::HANDLE,
             Media::Audio::{
-                eConsole, eRender, AudioClient_ShareMode, IMMDeviceEnumerator, MMDeviceEnumerator,
+                eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
                 AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, WAVEFORMATEX,
                 WAVE_FORMAT_PCM,
             },
@@ -126,24 +128,20 @@ mod wasapi_exclusive {
         }
 
         unsafe fn open_inner() -> Result<Self> {
-            // Initialize COM
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
 
-            // Get default render device
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
             let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-
-            // Activate IAudioClient
             let audio_client: windows::Win32::Media::Audio::IAudioClient =
                 device.Activate(CLSCTX_ALL, None)?;
 
             let candidates: &[(u32, u16, u16)] = &[
+                (192000, 24, 2),
                 (96000, 24, 2),
                 (88200, 24, 2),
                 (48000, 24, 2),
                 (44100, 24, 2),
-                (192000, 24, 2),
                 (48000, 16, 2),
                 (44100, 16, 2),
             ];
@@ -168,10 +166,16 @@ mod wasapi_exclusive {
                 }
             }
 
-            let fmt =
-                chosen_fmt.ok_or_else(|| anyhow!("No exclusive format supported by device"))?;
+            let fmt = chosen_fmt.ok_or_else(|| {
+                anyhow!(
+                    "No exclusive format supported by this device.\n\
+                    Possible causes:\n\
+                    - Another app is using exclusive mode (Spotify, Foobar2000, etc.)\n\
+                    - Driver does not support WASAPI Exclusive\n\
+                    - Device is a Bluetooth/USB headset with limited format support"
+                )
+            })?;
 
-            // Create event for callback
             let event = windows::Win32::System::Threading::CreateEventW(
                 None,
                 false,
@@ -190,12 +194,9 @@ mod wasapi_exclusive {
             )?;
 
             audio_client.SetEventHandle(event)?;
-
             let render_client: windows::Win32::Media::Audio::IAudioRenderClient =
                 audio_client.GetService()?;
-
             let buffer_frames = audio_client.GetBufferSize()? as usize;
-
             audio_client.Start()?;
 
             let ring: super::RingBuffer = Arc::new(Mutex::new(Vec::with_capacity(
@@ -205,36 +206,29 @@ mod wasapi_exclusive {
             let alive = Arc::new(std::sync::atomic::AtomicBool::new(true));
             let alive_cb = alive.clone();
 
-            // Render thread
-            let _thread = thread::spawn(move || {
-                loop {
-                    if !alive_cb.load(std::sync::atomic::Ordering::SeqCst) {
-                        break;
-                    }
-                    windows::Win32::System::Threading::WaitForSingleObject(event, 100);
-
-                    let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
-                        Ok(p) => p,
-                        Err(_) => break,
-                    };
-
-                    // Fill buffer from ring
-                    let output = std::slice::from_raw_parts_mut(
-                        buf_ptr as *mut f32,
-                        buffer_frames * chosen_ch as usize,
-                    );
-
-                    let mut ring_lock = ring_cb.lock().unwrap();
-                    let n = ring_lock.len().min(output.len());
-                    output[..n].copy_from_slice(&ring_lock[..n]);
-                    for s in &mut output[n..] {
-                        *s = 0.0;
-                    }
-                    ring_lock.drain(..n);
-                    drop(ring_lock);
-
-                    let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
+            let _thread = thread::spawn(move || loop {
+                if !alive_cb.load(std::sync::atomic::Ordering::SeqCst) {
+                    break;
                 }
+                windows::Win32::System::Threading::WaitForSingleObject(event, 100);
+
+                let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
+                    Ok(p) => p,
+                    Err(_) => break,
+                };
+                let output = std::slice::from_raw_parts_mut(
+                    buf_ptr as *mut f32,
+                    buffer_frames * chosen_ch as usize,
+                );
+                let mut ring_lock = ring_cb.lock().unwrap();
+                let n = ring_lock.len().min(output.len());
+                output[..n].copy_from_slice(&ring_lock[..n]);
+                for s in &mut output[n..] {
+                    *s = 0.0;
+                }
+                ring_lock.drain(..n);
+                drop(ring_lock);
+                let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
             });
 
             Ok(Self {
