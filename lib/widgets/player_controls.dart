@@ -57,12 +57,14 @@ class PlayerControls extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(_fmt(position),
-                  style: const TextStyle(
-                      fontSize: 11, color: Colors.white24)),
-              Text(_fmt(duration),
-                  style: const TextStyle(
-                      fontSize: 11, color: Colors.white24)),
+              Text(
+                _fmt(position),
+                style: const TextStyle(fontSize: 11, color: Colors.white24),
+              ),
+              Text(
+                _fmt(duration),
+                style: const TextStyle(fontSize: 11, color: Colors.white24),
+              ),
             ],
           ),
         ),
@@ -85,7 +87,9 @@ class PlayerControls extends ConsumerWidget {
                 message: 'WASAPI Exclusive — bit-perfect output',
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.white12),
                     borderRadius: BorderRadius.circular(3),
@@ -104,10 +108,7 @@ class PlayerControls extends ConsumerWidget {
 
             const Spacer(),
 
-            _LoopButton(
-              mode: player.loopMode,
-              onTap: notifier.cycleLoopMode,
-            ),
+            _LoopButton(mode: player.loopMode, onTap: notifier.cycleLoopMode),
           ],
         ),
 
@@ -133,8 +134,8 @@ class PlayerControls extends ConsumerWidget {
               onTap: player.currentTrack == null
                   ? null
                   : isPlaying
-                      ? notifier.pause
-                      : notifier.play,
+                  ? notifier.pause
+                  : notifier.play,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
                 width: 56,
@@ -182,19 +183,24 @@ class PlayerControls extends ConsumerWidget {
         // Volume
         Row(
           children: [
-            const Icon(Icons.volume_down_rounded,
-                size: 14, color: Colors.white24),
+            const Icon(
+              Icons.volume_down_rounded,
+              size: 14,
+              color: Colors.white24,
+            ),
             Expanded(
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 1.5,
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 3),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 3,
+                  ),
                   activeTrackColor: Colors.white38,
                   inactiveTrackColor: Colors.white12,
                   thumbColor: Colors.white54,
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 10),
+                  overlayShape: const RoundSliderOverlayShape(
+                    overlayRadius: 10,
+                  ),
                   overlayColor: Colors.white10,
                 ),
                 child: Slider(
@@ -203,8 +209,11 @@ class PlayerControls extends ConsumerWidget {
                 ),
               ),
             ),
-            const Icon(Icons.volume_up_rounded,
-                size: 14, color: Colors.white24),
+            const Icon(
+              Icons.volume_up_rounded,
+              size: 14,
+              color: Colors.white24,
+            ),
           ],
         ),
       ],
@@ -241,17 +250,17 @@ class _LoopButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 18,
-                color: active ? Colors.white : Colors.white24),
+            Icon(icon, size: 18, color: active ? Colors.white : Colors.white24),
             if (label.isNotEmpty) ...[
               const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: active ? Colors.white70 : Colors.white24,
-                    fontWeight: FontWeight.w500,
-                  )),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: active ? Colors.white70 : Colors.white24,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ],
         ),
@@ -266,11 +275,12 @@ class _IconToggle extends StatelessWidget {
   final bool active;
   final String tooltip;
   final VoidCallback onTap;
-  const _IconToggle(
-      {required this.icon,
-      required this.active,
-      required this.tooltip,
-      required this.onTap});
+  const _IconToggle({
+    required this.icon,
+    required this.active,
+    required this.tooltip,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -281,8 +291,11 @@ class _IconToggle extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Icon(icon,
-              size: 18, color: active ? Colors.white : Colors.white24),
+          child: Icon(
+            icon,
+            size: 18,
+            color: active ? Colors.white : Colors.white24,
+          ),
         ),
       ),
     );
@@ -295,11 +308,12 @@ class _TransportButton extends StatelessWidget {
   final double size;
   final bool enabled;
   final VoidCallback? onTap;
-  const _TransportButton(
-      {required this.icon,
-      required this.size,
-      required this.enabled,
-      this.onTap});
+  const _TransportButton({
+    required this.icon,
+    required this.size,
+    required this.enabled,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

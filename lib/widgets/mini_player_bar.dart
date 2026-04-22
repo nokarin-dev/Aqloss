@@ -17,7 +17,10 @@ class MiniPlayerBar extends ConsumerWidget {
 
     final duration = track.duration;
     final progress = duration.inMilliseconds > 0
-        ? (player.position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        ? (player.position.inMilliseconds / duration.inMilliseconds).clamp(
+            0.0,
+            1.0,
+          )
         : 0.0;
 
     return GestureDetector(
@@ -46,8 +49,11 @@ class MiniPlayerBar extends ConsumerWidget {
                       color: const Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Icon(Icons.music_note_rounded,
-                        size: 16, color: Colors.white24),
+                    child: const Icon(
+                      Icons.music_note_rounded,
+                      size: 16,
+                      color: Colors.white24,
+                    ),
                   ),
                   const SizedBox(width: 12),
 
@@ -99,8 +105,10 @@ class MiniPlayerBar extends ConsumerWidget {
 
                   // Skip next
                   IconButton(
-                    icon: const Icon(Icons.skip_next_rounded,
-                        color: Colors.white38),
+                    icon: const Icon(
+                      Icons.skip_next_rounded,
+                      color: Colors.white38,
+                    ),
                     iconSize: 20,
                     onPressed: notifier.skipNext,
                     padding: EdgeInsets.zero,

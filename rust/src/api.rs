@@ -2,13 +2,11 @@ use crate::{audio_engine::AudioEngine, metadata, PlaybackPosition, TrackInfo};
 use anyhow::Result;
 use flutter_rust_bridge::frb;
 
-// Engine lifecycle
 #[frb(sync)]
 pub fn init_engine() -> Result<()> {
     AudioEngine::init()
 }
 
-// Playback control
 pub fn load_track(path: String) -> Result<TrackInfo> {
     let info = metadata::read_track_info(&path)?;
     AudioEngine::global().lock().unwrap().load(&path)?;
@@ -18,11 +16,9 @@ pub fn load_track(path: String) -> Result<TrackInfo> {
 pub fn play() -> Result<()> {
     AudioEngine::global().lock().unwrap().play()
 }
-
 pub fn pause() -> Result<()> {
     AudioEngine::global().lock().unwrap().pause()
 }
-
 pub fn stop() -> Result<()> {
     AudioEngine::global().lock().unwrap().stop()
 }
@@ -35,7 +31,6 @@ pub fn set_volume(volume: f32) -> Result<()> {
     AudioEngine::global().lock().unwrap().set_volume(volume)
 }
 
-// State queries
 pub fn get_position() -> Result<PlaybackPosition> {
     AudioEngine::global().lock().unwrap().get_position()
 }
@@ -54,7 +49,6 @@ pub fn is_exclusive_mode() -> bool {
         .unwrap_or(false)
 }
 
-// Metadata
 pub fn read_metadata(path: String) -> Result<TrackInfo> {
     metadata::read_track_info(&path)
 }
@@ -75,26 +69,48 @@ pub fn get_spectrum_data(bucket_count: u32) -> Vec<f32> {
     let Some(arc) = AudioEngine::global_opt() else {
         return vec![];
     };
-    let engine = arc.lock().unwrap();
-    engine.get_spectrum_data(bucket_count as usize)
+    let x = arc.lock().unwrap().get_spectrum_data(bucket_count as usize);
+    x
 }
 
+/// Update Discord presence while playing.
 pub fn discord_update_playing(
     title: String,
     artist: String,
     album: String,
+    album_art_url: String,
     position_secs: f64,
     duration_secs: f64,
 ) -> Result<()> {
-    crate::discord_rpc::update_playing(&title, &artist, &album, position_secs, duration_secs)
+    let url_opt = if album_art_url.is_empty() {
+        None
+    } else {
+        Some(album_art_url.as_str())
+    };
+    crate::discord_rpc::update_playing(
+        &title,
+        &artist,
+        &album,
+        url_opt,
+        position_secs,
+        duration_secs,
+    )
 }
 
-// Paused state.
-pub fn discord_update_paused(title: String, artist: String) -> Result<()> {
-    crate::discord_rpc::update_paused(&title, &artist)
+pub fn discord_update_paused(
+    title: String,
+    artist: String,
+    album: String,
+    album_art_url: String,
+) -> Result<()> {
+    let url_opt = if album_art_url.is_empty() {
+        None
+    } else {
+        Some(album_art_url.as_str())
+    };
+    crate::discord_rpc::update_paused(&title, &artist, &album, url_opt)
 }
 
-// Clear Discord Rich Presence
 pub fn discord_clear() -> Result<()> {
     crate::discord_rpc::clear()
 }

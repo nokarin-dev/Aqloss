@@ -23,7 +23,7 @@ class AqlossApp extends ConsumerWidget {
         scaffoldBackgroundColor: const Color(0xFF0A0A0A),
         cardColor: const Color(0xFF141414),
         dividerColor: Colors.white.withValues(alpha: 0.06),
-        fontFamily: 'SF Pro Display', // falls back to system sans-serif
+        fontFamily: 'SF Pro Display',
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF0A0A0A),
           surfaceTintColor: Colors.transparent,
@@ -63,14 +63,16 @@ class AqlossApp extends ConsumerWidget {
           overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
         ),
         switchTheme: SwitchThemeData(
-          thumbColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.selected)
-                  ? Colors.black
-                  : Colors.white30),
-          trackColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.selected)
-                  ? Colors.white
-                  : Colors.white12),
+          thumbColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? Colors.black
+                : Colors.white30,
+          ),
+          trackColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? Colors.white
+                : Colors.white12,
+          ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(foregroundColor: Colors.white54),

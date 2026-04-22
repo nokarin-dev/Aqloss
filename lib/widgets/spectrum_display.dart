@@ -77,13 +77,15 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
       _controller.repeat();
     } else if (!isPlaying && _controller.isAnimating) {
       Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted && ref.read(playerProvider).status != PlayerStatus.playing) {
+        if (mounted &&
+            ref.read(playerProvider).status != PlayerStatus.playing) {
           _controller.stop();
         }
       });
     }
 
-    final barColor = widget.color ??
+    final barColor =
+        widget.color ??
         Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.60);
 
     return SizedBox(
@@ -91,13 +93,19 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
       child: LayoutBuilder(
         builder: (_, constraints) {
           final totalWidth = constraints.maxWidth;
-          final barWidth = (totalWidth / widget.barCount * 0.62).clamp(2.0, 8.0);
+          final barWidth = (totalWidth / widget.barCount * 0.62).clamp(
+            2.0,
+            8.0,
+          );
           final gap = totalWidth / widget.barCount - barWidth;
 
           return Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(widget.barCount, (i) {
-              final h = (_smoothed[i] * widget.height).clamp(2.0, widget.height);
+              final h = (_smoothed[i] * widget.height).clamp(
+                2.0,
+                widget.height,
+              );
               final opacity = (0.45 + _smoothed[i] * 0.55).clamp(0.0, 1.0);
 
               return Padding(

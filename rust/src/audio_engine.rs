@@ -1,7 +1,7 @@
 use crate::{decoder::Decoder, output::AudioOutput, resampler::Resampler, PlaybackPosition};
 use anyhow::{anyhow, Result};
 use std::sync::{
-    atomic::{AtomicBool, AtomicU64, Ordering},
+    atomic::{AtomicBool, Ordering},
     Arc, Mutex, OnceLock,
 };
 use std::thread;
@@ -12,8 +12,6 @@ static ENGINE: OnceLock<Arc<Mutex<AudioEngine>>> = OnceLock::new();
 struct PlayFlags {
     alive: AtomicBool,
     playing: AtomicBool,
-    seek_us: AtomicU64,
-    seek_done: AtomicBool,
 }
 
 impl PlayFlags {
@@ -21,8 +19,6 @@ impl PlayFlags {
         Arc::new(Self {
             alive: AtomicBool::new(false),
             playing: AtomicBool::new(false),
-            seek_us: AtomicU64::new(0),
-            seek_done: AtomicBool::new(true),
         })
     }
 }
@@ -43,8 +39,15 @@ unsafe impl Sync for AudioEngine {}
 impl AudioEngine {
     pub fn init() -> Result<()> {
         let output = AudioOutput::new()?;
-        let mode = if output.exclusive { "WASAPI Exclusive (bit-perfect)" } else { "Shared (system mixer)" };
-        eprintln!("[aqloss] audio output: {mode} @ {}Hz {}ch", output.sample_rate, output.channels);
+        let mode = if output.exclusive {
+            "WASAPI Exclusive (bit-perfect)"
+        } else {
+            "Shared (system mixer)"
+        };
+        eprintln!(
+            "[aqloss] audio output: {mode} @ {}Hz {}ch",
+            output.sample_rate, output.channels
+        );
 
         let engine = Self {
             output,
@@ -62,25 +65,30 @@ impl AudioEngine {
     }
 
     pub fn get_spectrum_data(&self, n: usize) -> Vec<f32> {
-        if n == 0 { return vec![]; }
+        if n == 0 {
+            return vec![];
+        }
         let ring = self.output.ring.lock().unwrap();
         let samples: Vec<f32> = ring.iter().copied().collect();
         drop(ring);
-        if samples.is_empty() { return vec![0.0; n]; }
+        if samples.is_empty() {
+            return vec![0.0; n];
+        }
+
+        let volume_norm = self.volume.max(0.05);
 
         let chunk = (samples.len() / n).max(1);
         (0..n)
             .map(|i| {
                 let start = i * chunk;
                 let end = ((i + 1) * chunk).min(samples.len());
-                if start >= end { return 0.0; }
-                let rms = (samples[start..end]
-                    .iter()
-                    .map(|s| s * s)
-                    .sum::<f32>()
+                if start >= end {
+                    return 0.0;
+                }
+                let rms = (samples[start..end].iter().map(|s| s * s).sum::<f32>()
                     / (end - start) as f32)
                     .sqrt();
-                rms.clamp(0.0, 1.0)
+                (rms / volume_norm).clamp(0.0, 1.0)
             })
             .collect()
     }
@@ -144,7 +152,10 @@ impl AudioEngine {
     }
 
     pub fn seek(&mut self, position_secs: f64) -> Result<()> {
-        let dec = self.decoder.as_ref().ok_or_else(|| anyhow!("No track loaded"))?;
+        let dec = self
+            .decoder
+            .as_ref()
+            .ok_or_else(|| anyhow!("No track loaded"))?;
         let was_playing = self.flags.playing.load(Ordering::SeqCst);
         self.flags.playing.store(false, Ordering::SeqCst);
         thread::sleep(Duration::from_millis(20));
@@ -165,7 +176,10 @@ impl AudioEngine {
     }
 
     pub fn get_position(&self) -> Result<PlaybackPosition> {
-        let dec = self.decoder.as_ref().ok_or_else(|| anyhow!("No track loaded"))?;
+        let dec = self
+            .decoder
+            .as_ref()
+            .ok_or_else(|| anyhow!("No track loaded"))?;
         let dec = dec.lock().unwrap();
         Ok(PlaybackPosition {
             position_secs: dec.position_secs(),
@@ -210,7 +224,9 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
     };
 
     loop {
-        if !flags.alive.load(Ordering::SeqCst) { break; }
+        if !flags.alive.load(Ordering::SeqCst) {
+            break;
+        }
         if !flags.playing.load(Ordering::SeqCst) {
             thread::sleep(Duration::from_millis(10));
             continue;
@@ -218,7 +234,8 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
         let ring_len = {
             let e = engine_arc.lock().unwrap();
-            let x = e.output.ring.lock().unwrap().len(); x
+            let x = e.output.ring.lock().unwrap().len();
+            x
         };
         if ring_len >= target_fill {
             thread::sleep(Duration::from_millis(5));
@@ -267,7 +284,9 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                         if !tail.is_empty() {
                             let converted = adapt_channels(&tail, dec_ch, out_channels);
                             let mut ring = e.output.ring.lock().unwrap();
-                            for s in converted { ring.push(s * volume); }
+                            for s in converted {
+                                ring.push(s * volume);
+                            }
                         }
                     }
                 }
@@ -275,7 +294,9 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
                 loop {
                     let rem = engine_arc.lock().unwrap().output.ring.lock().unwrap().len();
-                    if rem == 0 { break; }
+                    if rem == 0 {
+                        break;
+                    }
                     thread::sleep(Duration::from_millis(10));
                 }
 
@@ -296,7 +317,9 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 }
 
 fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
-    if src == dst || input.is_empty() { return input.to_vec(); }
+    if src == dst || input.is_empty() {
+        return input.to_vec();
+    }
     match (src, dst) {
         (1, 2) => input.iter().flat_map(|&s| [s, s]).collect(),
         (2, 1) => input.chunks_exact(2).map(|c| (c[0] + c[1]) * 0.5).collect(),

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/lyrics_provider.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/player_controls.dart';
 import 'package:aqloss/widgets/spectrum_display.dart';
@@ -27,30 +28,39 @@ class PlayerScreen extends ConsumerWidget {
 }
 
 // Wide layout
-class _WideLayout extends StatelessWidget {
+class _WideLayout extends ConsumerWidget {
   final Track? track;
   final PlayerState player;
   const _WideLayout({required this.track, required this.player});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
+
     return Row(
       children: [
         // Left column
-        Expanded(
-          flex: 5,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOutCubic,
+          width: hasLyrics
+              ? MediaQuery.of(context).size.width * 0.28
+              : MediaQuery.of(context).size.width * 0.46,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(40, 40, 20, 32),
+            padding: const EdgeInsets.fromLTRB(32, 36, 16, 28),
             child: Column(
               children: [
-                _AlbumArtCard(track: track),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: const LyricsView(),
+                // Album art
+                AspectRatio(aspectRatio: 1, child: _AlbumArtCard(track: track)),
+                if (hasLyrics) ...[
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: const LyricsView(),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -58,9 +68,8 @@ class _WideLayout extends StatelessWidget {
 
         // Right column
         Expanded(
-          flex: 5,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 40, 40, 32),
+            padding: const EdgeInsets.fromLTRB(16, 36, 36, 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -69,7 +78,10 @@ class _WideLayout extends StatelessWidget {
                 if (track != null) _FormatRow(track: track!),
                 const Spacer(),
                 SpectrumDisplay(
-                    height: 40, barCount: 32, color: Colors.white12),
+                  height: 40,
+                  barCount: 32,
+                  color: Colors.white12,
+                ),
                 const SizedBox(height: 20),
                 const PlayerControls(),
               ],
@@ -82,52 +94,62 @@ class _WideLayout extends StatelessWidget {
 }
 
 // Narrow layout
-class _NarrowLayout extends StatelessWidget {
+class _NarrowLayout extends ConsumerWidget {
   final Track? track;
   final PlayerState player;
   const _NarrowLayout({required this.track, required this.player});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
+
     return SafeArea(
       child: Column(
         children: [
           // Top section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Album art
-                AspectRatio(
-                  aspectRatio: 1,
-                  child: _AlbumArtCard(track: track),
-                ),
-
-                const SizedBox(height: 8),
-                SpectrumDisplay(
-                    height: 20, barCount: 24, color: Colors.white12),
-                const SizedBox(height: 10),
-
-                _TrackInfo(track: track),
-                const SizedBox(height: 4),
-                if (track != null) _FormatRow(track: track!),
-
-                const SizedBox(height: 16),
-                const PlayerControls(),
-                const SizedBox(height: 16),
-              ],
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOutCubic,
+            height:
+                MediaQuery.of(context).size.height * (hasLyrics ? 0.48 : 0.72),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Album art
+                  Expanded(
+                    child: Center(
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: _AlbumArtCard(track: track),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SpectrumDisplay(
+                    height: 18,
+                    barCount: 24,
+                    color: Colors.white12,
+                  ),
+                  const SizedBox(height: 10),
+                  _TrackInfo(track: track),
+                  const SizedBox(height: 4),
+                  if (track != null) _FormatRow(track: track!),
+                  const SizedBox(height: 14),
+                  const PlayerControls(),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
           ),
 
-          // Bottom section
+          // Lyrics panel
           if (track != null)
             Expanded(
               child: Container(
                 decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.white10),
-                  ),
+                  border: Border(top: BorderSide(color: Colors.white10)),
                 ),
                 child: const LyricsView(),
               ),
@@ -176,8 +198,9 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
     try {
       final bytes = await backend.readAlbumArt(path: path);
       if (mounted && _loadedPath == path) {
-        setState(() =>
-            _artBytes = bytes != null ? Uint8List.fromList(bytes) : null);
+        setState(
+          () => _artBytes = bytes != null ? Uint8List.fromList(bytes) : null,
+        );
       }
     } catch (_) {
       if (mounted) setState(() => _artBytes = null);
@@ -201,8 +224,7 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
         decoration: BoxDecoration(
           color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(12),
-          border:
-              Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.6),
@@ -215,8 +237,11 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
         child: _artBytes != null
             ? Image.memory(_artBytes!, fit: BoxFit.cover)
             : const Center(
-                child: Icon(Icons.music_note_rounded,
-                    size: 64, color: Colors.white10),
+                child: Icon(
+                  Icons.music_note_rounded,
+                  size: 64,
+                  color: Colors.white10,
+                ),
               ),
       ),
     );
@@ -232,10 +257,7 @@ class _TrackInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final artist = track?.artist;
     final album = track?.album;
-    final subtitle = [
-      if (artist != null) artist,
-      if (album != null) album,
-    ].join(' — ');
+    final subtitle = [?artist, ?album].join(' — ');
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
@@ -271,7 +293,7 @@ class _TrackInfo extends StatelessWidget {
   }
 }
 
-// Format badges row
+// Format badges
 class _FormatRow extends StatelessWidget {
   final Track track;
   const _FormatRow({required this.track});
@@ -286,11 +308,11 @@ class _FormatRow extends StatelessWidget {
         _Badge(track.format),
         if (track.sampleRate > 0)
           _Badge(
-              '${(track.sampleRate / 1000).toStringAsFixed(track.sampleRate % 1000 == 0 ? 0 : 1)} kHz'),
+            '${(track.sampleRate / 1000).toStringAsFixed(track.sampleRate % 1000 == 0 ? 0 : 1)} kHz',
+          ),
         if (track.bitDepth != null) _Badge('${track.bitDepth}-bit'),
         if (isExclusive)
-          _Badge('BIT-PERFECT',
-              color: Colors.white.withValues(alpha: 0.1)),
+          _Badge('BIT-PERFECT', color: Colors.white.withValues(alpha: 0.1)),
       ],
     );
   }
@@ -313,10 +335,11 @@ class _Badge extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-            fontSize: 10,
-            color: Colors.white30,
-            letterSpacing: 0.5,
-            fontWeight: FontWeight.w500),
+          fontSize: 10,
+          color: Colors.white30,
+          letterSpacing: 0.5,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }

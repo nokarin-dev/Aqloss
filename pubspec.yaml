@@ -1,5 +1,5 @@
 name: aqloss
-description: "A new Flutter project."
+description: "Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 version: 1.0.0+1
@@ -39,6 +39,7 @@ dependencies:
   path_provider: ^2.1.3
   shared_preferences: ^2.5.5
   window_manager: ^0.5.1
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

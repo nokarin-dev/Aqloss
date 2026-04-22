@@ -46,16 +46,19 @@ Future<String?> readEmbeddedLyrics({required String path}) =>
 Future<Float32List> getSpectrumData({required int bucketCount}) =>
     AqlossCore.instance.api.crateApiGetSpectrumData(bucketCount: bucketCount);
 
+/// Update Discord presence while playing.
 Future<void> discordUpdatePlaying({
   required String title,
   required String artist,
   required String album,
+  required String albumArtUrl,
   required double positionSecs,
   required double durationSecs,
 }) => AqlossCore.instance.api.crateApiDiscordUpdatePlaying(
   title: title,
   artist: artist,
   album: album,
+  albumArtUrl: albumArtUrl,
   positionSecs: positionSecs,
   durationSecs: durationSecs,
 );
@@ -63,9 +66,13 @@ Future<void> discordUpdatePlaying({
 Future<void> discordUpdatePaused({
   required String title,
   required String artist,
+  required String album,
+  required String albumArtUrl,
 }) => AqlossCore.instance.api.crateApiDiscordUpdatePaused(
   title: title,
   artist: artist,
+  album: album,
+  albumArtUrl: albumArtUrl,
 );
 
 Future<void> discordClear() => AqlossCore.instance.api.crateApiDiscordClear();

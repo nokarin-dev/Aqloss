@@ -70,7 +70,7 @@ class AqlossCore
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-        stem: 'aqloss_core',
+        stem: 'rust_lib_aqloss',
         ioDirectory: 'rust/target/release/',
         webPrefix: 'pkg/',
         wasmBindgenName: 'wasm_bindgen',
@@ -83,12 +83,15 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<void> crateApiDiscordUpdatePaused({
     required String title,
     required String artist,
+    required String album,
+    required String albumArtUrl,
   });
 
   Future<void> crateApiDiscordUpdatePlaying({
     required String title,
     required String artist,
     required String album,
+    required String albumArtUrl,
     required double positionSecs,
     required double durationSecs,
   });
@@ -164,6 +167,8 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   Future<void> crateApiDiscordUpdatePaused({
     required String title,
     required String artist,
+    required String album,
+    required String albumArtUrl,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -171,6 +176,8 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(title, serializer);
           sse_encode_String(artist, serializer);
+          sse_encode_String(album, serializer);
+          sse_encode_String(albumArtUrl, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -183,7 +190,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiDiscordUpdatePausedConstMeta,
-        argValues: [title, artist],
+        argValues: [title, artist, album, albumArtUrl],
         apiImpl: this,
       ),
     );
@@ -192,7 +199,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   TaskConstMeta get kCrateApiDiscordUpdatePausedConstMeta =>
       const TaskConstMeta(
         debugName: "discord_update_paused",
-        argNames: ["title", "artist"],
+        argNames: ["title", "artist", "album", "albumArtUrl"],
       );
 
   @override
@@ -200,6 +207,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
     required String title,
     required String artist,
     required String album,
+    required String albumArtUrl,
     required double positionSecs,
     required double durationSecs,
   }) {
@@ -210,6 +218,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           sse_encode_String(title, serializer);
           sse_encode_String(artist, serializer);
           sse_encode_String(album, serializer);
+          sse_encode_String(albumArtUrl, serializer);
           sse_encode_f_64(positionSecs, serializer);
           sse_encode_f_64(durationSecs, serializer);
           pdeCallFfi(
@@ -224,7 +233,14 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiDiscordUpdatePlayingConstMeta,
-        argValues: [title, artist, album, positionSecs, durationSecs],
+        argValues: [
+          title,
+          artist,
+          album,
+          albumArtUrl,
+          positionSecs,
+          durationSecs,
+        ],
         apiImpl: this,
       ),
     );
@@ -233,7 +249,14 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   TaskConstMeta get kCrateApiDiscordUpdatePlayingConstMeta =>
       const TaskConstMeta(
         debugName: "discord_update_playing",
-        argNames: ["title", "artist", "album", "positionSecs", "durationSecs"],
+        argNames: [
+          "title",
+          "artist",
+          "album",
+          "albumArtUrl",
+          "positionSecs",
+          "durationSecs",
+        ],
       );
 
   @override

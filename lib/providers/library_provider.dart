@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/track.dart';
@@ -5,15 +6,13 @@ import '../models/audio_format.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 enum LibraryStatus { idle, scanning, done, error }
-
 enum SortField { title, artist, album, duration, format, dateAdded }
-
 enum SortOrder { ascending, descending }
-
 enum LibraryFilter { all, lossless, hiRes }
 
 class LibraryState {
   final List<Track> tracks;
+  final List<Track> _cachedFiltered;
   final LibraryStatus status;
   final String? errorMessage;
   final List<String> folders;
@@ -24,6 +23,7 @@ class LibraryState {
 
   const LibraryState({
     this.tracks = const [],
+    List<Track> cachedFiltered = const [],
     this.status = LibraryStatus.idle,
     this.errorMessage,
     this.folders = const [],
@@ -31,10 +31,13 @@ class LibraryState {
     this.sortField = SortField.artist,
     this.sortOrder = SortOrder.ascending,
     this.filter = LibraryFilter.all,
-  });
+  }) : _cachedFiltered = cachedFiltered;
+
+  List<Track> get filteredTracks => _cachedFiltered;
 
   LibraryState copyWith({
     List<Track>? tracks,
+    List<Track>? cachedFiltered,
     LibraryStatus? status,
     String? errorMessage,
     List<String>? folders,
@@ -45,6 +48,7 @@ class LibraryState {
   }) =>
       LibraryState(
         tracks: tracks ?? this.tracks,
+        cachedFiltered: cachedFiltered ?? _cachedFiltered,
         status: status ?? this.status,
         errorMessage: errorMessage ?? this.errorMessage,
         folders: folders ?? this.folders,
@@ -53,73 +57,6 @@ class LibraryState {
         sortOrder: sortOrder ?? this.sortOrder,
         filter: filter ?? this.filter,
       );
-
-  List<Track> get filteredTracks {
-    var result = tracks.toList();
-
-    // Apply format filter
-    switch (filter) {
-      case LibraryFilter.lossless:
-        result = result
-            .where((t) => AudioFormat.fromExtension(t.format).isLossless)
-            .toList();
-        break;
-      case LibraryFilter.hiRes:
-        result = result
-            .where((t) =>
-                t.sampleRate >= 88200 ||
-                (t.bitDepth != null && t.bitDepth! >= 24))
-            .toList();
-        break;
-      case LibraryFilter.all:
-        break;
-    }
-
-    // Apply search query
-    if (query.isNotEmpty) {
-      final q = query.toLowerCase();
-      result = result.where((t) {
-        return (t.title?.toLowerCase().contains(q) ?? false) ||
-            (t.artist?.toLowerCase().contains(q) ?? false) ||
-            (t.album?.toLowerCase().contains(q) ?? false);
-      }).toList();
-    }
-
-    // Apply sort
-    result.sort((a, b) {
-      int cmp;
-      switch (sortField) {
-        case SortField.title:
-          cmp = (a.title ?? '').compareTo(b.title ?? '');
-          break;
-        case SortField.artist:
-          final ac = (a.albumArtist ?? a.artist ?? '')
-              .compareTo(b.albumArtist ?? b.artist ?? '');
-          if (ac != 0) { cmp = ac; break; }
-          final bc = (a.album ?? '').compareTo(b.album ?? '');
-          if (bc != 0) { cmp = bc; break; }
-          cmp = (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0);
-          break;
-        case SortField.album:
-          final bc = (a.album ?? '').compareTo(b.album ?? '');
-          if (bc != 0) { cmp = bc; break; }
-          cmp = (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0);
-          break;
-        case SortField.duration:
-          cmp = a.durationSecs.compareTo(b.durationSecs);
-          break;
-        case SortField.format:
-          cmp = a.format.compareTo(b.format);
-          break;
-        case SortField.dateAdded:
-          cmp = 0;
-          break;
-      }
-      return sortOrder == SortOrder.ascending ? cmp : -cmp;
-    });
-
-    return result;
-  }
 
   List<Track> get losslessTracks =>
       tracks.where((t) => AudioFormat.fromExtension(t.format).isLossless).toList();
@@ -134,6 +71,78 @@ class LibraryState {
 
   Duration get totalDuration =>
       tracks.fold(Duration.zero, (sum, t) => sum + t.duration);
+}
+
+List<Track> _computeFiltered(_FilterParams p) {
+  var result = p.tracks.toList();
+
+  switch (p.filter) {
+    case LibraryFilter.lossless:
+      result = result
+          .where((t) => AudioFormat.fromExtension(t.format).isLossless)
+          .toList();
+      break;
+    case LibraryFilter.hiRes:
+      result = result
+          .where((t) =>
+              t.sampleRate >= 88200 || (t.bitDepth != null && t.bitDepth! >= 24))
+          .toList();
+      break;
+    case LibraryFilter.all:
+      break;
+  }
+
+  if (p.query.isNotEmpty) {
+    final q = p.query.toLowerCase();
+    result = result.where((t) {
+      return (t.title?.toLowerCase().contains(q) ?? false) ||
+          (t.artist?.toLowerCase().contains(q) ?? false) ||
+          (t.album?.toLowerCase().contains(q) ?? false);
+    }).toList();
+  }
+
+  result.sort((a, b) {
+    int cmp;
+    switch (p.sortField) {
+      case SortField.title:
+        cmp = (a.title ?? '').compareTo(b.title ?? '');
+        break;
+      case SortField.artist:
+        final ac = (a.albumArtist ?? a.artist ?? '')
+            .compareTo(b.albumArtist ?? b.artist ?? '');
+        if (ac != 0) { cmp = ac; break; }
+        final bc = (a.album ?? '').compareTo(b.album ?? '');
+        if (bc != 0) { cmp = bc; break; }
+        cmp = (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0);
+        break;
+      case SortField.album:
+        final bc = (a.album ?? '').compareTo(b.album ?? '');
+        if (bc != 0) { cmp = bc; break; }
+        cmp = (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0);
+        break;
+      case SortField.duration:
+        cmp = a.durationSecs.compareTo(b.durationSecs);
+        break;
+      case SortField.format:
+        cmp = a.format.compareTo(b.format);
+        break;
+      case SortField.dateAdded:
+        cmp = 0;
+        break;
+    }
+    return p.sortOrder == SortOrder.ascending ? cmp : -cmp;
+  });
+
+  return result;
+}
+
+class _FilterParams {
+  final List<Track> tracks;
+  final LibraryFilter filter;
+  final String query;
+  final SortField sortField;
+  final SortOrder sortOrder;
+  const _FilterParams(this.tracks, this.filter, this.query, this.sortField, this.sortOrder);
 }
 
 const _kFoldersKey = 'aqloss_music_folders';
@@ -169,7 +178,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     state = state.copyWith(folders: updated, status: LibraryStatus.scanning);
     await _saveFolders(updated);
     if (updated.isEmpty) {
-      state = state.copyWith(tracks: [], status: LibraryStatus.idle);
+      state = state.copyWith(tracks: [], cachedFiltered: [], status: LibraryStatus.idle);
       return;
     }
     await _scanAll(updated);
@@ -213,23 +222,51 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         } catch (_) {}
       }
 
-      state = state.copyWith(tracks: tracks, status: LibraryStatus.done);
+      final filtered = await _rebuildFiltered(tracks, state);
+      state = state.copyWith(tracks: tracks, cachedFiltered: filtered, status: LibraryStatus.done);
     } catch (e) {
-      state = state.copyWith(
-        status: LibraryStatus.error,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(status: LibraryStatus.error, errorMessage: e.toString());
     }
   }
 
-  void setQuery(String query) => state = state.copyWith(query: query);
-  void setSortField(SortField f) => state = state.copyWith(sortField: f);
-  void setSortOrder(SortOrder o) => state = state.copyWith(sortOrder: o);
-  void toggleSortOrder() => state = state.copyWith(
-      sortOrder: state.sortOrder == SortOrder.ascending
-          ? SortOrder.descending
-          : SortOrder.ascending);
-  void setFilter(LibraryFilter f) => state = state.copyWith(filter: f);
+  // Re-run filter+sort off the main thread, then update the cache.
+  Future<void> _applyFilter() async {
+    final filtered = await _rebuildFiltered(state.tracks, state);
+    if (mounted) state = state.copyWith(cachedFiltered: filtered);
+  }
+
+  static Future<List<Track>> _rebuildFiltered(List<Track> tracks, LibraryState s) {
+    final params = _FilterParams(tracks, s.filter, s.query, s.sortField, s.sortOrder);
+    return compute(_computeFiltered, params);
+  }
+
+  void setQuery(String query) {
+    state = state.copyWith(query: query);
+    _applyFilter();
+  }
+
+  void setSortField(SortField f) {
+    state = state.copyWith(sortField: f);
+    _applyFilter();
+  }
+
+  void setSortOrder(SortOrder o) {
+    state = state.copyWith(sortOrder: o);
+    _applyFilter();
+  }
+
+  void toggleSortOrder() {
+    state = state.copyWith(
+        sortOrder: state.sortOrder == SortOrder.ascending
+            ? SortOrder.descending
+            : SortOrder.ascending);
+    _applyFilter();
+  }
+
+  void setFilter(LibraryFilter f) {
+    state = state.copyWith(filter: f);
+    _applyFilter();
+  }
 
   void clearAll() {
     _saveFolders([]);

@@ -104,11 +104,18 @@ fn wire__crate__api__discord_update_paused_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_title = <String>::sse_decode(&mut deserializer);
             let api_artist = <String>::sse_decode(&mut deserializer);
+            let api_album = <String>::sse_decode(&mut deserializer);
+            let api_album_art_url = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::discord_update_paused(api_title, api_artist)?;
+                        let output_ok = crate::api::discord_update_paused(
+                            api_title,
+                            api_artist,
+                            api_album,
+                            api_album_art_url,
+                        )?;
                         Ok(output_ok)
                     })(),
                 )
@@ -141,6 +148,7 @@ fn wire__crate__api__discord_update_playing_impl(
             let api_title = <String>::sse_decode(&mut deserializer);
             let api_artist = <String>::sse_decode(&mut deserializer);
             let api_album = <String>::sse_decode(&mut deserializer);
+            let api_album_art_url = <String>::sse_decode(&mut deserializer);
             let api_position_secs = <f64>::sse_decode(&mut deserializer);
             let api_duration_secs = <f64>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -151,6 +159,7 @@ fn wire__crate__api__discord_update_playing_impl(
                             api_title,
                             api_artist,
                             api_album,
+                            api_album_art_url,
                             api_position_secs,
                             api_duration_secs,
                         )?;

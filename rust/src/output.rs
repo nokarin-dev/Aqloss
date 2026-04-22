@@ -10,6 +10,7 @@ pub struct AudioOutput {
     pub exclusive: bool,
 }
 
+#[allow(dead_code)]
 enum AudioStream {
     Cpal(cpal::Stream),
     #[cfg(target_os = "windows")]
@@ -60,9 +61,9 @@ impl AudioOutput {
             buffer_size: cpal::BufferSize::Default,
         };
 
-        let ring: RingBuffer = std::sync::Arc::new(std::sync::Mutex::new(
-            Vec::with_capacity(sample_rate as usize * channels as usize),
-        ));
+        let ring: RingBuffer = std::sync::Arc::new(std::sync::Mutex::new(Vec::with_capacity(
+            sample_rate as usize * channels as usize,
+        )));
         let ring_cb = ring.clone();
 
         let stream = device.build_output_stream(
@@ -101,17 +102,13 @@ mod wasapi_exclusive {
     use windows::{
         core::PCWSTR,
         Win32::{
-            Media::Audio::{
-                eConsole, eRender, AudioClient_ShareMode,
-                IMMDeviceEnumerator, MMDeviceEnumerator,
-                AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-                WAVEFORMATEX, WAVE_FORMAT_PCM,
-            },
-            System::Com::{
-                CoCreateInstance, CoInitializeEx, CLSCTX_ALL,
-                COINIT_MULTITHREADED,
-            },
             Foundation::HANDLE,
+            Media::Audio::{
+                eConsole, eRender, AudioClient_ShareMode, IMMDeviceEnumerator, MMDeviceEnumerator,
+                AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, WAVEFORMATEX,
+                WAVE_FORMAT_PCM,
+            },
+            System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
         },
     };
 
@@ -171,11 +168,15 @@ mod wasapi_exclusive {
                 }
             }
 
-            let fmt = chosen_fmt.ok_or_else(|| anyhow!("No exclusive format supported by device"))?;
+            let fmt =
+                chosen_fmt.ok_or_else(|| anyhow!("No exclusive format supported by device"))?;
 
             // Create event for callback
             let event = windows::Win32::System::Threading::CreateEventW(
-                None, false, false, PCWSTR::null()
+                None,
+                false,
+                false,
+                PCWSTR::null(),
             )?;
 
             let buffer_dur = 100_000i64;
@@ -197,9 +198,9 @@ mod wasapi_exclusive {
 
             audio_client.Start()?;
 
-            let ring: super::RingBuffer = Arc::new(Mutex::new(
-                Vec::with_capacity(chosen_sr as usize * chosen_ch as usize),
-            ));
+            let ring: super::RingBuffer = Arc::new(Mutex::new(Vec::with_capacity(
+                chosen_sr as usize * chosen_ch as usize,
+            )));
             let ring_cb = ring.clone();
             let alive = Arc::new(std::sync::atomic::AtomicBool::new(true));
             let alive_cb = alive.clone();
@@ -210,9 +211,7 @@ mod wasapi_exclusive {
                     if !alive_cb.load(std::sync::atomic::Ordering::SeqCst) {
                         break;
                     }
-                    windows::Win32::System::Threading::WaitForSingleObject(
-                        event, 100,
-                    );
+                    windows::Win32::System::Threading::WaitForSingleObject(event, 100);
 
                     let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
                         Ok(p) => p,
@@ -254,7 +253,11 @@ mod wasapi_exclusive {
         }
     }
 
-    unsafe fn make_waveformat(sample_rate: u32, bits_per_sample: u16, channels: u16) -> WAVEFORMATEX {
+    unsafe fn make_waveformat(
+        sample_rate: u32,
+        bits_per_sample: u16,
+        channels: u16,
+    ) -> WAVEFORMATEX {
         let block_align = channels * bits_per_sample / 8;
         WAVEFORMATEX {
             wFormatTag: WAVE_FORMAT_PCM,
