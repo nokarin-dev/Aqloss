@@ -46,18 +46,13 @@ jobs:
             ForEach-Object { ($_ -replace "version:\s*","") -replace "\+.*","" }).Trim()
           echo "VERSION=$v" >> $env:GITHUB_ENV
 
-      # Installer
+      - name: Pre-build Rust
+        working-directory: rust
+        shell: cmd
+        run: cargo build --release
+
       - name: Build Windows (installer)
         run: flutter build windows --release --dart-define=PORTABLE=false
-
-      - name: Generate app_icon.ico
-        shell: pwsh
-        run: |
-          magick convert `
-            assets/icons/icon_256.png `
-            -define icon:auto-resize=256,128,64,48,32,16 `
-            windows/runner/resources/app_icon.ico
-          Write-Host "✓ app_icon.ico generated"
 
       - name: Create Inno Setup script
         shell: pwsh
@@ -80,7 +75,6 @@ jobs:
           PrivilegesRequired=lowest
           PrivilegesRequiredOverridesAllowed=dialog
           UninstallDisplayIcon={app}\aqloss.exe
-          SetupIconFile=windows\runner\resources\app_icon.ico
 
           [Languages]
           Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -109,7 +103,6 @@ jobs:
           }
           Write-Host "✓ Installer built"
 
-      # Portable
       - name: Build Windows (portable)
         run: flutter build windows --release --dart-define=PORTABLE=true
 
@@ -167,27 +160,29 @@ jobs:
 
       - name: Get version
         run: |
-          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+          echo "VERSION=$(grep '^version:' pubspec.yaml | \
+            sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
 
-      # Release build
+      - name: Pre-build Rust
+        working-directory: rust
+        run: cargo build --release 2>&1
+
       - name: Build Linux release
         run: flutter build linux --release --dart-define=PORTABLE=false
 
-      # deb
       - name: Build .deb package
         run: |
           PKG="aqloss_${{ env.VERSION }}_amd64"
           BUNDLE="build/linux/x64/release/bundle"
 
-          mkdir -p "$PKG/DEBIAN"
-          mkdir -p "$PKG/opt/aqloss"
-          mkdir -p "$PKG/usr/bin"
-          mkdir -p "$PKG/usr/share/applications"
-          mkdir -p "$PKG/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "$PKG/DEBIAN" "$PKG/opt/aqloss" "$PKG/usr/bin" \
+            "$PKG/usr/share/applications" \
+            "$PKG/usr/share/icons/hicolor/256x256/apps"
 
           cp -r "$BUNDLE/." "$PKG/opt/aqloss/"
 
-          EXE=$(find "$PKG/opt/aqloss" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | head -1)
+          EXE=$(find "$PKG/opt/aqloss" -maxdepth 1 -type f \
+            ! -name "*.so" ! -name "*.desktop" | head -1)
           EXE_NAME=$(basename "$EXE")
           if [ "$EXE_NAME" != "aqloss" ]; then
             mv "$EXE" "$PKG/opt/aqloss/aqloss"
@@ -211,14 +206,15 @@ jobs:
           DESKTOP
 
           [ -f "assets/icons/icon_256.png" ] && \
-            cp "assets/icons/icon_256.png" "$PKG/usr/share/icons/hicolor/256x256/apps/aqloss.png"
+            cp "assets/icons/icon_256.png" \
+              "$PKG/usr/share/icons/hicolor/256x256/apps/aqloss.png"
 
           cat > "$PKG/DEBIAN/control" << EOF
           Package: aqloss
           Version: ${{ env.VERSION }}
           Architecture: amd64
           Maintainer: nokarin <contact@nokarin.my.id>
-          Description: Aqloss is a high-quality local music player with a clean UI built with Flutter, powered by a Rust audio engine with WASAPI exclusive mode on Windows.
+          Description: High-quality local music player powered by a Rust audio engine.
           Depends: libgtk-3-0, libblkid1, liblzma5, libasound2
           Section: sound
           Priority: optional
@@ -233,19 +229,10 @@ jobs:
           POSTINST
           chmod 755 "$PKG/DEBIAN/postinst"
 
-          cat > "$PKG/DEBIAN/postrm" << 'POSTRM'
-          #!/bin/sh
-          update-desktop-database /usr/share/applications 2>/dev/null || true
-          exit 0
-          POSTRM
-          chmod 755 "$PKG/DEBIAN/postrm"
-
           fakeroot dpkg-deb --build "$PKG"
           mv "$PKG.deb" "Aqloss-linux-installer.deb"
           echo "✓ .deb built"
-          dpkg-deb --info "Aqloss-linux-installer.deb"
 
-      # AppImage
       - name: Build .AppImage
         run: |
           BUNDLE="build/linux/x64/release/bundle"
@@ -257,15 +244,15 @@ jobs:
           APPIMAGETOOL="/tmp/squashfs-root/AppRun"
           cd "$GITHUB_WORKSPACE"
 
-          mkdir -p AppDir/app
-          mkdir -p AppDir/usr/share/applications
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          mkdir -p AppDir/app AppDir/usr/share/applications \
+            AppDir/usr/share/icons/hicolor/256x256/apps
 
           cp -r "$BUNDLE/." AppDir/app/
 
           if [ -f "assets/icons/icon_256.png" ]; then
-            cp "assets/icons/icon_256.png" AppDir/usr/share/icons/hicolor/256x256/apps/aqloss.png
-            cp "assets/icons/icon_64.png"  AppDir/aqloss.png
+            cp "assets/icons/icon_256.png" \
+              AppDir/usr/share/icons/hicolor/256x256/apps/aqloss.png
+            cp "assets/icons/icon_64.png" AppDir/aqloss.png
           else
             printf 'PNG' > AppDir/aqloss.png
           fi
@@ -287,7 +274,8 @@ jobs:
           #!/bin/sh
           APPDIR="$(dirname "$(readlink -f "$0")")"
           export LD_LIBRARY_PATH="$APPDIR/app/lib:$LD_LIBRARY_PATH"
-          EXE_NAME=$(find "$APPDIR/app" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" \
+          EXE_NAME=$(find "$APPDIR/app" -maxdepth 1 -type f \
+            ! -name "*.so" ! -name "*.desktop" \
             | xargs -I{} basename {} | head -1)
           [ -z "$EXE_NAME" ] && echo "Aqloss: executable not found" >&2 && exit 1
           cd "$APPDIR/app"
@@ -299,11 +287,10 @@ jobs:
           chmod +x "Aqloss-linux.AppImage"
           echo "✓ AppImage built"
 
-      # Portable
       - name: Build Linux (portable)
         run: flutter build linux --release --dart-define=PORTABLE=true
 
-      - name: Package portable (.tar.gz)
+      - name: Package portable
         run: |
           tar -czf Aqloss-linux-portable.tar.gz \
             -C build/linux/x64/release/bundle .
@@ -353,7 +340,12 @@ jobs:
 
       - name: Get version
         run: |
-          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+          echo "VERSION=$(grep '^version:' pubspec.yaml | \
+            sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      - name: Pre-build Rust
+        working-directory: rust
+        run: cargo build --release 2>&1
 
       - name: Build Linux (release)
         run: flutter build linux --release --dart-define=PORTABLE=false
@@ -368,7 +360,8 @@ jobs:
           echo "$BUNDLE_DIR" > "$RPMROOT/SOURCES/bundle_path.txt"
 
           [ -f "$GITHUB_WORKSPACE/assets/icons/icon_256.png" ] && \
-            cp "$GITHUB_WORKSPACE/assets/icons/icon_256.png" "$RPMROOT/SOURCES/aqloss.png"
+            cp "$GITHUB_WORKSPACE/assets/icons/icon_256.png" \
+              "$RPMROOT/SOURCES/aqloss.png"
 
           cat > "$RPMROOT/SOURCES/aqloss.desktop" << 'DESKTOP'
           [Desktop Entry]
@@ -393,44 +386,34 @@ jobs:
           Requires:       gtk3, xz-libs, alsa-lib
 
           %description
-          Aqloss is a high-quality local music player with a clean UI
-          built with Flutter, powered by a Rust audio engine.
+          Aqloss — high-quality local music player powered by a Rust audio engine.
 
           %install
           BUNDLE=\$(cat $RPMROOT/SOURCES/bundle_path.txt)
-          mkdir -p %{buildroot}/opt/aqloss
-          mkdir -p %{buildroot}/usr/bin
-          mkdir -p %{buildroot}/usr/share/applications
-          mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
-
+          mkdir -p %{buildroot}/opt/aqloss %{buildroot}/usr/bin \
+            %{buildroot}/usr/share/applications \
+            %{buildroot}/usr/share/icons/hicolor/256x256/apps
           cp -r \$BUNDLE/. %{buildroot}/opt/aqloss/
-
-          EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | head -1)
+          EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f \
+            ! -name "*.so" ! -name "*.desktop" | head -1)
           EXE_NAME=\$(basename \$EXE)
-          if [ "\$EXE_NAME" != "aqloss" ]; then
+          [ "\$EXE_NAME" != "aqloss" ] && \
             mv "\$EXE" %{buildroot}/opt/aqloss/aqloss
-          fi
           chmod +x %{buildroot}/opt/aqloss/aqloss
-
           ln -s /opt/aqloss/aqloss %{buildroot}/usr/bin/aqloss
-
           cp $RPMROOT/SOURCES/aqloss.desktop \
             %{buildroot}/usr/share/applications/aqloss.desktop
-
           if [ -f "$RPMROOT/SOURCES/aqloss.png" ]; then
             cp $RPMROOT/SOURCES/aqloss.png \
               %{buildroot}/usr/share/icons/hicolor/256x256/apps/aqloss.png
           fi
 
           %post
-          chmod +x /opt/aqloss/aqloss 2>/dev/null || true
           update-desktop-database /usr/share/applications 2>/dev/null || true
-          /usr/bin/gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
           exit 0
 
           %postun
           update-desktop-database /usr/share/applications 2>/dev/null || true
-          /usr/bin/gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
           exit 0
 
           %files
@@ -450,7 +433,6 @@ jobs:
           [ -z "$RPM_FILE" ] && echo "✗ RPM not found!" && exit 1
           cp "$RPM_FILE" "$GITHUB_WORKSPACE/Aqloss-linux-installer.rpm"
           echo "✓ RPM built"
-          rpm -qip "$GITHUB_WORKSPACE/Aqloss-linux-installer.rpm"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -509,19 +491,6 @@ jobs:
 
       - name: Build split APKs (release)
         run: flutter build apk --release --dart-define=PORTABLE=false --split-per-abi
-
-      - name: Verify APK signing
-        if: env.SIGNING_CONFIGURED == 'true'
-        run: |
-          for apk in \
-            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
-            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
-            build/app/outputs/flutter-apk/app-x86_64-release.apk; do
-            echo "Verifying $apk..."
-            $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | tail -1)/apksigner \
-              verify --verbose "$apk" 2>&1 | grep -E "Verified|error" || true
-          done
-          echo "✓ APK signing verified"
 
       - name: Rename APKs
         run: |
