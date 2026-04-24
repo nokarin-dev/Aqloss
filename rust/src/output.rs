@@ -1,5 +1,22 @@
 use anyhow::{anyhow, Result};
 pub type RingBuffer = std::sync::Arc<std::sync::Mutex<Vec<f32>>>;
+use ringbuf::{
+    traits::{Consumer, Observer, Split},
+    HeapRb,
+};
+use std::sync::Arc;
+
+// Ring-buffer handle
+pub type SharedProducer = Arc<std::sync::Mutex<ringbuf::HeapProd<f32>>>;
+
+pub struct AudioOutput {
+    _stream: AudioStream,
+    pub ring: RingBuffer,
+    pub producer: SharedProducer,
+    pub sample_rate: u32,
+    pub channels: u32,
+    pub exclusive: bool,
+}
 
 #[allow(dead_code)]
 enum AudioStream {
@@ -8,13 +25,8 @@ enum AudioStream {
     WasapiExclusive(wasapi_exclusive::ExclusiveStream),
 }
 
-pub struct AudioOutput {
-    _stream: AudioStream,
-    pub ring: RingBuffer,
-    pub sample_rate: u32,
-    pub channels: u32,
-    pub exclusive: bool,
-}
+const RING_SECS: usize = 2;
+const CPAL_BUFFER_FRAMES: usize = 1024;
 
 impl AudioOutput {
     pub fn new() -> Result<Self> {
@@ -25,10 +37,10 @@ impl AudioOutput {
                 Ok(exc) => {
                     let sample_rate = exc.sample_rate;
                     let channels = exc.channels;
-                    let ring = exc.ring.clone();
+                    let producer = exc.producer.clone();
                     return Ok(Self {
                         _stream: AudioStream::WasapiExclusive(exc),
-                        ring,
+                        producer,
                         sample_rate,
                         channels,
                         exclusive: true,
@@ -40,7 +52,6 @@ impl AudioOutput {
             }
         }
 
-        // CPAL shared mode
         Self::new_cpal_shared()
     }
 
@@ -55,27 +66,27 @@ impl AudioOutput {
         let supported = device.default_output_config()?;
         let sample_rate = supported.sample_rate().0;
         let channels = supported.channels() as u32;
-        let buffer_size = cpal::BufferSize::Fixed(256);
 
         let config = cpal::StreamConfig {
             channels: supported.channels(),
             sample_rate: supported.sample_rate(),
-            buffer_size,
+            buffer_size: cpal::BufferSize::Fixed(CPAL_BUFFER_FRAMES as u32),
         };
 
-        let ring_cap = sample_rate as usize * channels as usize * 2;
+        let ring_cap = sample_rate as usize * channels as usize * RING_SECS;
         let ring: RingBuffer =
             std::sync::Arc::new(std::sync::Mutex::new(Vec::with_capacity(ring_cap)));
-        let ring_cb = ring.clone();
+        let rb = HeapRb::<f32>::new(ring_cap);
+        let (prod, mut cons) = rb.split();
+
+        let producer: SharedProducer = Arc::new(std::sync::Mutex::new(prod));
 
         let stream = device.build_output_stream(
             &config,
             move |output: &mut [f32], _info| {
-                let mut buf = ring_cb.lock().unwrap();
-                let n = buf.len().min(output.len());
-                output[..n].copy_from_slice(&buf[..n]);
-                output[n..].fill(f32::default());
-                buf.drain(..n);
+                let n = cons.occupied_len().min(output.len());
+                cons.pop_slice(&mut output[..n]);
+                output[n..].fill(0.0);
             },
             |err| eprintln!("[cpal] stream error: {err}"),
             None,
@@ -84,31 +95,41 @@ impl AudioOutput {
         stream.play()?;
 
         eprintln!(
-            "[aqloss] shared-mode output: {}Hz {}ch (buffer=256 frames)",
-            sample_rate, channels
+            "[aqloss] shared-mode output: {}Hz {}ch (buffer={} frames, ring={} s)",
+            sample_rate, channels, CPAL_BUFFER_FRAMES, RING_SECS
         );
 
         Ok(Self {
             _stream: AudioStream::Cpal(stream),
             ring,
+            producer,
             sample_rate,
             channels,
             exclusive: false,
         })
     }
+
+    pub fn ring_vacant(&self) -> usize {
+        self.producer.lock().unwrap().vacant_len()
+    }
+
+    pub fn ring_clear(&self) {}
 }
 
 // WASAPI Exclusive Mode (Windows)
 #[cfg(target_os = "windows")]
 mod wasapi_exclusive {
+    use super::{SharedProducer, RING_SECS};
     use anyhow::{anyhow, Result};
+    use ringbuf::{
+        traits::{Consumer, Producer, Split},
+        HeapRb,
+    };
     use std::sync::{Arc, Mutex};
     use std::thread;
-    use std::time::Duration;
     use windows::{
         core::PCWSTR,
         Win32::{
-            Foundation::HANDLE,
             Media::Audio::{
                 eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
                 AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, WAVEFORMATEX,
@@ -119,7 +140,7 @@ mod wasapi_exclusive {
     };
 
     pub struct ExclusiveStream {
-        pub ring: super::RingBuffer,
+        pub producer: SharedProducer,
         pub sample_rate: u32,
         pub channels: u32,
         _thread: Option<thread::JoinHandle<()>>,
@@ -208,10 +229,11 @@ mod wasapi_exclusive {
             let buffer_frames = audio_client.GetBufferSize()? as usize;
             audio_client.Start()?;
 
-            let ring: super::RingBuffer = Arc::new(Mutex::new(Vec::with_capacity(
-                chosen_sr as usize * chosen_ch as usize,
-            )));
-            let ring_cb = ring.clone();
+            let ring_cap = chosen_sr as usize * chosen_ch as usize * RING_SECS;
+            let rb = HeapRb::<f32>::new(ring_cap);
+            let (prod, mut cons) = rb.split();
+
+            let producer: SharedProducer = Arc::new(Mutex::new(prod));
             let alive = Arc::new(std::sync::atomic::AtomicBool::new(true));
             let alive_cb = alive.clone();
 
@@ -229,17 +251,14 @@ mod wasapi_exclusive {
                     buf_ptr as *mut f32,
                     buffer_frames * chosen_ch as usize,
                 );
-                let mut ring_lock = ring_cb.lock().unwrap();
-                let n = ring_lock.len().min(output.len());
-                output[..n].copy_from_slice(&ring_lock[..n]);
+                let n = cons.occupied_len().min(output.len());
+                cons.pop_slice(&mut output[..n]);
                 output[n..].fill(0.0);
-                ring_lock.drain(..n);
-                drop(ring_lock);
                 let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
             });
 
             Ok(Self {
-                ring,
+                producer,
                 sample_rate: chosen_sr,
                 channels: chosen_ch,
                 _thread: Some(_thread),
