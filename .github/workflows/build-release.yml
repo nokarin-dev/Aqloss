@@ -23,8 +23,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -46,11 +45,7 @@ jobs:
             ForEach-Object { ($_ -replace "version:\s*","") -replace "\+.*","" }).Trim()
           echo "VERSION=$v" >> $env:GITHUB_ENV
 
-      - name: Pre-build Rust
-        working-directory: rust
-        shell: cmd
-        run: cargo build --release
-
+      # Installer
       - name: Build Windows (installer)
         run: flutter build windows --release --dart-define=PORTABLE=false
 
@@ -103,6 +98,7 @@ jobs:
           }
           Write-Host "✓ Installer built"
 
+      # Portable
       - name: Build Windows (portable)
         run: flutter build windows --release --dart-define=PORTABLE=true
 
@@ -142,8 +138,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -160,16 +155,12 @@ jobs:
 
       - name: Get version
         run: |
-          echo "VERSION=$(grep '^version:' pubspec.yaml | \
-            sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
-
-      - name: Pre-build Rust
-        working-directory: rust
-        run: cargo build --release 2>&1
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
 
       - name: Build Linux release
         run: flutter build linux --release --dart-define=PORTABLE=false
 
+      # Deb
       - name: Build .deb package
         run: |
           PKG="aqloss_${{ env.VERSION }}_amd64"
@@ -186,7 +177,6 @@ jobs:
           EXE_NAME=$(basename "$EXE")
           if [ "$EXE_NAME" != "aqloss" ]; then
             mv "$EXE" "$PKG/opt/aqloss/aqloss"
-            echo "Renamed $EXE_NAME → aqloss"
           fi
 
           ln -s /opt/aqloss/aqloss "$PKG/usr/bin/aqloss"
@@ -214,7 +204,7 @@ jobs:
           Version: ${{ env.VERSION }}
           Architecture: amd64
           Maintainer: nokarin <contact@nokarin.my.id>
-          Description: High-quality local music player powered by a Rust audio engine.
+          Description: Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback.
           Depends: libgtk-3-0, libblkid1, liblzma5, libasound2
           Section: sound
           Priority: optional
@@ -229,10 +219,19 @@ jobs:
           POSTINST
           chmod 755 "$PKG/DEBIAN/postinst"
 
+          cat > "$PKG/DEBIAN/postrm" << 'POSTRM'
+          #!/bin/sh
+          update-desktop-database /usr/share/applications 2>/dev/null || true
+          exit 0
+          POSTRM
+          chmod 755 "$PKG/DEBIAN/postrm"
+
           fakeroot dpkg-deb --build "$PKG"
           mv "$PKG.deb" "Aqloss-linux-installer.deb"
           echo "✓ .deb built"
+          dpkg-deb --info "Aqloss-linux-installer.deb"
 
+      # AppImage
       - name: Build .AppImage
         run: |
           BUNDLE="build/linux/x64/release/bundle"
@@ -287,10 +286,11 @@ jobs:
           chmod +x "Aqloss-linux.AppImage"
           echo "✓ AppImage built"
 
+      # Portable
       - name: Build Linux (portable)
         run: flutter build linux --release --dart-define=PORTABLE=true
 
-      - name: Package portable
+      - name: Package portable (.tar.gz)
         run: |
           tar -czf Aqloss-linux-portable.tar.gz \
             -C build/linux/x64/release/bundle .
@@ -317,7 +317,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo dnf install -y @development-tools \
+          dnf install -y @development-tools \
             clang cmake ninja-build pkg-config \
             gtk3-devel xz-devel libstdc++-devel \
             alsa-lib-devel pulseaudio-libs-devel \
@@ -332,20 +332,14 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Get Flutter dependencies
         run: flutter pub get
 
       - name: Get version
         run: |
-          echo "VERSION=$(grep '^version:' pubspec.yaml | \
-            sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
-
-      - name: Pre-build Rust
-        working-directory: rust
-        run: cargo build --release 2>&1
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
 
       - name: Build Linux (release)
         run: flutter build linux --release --dart-define=PORTABLE=false
@@ -433,6 +427,7 @@ jobs:
           [ -z "$RPM_FILE" ] && echo "✗ RPM not found!" && exit 1
           cp "$RPM_FILE" "$GITHUB_WORKSPACE/Aqloss-linux-installer.rpm"
           echo "✓ RPM built"
+          rpm -qip "$GITHUB_WORKSPACE/Aqloss-linux-installer.rpm"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -457,8 +452,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable + Android targets
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
 

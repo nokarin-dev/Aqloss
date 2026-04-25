@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: MacOS and iOS still on test development
+        description: "macOS and iOS are still in test development"
         required: true
         default: both
         type: choice
@@ -12,28 +12,32 @@ on:
           - both
           - macos
           - ios
+
 permissions:
   contents: write
   actions: read
+
 jobs:
+  # macOS
   build-macos:
     name: macOS (dmg + portable)
     if: |
-      github.event_name == 'push' ||
       inputs.target == 'both' ||
       inputs.target == 'macos'
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.x
+          flutter-version: "3.x"
           channel: stable
           cache: true
-      - name: Install Rust stable + macOS targets
-        uses: dtolnay/rust-toolchain@stable
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -41,22 +45,26 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: "macos-cargo-${{ hashFiles('rust/Cargo.lock') }}"
+          key: macos-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: macos-cargo-
+
       - name: Get Flutter dependencies
         run: flutter pub get
+
       - name: Get version
-        run: >
-          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version:
-          //;s/+.*//')" >> $GITHUB_ENV
+        run: |
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      # Build
       - name: Build macOS (release)
         run: flutter build macos --release --dart-define=PORTABLE=false
-      - name: Create dmg
+
+      #  Package as dmg
+      - name: Create .dmg
         run: |
           APP="build/macos/Build/Products/Release/Aqloss.app"
           DMG="Aqloss-macos.dmg"
 
-          # create-dmg is pre-installed on GitHub macOS runners
           if command -v create-dmg &> /dev/null; then
             create-dmg \
               --volname "Aqloss" \
@@ -66,55 +74,59 @@ jobs:
               --icon "Aqloss.app" 185 185 \
               --hide-extension "Aqloss.app" \
               --app-drop-link 480 185 \
-              "$DMG" \
-              "$APP" || true
+              "$DMG" "$APP" || true
           fi
 
-          # Fallback: plain hdiutil if create-dmg is unavailable / fails
+          # Fallback if create-dmg failed or is not installed
           if [ ! -f "$DMG" ]; then
             hdiutil create -volname "Aqloss" -srcfolder "$APP" \
               -ov -format UDZO "$DMG"
           fi
 
           echo "✓ DMG: $(du -h $DMG | cut -f1)"
+
+      # Portable zip
       - name: Build macOS (portable)
         run: flutter build macos --release --dart-define=PORTABLE=true
+
       - name: Package macOS portable
-        run: >
+        run: |
           APP="build/macos/Build/Products/Release/Aqloss.app"
-
-          ditto -c -k --sequesterRsrc --keepParent "$APP"
-          "Aqloss-macos-portable.zip"
-
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "Aqloss-macos-portable.zip"
           echo "✓ Portable zip: $(du -h Aqloss-macos-portable.zip | cut -f1)"
+
       - name: Verify artifacts
         run: |
           ls -lh Aqloss-macos.dmg Aqloss-macos-portable.zip
           echo "✓ macOS artifacts OK"
+
       - uses: actions/upload-artifact@v4
         with:
           name: macos-builds
           path: |
             Aqloss-macos.dmg
             Aqloss-macos-portable.zip
+
+  # iOS
   build-ios:
-    name: iOS (.ipa)
+    name: iOS
     if: |
-      github.event_name == 'push' ||
       inputs.target == 'both' ||
       inputs.target == 'ios'
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.x
+          flutter-version: "3.x"
           channel: stable
           cache: true
-      - name: Install Rust stable + iOS targets
-        uses: dtolnay/rust-toolchain@stable
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: "aarch64-apple-ios,aarch64-apple-ios-sim"
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -122,74 +134,70 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: "ios-cargo-${{ hashFiles('rust/Cargo.lock') }}"
+          key: ios-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: ios-cargo-
+
       - name: Get Flutter dependencies
         run: flutter pub get
+
       - name: Get version
-        run: >
-          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version:
-          //;s/+.*//')" >> $GITHUB_ENV
-      - name: Build iOS
+        run: |
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      # Build
+      - name: Build iOS (release, no-codesign)
         run: |
           flutter build ios --release --no-codesign --dart-define=PORTABLE=false
           echo "✓ iOS build successful"
-      - name: Package IPA
+
+      # Package unsigned IPA
+      - name: Package unsigned .ipa
         run: |
           APP_PATH="build/ios/iphoneos/Runner.app"
           if [ -d "$APP_PATH" ]; then
             mkdir -p Payload
             cp -r "$APP_PATH" Payload/
             zip -qr "Aqloss-ios-unsigned.ipa" Payload/
-            echo "✓ Unsigned IPA packaged: $(du -h Aqloss-ios-unsigned.ipa | cut -f1)"
+            mv "Aqloss-ios-unsigned.ipa" "Aqloss-ios.ipa"
+            echo "✓ IPA packaged: $(du -h Aqloss-ios.ipa | cut -f1)"
           else
-            echo "⚠ Runner.app not found — checking build output"
-            find build/ios -name "*.app" | head -5
-          fi
-      - name: Collect IPA artifact
-        run: >
-          IPA=$(find build/ios/ipa -name "*.ipa" 2>/dev/null | head -1)
-
-          if [ -n "$IPA" ]; then
-            cp "$IPA" "Aqloss-ios.ipa"
+            echo "⚠ Runner.app not found — listing build/ios:"
+            find build/ios -name "*.app" | head -10
+            exit 1
           fi
 
-          # Also accept unsigned variant
-
-          [ -f "Aqloss-ios-unsigned.ipa" ] && mv "Aqloss-ios-unsigned.ipa"
-          "Aqloss-ios.ipa" || true
-
-          ls -lh Aqloss-ios.ipa && echo "✓ IPA ready"
       - uses: actions/upload-artifact@v4
         with:
           name: ios-build
           path: Aqloss-ios.ipa
+
   release-apple:
     name: Attach Apple builds to release
-    needs:
-      - build-macos
-      - build-ios
-    if: "startsWith(github.ref, 'refs/tags/v')"
+    needs: [build-macos, build-ios]
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
           name: macos-builds
           path: dist
+
       - name: Download iOS artifact
         uses: actions/download-artifact@v4
         with:
           name: ios-build
           path: dist
+
       - name: Upload to existing release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}
           files: |
             dist/Aqloss-macos.dmg
             dist/Aqloss-macos-portable.zip
             dist/Aqloss-ios.ipa
           fail_on_unmatched_files: false
-          token: "${{ secrets.GITHUB_TOKEN }}"
+          token: ${{ secrets.GITHUB_TOKEN }}

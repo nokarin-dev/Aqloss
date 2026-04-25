@@ -35,10 +35,11 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Get build_tool dependencies
+      - name: Get cargokit build_tool dependencies
         run: |
-          cd rust_builder/cargokit/build_tool
-          flutter pub get
+          if [ -d "rust_builder/cargokit/build_tool" ]; then
+            cd rust_builder/cargokit/build_tool && flutter pub get
+          fi
 
       - name: Install dependencies
         run: flutter pub get
@@ -50,7 +51,6 @@ jobs:
         run: flutter test --reporter=github
         continue-on-error: true
 
-  # Rust compile check
   rust-check:
     name: Rust Check
     runs-on: ubuntu-latest
@@ -60,11 +60,9 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y \
-            libasound2-dev libpulse-dev pkg-config
+          sudo apt-get install -y libasound2-dev libpulse-dev pkg-config
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -82,7 +80,7 @@ jobs:
 
   # Linux
   test-linux:
-    name: Build Test - Linux (deb + AppImage + portable)
+    name: Build Test — Linux (deb + AppImage + portable)
     needs: [analyze, rust-check]
     runs-on: ubuntu-22.04
     steps:
@@ -103,8 +101,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -119,10 +116,7 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Pre-build Rust
-        working-directory: rust
-        run: cargo build --release 2>&1
-
+      # Installer
       - name: Build Linux release (installer)
         run: flutter build linux --release --dart-define=PORTABLE=false
 
@@ -174,7 +168,7 @@ jobs:
           Priority: optional
           EOF
 
-          printf '#!/bin/sh\nchmod +x /opt/aqloss/aqloss 2>/dev/null||true\n' \
+          printf '#!/bin/sh\nchmod +x /opt/aqloss/aqloss 2>/dev/null||true\nupdate-desktop-database /usr/share/applications 2>/dev/null||true\nexit 0\n' \
             > "$PKG/DEBIAN/postinst"
           chmod 755 "$PKG/DEBIAN/postinst"
 
@@ -226,6 +220,7 @@ jobs:
           ARCH=x86_64 "$APPIMAGETOOL" --no-appstream AppDir "Aqloss-linux.AppImage"
           echo "✓ AppImage: $(du -h Aqloss-linux.AppImage | cut -f1)"
 
+      # Portable
       - name: Build Linux (portable)
         run: flutter build linux --release --dart-define=PORTABLE=true
 
@@ -242,7 +237,7 @@ jobs:
 
   # Linux RPM
   test-linux-rpm:
-    name: Build Test - Linux (RPM)
+    name: Build Test — Linux (RPM)
     needs: [analyze, rust-check]
     runs-on: ubuntu-latest
     container:
@@ -254,7 +249,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo dnf install -y @development-tools \
+          dnf install -y @development-tools \
             clang cmake ninja-build pkg-config \
             gtk3-devel xz-devel libstdc++-devel \
             alsa-lib-devel pulseaudio-libs-devel \
@@ -269,15 +264,10 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Get Flutter dependencies
         run: flutter pub get
-
-      - name: Pre-build Rust
-        working-directory: rust
-        run: cargo build 2>&1
 
       - name: Build Linux (debug)
         run: flutter build linux --debug --dart-define=PORTABLE=false
@@ -315,7 +305,7 @@ jobs:
           Requires:       gtk3, xz-libs, alsa-lib
 
           %description
-          Aqloss - high-quality local music player powered by a Rust audio engine.
+          Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback.
 
           %install
           BUNDLE=\$(cat $RPMROOT/SOURCES/bundle_path.txt)
@@ -358,7 +348,7 @@ jobs:
 
   # Windows
   test-windows:
-    name: Build Test - Windows (installer + portable)
+    name: Build Test — Windows (installer + portable)
     needs: [analyze, rust-check]
     runs-on: windows-latest
     steps:
@@ -370,8 +360,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -386,11 +375,7 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Pre-build Rust
-        working-directory: rust
-        shell: cmd
-        run: cargo build --release
-
+      # Installer
       - name: Build Windows (installer)
         run: flutter build windows --release --dart-define=PORTABLE=false
 
@@ -433,6 +418,7 @@ jobs:
           }
           Write-Host "✓ Installer: $('{0:N1} MB' -f ((Get-Item 'Aqloss-windows-installer.exe').Length / 1MB))"
 
+      # Portable
       - name: Build Windows (portable)
         run: flutter build windows --release --dart-define=PORTABLE=true
 
@@ -447,7 +433,7 @@ jobs:
         shell: pwsh
         run: |
           $ok = $true
-          @("Aqloss-windows-installer.exe", "Aqloss-windows-portable.zip") | ForEach-Object {
+          @("Aqloss-windows-installer.exe","Aqloss-windows-portable.zip") | ForEach-Object {
             if (Test-Path $_) { Write-Host "✓ $_" }
             else { Write-Error "✗ $_ missing"; $ok = $false }
           }
@@ -455,7 +441,7 @@ jobs:
 
   # Android
   test-android:
-    name: Build Test - Android (arm64 + arm32 + x86_64)
+    name: Build Test — Android (arm64 + arm32 + x86_64)
     needs: [analyze, rust-check]
     runs-on: ubuntu-latest
     steps:
@@ -472,10 +458,19 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Rust stable + Android targets
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: android-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: android-cargo-
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -489,9 +484,9 @@ jobs:
           for abi in arm64-v8a armeabi-v7a x86_64; do
             APK="build/app/outputs/flutter-apk/app-${abi}-debug.apk"
             if [ -f "$APK" ]; then
-              echo "✓ $abi - $(du -h $APK | cut -f1)"
+              echo "✓ $abi — $(du -h $APK | cut -f1)"
             else
-              echo "✗ $abi - NOT FOUND"
+              echo "✗ $abi — NOT FOUND"
               ok=false
             fi
           done
