@@ -1,4 +1,4 @@
-name: rust_lib_aqloss
+name: aqloss_rust_core
 description: "Utility to build Rust code"
 version: 0.0.1
 publish_to: none
@@ -14,10 +14,10 @@ dependencies:
 
 dev_dependencies:
   ffi: ^2.0.2
-  ffigen: ^11.0.0
+  ffigen: ^20.1.1
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   plugin:

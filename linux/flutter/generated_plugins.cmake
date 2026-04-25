@@ -8,8 +8,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  aqloss_rust_core
   jni
-  rust_lib_aqloss
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)
