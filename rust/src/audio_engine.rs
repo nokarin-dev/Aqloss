@@ -2,7 +2,7 @@ use crate::{decoder::Decoder, output::AudioOutput, resampler::Resampler, Playbac
 use anyhow::{anyhow, Result};
 use ringbuf::traits::Producer;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Mutex, OnceLock,
 };
 use std::thread;
@@ -27,6 +27,9 @@ impl PlayFlags {
     }
 }
 
+// Spectrum ring
+const SPECTRUM_BUF_FRAMES: usize = 4096;
+
 pub struct AudioEngine {
     output: AudioOutput,
     decoder: Option<Arc<Mutex<Decoder>>>,
@@ -36,6 +39,8 @@ pub struct AudioEngine {
     dec_sample_rate: u32,
     dec_channels: u32,
     flags: Arc<PlayFlags>,
+    spectrum_buf: Arc<Mutex<Vec<f32>>>,
+    spectrum_write_pos: Arc<AtomicU64>,
 }
 
 unsafe impl Send for AudioEngine {}
@@ -65,6 +70,8 @@ impl AudioEngine {
             dec_sample_rate: 44100,
             dec_channels: 2,
             flags: PlayFlags::new(),
+            spectrum_buf: Arc::new(Mutex::new(vec![0.0f32; SPECTRUM_BUF_FRAMES])),
+            spectrum_write_pos: Arc::new(AtomicU64::new(0)),
         };
         ENGINE
             .set(Arc::new(Mutex::new(engine)))
@@ -72,31 +79,46 @@ impl AudioEngine {
         Ok(())
     }
 
+    // Spectrum analysis
     pub fn get_spectrum_data(&self, n: usize) -> Vec<f32> {
         if n == 0 {
             return vec![];
         }
-        let ring = self.output.ring.lock().unwrap();
-        let samples: Vec<f32> = ring.iter().copied().collect();
-        drop(ring);
-        if samples.is_empty() {
+
+        let buf = self.spectrum_buf.lock().unwrap();
+        let len = buf.len();
+
+        let ch = self.output.channels as usize;
+        let frames = len / ch;
+        let mono: Vec<f32> = (0..frames)
+            .map(|f| {
+                let base = f * ch;
+                buf[base..base + ch].iter().sum::<f32>() / ch as f32
+            })
+            .collect();
+
+        let global_rms = (mono.iter().map(|s| s * s).sum::<f32>() / mono.len() as f32).sqrt();
+        if global_rms < 1e-6 {
             return vec![0.0; n];
         }
 
-        let volume_norm = self.smooth_volume.max(0.05);
-        let chunk = (samples.len() / n).max(1);
-
+        let frames_f = frames as f32;
         (0..n)
             .map(|i| {
-                let start = i * chunk;
-                let end = ((i + 1) * chunk).min(samples.len());
+                let t0 = (i as f32 / n as f32).powf(1.8);
+                let t1 = ((i + 1) as f32 / n as f32).powf(1.8);
+                let start = (t0 * frames_f) as usize;
+                let end = ((t1 * frames_f) as usize).min(frames);
+
                 if start >= end {
                     return 0.0;
                 }
-                let rms = (samples[start..end].iter().map(|s| s * s).sum::<f32>()
+
+                let rms = (mono[start..end].iter().map(|s| s * s).sum::<f32>()
                     / (end - start) as f32)
                     .sqrt();
-                (rms / volume_norm).clamp(0.0, 1.0)
+
+                (rms / (global_rms * 2.0 + 1e-9)).clamp(0.0, 1.0)
             })
             .collect()
     }
@@ -130,6 +152,12 @@ impl AudioEngine {
             None
         };
 
+        {
+            let mut sb = self.spectrum_buf.lock().unwrap();
+            sb.fill(0.0);
+        }
+        self.spectrum_write_pos.store(0, Ordering::Relaxed);
+
         self.decoder = Some(Arc::new(Mutex::new(dec)));
         Ok(())
     }
@@ -155,6 +183,7 @@ impl AudioEngine {
         self.stop_thread();
         self.decoder = None;
         self.resampler = None;
+        self.spectrum_buf.lock().unwrap().fill(0.0);
         Ok(())
     }
 
@@ -175,6 +204,8 @@ impl AudioEngine {
         if let Some(ref mut rs) = self.resampler {
             rs.reset();
         }
+
+        self.spectrum_buf.lock().unwrap().fill(0.0);
 
         self.flags.seek_pending.store(false, Ordering::SeqCst);
 
@@ -207,7 +238,6 @@ impl AudioEngine {
         self.flags.playing.load(Ordering::SeqCst)
     }
 
-    // Internal thread management
     fn stop_thread(&mut self) {
         if self.flags.alive.load(Ordering::SeqCst) {
             self.flags.playing.store(false, Ordering::SeqCst);
@@ -229,12 +259,13 @@ impl AudioEngine {
     }
 }
 
+// Soft-clipping
 #[inline(always)]
 fn soft_clip(x: f32) -> f32 {
-    if x > 3.0 {
+    if x >= 3.0 {
         return 1.0;
     }
-    if x < -3.0 {
+    if x <= -3.0 {
         return -1.0;
     }
     let x2 = x * x;
@@ -243,13 +274,18 @@ fn soft_clip(x: f32) -> f32 {
 
 // Decode loop
 fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
-    let (target_fill, out_channels, is_exclusive, ring_capacity) = {
+    let (target_fill, out_channels, is_exclusive, ring_capacity, spectrum_buf, spectrum_pos) = {
         let e = engine_arc.lock().unwrap();
         let sr = e.output.sample_rate as usize;
         let ch = e.output.channels as usize;
-        let fill = sr * ch;
-        let cap = sr * ch * 2;
-        (fill, ch as u32, e.output.exclusive, cap)
+        (
+            sr * ch,
+            ch as u32,
+            e.output.exclusive,
+            sr * ch * 2,
+            e.spectrum_buf.clone(),
+            e.spectrum_write_pos.clone(),
+        )
     };
 
     loop {
@@ -295,6 +331,19 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
                 let converted = adapt_channels(&resampled, dec_ch, out_channels);
 
+                {
+                    let mut sb = spectrum_buf.lock().unwrap();
+                    let buf_len = sb.len();
+                    let pos = spectrum_pos.load(Ordering::Relaxed) as usize;
+                    for (k, &s) in converted.iter().enumerate() {
+                        sb[(pos + k) % buf_len] = s;
+                    }
+                    spectrum_pos.store(
+                        ((pos + converted.len()) % buf_len) as u64,
+                        Ordering::Relaxed,
+                    );
+                }
+
                 let mut smooth = e.smooth_volume;
 
                 let pure_passthrough =
@@ -307,7 +356,7 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                         prod.push_slice(&converted);
                     } else {
                         let mut tmp = Vec::with_capacity(converted.len());
-                        for s in converted {
+                        for s in &converted {
                             if (smooth - target_vol).abs() > VOLUME_RAMP_RATE {
                                 smooth += if target_vol > smooth {
                                     VOLUME_RAMP_RATE
@@ -354,7 +403,7 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                         prod.push_slice(&tail);
                     } else {
                         let mut tmp = Vec::with_capacity(tail.len());
-                        for s in tail {
+                        for s in &tail {
                             if (smooth - target_vol).abs() > VOLUME_RAMP_RATE {
                                 smooth += if target_vol > smooth {
                                     VOLUME_RAMP_RATE

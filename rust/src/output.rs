@@ -1,17 +1,14 @@
 use anyhow::{anyhow, Result};
-pub type RingBuffer = std::sync::Arc<std::sync::Mutex<Vec<f32>>>;
 use ringbuf::{
     traits::{Consumer, Observer, Split},
     HeapRb,
 };
 use std::sync::Arc;
 
-// Ring-buffer handle
 pub type SharedProducer = Arc<std::sync::Mutex<ringbuf::HeapProd<f32>>>;
 
 pub struct AudioOutput {
     _stream: AudioStream,
-    pub ring: RingBuffer,
     pub producer: SharedProducer,
     pub sample_rate: u32,
     pub channels: u32,
@@ -26,7 +23,7 @@ enum AudioStream {
 }
 
 const RING_SECS: usize = 2;
-const CPAL_BUFFER_FRAMES: usize = 1024;
+const CPAL_BUFFER_FRAMES: usize = 512;
 
 impl AudioOutput {
     pub fn new() -> Result<Self> {
@@ -74,8 +71,6 @@ impl AudioOutput {
         };
 
         let ring_cap = sample_rate as usize * channels as usize * RING_SECS;
-        let ring: RingBuffer =
-            std::sync::Arc::new(std::sync::Mutex::new(Vec::with_capacity(ring_cap)));
         let rb = HeapRb::<f32>::new(ring_cap);
         let (prod, mut cons) = rb.split();
 
@@ -101,7 +96,6 @@ impl AudioOutput {
 
         Ok(Self {
             _stream: AudioStream::Cpal(stream),
-            ring,
             producer,
             sample_rate,
             channels,
@@ -112,8 +106,6 @@ impl AudioOutput {
     pub fn ring_vacant(&self) -> usize {
         self.producer.lock().unwrap().vacant_len()
     }
-
-    pub fn ring_clear(&self) {}
 }
 
 // WASAPI Exclusive Mode (Windows)
@@ -122,7 +114,7 @@ mod wasapi_exclusive {
     use super::{SharedProducer, RING_SECS};
     use anyhow::{anyhow, Result};
     use ringbuf::{
-        traits::{Consumer, Producer, Split},
+        traits::{Consumer, Observer, Producer, Split},
         HeapRb,
     };
     use std::sync::{Arc, Mutex};
@@ -131,13 +123,17 @@ mod wasapi_exclusive {
         core::PCWSTR,
         Win32::{
             Media::Audio::{
-                eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
-                AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK, WAVEFORMATEX,
-                WAVE_FORMAT_PCM,
+                eConsole, eRender, IAudioClient, IAudioRenderClient, IMMDeviceEnumerator,
+                MMDeviceEnumerator, AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                WAVEFORMATEX,
             },
             System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
+            System::Threading::{CreateEventW, WaitForSingleObject},
         },
     };
+
+    const WAVE_FORMAT_IEEE_FLOAT: u16 = 3;
+    const WAVE_FORMAT_PCM: u16 = 1;
 
     pub struct ExclusiveStream {
         pub producer: SharedProducer,
@@ -158,30 +154,40 @@ mod wasapi_exclusive {
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
             let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-            let audio_client: windows::Win32::Media::Audio::IAudioClient =
-                device.Activate(CLSCTX_ALL, None)?;
 
-            let candidates: &[(u32, u16, u16)] = &[
-                (192000, 32, 2),
-                (96000, 32, 2),
-                (88200, 32, 2),
-                (48000, 32, 2),
-                (44100, 32, 2),
-                (192000, 24, 2),
-                (96000, 24, 2),
-                (88200, 24, 2),
-                (48000, 24, 2),
-                (44100, 24, 2),
-                (48000, 16, 2),
-                (44100, 16, 2),
+            let audio_client: IAudioClient = {
+                let mut obj: Option<windows::core::IUnknown> = None;
+                device.Activate(
+                    &IAudioClient::IID,
+                    CLSCTX_ALL,
+                    None,
+                    &mut obj as *mut _ as *mut _,
+                )?;
+                obj.ok_or_else(|| anyhow!("IAudioClient activation returned null"))?
+                    .cast::<IAudioClient>()?
+            };
+
+            let candidates: &[(u32, u16, u16, u16)] = &[
+                (192000, 32, 2, WAVE_FORMAT_IEEE_FLOAT),
+                (96000, 32, 2, WAVE_FORMAT_IEEE_FLOAT),
+                (88200, 32, 2, WAVE_FORMAT_IEEE_FLOAT),
+                (48000, 32, 2, WAVE_FORMAT_IEEE_FLOAT),
+                (44100, 32, 2, WAVE_FORMAT_IEEE_FLOAT),
+                (192000, 24, 2, WAVE_FORMAT_PCM),
+                (96000, 24, 2, WAVE_FORMAT_PCM),
+                (88200, 24, 2, WAVE_FORMAT_PCM),
+                (48000, 24, 2, WAVE_FORMAT_PCM),
+                (44100, 24, 2, WAVE_FORMAT_PCM),
+                (48000, 16, 2, WAVE_FORMAT_PCM),
+                (44100, 16, 2, WAVE_FORMAT_PCM),
             ];
 
             let mut chosen_fmt: Option<WAVEFORMATEX> = None;
             let mut chosen_sr = 48000u32;
             let mut chosen_ch = 2u32;
 
-            for &(sr, bits, ch) in candidates {
-                let fmt = make_waveformat(sr, bits, ch);
+            for &(sr, bits, ch, fmt_tag) in candidates {
+                let fmt = make_waveformat(sr, bits, ch, fmt_tag);
                 let mut closest: *mut WAVEFORMATEX = std::ptr::null_mut();
                 let hr = audio_client.IsFormatSupported(
                     AUDCLNT_SHAREMODE_EXCLUSIVE,
@@ -192,26 +198,22 @@ mod wasapi_exclusive {
                     chosen_fmt = Some(fmt);
                     chosen_sr = sr;
                     chosen_ch = ch as u32;
+                    eprintln!(
+                        "[wasapi-exclusive] chosen format: {}Hz {}ch {}bit (tag={})",
+                        sr, ch, bits, fmt_tag
+                    );
                     break;
                 }
             }
 
             let fmt = chosen_fmt.ok_or_else(|| {
                 anyhow!(
-                    "No exclusive format supported by this device.\n\
-                    Possible causes:\n\
-                    - Another app is using exclusive mode (Spotify, Foobar2000, etc.)\n\
-                    - Driver does not support WASAPI Exclusive\n\
-                    - Device is a Bluetooth/USB headset with limited format support"
+                    "No WASAPI exclusive format supported — driver may not support exclusive mode.\n\
+                     Falling back to shared mode automatically."
                 )
             })?;
 
-            let event = windows::Win32::System::Threading::CreateEventW(
-                None,
-                false,
-                false,
-                PCWSTR::null(),
-            )?;
+            let event = CreateEventW(None, false, false, PCWSTR::null())?;
 
             let buffer_dur = 100_000i64;
             audio_client.Initialize(
@@ -224,8 +226,8 @@ mod wasapi_exclusive {
             )?;
 
             audio_client.SetEventHandle(event)?;
-            let render_client: windows::Win32::Media::Audio::IAudioRenderClient =
-                audio_client.GetService()?;
+
+            let render_client: IAudioRenderClient = audio_client.GetService()?;
             let buffer_frames = audio_client.GetBufferSize()? as usize;
             audio_client.Start()?;
 
@@ -241,7 +243,7 @@ mod wasapi_exclusive {
                 if !alive_cb.load(std::sync::atomic::Ordering::SeqCst) {
                     break;
                 }
-                windows::Win32::System::Threading::WaitForSingleObject(event, 100);
+                WaitForSingleObject(event, 100);
 
                 let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
                     Ok(p) => p,
@@ -277,10 +279,11 @@ mod wasapi_exclusive {
         sample_rate: u32,
         bits_per_sample: u16,
         channels: u16,
+        format_tag: u16,
     ) -> WAVEFORMATEX {
         let block_align = channels * bits_per_sample / 8;
         WAVEFORMATEX {
-            wFormatTag: WAVE_FORMAT_PCM,
+            wFormatTag: format_tag,
             nChannels: channels,
             nSamplesPerSec: sample_rate,
             nAvgBytesPerSec: sample_rate * block_align as u32,
