@@ -1192,8 +1192,10 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
-          width: 40,
-          height: 36,
+          width: 30,
+          height: 30,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          alignment: Alignment.center,
           color: _hovered
               ? widget.isClose
                     ? const Color(0xFFE81123)

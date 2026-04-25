@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _kVolumeKey = 'aqloss_volume';
 
 enum PlayerStatus { idle, playing, paused, loading, error }
+
 enum LoopMode { off, track, album, playlist }
 
 class PlayerState {
@@ -42,17 +43,16 @@ class PlayerState {
     bool? shuffle,
     List<Track>? queue,
     int? queueIndex,
-  }) =>
-      PlayerState(
-        currentTrack: currentTrack ?? this.currentTrack,
-        status: status ?? this.status,
-        position: position ?? this.position,
-        volume: volume ?? this.volume,
-        loopMode: loopMode ?? this.loopMode,
-        shuffle: shuffle ?? this.shuffle,
-        queue: queue ?? this.queue,
-        queueIndex: queueIndex ?? this.queueIndex,
-      );
+  }) => PlayerState(
+    currentTrack: currentTrack ?? this.currentTrack,
+    status: status ?? this.status,
+    position: position ?? this.position,
+    volume: volume ?? this.volume,
+    loopMode: loopMode ?? this.loopMode,
+    shuffle: shuffle ?? this.shuffle,
+    queue: queue ?? this.queue,
+    queueIndex: queueIndex ?? this.queueIndex,
+  );
 
   bool get hasPrevious => queueIndex > 0;
   bool get hasNext => queueIndex < queue.length - 1;
@@ -116,7 +116,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       await AudioService.play();
       if (!mounted) return;
       state = state.copyWith(status: PlayerStatus.playing);
-      DiscordService.update(state);
+      DiscordService.update(state, positionSecs: 0.0);
       _startTimer();
     } catch (e) {
       if (mounted) state = state.copyWith(status: PlayerStatus.error);
@@ -126,8 +126,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   // Transport
   Future<void> play() async {
     await AudioService.play();
+    if (!mounted) return;
+    double freshPos = state.position.inMilliseconds / 1000.0;
+    try {
+      final p = await backend.getPosition();
+      freshPos = p.positionSecs;
+    } catch (_) {}
     state = state.copyWith(status: PlayerStatus.playing);
-    DiscordService.update(state);
+    DiscordService.update(state, positionSecs: freshPos);
     _startTimer();
   }
 
@@ -139,15 +145,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> seek(Duration position) async {
-    await AudioService.seek(position.inMilliseconds / 1000.0);
+    final posSec = position.inMilliseconds / 1000.0;
+    await AudioService.seek(posSec);
     state = state.copyWith(position: position);
+    if (state.status == PlayerStatus.playing) {
+      DiscordService.updateAfterSeek(state, posSec);
+    }
   }
 
   Future<void> setVolume(double volume) async {
     final v = volume.clamp(0.0, 1.0);
     await AudioService.setVolume(v);
     state = state.copyWith(volume: v);
-    _saveVolume(v); // persist — fire and forget
+    _saveVolume(v);
   }
 
   // Skip
@@ -223,10 +233,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       final pos = await backend.getPosition();
       if (!mounted) return;
 
-      final newPosition =
-          Duration(milliseconds: (pos.positionSecs * 1000).round());
-      final backendDuration =
-          Duration(milliseconds: (pos.durationSecs * 1000).round());
+      final newPosition = Duration(
+        milliseconds: (pos.positionSecs * 1000).round(),
+      );
+      final backendDuration = Duration(
+        milliseconds: (pos.durationSecs * 1000).round(),
+      );
 
       final effectiveDuration = backendDuration.inMilliseconds > 0
           ? backendDuration
@@ -247,6 +259,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     } catch (_) {}
   }
 
+  // Track end
   Future<void> _onTrackEnd() async {
     final s = state;
     switch (s.loopMode) {
@@ -256,10 +269,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         break;
 
       case LoopMode.album:
-        final albumTracks =
-            s.queue.where((t) => t.album == s.currentTrack?.album).toList();
-        final idx =
-            albumTracks.indexWhere((t) => t.path == s.currentTrack?.path);
+        final albumTracks = s.queue
+            .where((t) => t.album == s.currentTrack?.album)
+            .toList();
+        final idx = albumTracks.indexWhere(
+          (t) => t.path == s.currentTrack?.path,
+        );
         if (idx >= 0 && idx < albumTracks.length - 1) {
           final next = albumTracks[idx + 1];
           final qIdx = s.queue.indexWhere((t) => t.path == next.path);

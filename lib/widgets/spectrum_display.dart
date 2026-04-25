@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
@@ -21,72 +22,83 @@ class SpectrumDisplay extends ConsumerStatefulWidget {
 
 class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late final Ticker _ticker;
+
   late List<double> _smoothed;
+
+  DateTime _lastFetch = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _fetchInterval = Duration(milliseconds: 30);
+  bool _fetchInFlight = false;
+  static const _decayRate = 0.82;
+
+  static const _alphaAttack = 0.65;
+  static const _alphaRelease = 0.20;
 
   @override
   void initState() {
     super.initState();
-    _smoothed = List.filled(widget.barCount, 0.02);
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 60),
-    )..addListener(_tick);
+    _smoothed = List.filled(widget.barCount, 0.0);
+
+    _ticker = createTicker(_onTick)..start();
   }
 
   @override
   void dispose() {
-    _controller
-      ..removeListener(_tick)
-      ..dispose();
+    _ticker.dispose();
     super.dispose();
   }
 
-  Future<void> _tick() async {
+  void _onTick(Duration elapsed) {
     if (!mounted) return;
-    final player = ref.read(playerProvider);
-    final isPlaying = player.status == PlayerStatus.playing;
+
+    final isPlaying = ref.read(playerProvider).status == PlayerStatus.playing;
 
     if (!isPlaying) {
-      setState(() {
-        _smoothed = _smoothed.map((v) => (v * 0.80).clamp(0.02, 1.0)).toList();
+      bool changed = false;
+      final next = List<double>.generate(widget.barCount, (i) {
+        final v = _smoothed[i] * _decayRate;
+        if ((v - _smoothed[i]).abs() > 0.001) changed = true;
+        return v < 0.001 ? 0.0 : v;
       });
+      if (changed) {
+        setState(() => _smoothed = next);
+      }
       return;
     }
 
-    final raw = await backend.getSpectrumData(bucketCount: widget.barCount);
-    if (!mounted) return;
-    if (raw.isEmpty) return;
+    final now = DateTime.now();
+    if (_fetchInFlight || now.difference(_lastFetch) < _fetchInterval) return;
 
-    setState(() {
-      _smoothed = List.generate(widget.barCount, (i) {
-        final target = raw[i].toDouble();
-        final prev = _smoothed[i];
-        final alpha = target > prev ? 0.55 : 0.18;
-        return (prev + (target - prev) * alpha).clamp(0.02, 1.0);
-      });
-    });
+    _fetchInFlight = true;
+    _lastFetch = now;
+
+    backend
+        .getSpectrumData(bucketCount: widget.barCount)
+        .then((raw) {
+          _fetchInFlight = false;
+          if (!mounted || raw.isEmpty) return;
+
+          setState(() {
+            _smoothed = List.generate(widget.barCount, (i) {
+              final target = raw[i].toDouble().clamp(0.0, 1.0);
+              final prev = _smoothed[i];
+              final alpha = target > prev ? _alphaAttack : _alphaRelease;
+              return prev + (target - prev) * alpha;
+            });
+          });
+        })
+        .catchError((_) {
+          _fetchInFlight = false;
+        });
   }
 
   @override
   Widget build(BuildContext context) {
-    final player = ref.watch(playerProvider);
-    final isPlaying = player.status == PlayerStatus.playing;
-
-    if (isPlaying && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (!isPlaying && _controller.isAnimating) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted &&
-            ref.read(playerProvider).status != PlayerStatus.playing) {
-          _controller.stop();
-        }
-      });
-    }
+    final isPlaying = ref.watch(playerProvider).status == PlayerStatus.playing;
 
     final barColor =
         widget.color ??
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.60);
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.70);
 
     return SizedBox(
       height: widget.height,
@@ -102,16 +114,15 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
           return Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(widget.barCount, (i) {
-              final h = (_smoothed[i] * widget.height).clamp(
-                2.0,
-                widget.height,
-              );
-              final opacity = (0.45 + _smoothed[i] * 0.55).clamp(0.0, 1.0);
+              final level = _smoothed[i];
+              final h = (level * widget.height).clamp(2.0, widget.height);
+              final opacity = isPlaying
+                  ? (0.35 + level * 0.65).clamp(0.0, 1.0)
+                  : (level * 0.5).clamp(0.0, 0.5);
 
               return Padding(
                 padding: EdgeInsets.only(right: gap),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 40),
+                child: Container(
                   width: barWidth,
                   height: h,
                   decoration: BoxDecoration(

@@ -6,10 +6,9 @@ import 'package:http/http.dart' as http;
 
 class DiscordService {
   static bool _enabled = true;
-  static Timer? _updateTimer;
-
+  static Timer? _refreshTimer;
   static final Map<String, String> _artCache = {};
-
+  static String _lastFingerprint = '';
   static bool get enabled => _enabled;
   static set enabled(bool v) {
     _enabled = v;
@@ -17,7 +16,7 @@ class DiscordService {
   }
 
   // Public API
-  static void update(PlayerState state) {
+  static void update(PlayerState state, {double? positionSecs}) {
     if (!_enabled) return;
 
     final track = state.currentTrack;
@@ -29,38 +28,42 @@ class DiscordService {
     final title = track.title ?? track.path.split(RegExp(r'[/\\]')).last;
     final artist = track.artist ?? 'Unknown Artist';
     final album = track.album ?? '';
+    final durSec = track.duration.inMilliseconds / 1000.0;
 
     switch (state.status) {
       case PlayerStatus.playing:
-        _updateTimer?.cancel();
-        _updateTimer = Timer(const Duration(milliseconds: 600), () async {
-          final artUrl = await _resolveArtUrl(artist, album);
+        final posSec = positionSecs ?? state.position.inMilliseconds / 1000.0;
+
+        final fp = 'playing|$title|$artist|$durSec';
+        final sameTrackSameStatus = fp == _lastFingerprint;
+
+        if (sameTrackSameStatus) return;
+        _lastFingerprint = fp;
+
+        _cancelRefresh();
+        _sendPlaying(title, artist, album, posSec, durSec);
+
+        _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+          if (!_enabled) return;
           backend
-              .discordUpdatePlaying(
-                title: title,
-                artist: artist,
-                album: album,
-                albumArtUrl: artUrl.isEmpty ? "" : artUrl,
-                positionSecs: state.position.inMilliseconds / 1000.0,
-                durationSecs: track.duration.inMilliseconds / 1000.0,
-              )
+              .getPosition()
+              .then((pos) {
+                _sendPlaying(
+                  title,
+                  artist,
+                  album,
+                  pos.positionSecs,
+                  pos.durationSecs > 0 ? pos.durationSecs : durSec,
+                );
+              })
               .catchError((_) {});
         });
         break;
 
       case PlayerStatus.paused:
-        _updateTimer?.cancel();
-        Future(() async {
-          final artUrl = await _resolveArtUrl(artist, album);
-          backend
-              .discordUpdatePaused(
-                title: title,
-                artist: artist,
-                album: album,
-                albumArtUrl: artUrl.isEmpty ? "" : artUrl,
-              )
-              .catchError((_) {});
-        });
+        _cancelRefresh();
+        _lastFingerprint = 'paused|$title|$artist';
+        _sendPaused(title, artist, album);
         break;
 
       case PlayerStatus.idle:
@@ -71,30 +74,73 @@ class DiscordService {
     }
   }
 
+  static void updateAfterSeek(PlayerState state, double positionSecs) {
+    _lastFingerprint = '';
+    update(state, positionSecs: positionSecs);
+  }
+
   static void clear() {
-    _updateTimer?.cancel();
+    _cancelRefresh();
+    _lastFingerprint = '';
     backend.discordClear().catchError((_) {});
   }
 
   static void dispose() {
-    _updateTimer?.cancel();
+    _cancelRefresh();
+  }
+
+  // Internal helpers
+  static void _cancelRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  static void _sendPlaying(
+    String title,
+    String artist,
+    String album,
+    double positionSecs,
+    double durationSecs,
+  ) {
+    _resolveArtUrl(artist, album).then((artUrl) {
+      backend
+          .discordUpdatePlaying(
+            title: title,
+            artist: artist,
+            album: album,
+            albumArtUrl: artUrl,
+            positionSecs: positionSecs,
+            durationSecs: durationSecs,
+          )
+          .catchError((_) {});
+    });
+  }
+
+  static void _sendPaused(String title, String artist, String album) {
+    _resolveArtUrl(artist, album).then((artUrl) {
+      backend
+          .discordUpdatePaused(
+            title: title,
+            artist: artist,
+            album: album,
+            albumArtUrl: artUrl,
+          )
+          .catchError((_) {});
+    });
   }
 
   // Cover art resolution
   static Future<String> _resolveArtUrl(String artist, String album) async {
     final cacheKey = '${artist.toLowerCase()}||${album.toLowerCase()}';
-    if (_artCache.containsKey(cacheKey)) {
-      return _artCache[cacheKey]!;
-    }
+    if (_artCache.containsKey(cacheKey)) return _artCache[cacheKey]!;
 
-    // Try iTunes Search first
     final itunesUrl = await _fetchItunesArtUrl(artist, album);
+
     if (itunesUrl.isNotEmpty) {
       _artCache[cacheKey] = itunesUrl;
       return itunesUrl;
     }
 
-    // Fallback: MusicBrainz Cover Art Archive
     final mbUrl = _buildMbUrl(artist, album);
     _artCache[cacheKey] = mbUrl;
     return mbUrl;
@@ -111,14 +157,12 @@ class DiscordService {
       );
 
       final response = await http.get(uri).timeout(const Duration(seconds: 4));
-
       if (response.statusCode != 200) return '';
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
       final results = json['results'] as List<dynamic>?;
       if (results == null || results.isEmpty) return '';
 
-      // Find best match
       Map<String, dynamic>? best;
       final albumLower = album.toLowerCase();
       final artistLower = artist.toLowerCase();
@@ -137,29 +181,22 @@ class DiscordService {
       final artworkUrl = best['artworkUrl100'] as String?;
       if (artworkUrl == null || artworkUrl.isEmpty) return '';
 
-      final hqUrl = artworkUrl
+      return artworkUrl
           .replaceAll('100x100bb.jpg', '600x600bb.jpg')
           .replaceAll('100x100bb.png', '600x600bb.png');
-
-      return hqUrl;
-    } catch (e) {
+    } catch (_) {
       return '';
     }
   }
 
-  // MusicBrainz Cover Art Archive URL.
   static String _buildMbUrl(String artist, String album) {
     if (album.isEmpty) return '';
-
     String clean(String s) => s
         .replaceAll(RegExp(r'[^\w\s]'), ' ')
         .trim()
         .replaceAll(RegExp(r'\s+'), '+');
-
-    final a = clean(artist);
     final al = clean(album);
     if (al.isEmpty) return '';
-
-    return 'https://coverartarchive.org/release-group/$a+$al/front-250';
+    return 'https://coverartarchive.org/release-group/${clean(artist)}+$al/front-250';
   }
 }

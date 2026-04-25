@@ -14,9 +14,9 @@ void main() async {
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
         size: Size(1100, 700),
-        minimumSize: Size(760, 520),
+        minimumSize: Size(1100, 700),
         center: true,
-        titleBarStyle: TitleBarStyle.hidden, // ← removes OS chrome
+        titleBarStyle: TitleBarStyle.hidden,
         backgroundColor: Colors.transparent,
         skipTaskbar: false,
         title: 'Aqloss',
