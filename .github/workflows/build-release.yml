@@ -29,9 +29,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
+            ${{ env.CARGO_HOME }}\registry
+            ${{ env.CARGO_HOME }}\git
+            rust\target
           key: win-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: win-cargo-
 
@@ -144,8 +144,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ${{ env.CARGO_HOME }}/registry
+            ${{ env.CARGO_HOME }}/git
             rust/target
           key: linux-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: linux-cargo-
@@ -338,8 +338,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ${{ env.CARGO_HOME }}/registry
+            ${{ env.CARGO_HOME }}/git
             rust/target
           key: rpm-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: rpm-cargo-
@@ -470,8 +470,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ${{ env.CARGO_HOME }}/registry
+            ${{ env.CARGO_HOME }}/git
             rust/target
           key: android-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: android-cargo-
