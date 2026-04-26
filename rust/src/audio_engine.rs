@@ -10,7 +10,6 @@ use std::time::Duration;
 
 static ENGINE: OnceLock<Arc<Mutex<AudioEngine>>> = OnceLock::new();
 
-// Play flags
 struct PlayFlags {
     alive: AtomicBool,
     playing: AtomicBool,
@@ -27,8 +26,8 @@ impl PlayFlags {
     }
 }
 
-// Spectrum ring
 const SPECTRUM_BUF_FRAMES: usize = 4096;
+const VOLUME_RAMP_RATE: f32 = 0.003;
 
 pub struct AudioEngine {
     output: AudioOutput,
@@ -45,8 +44,6 @@ pub struct AudioEngine {
 
 unsafe impl Send for AudioEngine {}
 unsafe impl Sync for AudioEngine {}
-
-const VOLUME_RAMP_RATE: f32 = 0.002;
 
 impl AudioEngine {
     pub fn init() -> Result<()> {
@@ -79,17 +76,13 @@ impl AudioEngine {
         Ok(())
     }
 
-    // Spectrum analysis
     pub fn get_spectrum_data(&self, n: usize) -> Vec<f32> {
         if n == 0 {
             return vec![];
         }
-
         let buf = self.spectrum_buf.lock().unwrap();
-        let len = buf.len();
-
         let ch = self.output.channels as usize;
-        let frames = len / ch;
+        let frames = buf.len() / ch;
         let mono: Vec<f32> = (0..frames)
             .map(|f| {
                 let base = f * ch;
@@ -109,15 +102,12 @@ impl AudioEngine {
                 let t1 = ((i + 1) as f32 / n as f32).powf(1.8);
                 let start = (t0 * frames_f) as usize;
                 let end = ((t1 * frames_f) as usize).min(frames);
-
                 if start >= end {
                     return 0.0;
                 }
-
                 let rms = (mono[start..end].iter().map(|s| s * s).sum::<f32>()
                     / (end - start) as f32)
                     .sqrt();
-
                 (rms / (global_rms * 2.0 + 1e-9)).clamp(0.0, 1.0)
             })
             .collect()
@@ -135,9 +125,9 @@ impl AudioEngine {
         self.output.exclusive
     }
 
-    // Load
     pub fn load(&mut self, path: &str) -> Result<()> {
         self.stop_thread();
+        self.output.stop_drain();
         let dec = Decoder::open(path)?;
         let src_rate = dec.sample_rate();
         let src_ch = dec.channels();
@@ -152,11 +142,9 @@ impl AudioEngine {
             None
         };
 
-        {
-            let mut sb = self.spectrum_buf.lock().unwrap();
-            sb.fill(0.0);
-        }
+        self.spectrum_buf.lock().unwrap().fill(0.0);
         self.spectrum_write_pos.store(0, Ordering::Relaxed);
+        self.smooth_volume = self.volume;
 
         self.decoder = Some(Arc::new(Mutex::new(dec)));
         Ok(())
@@ -166,6 +154,7 @@ impl AudioEngine {
         if self.decoder.is_none() {
             return Err(anyhow!("No track loaded"));
         }
+        self.output.stop_drain();
         if self.flags.alive.load(Ordering::SeqCst) {
             self.flags.playing.store(true, Ordering::SeqCst);
             return Ok(());
@@ -176,11 +165,13 @@ impl AudioEngine {
 
     pub fn pause(&mut self) -> Result<()> {
         self.flags.playing.store(false, Ordering::SeqCst);
+        self.output.start_drain();
         Ok(())
     }
 
     pub fn stop(&mut self) -> Result<()> {
         self.stop_thread();
+        self.output.stop_drain();
         self.decoder = None;
         self.resampler = None;
         self.spectrum_buf.lock().unwrap().fill(0.0);
@@ -191,14 +182,15 @@ impl AudioEngine {
         let dec = self
             .decoder
             .as_ref()
-            .ok_or_else(|| anyhow!("No track loaded"))?;
+            .ok_or_else(|| anyhow!("No track loaded"))?
+            .clone();
 
         let was_playing = self.flags.playing.load(Ordering::SeqCst);
         self.flags.playing.store(false, Ordering::SeqCst);
+        self.output.start_drain();
         self.flags.seek_pending.store(true, Ordering::SeqCst);
 
-        thread::sleep(Duration::from_millis(15));
-
+        thread::sleep(Duration::from_millis(20));
         dec.lock().unwrap().seek(position_secs)?;
 
         if let Some(ref mut rs) = self.resampler {
@@ -206,10 +198,11 @@ impl AudioEngine {
         }
 
         self.spectrum_buf.lock().unwrap().fill(0.0);
-
+        self.smooth_volume = self.volume;
         self.flags.seek_pending.store(false, Ordering::SeqCst);
 
         if was_playing {
+            self.output.stop_drain();
             self.flags.playing.store(true, Ordering::SeqCst);
         }
         Ok(())
@@ -259,7 +252,6 @@ impl AudioEngine {
     }
 }
 
-// Soft-clipping
 #[inline(always)]
 fn soft_clip(x: f32) -> f32 {
     if x >= 3.0 {
@@ -272,59 +264,62 @@ fn soft_clip(x: f32) -> f32 {
     x * (27.0 + x2) / (27.0 + 9.0 * x2)
 }
 
-// Decode loop
 fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
-    let (target_fill, out_channels, is_exclusive, ring_capacity, spectrum_buf, spectrum_pos) = {
+    let (out_channels, out_sample_rate, is_exclusive, spectrum_buf, spectrum_pos, dec_arc) = {
         let e = engine_arc.lock().unwrap();
-        let sr = e.output.sample_rate as usize;
-        let ch = e.output.channels as usize;
+        let dec = match e.decoder.as_ref() {
+            Some(d) => d.clone(),
+            None => return,
+        };
         (
-            sr * ch,
-            ch as u32,
+            e.output.channels as u32,
+            e.output.sample_rate as usize,
             e.output.exclusive,
-            sr * ch * 2,
             e.spectrum_buf.clone(),
             e.spectrum_write_pos.clone(),
+            dec,
         )
     };
 
+    let target_samples = out_sample_rate * out_channels as usize / 4;
+    let ring_capacity = out_sample_rate * out_channels as usize / 2 + 4096;
+
     loop {
-        if !flags.alive.load(Ordering::SeqCst) {
+        if !flags.alive.load(Ordering::Acquire) {
             break;
         }
 
-        if !flags.playing.load(Ordering::SeqCst) {
-            thread::sleep(Duration::from_millis(10));
+        if !flags.playing.load(Ordering::Acquire) {
+            thread::sleep(Duration::from_millis(5));
             continue;
         }
 
         let vacant = engine_arc.lock().unwrap().output.ring_vacant();
         let filled = ring_capacity.saturating_sub(vacant);
 
-        if filled >= target_fill {
-            thread::sleep(Duration::from_millis(5));
+        if filled >= target_samples {
+            thread::sleep(Duration::from_millis(2));
             continue;
         }
 
-        let dec_arc = {
-            let e = engine_arc.lock().unwrap();
-            match e.decoder.as_ref() {
-                Some(d) => d.clone(),
-                None => break,
-            }
-        };
+        let decode_result = dec_arc.lock().unwrap().next_packet();
 
-        let result = dec_arc.lock().unwrap().next_packet();
-
-        match result {
+        match decode_result {
             Ok(Some(raw_samples)) => {
                 let mut e = engine_arc.lock().unwrap();
 
-                let target_vol = e.volume;
+                if flags.seek_pending.load(Ordering::Acquire) {
+                    continue;
+                }
+
                 let dec_ch = e.dec_channels;
+                let target_vol = e.volume;
 
                 let resampled = if let Some(rs) = e.resampler.as_mut() {
-                    rs.process(&raw_samples).unwrap_or(raw_samples)
+                    match rs.process(&raw_samples) {
+                        Ok(r) if !r.is_empty() => r,
+                        _ => continue,
+                    }
                 } else {
                     raw_samples
                 };
@@ -345,24 +340,20 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                 }
 
                 let mut smooth = e.smooth_volume;
-
-                let pure_passthrough =
-                    is_exclusive || (target_vol >= 1.0 && (smooth - 1.0).abs() < VOLUME_RAMP_RATE);
+                let at_unity = (smooth - 1.0).abs() < VOLUME_RAMP_RATE
+                    && (target_vol - 1.0).abs() < VOLUME_RAMP_RATE;
+                let pure_passthrough = is_exclusive || at_unity;
 
                 {
                     let mut prod = e.output.producer.lock().unwrap();
-
                     if pure_passthrough {
                         prod.push_slice(&converted);
                     } else {
                         let mut tmp = Vec::with_capacity(converted.len());
                         for s in &converted {
-                            if (smooth - target_vol).abs() > VOLUME_RAMP_RATE {
-                                smooth += if target_vol > smooth {
-                                    VOLUME_RAMP_RATE
-                                } else {
-                                    -VOLUME_RAMP_RATE
-                                };
+                            let diff = target_vol - smooth;
+                            if diff.abs() > VOLUME_RAMP_RATE {
+                                smooth += diff.signum() * VOLUME_RAMP_RATE;
                             } else {
                                 smooth = target_vol;
                             }
@@ -379,72 +370,71 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                 let tail = {
                     let mut e = engine_arc.lock().unwrap();
                     let dec_ch = e.dec_channels;
-                    let raw_tail = if let Some(rs) = e.resampler.as_mut() {
-                        rs.flush().unwrap_or_default()
-                    } else {
-                        vec![]
-                    };
-                    if raw_tail.is_empty() {
-                        vec![]
-                    } else {
-                        adapt_channels(&raw_tail, dec_ch, out_channels)
-                    }
-                };
-
-                if !tail.is_empty() {
-                    let mut e = engine_arc.lock().unwrap();
                     let target_vol = e.volume;
                     let mut smooth = e.smooth_volume;
-                    let pure_passthrough = is_exclusive
-                        || (target_vol >= 1.0 && (smooth - 1.0).abs() < VOLUME_RAMP_RATE);
 
-                    let mut prod = e.output.producer.lock().unwrap();
-                    if pure_passthrough {
-                        prod.push_slice(&tail);
-                    } else {
-                        let mut tmp = Vec::with_capacity(tail.len());
-                        for s in &tail {
-                            if (smooth - target_vol).abs() > VOLUME_RAMP_RATE {
-                                smooth += if target_vol > smooth {
-                                    VOLUME_RAMP_RATE
+                    let raw_tail = e
+                        .resampler
+                        .as_mut()
+                        .and_then(|rs| rs.flush().ok())
+                        .unwrap_or_default();
+
+                    if !raw_tail.is_empty() {
+                        let converted = adapt_channels(&raw_tail, dec_ch, out_channels);
+                        let pure_passthrough = is_exclusive
+                            || ((smooth - 1.0).abs() < VOLUME_RAMP_RATE
+                                && (target_vol - 1.0).abs() < VOLUME_RAMP_RATE);
+
+                        let mut prod = e.output.producer.lock().unwrap();
+                        if pure_passthrough {
+                            prod.push_slice(&converted);
+                        } else {
+                            let mut tmp = Vec::with_capacity(converted.len());
+                            for s in &converted {
+                                let diff = target_vol - smooth;
+                                if diff.abs() > VOLUME_RAMP_RATE {
+                                    smooth += diff.signum() * VOLUME_RAMP_RATE;
                                 } else {
-                                    -VOLUME_RAMP_RATE
-                                };
-                            } else {
-                                smooth = target_vol;
+                                    smooth = target_vol;
+                                }
+                                tmp.push(soft_clip(s * smooth));
                             }
-                            tmp.push(soft_clip(s * smooth));
+                            prod.push_slice(&tmp);
                         }
-                        prod.push_slice(&tmp);
+                        drop(prod);
+                        e.smooth_volume = smooth;
                     }
-                    drop(prod);
-                    e.smooth_volume = smooth;
-                }
+                };
+                let _ = tail;
 
-                loop {
-                    let vacant = engine_arc.lock().unwrap().output.ring_vacant();
-                    if vacant >= ring_capacity {
+                let mut waited = 0u32;
+                while waited < 1000 {
+                    if !flags.alive.load(Ordering::Acquire) {
+                        break;
+                    }
+                    let v = engine_arc.lock().unwrap().output.ring_vacant();
+                    if v >= ring_capacity {
                         break;
                     }
                     thread::sleep(Duration::from_millis(5));
+                    waited += 5;
                 }
 
-                flags.playing.store(false, Ordering::SeqCst);
-                flags.alive.store(false, Ordering::SeqCst);
+                flags.playing.store(false, Ordering::Release);
+                flags.alive.store(false, Ordering::Release);
                 break;
             }
 
             Err(e) => {
-                eprintln!("[decoder] error: {e}");
-                flags.playing.store(false, Ordering::SeqCst);
-                flags.alive.store(false, Ordering::SeqCst);
+                eprintln!("[decoder] fatal: {e}");
+                flags.playing.store(false, Ordering::Release);
+                flags.alive.store(false, Ordering::Release);
                 break;
             }
         }
     }
 }
 
-// Channel layout conversion
 fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
     if src == dst || input.is_empty() {
         return input.to_vec();

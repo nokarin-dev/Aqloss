@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+    <id>xyz.nokarin.Aqloss</id>
+    <name>Aqloss</name>
+    <summary>Lossless everywhere.</summary>
+    <description>
+        <p>
+            Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback.
+        </p>
+    </description>
+
+    <launchable type="desktop-id">xyz.nokarin.Aqloss.desktop</launchable>
+
+    <url type="homepage">https://github.com/nokarin-dev/aqloss</url>
+    <url type="bugtracker">https://github.com/nokarin-dev/aqloss/issues</url>
+    <url type="vcs-browser">https://github.com/nokarin-dev/aqloss</url>
+
+    <developer id="xyz.nokarin">
+        <name>nokarin</name>
+    </developer>
+
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-3.0-or-later</project_license>
+
+    <supports>
+        <control>pointing</control>
+        <control>keyboard</control>
+    </supports>
+
+    <categories>
+        <category>Audio</category>
+    </categories>
+
+    <screenshots>
+    </screenshots>
+
+    <releases>
+        <release version="0.1.0" date="2026-04-30">
+            <url type="details">https://github.com/nokarin-dev/Aqloss/releases/tag/v0.1.0</url>
+            <description>
+                <p>Initial release Aqloss</p>
+            </description>
+        </release>
+    </releases>
+
+    <content_rating type="oars-1.1" />
+</component>

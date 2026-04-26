@@ -9,12 +9,24 @@ set(BINARY_NAME "Aqloss")
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
 set(APPLICATION_ID "xyz.nokarin.aqloss")
 
+option(FLATPAK "Build for Flatpak" OFF)
+
+if("$ENV{FLATPAK}" STREQUAL "true")
+  set(FLATPAK ON)
+endif()
+
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
 cmake_policy(SET CMP0063 NEW)
 
 # Load bundled libraries from the lib/ directory relative to the binary.
-set(CMAKE_INSTALL_RPATH "$ORIGIN/lib")
+if(FLATPAK)
+  message(STATUS "Using Flatpak-specific RPATH settings")
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/../../lib/${APPLICATION_ID}/")
+else()
+  message(STATUS "Using default RPATH settings")
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/lib")
+endif()
 
 # Root filesystem for cross-building.
 if(FLUTTER_TARGET_PLATFORM_SYSROOT)
@@ -87,17 +99,37 @@ install(CODE "
   file(REMOVE_RECURSE \"${BUILD_BUNDLE_DIR}/\")
   " COMPONENT Runtime)
 
-set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
-set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
-
-install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
-  COMPONENT Runtime)
+if(FLATPAK)
+  set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/share/${APPLICATION_ID}/data")
+  set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib/${APPLICATION_ID}")
+  install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/share/${APPLICATION_ID}"
+    COMPONENT Runtime)
+else()
+  set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
+  set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+  install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+endif()
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
+
+if(FLATPAK)
+  set(WRAPPER_PATH "${CMAKE_SOURCE_DIR}/wrapper/bin-wrapper.sh")
+  file(CHMOD "${WRAPPER_PATH}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+  install(PROGRAMS "${WRAPPER_PATH}"
+          DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+          RENAME "${BINARY_NAME}")
+
+  set(ROOT_WRAPPER_PATH "${CMAKE_SOURCE_DIR}/wrapper/root-wrapper.sh")
+  file(CHMOD "${ROOT_WRAPPER_PATH}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+  install(PROGRAMS "${ROOT_WRAPPER_PATH}"
+          DESTINATION "${CMAKE_INSTALL_PREFIX}"
+          RENAME "${BINARY_NAME}")
+endif()
 
 foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
   install(FILES "${bundled_library}"
@@ -120,7 +152,7 @@ install(CODE "
 install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
   DESTINATION "${INSTALL_BUNDLE_DATA_DIR}" COMPONENT Runtime)
 
-set(RUST_LIB "${CMAKE_SOURCE_DIR}/../rust/target/release/libaqloss_core.so")
+set(RUST_LIB "${CMAKE_SOURCE_DIR}/../rust/target/release/libaqloss_rust_core.so")
 
 install(FILES ${RUST_LIB}
   DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"

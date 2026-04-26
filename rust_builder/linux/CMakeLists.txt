@@ -13,7 +13,7 @@ apply_cargokit(${PROJECT_NAME} ../../rust aqloss_rust_core "")
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
 # external build triggered from this build file.
-set(libaqloss_core_bundled_libraries
+set(libaqloss_rust_core_bundled_libraries
   "${${PROJECT_NAME}_cargokit_lib}"
   PARENT_SCOPE
 )

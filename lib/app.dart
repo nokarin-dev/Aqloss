@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,9 @@ import 'screens/home_screen.dart';
 
 class AqlossApp extends ConsumerWidget {
   const AqlossApp({super.key});
+
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,13 +21,22 @@ class AqlossApp extends ConsumerWidget {
       ThemeMode.system => theme.ThemeMode.system,
     };
 
+    final home = _isDesktop
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: const HomeScreen(),
+          )
+        : const HomeScreen();
+
     return MaterialApp(
       title: 'Aqloss',
       debugShowCheckedModeBanner: false,
       themeMode: materialThemeMode,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      home: const HomeScreen(),
+      home: _isDesktop
+          ? ColoredBox(color: Colors.transparent, child: home)
+          : home,
     );
   }
 }

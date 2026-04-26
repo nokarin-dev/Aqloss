@@ -70,7 +70,7 @@ class AqlossCore
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-        stem: 'aqloss_core',
+        stem: 'aqloss_rust_core',
         ioDirectory: 'rust/target/release/',
         webPrefix: 'pkg/',
         wasmBindgenName: 'wasm_bindgen',

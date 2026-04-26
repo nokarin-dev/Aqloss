@@ -47,7 +47,7 @@ jobs:
 
       # Installer
       - name: Build Windows (installer)
-        run: flutter build windows --release --dart-define=PORTABLE=false
+        run: flutter build windows --release --verbose
 
       - name: Create Inno Setup script
         shell: pwsh
@@ -100,7 +100,7 @@ jobs:
 
       # Portable
       - name: Build Windows (portable)
-        run: flutter build windows --release --dart-define=PORTABLE=true
+        run: flutter build windows --release --verbose
 
       - name: Package Windows portable
         shell: pwsh
@@ -158,7 +158,7 @@ jobs:
           echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
 
       - name: Build Linux release
-        run: flutter build linux --release --dart-define=PORTABLE=false
+        run: flutter build linux --verbose --release
 
       # Deb
       - name: Build .deb package
@@ -288,7 +288,7 @@ jobs:
 
       # Portable
       - name: Build Linux (portable)
-        run: flutter build linux --release --dart-define=PORTABLE=true
+        run: flutter build linux --verbose --release
 
       - name: Package portable (.tar.gz)
         run: |
@@ -334,6 +334,16 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rpm-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rpm-cargo-
+
       - name: Get Flutter dependencies
         run: flutter pub get
 
@@ -342,7 +352,7 @@ jobs:
           echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
 
       - name: Build Linux (release)
-        run: flutter build linux --release --dart-define=PORTABLE=false
+        run: flutter build linux --verbose --release
 
       - name: Build .rpm package
         run: |
@@ -484,7 +494,7 @@ jobs:
           echo "SIGNING_CONFIGURED=true" >> $GITHUB_ENV
 
       - name: Build split APKs (release)
-        run: flutter build apk --release --dart-define=PORTABLE=false --split-per-abi
+        run: flutter build apk --release --verbose --split-per-abi
 
       - name: Rename APKs
         run: |

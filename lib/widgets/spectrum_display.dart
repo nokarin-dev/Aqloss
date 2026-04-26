@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
@@ -20,35 +20,31 @@ class SpectrumDisplay extends ConsumerStatefulWidget {
   ConsumerState<SpectrumDisplay> createState() => _SpectrumDisplayState();
 }
 
-class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
-    with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-
+class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay> {
+  Timer? _timer;
   late List<double> _smoothed;
-
-  DateTime _lastFetch = DateTime.fromMillisecondsSinceEpoch(0);
-  static const _fetchInterval = Duration(milliseconds: 30);
   bool _fetchInFlight = false;
-  static const _decayRate = 0.82;
 
+  static const _fetchInterval = Duration(milliseconds: 50);
+  static const _decayRate = 0.82;
   static const _alphaAttack = 0.65;
   static const _alphaRelease = 0.20;
+  static const _changeThreshold = 0.005;
 
   @override
   void initState() {
     super.initState();
     _smoothed = List.filled(widget.barCount, 0.0);
-
-    _ticker = createTicker(_onTick)..start();
+    _timer = Timer.periodic(_fetchInterval, _onTick);
   }
 
   @override
   void dispose() {
-    _ticker.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
-  void _onTick(Duration elapsed) {
+  void _onTick(Timer _) {
     if (!mounted) return;
 
     final isPlaying = ref.read(playerProvider).status == PlayerStatus.playing;
@@ -57,20 +53,15 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
       bool changed = false;
       final next = List<double>.generate(widget.barCount, (i) {
         final v = _smoothed[i] * _decayRate;
-        if ((v - _smoothed[i]).abs() > 0.001) changed = true;
+        if (v > 0.001) changed = true;
         return v < 0.001 ? 0.0 : v;
       });
-      if (changed) {
-        setState(() => _smoothed = next);
-      }
+      if (changed) setState(() => _smoothed = next);
       return;
     }
 
-    final now = DateTime.now();
-    if (_fetchInFlight || now.difference(_lastFetch) < _fetchInterval) return;
-
+    if (_fetchInFlight) return;
     _fetchInFlight = true;
-    _lastFetch = now;
 
     backend
         .getSpectrumData(bucketCount: widget.barCount)
@@ -78,14 +69,23 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
           _fetchInFlight = false;
           if (!mounted || raw.isEmpty) return;
 
-          setState(() {
-            _smoothed = List.generate(widget.barCount, (i) {
-              final target = raw[i].toDouble().clamp(0.0, 1.0);
-              final prev = _smoothed[i];
-              final alpha = target > prev ? _alphaAttack : _alphaRelease;
-              return prev + (target - prev) * alpha;
-            });
+          final next = List<double>.generate(widget.barCount, (i) {
+            final target = raw[i].toDouble().clamp(0.0, 1.0);
+            final prev = _smoothed[i];
+            final alpha = target > prev ? _alphaAttack : _alphaRelease;
+            return prev + (target - prev) * alpha;
           });
+
+          bool hasChange = false;
+          for (int i = 0; i < next.length; i++) {
+            if ((next[i] - _smoothed[i]).abs() > _changeThreshold) {
+              hasChange = true;
+              break;
+            }
+          }
+          if (!hasChange) return;
+
+          setState(() => _smoothed = next);
         })
         .catchError((_) {
           _fetchInFlight = false;

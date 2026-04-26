@@ -1,11 +1,13 @@
 use anyhow::Result;
-use rubato::FftFixedIn;
+use rubato::{
+    Resampler as RubatoResampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType,
+    WindowFunction,
+};
 
-const CHUNK_FRAMES: usize = 2048;
-const SINC_OVERSAMPLING: usize = 2;
+const CHUNK_FRAMES: usize = 1024;
 
 pub struct Resampler {
-    inner: FftFixedIn<f32>,
+    inner: SincFixedIn<f32>,
     channels: usize,
     in_buf: Vec<Vec<f32>>,
     source_rate: usize,
@@ -14,17 +16,26 @@ pub struct Resampler {
 
 impl Resampler {
     pub fn new(source_rate: u32, target_rate: u32, channels: u32) -> Result<Self> {
-        let inner = FftFixedIn::<f32>::new(
-            source_rate as usize,
-            target_rate as usize,
+        let params = SincInterpolationParameters {
+            sinc_len: 64,
+            f_cutoff: 0.95,
+            interpolation: SincInterpolationType::Linear,
+            oversampling_factor: 128,
+            window: WindowFunction::BlackmanHarris2,
+        };
+
+        let inner = SincFixedIn::<f32>::new(
+            target_rate as f64 / source_rate as f64,
+            1.0,
+            params,
             CHUNK_FRAMES,
-            SINC_OVERSAMPLING,
             channels as usize,
         )?;
+
         Ok(Self {
             inner,
             channels: channels as usize,
-            in_buf: vec![Vec::with_capacity(source_rate as usize); channels as usize],
+            in_buf: vec![Vec::with_capacity(CHUNK_FRAMES * 2); channels as usize],
             source_rate: source_rate as usize,
             target_rate: target_rate as usize,
         })
@@ -41,14 +52,13 @@ impl Resampler {
         let mut out_interleaved = Vec::new();
 
         while self.in_buf[0].len() >= CHUNK_FRAMES {
-            // Drain exactly CHUNK_FRAMES from each channel buffer
             let chunk: Vec<Vec<f32>> = self
                 .in_buf
                 .iter_mut()
                 .map(|ch| ch.drain(..CHUNK_FRAMES).collect())
                 .collect();
 
-            let processed = rubato::Resampler::process(&mut self.inner, &chunk, None)?;
+            let processed = self.inner.process(&chunk, None)?;
             let out_frames = processed[0].len();
 
             out_interleaved.reserve(out_frames * self.channels);
@@ -77,8 +87,8 @@ impl Resampler {
             .iter_mut()
             .map(|ch| ch.drain(..).collect())
             .collect();
-        let processed = rubato::Resampler::process(&mut self.inner, &chunk, None)?;
 
+        let processed = self.inner.process(&chunk, None)?;
         let ratio = leftover as f64 / CHUNK_FRAMES as f64;
         let keep_frames = (processed[0].len() as f64 * ratio).round() as usize;
 
@@ -95,11 +105,18 @@ impl Resampler {
         for ch in &mut self.in_buf {
             ch.clear();
         }
-        if let Ok(fresh) = FftFixedIn::<f32>::new(
-            self.source_rate,
-            self.target_rate,
+        let params = SincInterpolationParameters {
+            sinc_len: 64,
+            f_cutoff: 0.95,
+            interpolation: SincInterpolationType::Linear,
+            oversampling_factor: 128,
+            window: WindowFunction::BlackmanHarris2,
+        };
+        if let Ok(fresh) = SincFixedIn::<f32>::new(
+            self.target_rate as f64 / self.source_rate as f64,
+            1.0,
+            params,
             CHUNK_FRAMES,
-            SINC_OVERSAMPLING,
             self.channels,
         ) {
             self.inner = fresh;

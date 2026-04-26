@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Aqloss
+GenericName=Lossless everywhere.
+Comment=Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback.
+Exec=Aqloss
+Icon=xyz.nokarin.Aqloss
+Categories=Audio;
+Terminal=false
+StartupWMClass=Aqloss
+Keywords=audio;player;music;linux;

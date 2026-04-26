@@ -29,12 +29,12 @@ A new Flutter FFI plugin project.
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is
     # created by this build step.
-    :output_files => ["${BUILT_PRODUCTS_DIR}/libaqloss_core.a"],
+    :output_files => ["${BUILT_PRODUCTS_DIR}/libaqloss_rust_core.a"],
   }
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libaqloss_core.a',
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libaqloss_rust_core.a',
   }
 end

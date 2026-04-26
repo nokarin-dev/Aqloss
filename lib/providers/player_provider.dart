@@ -64,6 +64,7 @@ class PlayerState {
 class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _positionTimer;
   bool _disposed = false;
+  bool _handlingTrackEnd = false;
 
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
@@ -105,6 +106,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> _loadAndPlay(Track track) async {
     _stopTimer();
+    _handlingTrackEnd = false;
     state = state.copyWith(
       status: PlayerStatus.loading,
       currentTrack: track,
@@ -245,8 +247,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           : (state.currentTrack?.duration ?? Duration.zero);
 
       if (pos.durationSecs > 0 && pos.positionSecs >= pos.durationSecs - 0.1) {
+        if (_handlingTrackEnd) return;
+        _handlingTrackEnd = true;
         _stopTimer();
         await _onTrackEnd();
+        _handlingTrackEnd = false;
         return;
       }
 

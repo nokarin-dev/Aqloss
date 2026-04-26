@@ -92,9 +92,8 @@ pub fn update_playing(
         .unwrap_or_default()
         .as_secs();
     let elapsed = position_secs as u64;
-    let end_ts = now
-        .saturating_sub(elapsed)
-        .saturating_add(duration_secs as u64);
+    let start_ts = now.saturating_sub(elapsed);
+    let end_ts = start_ts.saturating_add(duration_secs as u64);
 
     // Truncate state to max 128 chars
     let state_str = if album.is_empty() {
@@ -121,7 +120,7 @@ pub fn update_playing(
             .activity_type(ActivityType::Listening)
             .state(&state_str)
             .details(&title_truncated)
-            .timestamps(|t| t.start(now).end(end_ts))
+            .timestamps(|t| t.start(start_ts).end(end_ts))
             .assets(|a| {
                 a.large_image(large_img)
                     .large_text(&large_text)

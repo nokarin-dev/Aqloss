@@ -3,13 +3,17 @@ use ringbuf::{
     traits::{Consumer, Observer, Split},
     HeapRb,
 };
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 pub type SharedProducer = Arc<std::sync::Mutex<ringbuf::HeapProd<f32>>>;
 
 pub struct AudioOutput {
     _stream: AudioStream,
     pub producer: SharedProducer,
+    pub draining: Arc<AtomicBool>,
     pub sample_rate: u32,
     pub channels: u32,
     pub exclusive: bool,
@@ -22,12 +26,11 @@ enum AudioStream {
     WasapiExclusive(wasapi_exclusive::ExclusiveStream),
 }
 
-const RING_SECS: usize = 2;
+const RING_EXTRA_FRAMES: usize = 4096;
 const CPAL_BUFFER_FRAMES: usize = 512;
 
 impl AudioOutput {
     pub fn new() -> Result<Self> {
-        // WASAPI Exclusive Mode (Windows)
         #[cfg(target_os = "windows")]
         {
             match wasapi_exclusive::ExclusiveStream::open() {
@@ -35,9 +38,11 @@ impl AudioOutput {
                     let sample_rate = exc.sample_rate;
                     let channels = exc.channels;
                     let producer = exc.producer.clone();
+                    let draining = exc.draining.clone();
                     return Ok(Self {
                         _stream: AudioStream::WasapiExclusive(exc),
                         producer,
+                        draining,
                         sample_rate,
                         channels,
                         exclusive: true,
@@ -70,18 +75,27 @@ impl AudioOutput {
             buffer_size: cpal::BufferSize::Fixed(CPAL_BUFFER_FRAMES as u32),
         };
 
-        let ring_cap = sample_rate as usize * channels as usize * RING_SECS;
+        let ring_cap = (sample_rate as usize * channels as usize / 2) + RING_EXTRA_FRAMES;
         let rb = HeapRb::<f32>::new(ring_cap);
         let (prod, mut cons) = rb.split();
 
         let producer: SharedProducer = Arc::new(std::sync::Mutex::new(prod));
+        let draining = Arc::new(AtomicBool::new(false));
+        let draining_cb = draining.clone();
 
         let stream = device.build_output_stream(
             &config,
             move |output: &mut [f32], _info| {
-                let n = cons.occupied_len().min(output.len());
-                cons.pop_slice(&mut output[..n]);
-                output[n..].fill(0.0);
+                if draining_cb.load(Ordering::Relaxed) {
+                    let avail = cons.occupied_len();
+                    let mut tmp = vec![0f32; avail];
+                    cons.pop_slice(&mut tmp);
+                    output.fill(0.0);
+                } else {
+                    let n = cons.occupied_len().min(output.len());
+                    cons.pop_slice(&mut output[..n]);
+                    output[n..].fill(0.0);
+                }
             },
             |err| eprintln!("[cpal] stream error: {err}"),
             None,
@@ -90,13 +104,14 @@ impl AudioOutput {
         stream.play()?;
 
         eprintln!(
-            "[aqloss] shared-mode output: {}Hz {}ch (buffer={} frames, ring={} s)",
-            sample_rate, channels, CPAL_BUFFER_FRAMES, RING_SECS
+            "[aqloss] shared-mode output: {}Hz {}ch (buffer={} frames)",
+            sample_rate, channels, CPAL_BUFFER_FRAMES
         );
 
         Ok(Self {
             _stream: AudioStream::Cpal(stream),
             producer,
+            draining,
             sample_rate,
             channels,
             exclusive: false,
@@ -106,18 +121,28 @@ impl AudioOutput {
     pub fn ring_vacant(&self) -> usize {
         self.producer.lock().unwrap().vacant_len()
     }
+
+    pub fn start_drain(&self) {
+        self.draining.store(true, Ordering::SeqCst);
+    }
+
+    pub fn stop_drain(&self) {
+        self.draining.store(false, Ordering::SeqCst);
+    }
 }
 
-// WASAPI Exclusive Mode (Windows)
 #[cfg(target_os = "windows")]
 mod wasapi_exclusive {
-    use super::{SharedProducer, RING_SECS};
+    use super::{SharedProducer, RING_EXTRA_FRAMES};
     use anyhow::{anyhow, Result};
     use ringbuf::{
         traits::{Consumer, Observer, Producer, Split},
         HeapRb,
     };
-    use std::sync::{Arc, Mutex};
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    };
     use std::thread;
     use windows::{
         core::PCWSTR,
@@ -137,10 +162,11 @@ mod wasapi_exclusive {
 
     pub struct ExclusiveStream {
         pub producer: SharedProducer,
+        pub draining: Arc<AtomicBool>,
         pub sample_rate: u32,
         pub channels: u32,
         _thread: Option<thread::JoinHandle<()>>,
-        alive: Arc<std::sync::atomic::AtomicBool>,
+        alive: Arc<AtomicBool>,
     }
 
     impl ExclusiveStream {
@@ -231,16 +257,18 @@ mod wasapi_exclusive {
             let buffer_frames = audio_client.GetBufferSize()? as usize;
             audio_client.Start()?;
 
-            let ring_cap = chosen_sr as usize * chosen_ch as usize * RING_SECS;
+            let ring_cap = (chosen_sr as usize * chosen_ch as usize / 2) + RING_EXTRA_FRAMES;
             let rb = HeapRb::<f32>::new(ring_cap);
             let (prod, mut cons) = rb.split();
 
             let producer: SharedProducer = Arc::new(Mutex::new(prod));
-            let alive = Arc::new(std::sync::atomic::AtomicBool::new(true));
+            let alive = Arc::new(AtomicBool::new(true));
+            let draining = Arc::new(AtomicBool::new(false));
             let alive_cb = alive.clone();
+            let draining_cb = draining.clone();
 
             let _thread = thread::spawn(move || loop {
-                if !alive_cb.load(std::sync::atomic::Ordering::SeqCst) {
+                if !alive_cb.load(Ordering::SeqCst) {
                     break;
                 }
                 WaitForSingleObject(event, 100);
@@ -253,14 +281,22 @@ mod wasapi_exclusive {
                     buf_ptr as *mut f32,
                     buffer_frames * chosen_ch as usize,
                 );
-                let n = cons.occupied_len().min(output.len());
-                cons.pop_slice(&mut output[..n]);
-                output[n..].fill(0.0);
+                if draining_cb.load(Ordering::Relaxed) {
+                    let avail = cons.occupied_len();
+                    let mut tmp = vec![0f32; avail];
+                    cons.pop_slice(&mut tmp);
+                    output.fill(0.0);
+                } else {
+                    let n = cons.occupied_len().min(output.len());
+                    cons.pop_slice(&mut output[..n]);
+                    output[n..].fill(0.0);
+                }
                 let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
             });
 
             Ok(Self {
                 producer,
+                draining,
                 sample_rate: chosen_sr,
                 channels: chosen_ch,
                 _thread: Some(_thread),
@@ -271,7 +307,7 @@ mod wasapi_exclusive {
 
     impl Drop for ExclusiveStream {
         fn drop(&mut self) {
-            self.alive.store(false, std::sync::atomic::Ordering::SeqCst);
+            self.alive.store(false, Ordering::SeqCst);
         }
     }
 

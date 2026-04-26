@@ -1,5 +1,22 @@
 # Aqloss
+
+<div align="center">
+
 A cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback - on every device you own.
+
+[![Release](https://img.shields.io/github/v/release/nokarin-dev/aqloss?style=for-the-badge&color=4F8EF7)](https://github.com/nokarin-dev/aqloss/releases/latest)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](LICENSE)
+[![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?style=for-the-badge&logo=flutter)](https://flutter.dev)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Android-02569B?style=for-the-badge)](#download)
+
+[![Total Downloads](https://img.shields.io/github/downloads/nokarin-dev/aqloss/total?style=for-the-badge&logoColor=%3D&color=3471eb
+)](https://github.com/nokarin-dev/aqloss/releases)
+[![Latest Downloads](https://img.shields.io/github/downloads/nokarin-dev/aqloss/latest/total?style=for-the-badge&color=3d47d4
+)](https://github.com/nokarin-dev/aqloss/releases/latest)
+[![Test Status](https://img.shields.io/github/actions/workflow/status/nokarin-dev/aqloss/build-test.yml?style=for-the-badge&label=test%20build&color=22316e
+)](https://github.com/nokarin-dev/aqloss/actions/workflows/build-test.yml)
+
+</div>
 
 ---
 

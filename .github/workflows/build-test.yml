@@ -22,7 +22,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Dart & Flutter analysis
   analyze:
     name: Analyze & Test
     runs-on: ubuntu-latest
@@ -76,9 +75,8 @@ jobs:
 
       - name: cargo check
         working-directory: rust
-        run: cargo check --release
+        run: cargo check --release --verbose
 
-  # Linux
   test-linux:
     name: Build Test — Linux (deb + AppImage + portable)
     needs: [analyze, rust-check]
@@ -116,9 +114,8 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      # Installer
       - name: Build Linux release (installer)
-        run: flutter build linux --release --dart-define=PORTABLE=false
+        run: flutter build linux --release --verbose
 
       - name: Build .deb package
         run: |
@@ -173,7 +170,8 @@ jobs:
           chmod 755 "$PKG/DEBIAN/postinst"
 
           fakeroot dpkg-deb --build "$PKG"
-          echo "✓ .deb: $(du -h ${PKG}.deb | cut -f1)"
+          mv "${PKG}.deb" "Aqloss-linux-installer.deb"
+          echo "✓ .deb: $(du -h Aqloss-linux-installer.deb | cut -f1)"
 
       - name: Build .AppImage
         run: |
@@ -220,9 +218,8 @@ jobs:
           ARCH=x86_64 "$APPIMAGETOOL" --no-appstream AppDir "Aqloss-linux.AppImage"
           echo "✓ AppImage: $(du -h Aqloss-linux.AppImage | cut -f1)"
 
-      # Portable
       - name: Build Linux (portable)
-        run: flutter build linux --release --dart-define=PORTABLE=true
+        run: flutter build linux --release --verbose
 
       - name: Package portable
         run: |
@@ -232,10 +229,18 @@ jobs:
 
       - name: Verify artifacts
         run: |
-          ls -lh aqloss_*_amd64.deb Aqloss-linux.AppImage Aqloss-linux-portable.tar.gz
+          ls -lh Aqloss-linux-installer.deb Aqloss-linux.AppImage Aqloss-linux-portable.tar.gz
           echo "✓ All Linux builds OK"
 
-  # Linux RPM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-linux
+          retention-days: 7
+          path: |
+            Aqloss-linux-installer.deb
+            Aqloss-linux.AppImage
+            Aqloss-linux-portable.tar.gz
+
   test-linux-rpm:
     name: Build Test — Linux (RPM)
     needs: [analyze, rust-check]
@@ -266,16 +271,26 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rpm-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rpm-cargo-
+
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Build Linux (debug)
-        run: flutter build linux --debug --dart-define=PORTABLE=false
+      - name: Build Linux RPM (release)
+        run: flutter build linux --release --verbose
 
       - name: Build .rpm package
         run: |
           VERSION="0.0.0"
-          BUNDLE_DIR="$GITHUB_WORKSPACE/build/linux/x64/debug/bundle"
+          BUNDLE_DIR="$GITHUB_WORKSPACE/build/linux/x64/release/bundle"
           RPMROOT="$GITHUB_WORKSPACE/rpmbuild"
 
           mkdir -p "$RPMROOT"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
@@ -340,13 +355,21 @@ jobs:
             --define "__os_install_post %{nil}" \
             "$RPMROOT/SPECS/aqloss.spec"
 
+          RPM_FILE=$(find "$RPMROOT/RPMS/x86_64" -name "*.rpm" | head -1)
+          cp "$RPM_FILE" "$GITHUB_WORKSPACE/Aqloss-linux-installer.rpm"
+
       - name: Verify RPM
         run: |
           find $GITHUB_WORKSPACE/rpmbuild/RPMS -name "*.rpm" | grep . \
             && echo "✓ RPM build OK" \
             || (echo "✗ RPM not found" && exit 1)
 
-  # Windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-linux-rpm
+          retention-days: 7
+          path: Aqloss-linux-installer.rpm
+
   test-windows:
     name: Build Test — Windows (installer + portable)
     needs: [analyze, rust-check]
@@ -375,9 +398,8 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      # Installer
       - name: Build Windows (installer)
-        run: flutter build windows --release --dart-define=PORTABLE=false
+        run: flutter build windows --release --verbose
 
       - name: Create Inno Setup script
         shell: pwsh
@@ -418,9 +440,8 @@ jobs:
           }
           Write-Host "✓ Installer: $('{0:N1} MB' -f ((Get-Item 'Aqloss-windows-installer.exe').Length / 1MB))"
 
-      # Portable
       - name: Build Windows (portable)
-        run: flutter build windows --release --dart-define=PORTABLE=true
+        run: flutter build windows --release --verbose
 
       - name: Package Windows portable
         shell: pwsh
@@ -439,7 +460,14 @@ jobs:
           }
           if (!$ok) { exit 1 }
 
-  # Android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-windows
+          retention-days: 7
+          path: |
+            Aqloss-windows-installer.exe
+            Aqloss-windows-portable.zip
+
   test-android:
     name: Build Test — Android (arm64 + arm32 + x86_64)
     needs: [analyze, rust-check]
@@ -475,14 +503,20 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Build split APKs (debug)
-        run: flutter build apk --debug --dart-define=PORTABLE=false --split-per-abi
+      - name: Build split APKs (release)
+        run: flutter build apk --release --verbose --split-per-abi
+
+      - name: Rename APKs
+        run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk   Aqloss-android-arm64.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Aqloss-android-arm32.apk
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk      Aqloss-android-x86_64.apk
 
       - name: Verify all three APK ABIs
         run: |
           ok=true
           for abi in arm64-v8a armeabi-v7a x86_64; do
-            APK="build/app/outputs/flutter-apk/app-${abi}-debug.apk"
+            APK="build/app/outputs/flutter-apk/app-${abi}-release.apk"
             if [ -f "$APK" ]; then
               echo "✓ $abi — $(du -h $APK | cut -f1)"
             else
@@ -492,7 +526,15 @@ jobs:
           done
           $ok || exit 1
 
-  # Gate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-android
+          retention-days: 7
+          path: |
+            Aqloss-android-arm64.apk
+            Aqloss-android-arm32.apk
+            Aqloss-android-x86_64.apk
+
   all-tests-pass:
     name: All build tests passed
     needs:
@@ -517,12 +559,12 @@ jobs:
           echo "test-android: ${{ needs.test-android.result }}"
 
           if [[ \
-            "${{ needs.analyze.result }}"        == "success" && \
-            "${{ needs.rust-check.result }}"     == "success" && \
-            "${{ needs.test-linux.result }}"     == "success" && \
+            "${{ needs.analyze.result }}" == "success" && \
+            "${{ needs.rust-check.result }}" == "success" && \
+            "${{ needs.test-linux.result }}" == "success" && \
             "${{ needs.test-linux-rpm.result }}" == "success" && \
-            "${{ needs.test-windows.result }}"   == "success" && \
-            "${{ needs.test-android.result }}"   == "success" \
+            "${{ needs.test-windows.result }}" == "success" && \
+            "${{ needs.test-android.result }}" == "success" \
           ]]; then
             echo "✅ All build tests passed."
           else

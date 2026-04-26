@@ -22,6 +22,8 @@ void main() async {
         title: 'Aqloss',
       ),
       () async {
+        await windowManager.setAsFrameless();
+        await windowManager.setBackgroundColor(Colors.transparent);
         await windowManager.show();
         await windowManager.focus();
       },

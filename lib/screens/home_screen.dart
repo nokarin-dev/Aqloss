@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'library_screen.dart';
 import 'player_screen.dart';
 import 'settings_screen.dart';
@@ -12,6 +13,8 @@ import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/mini_player_bar.dart';
+
+const _kSidebarCollapsed = 'aqloss_sidebar_collapsed';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +26,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   int _route = 0;
   bool _isMaximized = false;
+  bool _sidebarCollapsed = false;
 
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -31,6 +35,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   void initState() {
     super.initState();
     if (_isDesktop) windowManager.addListener(this);
+    _loadSidebarPref();
+  }
+
+  Future<void> _loadSidebarPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(
+        () => _sidebarCollapsed = prefs.getBool(_kSidebarCollapsed) ?? false,
+      );
+    }
+  }
+
+  Future<void> _toggleSidebar() async {
+    final next = !_sidebarCollapsed;
+    setState(() => _sidebarCollapsed = next);
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool(_kSidebarCollapsed, next);
   }
 
   @override
@@ -45,8 +66,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   void onWindowUnmaximize() => setState(() => _isMaximized = false);
 
   Widget _buildScreen() {
-    if (_route == 0) return const LibraryScreen();
-    if (_route == 1) return const PlayerScreen();
+    if (_route == 0) return const PlayerScreen();
+    if (_route == 1) return const LibraryScreen();
     if (_route == 2) return const SettingsScreen();
 
     final playlists = ref.read(playlistProvider);
@@ -54,7 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     if (idx >= 0 && idx < playlists.length) {
       return _PlaylistDetailScreen(playlist: playlists[idx]);
     }
-    return const LibraryScreen();
+    return const PlayerScreen();
   }
 
   @override
@@ -74,15 +95,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
                     children: [
                       _SideNav(
                         route: _route,
+                        collapsed: _sidebarCollapsed,
                         onSelect: (r) => setState(() => _route = r),
+                        onToggleCollapse: _toggleSidebar,
                       ),
                       Expanded(child: _buildScreen()),
                     ],
                   )
                 : _buildScreen(),
           ),
-          if (!isWide && hasTrack && _route != 1)
-            MiniPlayerBar(onTap: () => setState(() => _route = 1)),
+          if (!isWide && hasTrack && _route != 0)
+            MiniPlayerBar(onTap: () => setState(() => _route = 0)),
         ],
       ),
       bottomNavigationBar: isWide
@@ -96,18 +119,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
               labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
               destinations: const [
                 NavigationDestination(
-                  icon: Icon(Icons.library_music_outlined, size: 20),
-                  selectedIcon: Icon(Icons.library_music_rounded, size: 20),
-                  label: 'Library',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.play_circle_outline, size: 20),
-                  selectedIcon: Icon(Icons.play_circle_rounded, size: 20),
+                  icon: Icon(Icons.play_circle_outline, size: 22),
+                  selectedIcon: Icon(Icons.play_circle_rounded, size: 22),
                   label: 'Now Playing',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.tune_outlined, size: 20),
-                  selectedIcon: Icon(Icons.tune_rounded, size: 20),
+                  icon: Icon(Icons.library_music_outlined, size: 22),
+                  selectedIcon: Icon(Icons.library_music_rounded, size: 22),
+                  label: 'Library',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.tune_outlined, size: 22),
+                  selectedIcon: Icon(Icons.tune_rounded, size: 22),
                   label: 'Settings',
                 ),
               ],
@@ -119,19 +142,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
 // Sidebar
 class _SideNav extends ConsumerStatefulWidget {
   final int route;
+  final bool collapsed;
   final void Function(int) onSelect;
-  const _SideNav({required this.route, required this.onSelect});
+  final VoidCallback onToggleCollapse;
+
+  const _SideNav({
+    required this.route,
+    required this.collapsed,
+    required this.onSelect,
+    required this.onToggleCollapse,
+  });
 
   @override
   ConsumerState<_SideNav> createState() => _SideNavState();
 }
 
-class _SideNavState extends ConsumerState<_SideNav> {
+class _SideNavState extends ConsumerState<_SideNav>
+    with SingleTickerProviderStateMixin {
   String? _dragOverId;
+  late final AnimationController _animCtrl;
+  late final Animation<double> _widthAnim;
 
-  // Manage Folders popup
+  static const _expandedWidth = 210.0;
+  static const _collapsedWidth = 56.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+      value: widget.collapsed ? 0.0 : 1.0,
+    );
+    _widthAnim = CurvedAnimation(
+      parent: _animCtrl,
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
+  void didUpdateWidget(_SideNav old) {
+    super.didUpdateWidget(old);
+    if (old.collapsed != widget.collapsed) {
+      widget.collapsed ? _animCtrl.reverse() : _animCtrl.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
   void _showFolderManager() {
-    showDialog(context: context, builder: (ctx) => _FolderManagerDialog());
+    showDialog(
+      context: context,
+      builder: (ctx) => const _FolderManagerDialog(),
+    );
   }
 
   Future<void> _createPlaylist() async {
@@ -156,171 +223,255 @@ class _SideNavState extends ConsumerState<_SideNav> {
     final library = ref.watch(libraryProvider);
     final player = ref.watch(playerProvider);
     final isScanning = library.status == LibraryStatus.scanning;
+    final collapsed = widget.collapsed;
 
-    return Container(
-      width: 200,
-      color: const Color(0xFF0D0D0D),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 12),
+    return AnimatedBuilder(
+      animation: _widthAnim,
+      builder: (context, child) {
+        final w =
+            _collapsedWidth +
+            (_expandedWidth - _collapsedWidth) * _widthAnim.value;
+        return SizedBox(width: w, child: child);
+      },
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0D0D0D),
+          border: Border(right: BorderSide(color: Colors.white10)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
 
-          // Main nav
-          _NavItem(
-            icon: Icons.library_music_outlined,
-            activeIcon: Icons.library_music_rounded,
-            label: 'Library',
-            isActive: widget.route == 0,
-            onTap: () => widget.onSelect(0),
-          ),
-          _NavItem(
-            icon: Icons.play_circle_outline_rounded,
-            activeIcon: Icons.play_circle_rounded,
-            label: 'Now Playing',
-            isActive: widget.route == 1,
-            trailing: player.currentTrack != null
-                ? _NowPlayingDot(status: player.status)
-                : null,
-            onTap: () => widget.onSelect(1),
-          ),
-
-          // Library section
-          const _SectionDivider('LIBRARY'),
-          _NavItem(
-            icon: Icons.folder_open_outlined,
-            activeIcon: Icons.folder_open_rounded,
-            label: 'Manage Folders',
-            isActive: false,
-            trailing: isScanning
-                ? const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.2,
-                      color: Colors.white24,
-                    ),
-                  )
-                : null,
-            onTap: _showFolderManager,
-          ),
-          _NavItem(
-            icon: Icons.refresh_rounded,
-            activeIcon: Icons.refresh_rounded,
-            label: 'Rescan Library',
-            isActive: false,
-            onTap: isScanning
-                ? null
-                : () => ref.read(libraryProvider.notifier).rescanAll(),
-          ),
-          if (library.totalTracks > 0)
+            // Toggle button
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Text(
-                '${library.totalTracks} tracks',
-                style: const TextStyle(fontSize: 10, color: Colors.white24),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: _CollapseBtn(
+                collapsed: collapsed,
+                onTap: widget.onToggleCollapse,
               ),
             ),
 
-          // Playlists section
-          Row(
-            children: [
-              const _SectionDivider('PLAYLISTS'),
-              const Spacer(),
+            const SizedBox(height: 6),
+
+            // Main nav
+            _NavItem(
+              icon: Icons.play_circle_outline_rounded,
+              activeIcon: Icons.play_circle_rounded,
+              label: 'Now Playing',
+              isActive: widget.route == 0,
+              collapsed: collapsed,
+              trailing: player.currentTrack != null
+                  ? _NowPlayingDot(status: player.status)
+                  : null,
+              onTap: () => widget.onSelect(0),
+            ),
+            _NavItem(
+              icon: Icons.library_music_outlined,
+              activeIcon: Icons.library_music_rounded,
+              label: 'Library',
+              isActive: widget.route == 1,
+              collapsed: collapsed,
+              onTap: () => widget.onSelect(1),
+            ),
+
+            // Library section
+            if (!collapsed) const _SectionLabel('LIBRARY'),
+            if (collapsed) const SizedBox(height: 4),
+
+            _NavItem(
+              icon: Icons.folder_open_outlined,
+              activeIcon: Icons.folder_open_rounded,
+              label: 'Folders',
+              isActive: false,
+              collapsed: collapsed,
+              trailing: isScanning
+                  ? const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.2,
+                        color: Colors.white24,
+                      ),
+                    )
+                  : null,
+              onTap: _showFolderManager,
+            ),
+            _NavItem(
+              icon: Icons.refresh_rounded,
+              activeIcon: Icons.refresh_rounded,
+              label: 'Rescan',
+              isActive: false,
+              collapsed: collapsed,
+              onTap: isScanning
+                  ? null
+                  : () => ref.read(libraryProvider.notifier).rescanAll(),
+            ),
+
+            if (!collapsed && library.totalTracks > 0)
               Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _IconBtn(
-                  icon: Icons.add_rounded,
-                  tooltip: 'New playlist',
-                  onTap: _createPlaylist,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Text(
+                  '${library.totalTracks} tracks',
+                  style: const TextStyle(fontSize: 10, color: Colors.white24),
                 ),
               ),
-            ],
-          ),
 
-          // Playlist list
-          Expanded(
-            child: playlists.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                    child: Text(
-                      'No playlists yet',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.18),
-                        height: 1.6,
+            // Playlists section
+            if (!collapsed)
+              Row(
+                children: [
+                  const _SectionLabel('PLAYLISTS'),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _IconBtn(
+                      icon: Icons.add_rounded,
+                      tooltip: 'New playlist',
+                      onTap: _createPlaylist,
+                    ),
+                  ),
+                ],
+              )
+            else
+              Tooltip(
+                message: 'New playlist',
+                preferBelow: false,
+                child: GestureDetector(
+                  onTap: _createPlaylist,
+                  child: SizedBox(
+                    height: 32,
+                    child: Center(
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          size: 14,
+                          color: Colors.white38,
+                        ),
                       ),
                     ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: playlists.length,
-                    itemBuilder: (_, i) {
-                      final pl = playlists[i];
-                      final isOver = _dragOverId == pl.id;
-                      return DragTarget<Track>(
-                        onWillAcceptWithDetails: (_) {
-                          setState(() => _dragOverId = pl.id);
-                          return true;
-                        },
-                        onLeave: (_) => setState(() => _dragOverId = null),
-                        onAcceptWithDetails: (details) {
-                          setState(() => _dragOverId = null);
-                          ref
-                              .read(playlistProvider.notifier)
-                              .addTrack(pl.id, details.data);
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(_snackBar('Added to "${pl.name}"'));
-                        },
-                        builder: (_, _, _) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isOver
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(6),
-                            border: isOver
-                                ? Border.all(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                  )
-                                : null,
-                          ),
-                          child: _PlaylistNavItem(
-                            playlist: pl,
-                            isActive: widget.route == (i + 10),
-                            onTap: () => widget.onSelect(i + 10),
-                            onDelete: () => ref
-                                .read(playlistProvider.notifier)
-                                .delete(pl.id),
-                            onRename: () => _renamePlaylist(context, pl),
-                            onPlay: pl.tracks.isNotEmpty
-                                ? () => ref
-                                      .read(playerProvider.notifier)
-                                      .loadWithQueue(pl.tracks.first, pl.tracks)
-                                : null,
-                          ),
-                        ),
-                      );
-                    },
                   ),
-          ),
+                ),
+              ),
 
-          // Bottom
-          const Divider(color: Colors.white10, height: 1),
-          const SizedBox(height: 8),
-          _NavItem(
-            icon: Icons.settings_outlined,
-            activeIcon: Icons.settings_rounded,
-            label: 'Settings',
-            isActive: widget.route == 2,
-            onTap: () => widget.onSelect(2),
-          ),
-          const SizedBox(height: 8),
-        ],
+            // Playlist list
+            Expanded(
+              child: collapsed
+                  ? ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      itemCount: playlists.length,
+                      itemBuilder: (_, i) {
+                        final pl = playlists[i];
+                        return Tooltip(
+                          message: pl.name,
+                          preferBelow: false,
+                          child: _NavItem(
+                            icon: Icons.queue_music_rounded,
+                            activeIcon: Icons.queue_music_rounded,
+                            label: pl.name,
+                            isActive: widget.route == (i + 10),
+                            collapsed: true,
+                            onTap: () => widget.onSelect(i + 10),
+                          ),
+                        );
+                      },
+                    )
+                  : playlists.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                      child: Text(
+                        'No playlists yet',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.18),
+                          height: 1.6,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: playlists.length,
+                      itemBuilder: (_, i) {
+                        final pl = playlists[i];
+                        final isOver = _dragOverId == pl.id;
+                        return DragTarget<Track>(
+                          onWillAcceptWithDetails: (_) {
+                            setState(() => _dragOverId = pl.id);
+                            return true;
+                          },
+                          onLeave: (_) => setState(() => _dragOverId = null),
+                          onAcceptWithDetails: (details) {
+                            setState(() => _dragOverId = null);
+                            ref
+                                .read(playlistProvider.notifier)
+                                .addTrack(pl.id, details.data);
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(_snackBar('Added to "${pl.name}"'));
+                          },
+                          builder: (_, _, _) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isOver
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                              border: isOver
+                                  ? Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            child: _PlaylistNavItem(
+                              playlist: pl,
+                              isActive: widget.route == (i + 10),
+                              onTap: () => widget.onSelect(i + 10),
+                              onDelete: () => ref
+                                  .read(playlistProvider.notifier)
+                                  .delete(pl.id),
+                              onRename: () => _renamePlaylist(context, pl),
+                              onPlay: pl.tracks.isNotEmpty
+                                  ? () => ref
+                                        .read(playerProvider.notifier)
+                                        .loadWithQueue(
+                                          pl.tracks.first,
+                                          pl.tracks,
+                                        )
+                                  : null,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            const Divider(color: Colors.white10, height: 1),
+            const SizedBox(height: 4),
+
+            _NavItem(
+              icon: Icons.settings_outlined,
+              activeIcon: Icons.settings_rounded,
+              label: 'Settings',
+              isActive: widget.route == 2,
+              collapsed: collapsed,
+              onTap: () => widget.onSelect(2),
+            ),
+
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -342,7 +493,179 @@ class _SideNavState extends ConsumerState<_SideNav> {
   }
 }
 
-// Folder Manager Dialog
+// Collapse toggle button
+class _CollapseBtn extends StatefulWidget {
+  final bool collapsed;
+  final VoidCallback onTap;
+  const _CollapseBtn({required this.collapsed, required this.onTap});
+
+  @override
+  State<_CollapseBtn> createState() => _CollapseBtnState();
+}
+
+class _CollapseBtnState extends State<_CollapseBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Tooltip(
+        message: widget.collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+        preferBelow: false,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                AnimatedRotation(
+                  turns: widget.collapsed ? 0 : 0.5,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOutCubic,
+                  child: const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: Colors.white30,
+                  ),
+                ),
+                if (!widget.collapsed) ...[
+                  const SizedBox(width: 8),
+                  const Text(
+                    'AQLOSS',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white24,
+                      letterSpacing: 2.5,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Nav items
+class _NavItem extends StatefulWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+  final bool collapsed;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+    required this.collapsed,
+    this.trailing,
+    this.onTap,
+  });
+
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.collapsed ? 0 : 10,
+            vertical: 7,
+          ),
+          decoration: BoxDecoration(
+            color: widget.isActive
+                ? Colors.white.withValues(alpha: 0.08)
+                : _hovered
+                ? Colors.white.withValues(alpha: 0.04)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: widget.collapsed
+              ? Center(
+                  child: Icon(
+                    widget.isActive ? widget.activeIcon : widget.icon,
+                    size: 18,
+                    color: widget.isActive ? Colors.white : Colors.white38,
+                  ),
+                )
+              : Row(
+                  children: [
+                    Icon(
+                      widget.isActive ? widget.activeIcon : widget.icon,
+                      size: 16,
+                      color: widget.isActive
+                          ? Colors.white
+                          : widget.onTap == null
+                          ? Colors.white24
+                          : Colors.white54,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: widget.isActive
+                              ? Colors.white
+                              : widget.onTap == null
+                              ? Colors.white24
+                              : Colors.white60,
+                          fontWeight: widget.isActive
+                              ? FontWeight.w500
+                              : FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (widget.trailing != null) widget.trailing!,
+                  ],
+                ),
+        ),
+      ),
+    );
+
+    if (widget.collapsed) {
+      return Tooltip(
+        message: widget.label,
+        preferBelow: false,
+        waitDuration: const Duration(milliseconds: 400),
+        child: item,
+      );
+    }
+    return item;
+  }
+}
+
+// Folder Manager
 class _FolderManagerDialog extends ConsumerWidget {
   const _FolderManagerDialog();
 
@@ -378,7 +701,6 @@ class _FolderManagerDialog extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   const Text(
@@ -412,10 +734,7 @@ class _FolderManagerDialog extends ConsumerWidget {
                     ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
-              // Folder list
               if (folders.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -499,12 +818,9 @@ class _FolderManagerDialog extends ConsumerWidget {
                     },
                   ),
                 ),
-
               const SizedBox(height: 12),
               const Divider(color: Colors.white10, height: 1),
               const SizedBox(height: 12),
-
-              // Add folder button
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -605,60 +921,50 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
                   ],
                 ),
               ),
-              // Context menu
               if (_hovered || widget.isActive)
-                GestureDetector(
-                  onTap: () {},
-                  child: PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(
-                      Icons.more_horiz_rounded,
-                      size: 14,
-                      color: Colors.white38,
-                    ),
-                    color: const Color(0xFF1E1E1E),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    itemBuilder: (_) => [
-                      if (widget.onPlay != null)
-                        const PopupMenuItem(
-                          value: 'play',
-                          height: 36,
-                          child: Text(
-                            'Play',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(
+                    Icons.more_horiz_rounded,
+                    size: 14,
+                    color: Colors.white38,
+                  ),
+                  color: const Color(0xFF1E1E1E),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  itemBuilder: (_) => [
+                    if (widget.onPlay != null)
                       const PopupMenuItem(
-                        value: 'rename',
+                        value: 'play',
                         height: 36,
                         child: Text(
-                          'Rename',
+                          'Play',
                           style: TextStyle(color: Colors.white70, fontSize: 13),
                         ),
                       ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        height: 36,
-                        child: Text(
-                          'Delete',
-                          style: TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 13,
-                          ),
-                        ),
+                    const PopupMenuItem(
+                      value: 'rename',
+                      height: 36,
+                      child: Text(
+                        'Rename',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
-                    ],
-                    onSelected: (v) {
-                      if (v == 'play') widget.onPlay?.call();
-                      if (v == 'rename') widget.onRename();
-                      if (v == 'delete') widget.onDelete();
-                    },
-                  ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      height: 36,
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                  onSelected: (v) {
+                    if (v == 'play') widget.onPlay?.call();
+                    if (v == 'rename') widget.onRename();
+                    if (v == 'delete') widget.onDelete();
+                  },
                 ),
             ],
           ),
@@ -804,7 +1110,6 @@ class _PlaylistDetailScreen extends ConsumerWidget {
   }
 }
 
-// Playlist track tile
 class _PlaylistTrackTile extends ConsumerWidget {
   final Track track;
   final int index;
@@ -952,92 +1257,10 @@ class _InputDialog extends StatelessWidget {
   }
 }
 
-// Nav helpers
-class _NavItem extends StatefulWidget {
-  final IconData icon;
-  final IconData activeIcon;
+// Small widgets
+class _SectionLabel extends StatelessWidget {
   final String label;
-  final bool isActive;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.isActive,
-    this.trailing,
-    this.onTap,
-  });
-
-  @override
-  State<_NavItem> createState() => _NavItemState();
-}
-
-class _NavItemState extends State<_NavItem> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: widget.isActive
-                ? Colors.white.withValues(alpha: 0.08)
-                : _hovered
-                ? Colors.white.withValues(alpha: 0.04)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                widget.isActive ? widget.activeIcon : widget.icon,
-                size: 16,
-                color: widget.isActive
-                    ? Colors.white
-                    : widget.onTap == null
-                    ? Colors.white24
-                    : Colors.white54,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: widget.isActive
-                        ? Colors.white
-                        : widget.onTap == null
-                        ? Colors.white24
-                        : Colors.white60,
-                    fontWeight: widget.isActive
-                        ? FontWeight.w500
-                        : FontWeight.w400,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (widget.trailing != null) widget.trailing!,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionDivider extends StatelessWidget {
-  final String label;
-  const _SectionDivider(this.label);
+  const _SectionLabel(this.label);
 
   @override
   Widget build(BuildContext context) {
@@ -1126,16 +1349,6 @@ class _CustomTitleBar extends StatelessWidget {
         color: const Color(0xFF080808),
         child: Row(
           children: [
-            const SizedBox(width: 16),
-            const Text(
-              'AQLOSS',
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w400,
-                color: Colors.white24,
-                letterSpacing: 3,
-              ),
-            ),
             const Spacer(),
             _TitleBarBtn(
               icon: Icons.remove_rounded,
@@ -1190,21 +1403,31 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          width: 30,
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          alignment: Alignment.center,
-          color: _hovered
-              ? widget.isClose
-                    ? const Color(0xFFE81123)
-                    : Colors.white.withValues(alpha: 0.08)
-              : Colors.transparent,
-          child: Icon(
-            widget.icon,
-            size: 13,
-            color: _hovered && widget.isClose ? Colors.white : Colors.white38,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _hovered
+                    ? widget.isClose
+                          ? const Color(0xFFE81123)
+                          : Colors.white.withValues(alpha: 0.10)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                widget.icon,
+                size: 13,
+                color: _hovered && widget.isClose
+                    ? Colors.white
+                    : Colors.white54,
+              ),
+            ),
           ),
         ),
       ),
