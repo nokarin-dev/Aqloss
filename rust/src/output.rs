@@ -131,7 +131,7 @@ impl AudioOutput {
     }
 }
 
-// #[cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
 mod wasapi_exclusive {
     use super::{SharedProducer, RING_EXTRA_FRAMES};
     use anyhow::{anyhow, Result};
