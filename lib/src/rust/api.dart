@@ -46,7 +46,6 @@ Future<String?> readEmbeddedLyrics({required String path}) =>
 Future<Float32List> getSpectrumData({required int bucketCount}) =>
     AqlossCore.instance.api.crateApiGetSpectrumData(bucketCount: bucketCount);
 
-/// Update Discord presence while playing.
 Future<void> discordUpdatePlaying({
   required String title,
   required String artist,

@@ -8,7 +8,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-/// Snapshot of the current playback position.
 class PlaybackPosition {
   final double positionSecs;
   final double durationSecs;
@@ -40,7 +39,6 @@ class PlaybackPosition {
           bitDepth == other.bitDepth;
 }
 
-/// Full track metadata returned by `load_track` and `read_metadata`.
 @freezed
 sealed class TrackInfo with _$TrackInfo {
   const factory TrackInfo({

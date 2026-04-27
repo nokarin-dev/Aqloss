@@ -231,9 +231,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> _pollPosition() async {
     if (state.currentTrack == null) return;
+    if (state.status == PlayerStatus.loading) return;
     try {
       final pos = await backend.getPosition();
       if (!mounted) return;
+      if (state.status == PlayerStatus.loading) return;
 
       final newPosition = Duration(
         milliseconds: (pos.positionSecs * 1000).round(),
