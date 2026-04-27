@@ -66,8 +66,8 @@ impl AudioOutput {
             .ok_or_else(|| anyhow!("No audio output device found"))?;
 
         let supported = device.default_output_config()?;
-        let sample_rate = supported.sample_rate().0;
-        let channels = supported.channels() as u32;
+        let sample_rate: u32 = supported.sample_rate();
+        let channels: u32 = supported.channels() as u32;
 
         let config = cpal::StreamConfig {
             channels: supported.channels(),
@@ -176,22 +176,9 @@ mod wasapi_exclusive {
 
         unsafe fn open_inner() -> Result<Self> {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-
-            let enumerator: IMMDeviceEnumerator =
-                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
             let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-
-            let audio_client: IAudioClient = {
-                let mut obj: Option<windows::core::IUnknown> = None;
-                device.Activate(
-                    &IAudioClient::IID,
-                    CLSCTX_ALL,
-                    None,
-                    &mut obj as *mut _ as *mut _,
-                )?;
-                obj.ok_or_else(|| anyhow!("IAudioClient activation returned null"))?
-                    .cast::<IAudioClient>()?
-            };
+            let audio_client: IAudioClient = device.Activate(CLSCTX_ALL, None)?;
 
             let candidates: &[(u32, u16, u16, u16)] = &[
                 (192000, 32, 2, WAVE_FORMAT_IEEE_FLOAT),

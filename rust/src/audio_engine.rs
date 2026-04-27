@@ -127,6 +127,7 @@ impl AudioEngine {
 
     pub fn load(&mut self, path: &str) -> Result<()> {
         self.stop_thread();
+        self.flags = PlayFlags::new();
         self.output.stop_drain();
         let dec = Decoder::open(path)?;
         let src_rate = dec.sample_rate();

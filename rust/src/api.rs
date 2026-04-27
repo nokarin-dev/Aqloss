@@ -73,7 +73,7 @@ pub fn get_spectrum_data(bucket_count: u32) -> Vec<f32> {
     x
 }
 
-/// Update Discord presence while playing.
+// Update Discord presence while playing.
 pub fn discord_update_playing(
     title: String,
     artist: String,

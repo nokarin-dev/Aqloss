@@ -1,9 +1,8 @@
 use crate::TrackInfo;
 use anyhow::Result;
-use lofty::{Accessor, AudioFile, ItemKey, TaggedFileExt};
+use lofty::prelude::{Accessor, AudioFile, ItemKey, TaggedFileExt};
 use std::path::Path;
 
-// Read full metadata + audio properties from a file.
 pub fn read_track_info(path: &str) -> Result<TrackInfo> {
     let tagged = lofty::read_from_path(path)?;
     let props = tagged.properties();
@@ -12,7 +11,7 @@ pub fn read_track_info(path: &str) -> Result<TrackInfo> {
     let title = tag.and_then(|t| t.title().map(|s| s.into_owned()));
     let artist = tag.and_then(|t| t.artist().map(|s| s.into_owned()));
     let album = tag.and_then(|t| t.album().map(|s| s.into_owned()));
-    let album_artist = tag.and_then(|t| t.get_string(&ItemKey::AlbumArtist).map(|s| s.to_owned()));
+    let album_artist = tag.and_then(|t| t.get_string(ItemKey::AlbumArtist).map(|s| s.to_owned()));
     let track_number = tag.and_then(|t| t.track());
 
     let duration_secs = props.duration().as_secs_f64();
@@ -44,7 +43,6 @@ pub fn read_track_info(path: &str) -> Result<TrackInfo> {
     })
 }
 
-// Album art (cover image)
 pub fn read_album_art(path: &str) -> Result<Option<Vec<u8>>> {
     let tagged = lofty::read_from_path(path)?;
     if let Some(tag) = tagged.primary_tag() {
@@ -55,11 +53,10 @@ pub fn read_album_art(path: &str) -> Result<Option<Vec<u8>>> {
     Ok(None)
 }
 
-// Embedded lyrics
 pub fn read_embedded_lyrics(path: &str) -> Result<Option<String>> {
     let tagged = lofty::read_from_path(path)?;
     if let Some(tag) = tagged.primary_tag() {
-        if let Some(lyrics) = tag.get_string(&ItemKey::Lyrics) {
+        if let Some(lyrics) = tag.get_string(ItemKey::Lyrics) {
             let s = lyrics.trim().to_string();
             if !s.is_empty() {
                 return Ok(Some(s));
@@ -69,7 +66,6 @@ pub fn read_embedded_lyrics(path: &str) -> Result<Option<String>> {
     Ok(None)
 }
 
-// Scan a directory recursively for supported audio files,
 pub fn scan_directory(dir: &str) -> Result<Vec<String>> {
     const SUPPORTED: &[&str] = &[
         "flac", "wav", "aiff", "aif", "alac", "m4a", "dsf", "dff", "mp3", "ogg", "opus", "aac",

@@ -8,7 +8,6 @@ pub mod resampler;
 
 use flutter_rust_bridge::frb;
 
-/// Full track metadata returned by `load_track` and `read_metadata`.
 #[frb(dart_metadata = ("freezed"))]
 pub struct TrackInfo {
     pub path: String,
@@ -25,7 +24,6 @@ pub struct TrackInfo {
     pub file_size_bytes: u64,
 }
 
-/// Snapshot of the current playback position.
 pub struct PlaybackPosition {
     pub position_secs: f64,
     pub duration_secs: f64,

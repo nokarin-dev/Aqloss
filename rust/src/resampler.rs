@@ -1,13 +1,15 @@
 use anyhow::Result;
 use rubato::{
-    Resampler as RubatoResampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType,
+    audioadapter_buffers::direct::SequentialSliceOfVecs, Async, FixedAsync,
+    Resampler as RubatoResampler, SincInterpolationParameters, SincInterpolationType,
     WindowFunction,
 };
 
 const CHUNK_FRAMES: usize = 1024;
 
+#[allow(dead_code)]
 pub struct Resampler {
-    inner: SincFixedIn<f32>,
+    inner: Async<f32>,
     channels: usize,
     in_buf: Vec<Vec<f32>>,
     source_rate: usize,
@@ -24,12 +26,13 @@ impl Resampler {
             window: WindowFunction::BlackmanHarris2,
         };
 
-        let inner = SincFixedIn::<f32>::new(
+        let inner = Async::<f32>::new_sinc(
             target_rate as f64 / source_rate as f64,
-            1.0,
-            params,
+            1.1,
+            &params,
             CHUNK_FRAMES,
             channels as usize,
+            FixedAsync::Input,
         )?;
 
         Ok(Self {
@@ -58,13 +61,22 @@ impl Resampler {
                 .map(|ch| ch.drain(..CHUNK_FRAMES).collect())
                 .collect();
 
-            let processed = self.inner.process(&chunk, None)?;
-            let out_frames = processed[0].len();
+            let input_adapter = SequentialSliceOfVecs::new(&chunk, self.channels, CHUNK_FRAMES)
+                .map_err(|e| anyhow::anyhow!("resampler input adapter: {e:?}"))?;
+
+            let out_frames = self.inner.output_frames_next();
+            let mut out_buf = vec![vec![0f32; out_frames]; self.channels];
+            let mut output_adapter =
+                SequentialSliceOfVecs::new_mut(&mut out_buf, self.channels, out_frames)
+                    .map_err(|e| anyhow::anyhow!("resampler output adapter: {e:?}"))?;
+
+            self.inner
+                .process_into_buffer(&input_adapter, &mut output_adapter, None)?;
 
             out_interleaved.reserve(out_frames * self.channels);
             for f in 0..out_frames {
                 for ch in 0..self.channels {
-                    out_interleaved.push(processed[ch][f]);
+                    out_interleaved.push(out_buf[ch][f]);
                 }
             }
         }
@@ -88,14 +100,25 @@ impl Resampler {
             .map(|ch| ch.drain(..).collect())
             .collect();
 
-        let processed = self.inner.process(&chunk, None)?;
+        let input_adapter = SequentialSliceOfVecs::new(&chunk, self.channels, CHUNK_FRAMES)
+            .map_err(|e| anyhow::anyhow!("resampler flush input adapter: {e:?}"))?;
+
+        let out_frames = self.inner.output_frames_next();
+        let mut out_buf = vec![vec![0f32; out_frames]; self.channels];
+        let mut output_adapter =
+            SequentialSliceOfVecs::new_mut(&mut out_buf, self.channels, out_frames)
+                .map_err(|e| anyhow::anyhow!("resampler flush output adapter: {e:?}"))?;
+
+        self.inner
+            .process_into_buffer(&input_adapter, &mut output_adapter, None)?;
+
         let ratio = leftover as f64 / CHUNK_FRAMES as f64;
-        let keep_frames = (processed[0].len() as f64 * ratio).round() as usize;
+        let keep_frames = (out_frames as f64 * ratio).round() as usize;
 
         let mut out = Vec::with_capacity(keep_frames * self.channels);
-        for f in 0..keep_frames.min(processed[0].len()) {
+        for f in 0..keep_frames.min(out_frames) {
             for ch in 0..self.channels {
-                out.push(processed[ch][f]);
+                out.push(out_buf[ch][f]);
             }
         }
         Ok(out)
@@ -105,21 +128,6 @@ impl Resampler {
         for ch in &mut self.in_buf {
             ch.clear();
         }
-        let params = SincInterpolationParameters {
-            sinc_len: 64,
-            f_cutoff: 0.95,
-            interpolation: SincInterpolationType::Linear,
-            oversampling_factor: 128,
-            window: WindowFunction::BlackmanHarris2,
-        };
-        if let Ok(fresh) = SincFixedIn::<f32>::new(
-            self.target_rate as f64 / self.source_rate as f64,
-            1.0,
-            params,
-            CHUNK_FRAMES,
-            self.channels,
-        ) {
-            self.inner = fresh;
-        }
+        self.inner.reset();
     }
 }
