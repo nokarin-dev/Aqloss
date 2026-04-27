@@ -275,7 +275,7 @@ mod wasapi_exclusive {
                     unsafe {
                         WaitForSingleObject(event, 100);
 
-                        let buf_ptr: u32 = match render_client.GetBuffer(buffer_frames as u32) {
+                        let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
                             Ok(p) => p,
                             Err(_) => break,
                         };
