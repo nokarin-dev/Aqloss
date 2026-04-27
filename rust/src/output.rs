@@ -136,7 +136,7 @@ mod wasapi_exclusive {
     use super::{SharedProducer, RING_EXTRA_FRAMES};
     use anyhow::{anyhow, Result};
     use ringbuf::{
-        traits::{Consumer, Observer, Producer, Split},
+        traits::{Consumer, Observer, Split},
         HeapRb,
     };
     use std::sync::{
@@ -147,6 +147,7 @@ mod wasapi_exclusive {
     use windows::{
         core::PCWSTR,
         Win32::{
+            Foundation::HANDLE,
             Media::Audio::{
                 eConsole, eRender, IAudioClient, IAudioRenderClient, IMMDeviceEnumerator,
                 MMDeviceEnumerator, AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
@@ -159,6 +160,12 @@ mod wasapi_exclusive {
 
     const WAVE_FORMAT_IEEE_FLOAT: u16 = 3;
     const WAVE_FORMAT_PCM: u16 = 1;
+
+    struct SendHandle(HANDLE);
+    unsafe impl Send for SendHandle {}
+
+    struct SendRenderClient(IAudioRenderClient);
+    unsafe impl Send for SendRenderClient {}
 
     pub struct ExclusiveStream {
         pub producer: SharedProducer,
@@ -221,10 +228,7 @@ mod wasapi_exclusive {
             }
 
             let fmt = chosen_fmt.ok_or_else(|| {
-                anyhow!(
-                    "No WASAPI exclusive format supported — driver may not support exclusive mode.\n\
-                    Falling back to shared mode automatically."
-                )
+                anyhow!("No WASAPI exclusive format supported — falling back to shared mode.")
             })?;
 
             let event = CreateEventW(None, false, false, PCWSTR::null())?;
@@ -255,22 +259,18 @@ mod wasapi_exclusive {
             let alive_cb = alive.clone();
             let draining_cb = draining.clone();
 
-            struct SendHandle(windows::Win32::Foundation::HANDLE);
-            unsafe impl Send for SendHandle {}
-
-            struct SendRenderClient(IAudioRenderClient);
-            unsafe impl Send for SendRenderClient {}
-
             let send_event = SendHandle(event);
             let send_render_client = SendRenderClient(render_client);
 
             let _thread = thread::spawn(move || {
                 let event = send_event.0;
                 let render_client = send_render_client.0;
+
                 loop {
                     if !alive_cb.load(Ordering::SeqCst) {
                         break;
                     }
+
                     WaitForSingleObject(event, 100);
 
                     let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
@@ -281,6 +281,7 @@ mod wasapi_exclusive {
                         buf_ptr as *mut f32,
                         buffer_frames * chosen_ch as usize,
                     );
+
                     if draining_cb.load(Ordering::Relaxed) {
                         let avail = cons.occupied_len();
                         let mut tmp = vec![0f32; avail];
@@ -291,6 +292,7 @@ mod wasapi_exclusive {
                         cons.pop_slice(&mut output[..n]);
                         output[n..].fill(0.0);
                     }
+
                     let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
                 }
             });
