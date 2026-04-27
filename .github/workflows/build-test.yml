@@ -9,7 +9,7 @@ on:
       - ".gitignore"
       - "LICENSE"
       - "assets/banner/**"
-      - "preview/**"
+      - "assets/preview/**"
   pull_request:
     branches:
       - main
@@ -18,7 +18,7 @@ on:
       - ".gitignore"
       - "LICENSE"
       - "assets/banner/**"
-      - "preview/**"
+      - "assets/preview/**"
 permissions:
   contents: read
   checks: write
