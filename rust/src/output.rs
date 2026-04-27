@@ -249,7 +249,7 @@ mod wasapi_exclusive {
             audio_client.SetEventHandle(event)?;
 
             let render_client: IAudioRenderClient = audio_client.GetService()?;
-            let buffer_frames: usize = audio_client.GetBufferSize()?;
+            let buffer_frames: usize = audio_client.GetBufferSize()?.try_into().unwrap();
             audio_client.Start()?;
 
             let ring_cap = (chosen_sr as usize * chosen_ch as usize / 2) + RING_EXTRA_FRAMES;
@@ -275,12 +275,12 @@ mod wasapi_exclusive {
                     unsafe {
                         WaitForSingleObject(event, 100);
 
-                        let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
+                        let buf_ptr: u32 = match render_client.GetBuffer(buffer_frames as u32) {
                             Ok(p) => p,
                             Err(_) => break,
                         };
                         let output = std::slice::from_raw_parts_mut(
-                            buf_ptr() as *mut f32,
+                            buf_ptr as *mut f32,
                             buffer_frames * chosen_ch as usize,
                         );
                         if draining_cb.load(Ordering::Relaxed) {
