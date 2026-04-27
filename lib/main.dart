@@ -16,14 +16,12 @@ void main() async {
         size: Size(1100, 700),
         minimumSize: Size(1100, 700),
         center: true,
-        titleBarStyle: TitleBarStyle.hidden,
         backgroundColor: Colors.transparent,
         skipTaskbar: false,
         title: 'Aqloss',
       ),
       () async {
-        await windowManager.setAsFrameless();
-        await windowManager.setBackgroundColor(Colors.transparent);
+        await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
         await windowManager.show();
         await windowManager.focus();
       },
