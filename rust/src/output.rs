@@ -263,24 +263,28 @@ mod wasapi_exclusive {
             let send_render_client = SendRenderClient(render_client);
 
             let _thread = thread::spawn(move || {
-                let event = send_event.0;
-                let render_client = send_render_client.0;
+                let event: HANDLE = send_event.0;
+                let render_client: IAudioRenderClient = send_render_client.0;
 
                 loop {
                     if !alive_cb.load(Ordering::SeqCst) {
                         break;
                     }
 
-                    WaitForSingleObject(event, 100);
+                    unsafe { WaitForSingleObject(event, 100) };
 
-                    let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
-                        Ok(p) => p,
-                        Err(_) => break,
+                    let buf_ptr = unsafe {
+                        match render_client.GetBuffer(buffer_frames as u32) {
+                            Ok(p) => p,
+                            Err(_) => break,
+                        }
                     };
-                    let output = std::slice::from_raw_parts_mut(
-                        buf_ptr as *mut f32,
-                        buffer_frames * chosen_ch as usize,
-                    );
+                    let output = unsafe {
+                        std::slice::from_raw_parts_mut(
+                            buf_ptr as *mut f32,
+                            buffer_frames * chosen_ch as usize,
+                        )
+                    };
 
                     if draining_cb.load(Ordering::Relaxed) {
                         let avail = cons.occupied_len();
@@ -293,7 +297,7 @@ mod wasapi_exclusive {
                         output[n..].fill(0.0);
                     }
 
-                    let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
+                    unsafe { render_client.ReleaseBuffer(buffer_frames as u32, 0) };
                 }
             });
 
