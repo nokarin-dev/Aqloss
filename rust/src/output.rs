@@ -164,6 +164,12 @@ mod wasapi_exclusive {
     struct SendWrapper<T>(pub T);
     unsafe impl<T> Send for SendWrapper<T> {}
 
+    impl<T> SendWrapper<T> {
+        fn into_inner(self) -> T {
+            self.0
+        }
+    }
+
     pub struct ExclusiveStream {
         pub producer: SharedProducer,
         pub draining: Arc<AtomicBool>,
@@ -262,8 +268,8 @@ mod wasapi_exclusive {
             audio_client.Start()?;
 
             let _thread = thread::spawn(move || {
-                let event: HANDLE = event.0;
-                let render_client: IAudioRenderClient = render_client.0;
+                let event: HANDLE = event.into_inner();
+                let render_client: IAudioRenderClient = render_client.into_inner();
 
                 unsafe {
                     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
