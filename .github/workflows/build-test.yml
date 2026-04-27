@@ -8,6 +8,8 @@ on:
       - "**.md"
       - ".gitignore"
       - "LICENSE"
+      - "assets/banner/**"
+      - "preview/**"
   pull_request:
     branches:
       - main
@@ -15,7 +17,8 @@ on:
       - "**.md"
       - ".gitignore"
       - "LICENSE"
-
+      - "assets/banner/**"
+      - "preview/**"
 permissions:
   contents: read
   checks: write
