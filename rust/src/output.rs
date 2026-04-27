@@ -136,7 +136,7 @@ mod wasapi_exclusive {
     use super::{SharedProducer, RING_EXTRA_FRAMES};
     use anyhow::{anyhow, Result};
     use ringbuf::{
-        traits::{Consumer, Observer, Split},
+        traits::{Consumer, Observer, Producer, Split},
         HeapRb,
     };
     use std::sync::{
@@ -147,7 +147,6 @@ mod wasapi_exclusive {
     use windows::{
         core::PCWSTR,
         Win32::{
-            Foundation::HANDLE,
             Media::Audio::{
                 eConsole, eRender, IAudioClient, IAudioRenderClient, IMMDeviceEnumerator,
                 MMDeviceEnumerator, AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
@@ -160,12 +159,6 @@ mod wasapi_exclusive {
 
     const WAVE_FORMAT_IEEE_FLOAT: u16 = 3;
     const WAVE_FORMAT_PCM: u16 = 1;
-
-    struct SendHandle(HANDLE);
-    unsafe impl Send for SendHandle {}
-
-    struct SendRenderClient(IAudioRenderClient);
-    unsafe impl Send for SendRenderClient {}
 
     pub struct ExclusiveStream {
         pub producer: SharedProducer,
@@ -249,7 +242,7 @@ mod wasapi_exclusive {
             audio_client.SetEventHandle(event)?;
 
             let render_client: IAudioRenderClient = audio_client.GetService()?;
-            let buffer_frames: usize = audio_client.GetBufferSize()?.try_into().unwrap();
+            let buffer_frames = audio_client.GetBufferSize()? as usize;
             audio_client.Start()?;
 
             let ring_cap = (chosen_sr as usize * chosen_ch as usize / 2) + RING_EXTRA_FRAMES;
@@ -262,6 +255,12 @@ mod wasapi_exclusive {
             let alive_cb = alive.clone();
             let draining_cb = draining.clone();
 
+            struct SendHandle(windows::Win32::Foundation::HANDLE);
+            unsafe impl Send for SendHandle {}
+
+            struct SendRenderClient(IAudioRenderClient);
+            unsafe impl Send for SendRenderClient {}
+
             let send_event = SendHandle(event);
             let send_render_client = SendRenderClient(render_client);
 
@@ -272,29 +271,27 @@ mod wasapi_exclusive {
                     if !alive_cb.load(Ordering::SeqCst) {
                         break;
                     }
-                    unsafe {
-                        WaitForSingleObject(event, 100);
+                    WaitForSingleObject(event, 100);
 
-                        let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
-                            Ok(p) => p,
-                            Err(_) => break,
-                        };
-                        let output = std::slice::from_raw_parts_mut(
-                            buf_ptr as *mut f32,
-                            buffer_frames * chosen_ch as usize,
-                        );
-                        if draining_cb.load(Ordering::Relaxed) {
-                            let avail = cons.occupied_len();
-                            let mut tmp = vec![0f32; avail];
-                            cons.pop_slice(&mut tmp);
-                            output.fill(0.0);
-                        } else {
-                            let n = cons.occupied_len().min(output.len());
-                            cons.pop_slice(&mut output[..n]);
-                            output[n..].fill(0.0);
-                        }
-                        let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
+                    let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
+                        Ok(p) => p,
+                        Err(_) => break,
+                    };
+                    let output = std::slice::from_raw_parts_mut(
+                        buf_ptr as *mut f32,
+                        buffer_frames * chosen_ch as usize,
+                    );
+                    if draining_cb.load(Ordering::Relaxed) {
+                        let avail = cons.occupied_len();
+                        let mut tmp = vec![0f32; avail];
+                        cons.pop_slice(&mut tmp);
+                        output.fill(0.0);
+                    } else {
+                        let n = cons.occupied_len().min(output.len());
+                        cons.pop_slice(&mut output[..n]);
+                        output[n..].fill(0.0);
                     }
+                    let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
                 }
             });
 
