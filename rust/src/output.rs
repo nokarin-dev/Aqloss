@@ -131,7 +131,7 @@ impl AudioOutput {
     }
 }
 
-#[cfg(target_os = "windows")]
+// #[cfg(target_os = "windows")]
 mod wasapi_exclusive {
     use super::{SharedProducer, RING_EXTRA_FRAMES};
     use anyhow::{anyhow, Result};
@@ -256,18 +256,18 @@ mod wasapi_exclusive {
             let alive_cb = alive.clone();
             let draining_cb = draining.clone();
 
-            let send_event = SendWrapper(event);
-            let send_render_client = SendWrapper(render_client);
+            let event = SendWrapper(event);
+            let render_client = SendWrapper(render_client);
 
             audio_client.Start()?;
 
             let _thread = thread::spawn(move || {
+                let event: HANDLE = event.0;
+                let render_client: IAudioRenderClient = render_client.0;
+
                 unsafe {
                     let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
                 }
-
-                let event: HANDLE = send_event.0;
-                let render_client: IAudioRenderClient = send_render_client.0;
 
                 loop {
                     if !alive_cb.load(Ordering::SeqCst) {
