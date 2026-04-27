@@ -244,7 +244,6 @@ mod wasapi_exclusive {
 
             let render_client: IAudioRenderClient = audio_client.GetService()?;
             let buffer_frames = audio_client.GetBufferSize()? as usize;
-            audio_client.Start()?;
 
             let ring_cap = (chosen_sr as usize * chosen_ch as usize / 2) + RING_EXTRA_FRAMES;
             let rb = HeapRb::<f32>::new(ring_cap);
@@ -253,22 +252,31 @@ mod wasapi_exclusive {
             let producer: SharedProducer = Arc::new(Mutex::new(prod));
             let alive = Arc::new(AtomicBool::new(true));
             let draining = Arc::new(AtomicBool::new(false));
+
             let alive_cb = alive.clone();
             let draining_cb = draining.clone();
 
             let send_event = SendWrapper(event);
             let send_render_client = SendWrapper(render_client);
 
+            audio_client.Start()?;
+
             let _thread = thread::spawn(move || {
-                let event = send_event.0;
-                let render_client = send_render_client.0;
+                unsafe {
+                    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+                }
+
+                let event: HANDLE = send_event.0;
+                let render_client: IAudioRenderClient = send_render_client.0;
 
                 loop {
                     if !alive_cb.load(Ordering::SeqCst) {
                         break;
                     }
 
-                    unsafe { WaitForSingleObject(event, 100) };
+                    unsafe {
+                        let _ = WaitForSingleObject(event, 100);
+                    };
 
                     let buf_ptr = unsafe {
                         match render_client.GetBuffer(buffer_frames as u32) {
@@ -294,7 +302,9 @@ mod wasapi_exclusive {
                         output[n..].fill(0.0);
                     }
 
-                    unsafe { render_client.ReleaseBuffer(buffer_frames as u32, 0) };
+                    unsafe {
+                        let _ = render_client.ReleaseBuffer(buffer_frames as u32, 0);
+                    };
                 }
             });
 

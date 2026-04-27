@@ -32,6 +32,14 @@
     </categories>
 
     <screenshots>
+        <screenshot type="default">
+            <image>https://github.com/nokarin-dev/Aqloss/blob/a63e5ff34b8c06b9cdace40bbc3ebc27d7a4a2d2/assets/preview/playing.png</image>
+            <caption>PLaying</caption>
+        </screenshot>
+        <screenshot>
+            <image>https://github.com/nokarin-dev/Aqloss/blob/a63e5ff34b8c06b9cdace40bbc3ebc27d7a4a2d2/assets/preview/library.png</image>
+            <caption>Library</caption>
+        </screenshot>
     </screenshots>
 
     <releases>
