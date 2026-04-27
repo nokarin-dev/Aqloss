@@ -161,11 +161,8 @@ mod wasapi_exclusive {
     const WAVE_FORMAT_IEEE_FLOAT: u16 = 3;
     const WAVE_FORMAT_PCM: u16 = 1;
 
-    struct SendHandle(HANDLE);
-    unsafe impl Send for SendHandle {}
-
-    struct SendRenderClient(IAudioRenderClient);
-    unsafe impl Send for SendRenderClient {}
+    struct SendWrapper<T>(pub T);
+    unsafe impl<T> Send for SendWrapper<T> {}
 
     pub struct ExclusiveStream {
         pub producer: SharedProducer,
@@ -259,12 +256,12 @@ mod wasapi_exclusive {
             let alive_cb = alive.clone();
             let draining_cb = draining.clone();
 
-            let send_event = SendHandle(event);
-            let send_render_client = SendRenderClient(render_client);
+            let send_event = SendWrapper(event);
+            let send_render_client = SendWrapper(render_client);
 
             let _thread = thread::spawn(move || {
-                let event: HANDLE = send_event.0;
-                let render_client: IAudioRenderClient = send_render_client.0;
+                let event = send_event.0;
+                let render_client = send_render_client.0;
 
                 loop {
                     if !alive_cb.load(Ordering::SeqCst) {
