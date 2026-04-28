@@ -15,21 +15,21 @@ struct _Aqloss
 
 G_DEFINE_TYPE(Aqloss, aqloss, GTK_TYPE_APPLICATION)
 
-// Called when first Flutter frame received.
 static void first_frame_cb(Aqloss *self, FlView *view)
 {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
-// Implements GApplication::activate.
 static void aqloss_activate(GApplication *application)
 {
   Aqloss *self = AQLOSS_APP(application);
   GtkWindow *window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+
+  GdkScreen *screen = gtk_window_get_screen(window);
+
   gboolean use_header_bar = TRUE;
 #ifdef GDK_WINDOWING_X11
-  GdkScreen *screen = gtk_window_get_screen(window);
   if (GDK_IS_X11_SCREEN(screen))
   {
     const gchar *wm_name = gdk_x11_screen_get_window_manager_name(screen);
@@ -54,21 +54,24 @@ static void aqloss_activate(GApplication *application)
 
   gtk_window_set_default_size(window, 1280, 720);
 
+  GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
+  if (visual != nullptr && gdk_screen_is_composited(screen))
+  {
+    gtk_widget_set_visual(GTK_WIDGET(window), visual);
+  }
+  gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);
+
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 
   FlView *view = fl_view_new(project);
   GdkRGBA background_color;
-  // Background defaults to black, override it here if necessary, e.g. #00000000
-  // for transparent.
-  gdk_rgba_parse(&background_color, "#000000");
+  gdk_rgba_parse(&background_color, "#00000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
-  // Show the window when Flutter renders.
-  // Requires the view to be realized so we can start rendering.
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
                            self);
   gtk_widget_realize(GTK_WIDGET(view));
@@ -78,13 +81,11 @@ static void aqloss_activate(GApplication *application)
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
-// Implements GApplication::local_command_line.
 static gboolean aqloss_local_command_line(GApplication *application,
                                           gchar ***arguments,
                                           int *exit_status)
 {
   Aqloss *self = AQLOSS_APP(application);
-  // Strip out the first argument as it is the binary name.
   self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
 
   g_autoptr(GError) error = nullptr;
@@ -101,19 +102,16 @@ static gboolean aqloss_local_command_line(GApplication *application,
   return TRUE;
 }
 
-// Implements GApplication::startup.
 static void aqloss_startup(GApplication *application)
 {
   G_APPLICATION_CLASS(aqloss_parent_class)->startup(application);
 }
 
-// Implements GApplication::shutdown.
 static void aqloss_shutdown(GApplication *application)
 {
   G_APPLICATION_CLASS(aqloss_parent_class)->shutdown(application);
 }
 
-// Implements GObject::dispose.
 static void aqloss_dispose(GObject *object)
 {
   Aqloss *self = AQLOSS_APP(object);
@@ -135,10 +133,6 @@ static void aqloss_init(Aqloss *self) {}
 
 Aqloss *aqloss_new()
 {
-  // Set the program name to the application ID, which helps various systems
-  // like GTK and desktop environments map this running application to its
-  // corresponding .desktop file. This ensures better integration by allowing
-  // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
 
   return AQLOSS_APP(g_object_new(aqloss_get_type(),
