@@ -2,7 +2,6 @@ use crate::{audio_engine::AudioEngine, metadata, PlaybackPosition, TrackInfo};
 use anyhow::Result;
 use flutter_rust_bridge::frb;
 
-#[frb(sync)]
 pub fn init_engine() -> Result<()> {
     AudioEngine::init()
 }

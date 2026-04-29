@@ -239,15 +239,16 @@ fn wire__crate__api__get_spectrum_data_impl(
     )
 }
 fn wire__crate__api__init_engine_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "init_engine",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let message = unsafe {
@@ -260,12 +261,14 @@ fn wire__crate__api__init_engine_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
-            transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
-                (move || {
-                    let output_ok = crate::api::init_engine()?;
-                    Ok(output_ok)
-                })(),
-            )
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::init_engine()?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
         },
     )
 }
@@ -878,6 +881,7 @@ fn pde_ffi_dispatcher_primary_impl(
         3 => wire__crate__api__discord_update_playing_impl(port, ptr, rust_vec_len, data_len),
         4 => wire__crate__api__get_position_impl(port, ptr, rust_vec_len, data_len),
         5 => wire__crate__api__get_spectrum_data_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__init_engine_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__load_track_impl(port, ptr, rust_vec_len, data_len),
         10 => wire__crate__api__pause_impl(port, ptr, rust_vec_len, data_len),
         11 => wire__crate__api__play_impl(port, ptr, rust_vec_len, data_len),
@@ -900,7 +904,6 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        6 => wire__crate__api__init_engine_impl(ptr, rust_vec_len, data_len),
         7 => wire__crate__api__is_exclusive_mode_impl(ptr, rust_vec_len, data_len),
         8 => wire__crate__api__is_playing_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),

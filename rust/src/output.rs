@@ -236,7 +236,7 @@ mod wasapi_exclusive {
 
             let event = CreateEventW(None, false, false, PCWSTR::null())?;
 
-            let buffer_dur = 100_000i64;
+            let buffer_dur = 1_000_000i64;
             audio_client.Initialize(
                 AUDCLNT_SHAREMODE_EXCLUSIVE,
                 AUDCLNT_STREAMFLAGS_EVENTCALLBACK,

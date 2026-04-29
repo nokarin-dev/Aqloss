@@ -1,8 +1,18 @@
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:flutter/foundation.dart';
 
 class AudioService {
   static Future<void> init() async {
-    backend.initEngine();
+    try {
+      await backend.initEngine().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('[AudioService] initEngine timed out, continuing...');
+        },
+      );
+    } catch (e) {
+      debugPrint('[AudioService] initEngine error: $e');
+    }
   }
 
   static Future<void> loadTrack(String path) async {
