@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:aqloss/src/rust/frb_generated.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,5 +30,5 @@ void main() async {
 
   await AqlossCore.init();
   runApp(const ProviderScope(child: AqlossApp()));
-  unawaited(AudioService.init());
+  await AudioService.init();
 }

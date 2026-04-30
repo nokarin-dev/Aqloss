@@ -4,12 +4,9 @@ import 'package:flutter/foundation.dart';
 class AudioService {
   static Future<void> init() async {
     try {
-      await backend.initEngine().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          debugPrint('[AudioService] initEngine timed out, continuing...');
-        },
-      );
+      await Future(
+        () => backend.initEngine(),
+      ).timeout(const Duration(seconds: 8));
     } catch (e) {
       debugPrint('[AudioService] initEngine error: $e');
     }
