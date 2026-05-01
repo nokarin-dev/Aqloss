@@ -9,19 +9,19 @@ import 'services/audio_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+  if (!Platform.isAndroid && !Platform.isIOS) {
     await windowManager.ensureInitialized();
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
         size: Size(1100, 700),
         minimumSize: Size(1100, 700),
         center: true,
-        backgroundColor: Colors.transparent,
+        titleBarStyle: TitleBarStyle.hidden,
+        windowButtonVisibility: false,
         skipTaskbar: false,
         title: 'Aqloss',
       ),
       () async {
-        await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
         await windowManager.show();
         await windowManager.focus();
       },
