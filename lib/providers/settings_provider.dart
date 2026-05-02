@@ -6,6 +6,7 @@ enum AudioOutputMode { system, exclusive }
 enum ThemeMode { dark, light, system }
 
 const _kOutputMode = 'aqloss_output_mode';
+const _kSelectedDeviceId = 'aqloss_selected_device_id';
 const _kReplayGain = 'aqloss_replay_gain';
 const _kGapless = 'aqloss_gapless';
 const _kTheme = 'aqloss_theme';
@@ -16,6 +17,7 @@ const _kEqEnabled = 'aqloss_eq_enabled';
 
 class SettingsState {
   final AudioOutputMode outputMode;
+  final String? selectedDeviceId;
   final double volume;
   final bool replayGainEnabled;
   final bool gaplessPlayback;
@@ -28,6 +30,7 @@ class SettingsState {
 
   const SettingsState({
     this.outputMode = AudioOutputMode.exclusive,
+    this.selectedDeviceId,
     this.volume = 1.0,
     this.replayGainEnabled = false,
     this.gaplessPlayback = true,
@@ -41,6 +44,8 @@ class SettingsState {
 
   SettingsState copyWith({
     AudioOutputMode? outputMode,
+    String? selectedDeviceId,
+    bool clearDeviceId = false,
     double? volume,
     bool? replayGainEnabled,
     bool? gaplessPlayback,
@@ -52,6 +57,9 @@ class SettingsState {
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
+    selectedDeviceId: clearDeviceId
+        ? null
+        : (selectedDeviceId ?? this.selectedDeviceId),
     volume: volume ?? this.volume,
     replayGainEnabled: replayGainEnabled ?? this.replayGainEnabled,
     gaplessPlayback: gaplessPlayback ?? this.gaplessPlayback,
@@ -69,7 +77,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _load();
   }
 
-  // Persistence
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
     final outputIdx = p.getInt(_kOutputMode) ?? AudioOutputMode.exclusive.index;
@@ -77,6 +84,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(
       outputMode: AudioOutputMode
           .values[outputIdx.clamp(0, AudioOutputMode.values.length - 1)],
+      selectedDeviceId: p.getString(_kSelectedDeviceId),
       replayGainEnabled: p.getBool(_kReplayGain) ?? false,
       gaplessPlayback: p.getBool(_kGapless) ?? true,
       themeMode:
@@ -92,6 +100,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> _save() async {
     final p = await SharedPreferences.getInstance();
     await p.setInt(_kOutputMode, state.outputMode.index);
+    if (state.selectedDeviceId != null) {
+      await p.setString(_kSelectedDeviceId, state.selectedDeviceId!);
+    } else {
+      await p.remove(_kSelectedDeviceId);
+    }
     await p.setBool(_kReplayGain, state.replayGainEnabled);
     await p.setBool(_kGapless, state.gaplessPlayback);
     await p.setInt(_kTheme, state.themeMode.index);
@@ -105,12 +118,18 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     await p.setBool(_kEqEnabled, state.eqEnabled);
   }
 
-  // Setters
+  // Audio device / output mode
+  void setAudioDevice(String deviceId, AudioOutputMode mode) {
+    state = state.copyWith(selectedDeviceId: deviceId, outputMode: mode);
+    _save();
+  }
+
   void setOutputMode(AudioOutputMode mode) {
     state = state.copyWith(outputMode: mode);
     _save();
   }
 
+  // Other setters
   void setVolume(double v) => state = state.copyWith(volume: v.clamp(0.0, 1.0));
 
   void toggleReplayGain() {

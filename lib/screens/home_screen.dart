@@ -85,7 +85,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     final hasTrack = player.currentTrack != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080808),
       body: Column(
         children: [
           if (_isDesktop) _CustomTitleBar(isMaximized: _isMaximized),
@@ -111,9 +110,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
       bottomNavigationBar: isWide
           ? null
           : NavigationBar(
-              backgroundColor: const Color(0xFF0D0D0D),
               surfaceTintColor: Colors.transparent,
-              indicatorColor: Colors.white10,
               selectedIndex: _route.clamp(0, 2),
               onDestinationSelected: (i) => setState(() => _route = i),
               labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
@@ -139,11 +136,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   }
 }
 
-// Sidebar
 class _SideNav extends ConsumerStatefulWidget {
   final int route;
   final bool collapsed;
-  final void Function(int) onSelect;
+  final ValueChanged<int> onSelect;
   final VoidCallback onToggleCollapse;
 
   const _SideNav({
@@ -159,45 +155,40 @@ class _SideNav extends ConsumerStatefulWidget {
 
 class _SideNavState extends ConsumerState<_SideNav>
     with SingleTickerProviderStateMixin {
-  String? _dragOverId;
-  late final AnimationController _animCtrl;
+  static const _collapsedWidth = 48.0;
+  static const _expandedWidth = 200.0;
+  late final AnimationController _ctrl;
   late final Animation<double> _widthAnim;
-
-  static const _expandedWidth = 210.0;
-  static const _collapsedWidth = 56.0;
 
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
+    _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 220),
-      value: widget.collapsed ? 0.0 : 1.0,
+      value: widget.collapsed ? 0 : 1,
     );
-    _widthAnim = CurvedAnimation(
-      parent: _animCtrl,
-      curve: Curves.easeInOutCubic,
-    );
+    _widthAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic);
   }
 
   @override
   void didUpdateWidget(_SideNav old) {
     super.didUpdateWidget(old);
-    if (old.collapsed != widget.collapsed) {
-      widget.collapsed ? _animCtrl.reverse() : _animCtrl.forward();
+    if (widget.collapsed != old.collapsed) {
+      widget.collapsed ? _ctrl.reverse() : _ctrl.forward();
     }
   }
 
   @override
   void dispose() {
-    _animCtrl.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
-  void _showFolderManager() {
-    showDialog(
+  Future<void> _showFolderManager() async {
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => const _FolderManagerDialog(),
+      builder: (_) => const _FolderManagerDialog(),
     );
   }
 
@@ -206,7 +197,7 @@ class _SideNavState extends ConsumerState<_SideNav>
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => _InputDialog(
-        title: 'New Playlist',
+        title: 'New playlist',
         hint: 'Playlist name',
         confirmLabel: 'Create',
         controller: ctrl,
@@ -224,6 +215,7 @@ class _SideNavState extends ConsumerState<_SideNav>
     final player = ref.watch(playerProvider);
     final isScanning = library.status == LibraryStatus.scanning;
     final collapsed = widget.collapsed;
+    final cs = Theme.of(context).colorScheme;
 
     return AnimatedBuilder(
       animation: _widthAnim,
@@ -234,16 +226,15 @@ class _SideNavState extends ConsumerState<_SideNav>
         return SizedBox(width: w, child: child);
       },
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0D0D0D),
-          border: Border(right: BorderSide(color: Colors.white10)),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          border: Border(right: BorderSide(color: cs.outline)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
 
-            // Toggle button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               child: _CollapseBtn(
@@ -254,7 +245,6 @@ class _SideNavState extends ConsumerState<_SideNav>
 
             const SizedBox(height: 6),
 
-            // Main nav
             _NavItem(
               icon: Icons.play_circle_outline_rounded,
               activeIcon: Icons.play_circle_rounded,
@@ -275,7 +265,6 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(1),
             ),
 
-            // Library section
             if (!collapsed) const _SectionLabel('LIBRARY'),
             if (collapsed) const SizedBox(height: 4),
 
@@ -286,12 +275,12 @@ class _SideNavState extends ConsumerState<_SideNav>
               isActive: false,
               collapsed: collapsed,
               trailing: isScanning
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 12,
                       height: 12,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.2,
-                        color: Colors.white24,
+                        color: cs.onSurface.withValues(alpha: 0.24),
                       ),
                     )
                   : null,
@@ -313,11 +302,13 @@ class _SideNavState extends ConsumerState<_SideNav>
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                 child: Text(
                   '${library.totalTracks} tracks',
-                  style: const TextStyle(fontSize: 10, color: Colors.white24),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurface.withValues(alpha: 0.24),
+                  ),
                 ),
               ),
 
-            // Playlists section
             if (!collapsed)
               Row(
                 children: [
@@ -346,13 +337,13 @@ class _SideNavState extends ConsumerState<_SideNav>
                         width: 22,
                         height: 22,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
+                          color: cs.onSurface.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(5),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.add_rounded,
                           size: 14,
-                          color: Colors.white38,
+                          color: cs.onSurface.withValues(alpha: 0.38),
                         ),
                       ),
                     ),
@@ -360,104 +351,63 @@ class _SideNavState extends ConsumerState<_SideNav>
                 ),
               ),
 
-            // Playlist list
             Expanded(
-              child: collapsed
-                  ? ListView.builder(
+              child: collapsed || playlists.isEmpty
+                  ? const SizedBox.shrink()
+                  : ListView.builder(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       itemCount: playlists.length,
-                      itemBuilder: (_, i) {
+                      itemBuilder: (ctx, i) {
                         final pl = playlists[i];
-                        return Tooltip(
-                          message: pl.name,
-                          preferBelow: false,
-                          child: _NavItem(
-                            icon: Icons.queue_music_rounded,
-                            activeIcon: Icons.queue_music_rounded,
-                            label: pl.name,
-                            isActive: widget.route == (i + 10),
-                            collapsed: true,
-                            onTap: () => widget.onSelect(i + 10),
-                          ),
-                        );
-                      },
-                    )
-                  : playlists.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                      child: Text(
-                        'No playlists yet',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.18),
-                          height: 1.6,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: playlists.length,
-                      itemBuilder: (_, i) {
-                        final pl = playlists[i];
-                        final isOver = _dragOverId == pl.id;
-                        return DragTarget<Track>(
-                          onWillAcceptWithDetails: (_) {
-                            setState(() => _dragOverId = pl.id);
-                            return true;
+                        return DragTarget<List<Track>>(
+                          onAcceptWithDetails: (details) => ref
+                              .read(playlistProvider.notifier)
+                              .addTracks(pl.id, details.data),
+                          builder: (ctx, candidates, rejected) {
+                            final isOver = candidates.isNotEmpty;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isOver
+                                    ? cs.onSurface.withValues(alpha: 0.08)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: isOver
+                                    ? Border.all(
+                                        color: cs.onSurface.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              child: _PlaylistNavItem(
+                                playlist: pl,
+                                isActive: widget.route == (i + 10),
+                                onTap: () => widget.onSelect(i + 10),
+                                onDelete: () => ref
+                                    .read(playlistProvider.notifier)
+                                    .delete(pl.id),
+                                onRename: () => _renamePlaylist(context, pl),
+                                onPlay: pl.tracks.isNotEmpty
+                                    ? () => ref
+                                          .read(playerProvider.notifier)
+                                          .loadWithQueue(
+                                            pl.tracks.first,
+                                            pl.tracks,
+                                          )
+                                    : null,
+                              ),
+                            );
                           },
-                          onLeave: (_) => setState(() => _dragOverId = null),
-                          onAcceptWithDetails: (details) {
-                            setState(() => _dragOverId = null);
-                            ref
-                                .read(playlistProvider.notifier)
-                                .addTrack(pl.id, details.data);
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(_snackBar('Added to "${pl.name}"'));
-                          },
-                          builder: (_, _, _) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isOver
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(6),
-                              border: isOver
-                                  ? Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                            child: _PlaylistNavItem(
-                              playlist: pl,
-                              isActive: widget.route == (i + 10),
-                              onTap: () => widget.onSelect(i + 10),
-                              onDelete: () => ref
-                                  .read(playlistProvider.notifier)
-                                  .delete(pl.id),
-                              onRename: () => _renamePlaylist(context, pl),
-                              onPlay: pl.tracks.isNotEmpty
-                                  ? () => ref
-                                        .read(playerProvider.notifier)
-                                        .loadWithQueue(
-                                          pl.tracks.first,
-                                          pl.tracks,
-                                        )
-                                  : null,
-                            ),
-                          ),
                         );
                       },
                     ),
             ),
 
-            const Divider(color: Colors.white10, height: 1),
+            Divider(color: cs.outline, height: 1),
             const SizedBox(height: 4),
 
             _NavItem(
@@ -493,7 +443,6 @@ class _SideNavState extends ConsumerState<_SideNav>
   }
 }
 
-// Collapse toggle button
 class _CollapseBtn extends StatefulWidget {
   final bool collapsed;
   final VoidCallback onTap;
@@ -508,6 +457,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -519,39 +469,53 @@ class _CollapseBtnState extends State<_CollapseBtn> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.collapsed ? 0 : 10,
+              vertical: 7,
+            ),
             decoration: BoxDecoration(
               color: _hovered
-                  ? Colors.white.withValues(alpha: 0.05)
+                  ? cs.onSurface.withValues(alpha: 0.05)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Row(
-              children: [
-                AnimatedRotation(
-                  turns: widget.collapsed ? 0 : 0.5,
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOutCubic,
-                  child: const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: Colors.white30,
-                  ),
-                ),
-                if (!widget.collapsed) ...[
-                  const SizedBox(width: 8),
-                  const Text(
-                    'AQLOSS',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white24,
-                      letterSpacing: 2.5,
+            child: widget.collapsed
+                ? Center(
+                    child: AnimatedRotation(
+                      turns: 0,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeInOutCubic,
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: cs.onSurface.withValues(alpha: 0.30),
+                      ),
                     ),
+                  )
+                : Row(
+                    children: [
+                      AnimatedRotation(
+                        turns: 0.5,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOutCubic,
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: cs.onSurface.withValues(alpha: 0.30),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'AQLOSS',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface.withValues(alpha: 0.24),
+                          letterSpacing: 2.5,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ],
-            ),
           ),
         ),
       ),
@@ -559,7 +523,6 @@ class _CollapseBtnState extends State<_CollapseBtn> {
   }
 }
 
-// Nav items
 class _NavItem extends StatefulWidget {
   final IconData icon;
   final IconData activeIcon;
@@ -588,6 +551,7 @@ class _NavItemState extends State<_NavItem> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final item = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -602,9 +566,9 @@ class _NavItemState extends State<_NavItem> {
           ),
           decoration: BoxDecoration(
             color: widget.isActive
-                ? Colors.white.withValues(alpha: 0.08)
+                ? cs.onSurface.withValues(alpha: 0.08)
                 : _hovered
-                ? Colors.white.withValues(alpha: 0.04)
+                ? cs.onSurface.withValues(alpha: 0.04)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
@@ -613,7 +577,9 @@ class _NavItemState extends State<_NavItem> {
                   child: Icon(
                     widget.isActive ? widget.activeIcon : widget.icon,
                     size: 18,
-                    color: widget.isActive ? Colors.white : Colors.white38,
+                    color: widget.isActive
+                        ? cs.onSurface
+                        : cs.onSurface.withValues(alpha: 0.38),
                   ),
                 )
               : Row(
@@ -622,10 +588,10 @@ class _NavItemState extends State<_NavItem> {
                       widget.isActive ? widget.activeIcon : widget.icon,
                       size: 16,
                       color: widget.isActive
-                          ? Colors.white
+                          ? cs.onSurface
                           : widget.onTap == null
-                          ? Colors.white24
-                          : Colors.white54,
+                          ? cs.onSurface.withValues(alpha: 0.24)
+                          : cs.onSurface.withValues(alpha: 0.54),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -634,10 +600,10 @@ class _NavItemState extends State<_NavItem> {
                         style: TextStyle(
                           fontSize: 13,
                           color: widget.isActive
-                              ? Colors.white
+                              ? cs.onSurface
                               : widget.onTap == null
-                              ? Colors.white24
-                              : Colors.white60,
+                              ? cs.onSurface.withValues(alpha: 0.24)
+                              : cs.onSurface.withValues(alpha: 0.60),
                           fontWeight: widget.isActive
                               ? FontWeight.w500
                               : FontWeight.w400,
@@ -665,7 +631,6 @@ class _NavItemState extends State<_NavItem> {
   }
 }
 
-// Folder Manager
 class _FolderManagerDialog extends ConsumerWidget {
   const _FolderManagerDialog();
 
@@ -689,9 +654,10 @@ class _FolderManagerDialog extends ConsumerWidget {
     final library = ref.watch(libraryProvider);
     final folders = library.folders;
     final isScanning = library.status == LibraryStatus.scanning;
+    final cs = Theme.of(context).colorScheme;
 
     return Dialog(
-      backgroundColor: const Color(0xFF141414),
+      backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480, minWidth: 360),
@@ -703,48 +669,44 @@ class _FolderManagerDialog extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  const Text(
+                  Text(
                     'Music Folders',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: cs.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
                   const Spacer(),
                   if (isScanning)
-                    const SizedBox(
+                    SizedBox(
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.5,
-                        color: Colors.white24,
+                        color: cs.onSurface.withValues(alpha: 0.38),
                       ),
                     ),
-                  if (!isScanning && folders.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () =>
-                          ref.read(libraryProvider.notifier).rescanAll(),
-                      icon: const Icon(Icons.refresh_rounded, size: 13),
-                      label: const Text('Rescan'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white38,
-                        textStyle: const TextStyle(fontSize: 12),
-                      ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: cs.onSurface.withValues(alpha: 0.38),
                     ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               if (folders.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Center(
-                    child: Text(
-                      'No folders added yet',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        fontSize: 13,
-                      ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'No folders added yet.',
+                    style: TextStyle(
+                      color: cs.onSurface.withValues(alpha: 0.38),
+                      fontSize: 13,
                     ),
                   ),
                 )
@@ -755,17 +717,17 @@ class _FolderManagerDialog extends ConsumerWidget {
                     shrinkWrap: true,
                     itemCount: folders.length,
                     separatorBuilder: (_, _) =>
-                        const Divider(color: Colors.white10, height: 1),
+                        Divider(color: cs.outline, height: 1),
                     itemBuilder: (ctx, i) {
                       final folder = folders[i];
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.folder_rounded,
                               size: 16,
-                              color: Colors.white30,
+                              color: cs.onSurface.withValues(alpha: 0.30),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -774,8 +736,10 @@ class _FolderManagerDialog extends ConsumerWidget {
                                 children: [
                                   Text(
                                     _shortPath(folder),
-                                    style: const TextStyle(
-                                      color: Colors.white70,
+                                    style: TextStyle(
+                                      color: cs.onSurface.withValues(
+                                        alpha: 0.70,
+                                      ),
                                       fontSize: 13,
                                     ),
                                     maxLines: 1,
@@ -783,8 +747,10 @@ class _FolderManagerDialog extends ConsumerWidget {
                                   ),
                                   Text(
                                     folder,
-                                    style: const TextStyle(
-                                      color: Colors.white24,
+                                    style: TextStyle(
+                                      color: cs.onSurface.withValues(
+                                        alpha: 0.24,
+                                      ),
                                       fontSize: 10,
                                     ),
                                     maxLines: 1,
@@ -802,13 +768,13 @@ class _FolderManagerDialog extends ConsumerWidget {
                                 width: 26,
                                 height: 26,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: cs.onSurface.withValues(alpha: 0.05),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.remove_rounded,
                                   size: 14,
-                                  color: Colors.white38,
+                                  color: cs.onSurface.withValues(alpha: 0.38),
                                 ),
                               ),
                             ),
@@ -819,7 +785,7 @@ class _FolderManagerDialog extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: 12),
-              const Divider(color: Colors.white10, height: 1),
+              Divider(color: cs.outline, height: 1),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -828,8 +794,8 @@ class _FolderManagerDialog extends ConsumerWidget {
                   icon: const Icon(Icons.add_rounded, size: 16),
                   label: const Text('Add folder'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white54,
-                    side: const BorderSide(color: Colors.white12),
+                    foregroundColor: cs.onSurface.withValues(alpha: 0.54),
+                    side: BorderSide(color: cs.outline),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
@@ -842,7 +808,6 @@ class _FolderManagerDialog extends ConsumerWidget {
   }
 }
 
-// Playlist nav item
 class _PlaylistNavItem extends StatefulWidget {
   final Playlist playlist;
   final bool isActive;
@@ -869,6 +834,7 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -879,9 +845,9 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
           duration: const Duration(milliseconds: 120),
           decoration: BoxDecoration(
             color: widget.isActive
-                ? Colors.white.withValues(alpha: 0.07)
+                ? cs.onSurface.withValues(alpha: 0.07)
                 : _hovered
-                ? Colors.white.withValues(alpha: 0.03)
+                ? cs.onSurface.withValues(alpha: 0.03)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
@@ -891,7 +857,9 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
               Icon(
                 Icons.queue_music_rounded,
                 size: 14,
-                color: widget.isActive ? Colors.white70 : Colors.white30,
+                color: widget.isActive
+                    ? cs.onSurface.withValues(alpha: 0.70)
+                    : cs.onSurface.withValues(alpha: 0.30),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -903,7 +871,9 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
                       widget.playlist.name,
                       style: TextStyle(
                         fontSize: 12,
-                        color: widget.isActive ? Colors.white : Colors.white60,
+                        color: widget.isActive
+                            ? cs.onSurface
+                            : cs.onSurface.withValues(alpha: 0.60),
                         fontWeight: widget.isActive
                             ? FontWeight.w500
                             : FontWeight.w400,
@@ -913,9 +883,9 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
                     ),
                     Text(
                       '${widget.playlist.length} tracks',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
-                        color: Colors.white24,
+                        color: cs.onSurface.withValues(alpha: 0.24),
                       ),
                     ),
                   ],
@@ -924,31 +894,37 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
               if (_hovered || widget.isActive)
                 PopupMenuButton<String>(
                   padding: EdgeInsets.zero,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.more_horiz_rounded,
                     size: 14,
-                    color: Colors.white38,
+                    color: cs.onSurface.withValues(alpha: 0.38),
                   ),
-                  color: const Color(0xFF1E1E1E),
+                  color: Theme.of(context).cardColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   itemBuilder: (_) => [
                     if (widget.onPlay != null)
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'play',
                         height: 36,
                         child: Text(
                           'Play',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                          style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.70),
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'rename',
                       height: 36,
                       child: Text(
                         'Rename',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                        style: TextStyle(
+                          color: cs.onSurface.withValues(alpha: 0.70),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     const PopupMenuItem(
@@ -974,7 +950,6 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
   }
 }
 
-// Playlist detail
 class _PlaylistDetailScreen extends ConsumerWidget {
   final Playlist playlist;
   const _PlaylistDetailScreen({required this.playlist});
@@ -988,9 +963,9 @@ class _PlaylistDetailScreen extends ConsumerWidget {
     );
     final notifier = ref.read(playlistProvider.notifier);
     final playerNotifier = ref.read(playerProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1004,8 +979,8 @@ class _PlaylistDetailScreen extends ConsumerWidget {
                     children: [
                       Text(
                         current.name,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: cs.onSurface,
                           fontSize: 22,
                           fontWeight: FontWeight.w300,
                           letterSpacing: -0.4,
@@ -1014,9 +989,9 @@ class _PlaylistDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${current.length} tracks · ${current.durationLabel}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white38,
+                          color: cs.onSurface.withValues(alpha: 0.38),
                         ),
                       ),
                     ],
@@ -1032,12 +1007,12 @@ class _PlaylistDetailScreen extends ConsumerWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cs.onSurface,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.play_arrow_rounded,
-                        color: Colors.black,
+                        color: cs.surface,
                         size: 20,
                       ),
                     ),
@@ -1045,29 +1020,32 @@ class _PlaylistDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const Divider(color: Colors.white10, height: 1),
+          Divider(color: cs.outline, height: 1),
           Expanded(
             child: current.tracks.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.queue_music_rounded,
                           size: 36,
-                          color: Colors.white12,
+                          color: cs.onSurface.withValues(alpha: 0.12),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'No tracks yet',
-                          style: TextStyle(color: Colors.white38, fontSize: 14),
+                          style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.38),
+                            fontSize: 14,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'Drag tracks here or long-press in Library',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: cs.onSurface.withValues(alpha: 0.20),
                           ),
                         ),
                       ],
@@ -1125,6 +1103,7 @@ class _PlaylistTrackTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isPlaying =
         ref.watch(playerProvider).currentTrack?.path == track.path;
+    final cs = Theme.of(context).colorScheme;
 
     return ListTile(
       contentPadding: const EdgeInsets.only(left: 16, right: 0),
@@ -1136,7 +1115,9 @@ class _PlaylistTrackTile extends ConsumerWidget {
             isPlaying ? '▶' : '${index + 1}',
             style: TextStyle(
               fontSize: isPlaying ? 12 : 11,
-              color: isPlaying ? Colors.white : Colors.white30,
+              color: isPlaying
+                  ? cs.onSurface
+                  : cs.onSurface.withValues(alpha: 0.30),
             ),
           ),
         ),
@@ -1144,7 +1125,9 @@ class _PlaylistTrackTile extends ConsumerWidget {
       title: Text(
         track.displayTitle,
         style: TextStyle(
-          color: isPlaying ? Colors.white : Colors.white70,
+          color: isPlaying
+              ? cs.onSurface
+              : cs.onSurface.withValues(alpha: 0.70),
           fontSize: 13,
           fontWeight: isPlaying ? FontWeight.w500 : FontWeight.w400,
         ),
@@ -1153,7 +1136,10 @@ class _PlaylistTrackTile extends ConsumerWidget {
       ),
       subtitle: Text(
         track.displayArtist,
-        style: const TextStyle(color: Colors.white30, fontSize: 11),
+        style: TextStyle(
+          color: cs.onSurface.withValues(alpha: 0.30),
+          fontSize: 11,
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -1162,17 +1148,20 @@ class _PlaylistTrackTile extends ConsumerWidget {
         children: [
           Text(
             track.durationLabel,
-            style: const TextStyle(fontSize: 11, color: Colors.white24),
+            style: TextStyle(
+              fontSize: 11,
+              color: cs.onSurface.withValues(alpha: 0.24),
+            ),
           ),
           const SizedBox(width: 4),
           ReorderableDragStartListener(
             index: index,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               child: Icon(
                 Icons.drag_handle_rounded,
                 size: 16,
-                color: Colors.white24,
+                color: cs.onSurface.withValues(alpha: 0.24),
               ),
             ),
           ),
@@ -1182,15 +1171,6 @@ class _PlaylistTrackTile extends ConsumerWidget {
     );
   }
 }
-
-// Shared helpers
-SnackBar _snackBar(String text) => SnackBar(
-  content: Text(text, style: const TextStyle(fontSize: 12)),
-  backgroundColor: const Color(0xFF1E1E1E),
-  behavior: SnackBarBehavior.floating,
-  duration: const Duration(seconds: 2),
-  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-);
 
 class _InputDialog extends StatelessWidget {
   final String title;
@@ -1206,13 +1186,14 @@ class _InputDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       title: Text(
         title,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: cs.onSurface,
           fontWeight: FontWeight.w400,
           fontSize: 16,
         ),
@@ -1220,12 +1201,12 @@ class _InputDialog extends StatelessWidget {
       content: TextField(
         controller: controller,
         autofocus: true,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: TextStyle(color: cs.onSurface, fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white30),
+          hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.30)),
           filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.06),
+          fillColor: cs.onSurface.withValues(alpha: 0.06),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide.none,
@@ -1240,16 +1221,22 @@ class _InputDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(
+          child: Text(
             'Cancel',
-            style: TextStyle(color: Colors.white38, fontSize: 13),
+            style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.38),
+              fontSize: 13,
+            ),
           ),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, controller.text),
           child: Text(
             confirmLabel,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
+            style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.70),
+              fontSize: 13,
+            ),
           ),
         ),
       ],
@@ -1257,21 +1244,21 @@ class _InputDialog extends StatelessWidget {
   }
 }
 
-// Small widgets
 class _SectionLabel extends StatelessWidget {
   final String label;
   const _SectionLabel(this.label);
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w600,
-          color: Colors.white24,
+          color: cs.onSurface.withValues(alpha: 0.24),
           letterSpacing: 1.4,
         ),
       ),
@@ -1291,6 +1278,7 @@ class _IconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -1299,10 +1287,14 @@ class _IconBtn extends StatelessWidget {
           width: 22,
           height: 22,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: cs.onSurface.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(5),
           ),
-          child: Icon(icon, size: 14, color: Colors.white38),
+          child: Icon(
+            icon,
+            size: 14,
+            color: cs.onSurface.withValues(alpha: 0.38),
+          ),
         ),
       ),
     );
@@ -1321,20 +1313,20 @@ class _NowPlayingDot extends StatelessWidget {
       decoration: BoxDecoration(
         color: status == PlayerStatus.playing
             ? Colors.greenAccent.withValues(alpha: 0.8)
-            : Colors.white24,
+            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
         shape: BoxShape.circle,
       ),
     );
   }
 }
 
-// Custom title bar
 class _CustomTitleBar extends StatelessWidget {
   final bool isMaximized;
   const _CustomTitleBar({required this.isMaximized});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       onDoubleTap: () async {
@@ -1346,7 +1338,7 @@ class _CustomTitleBar extends StatelessWidget {
       },
       child: Container(
         height: 36,
-        color: const Color(0xFF080808),
+        color: cs.surfaceContainerHighest,
         child: Row(
           children: [
             const Spacer(),
@@ -1398,6 +1390,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -1416,7 +1409,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
                 color: _hovered
                     ? widget.isClose
                           ? const Color(0xFFE81123)
-                          : Colors.white.withValues(alpha: 0.10)
+                          : cs.onSurface.withValues(alpha: 0.10)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1425,7 +1418,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
                 size: 13,
                 color: _hovered && widget.isClose
                     ? Colors.white
-                    : Colors.white54,
+                    : cs.onSurface.withValues(alpha: 0.54),
               ),
             ),
           ),

@@ -46,8 +46,55 @@ unsafe impl Send for AudioEngine {}
 unsafe impl Sync for AudioEngine {}
 
 impl AudioEngine {
-    pub fn init() -> Result<()> {
-        let output = AudioOutput::new()?;
+    pub fn init_default() -> Result<()> {
+        let output = AudioOutput::new_default()?;
+        Self::store(output)
+    }
+
+    pub fn init_with_device(device_id: &str, exclusive: bool) -> Result<()> {
+        let output = AudioOutput::new_with_device(device_id, exclusive)?;
+        Self::store(output)
+    }
+
+    pub fn reinit(device_id: &str, exclusive: bool) -> Result<()> {
+        let arc = ENGINE
+            .get()
+            .ok_or_else(|| anyhow!("AudioEngine not initialized"))?;
+        let mut engine = arc.lock().unwrap();
+
+        engine.stop_thread();
+        engine.output.start_drain();
+
+        let new_output = AudioOutput::new_with_device(device_id, exclusive)?;
+
+        if let Some(ref dec) = engine.decoder {
+            let src_rate = dec.lock().unwrap().sample_rate();
+            let src_ch = dec.lock().unwrap().channels();
+            let dst_rate = new_output.sample_rate;
+            engine.resampler = if src_rate != dst_rate {
+                Some(Resampler::new(src_rate, dst_rate, src_ch)?)
+            } else {
+                None
+            };
+        }
+
+        engine.output = new_output;
+        engine.smooth_volume = engine.volume;
+
+        let mode = if engine.output.exclusive {
+            "WASAPI Exclusive"
+        } else {
+            "Shared"
+        };
+        eprintln!(
+            "[aqloss] reinit → {mode} @ {}Hz {}ch",
+            engine.output.sample_rate, engine.output.channels
+        );
+
+        Ok(())
+    }
+
+    fn store(output: AudioOutput) -> Result<()> {
         let mode = if output.exclusive {
             "WASAPI Exclusive (bit-perfect)"
         } else {
@@ -72,10 +119,23 @@ impl AudioEngine {
         };
         ENGINE
             .set(Arc::new(Mutex::new(engine)))
-            .map_err(|_| anyhow!("AudioEngine already initialized"))?;
-        Ok(())
+            .map_err(|_| anyhow!("AudioEngine already initialized"))
     }
 
+    // Accessors
+    pub fn global() -> Arc<Mutex<Self>> {
+        ENGINE.get().expect("AudioEngine not initialized").clone()
+    }
+
+    pub fn global_opt() -> Option<Arc<Mutex<Self>>> {
+        ENGINE.get().cloned()
+    }
+
+    pub fn is_exclusive(&self) -> bool {
+        self.output.exclusive
+    }
+
+    // Spectrum
     pub fn get_spectrum_data(&self, n: usize) -> Vec<f32> {
         if n == 0 {
             return vec![];
@@ -113,18 +173,7 @@ impl AudioEngine {
             .collect()
     }
 
-    pub fn global() -> Arc<Mutex<Self>> {
-        ENGINE.get().expect("AudioEngine not initialized").clone()
-    }
-
-    pub fn global_opt() -> Option<Arc<Mutex<Self>>> {
-        ENGINE.get().cloned()
-    }
-
-    pub fn is_exclusive(&self) -> bool {
-        self.output.exclusive
-    }
-
+    // Playback control
     pub fn load(&mut self, path: &str) -> Result<()> {
         self.stop_thread();
         self.flags = PlayFlags::new();
@@ -146,7 +195,6 @@ impl AudioEngine {
         self.spectrum_buf.lock().unwrap().fill(0.0);
         self.spectrum_write_pos.store(0, Ordering::Relaxed);
         self.smooth_volume = self.volume;
-
         self.decoder = Some(Arc::new(Mutex::new(dec)));
         Ok(())
     }
@@ -232,6 +280,7 @@ impl AudioEngine {
         self.flags.playing.load(Ordering::SeqCst)
     }
 
+    // Thread management
     fn stop_thread(&mut self) {
         if self.flags.alive.load(Ordering::SeqCst) {
             self.flags.playing.store(false, Ordering::SeqCst);
@@ -253,6 +302,7 @@ impl AudioEngine {
     }
 }
 
+// Decode loop
 #[inline(always)]
 fn soft_clip(x: f32) -> f32 {
     if x >= 3.0 {
@@ -289,16 +339,13 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
         if !flags.alive.load(Ordering::Acquire) {
             break;
         }
-
         if !flags.playing.load(Ordering::Acquire) {
             thread::sleep(Duration::from_millis(5));
             continue;
         }
 
         let vacant = engine_arc.lock().unwrap().output.ring_vacant();
-        let filled = ring_capacity.saturating_sub(vacant);
-
-        if filled >= target_samples {
+        if ring_capacity.saturating_sub(vacant) >= target_samples {
             thread::sleep(Duration::from_millis(2));
             continue;
         }
@@ -308,7 +355,6 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
         match decode_result {
             Ok(Some(raw_samples)) => {
                 let mut e = engine_arc.lock().unwrap();
-
                 if flags.seek_pending.load(Ordering::Acquire) {
                     continue;
                 }
@@ -413,8 +459,7 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                     if !flags.alive.load(Ordering::Acquire) {
                         break;
                     }
-                    let v = engine_arc.lock().unwrap().output.ring_vacant();
-                    if v >= ring_capacity {
+                    if engine_arc.lock().unwrap().output.ring_vacant() >= ring_capacity {
                         break;
                     }
                     thread::sleep(Duration::from_millis(5));

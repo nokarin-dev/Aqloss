@@ -14,6 +14,7 @@ class PlayerControls extends ConsumerWidget {
     final isLoading = player.status == PlayerStatus.loading;
     final duration = player.currentTrack?.duration ?? Duration.zero;
     final position = player.position;
+    final cs = Theme.of(context).colorScheme;
 
     final double progress;
     if (duration.inMilliseconds > 0 && player.currentTrack != null) {
@@ -28,16 +29,15 @@ class PlayerControls extends ConsumerWidget {
 
     return Column(
       children: [
-        // Seek bar
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 2,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-            activeTrackColor: Colors.white,
-            inactiveTrackColor: Colors.white12,
-            thumbColor: Colors.white,
+            activeTrackColor: cs.onSurface,
+            inactiveTrackColor: cs.onSurface.withValues(alpha: 0.12),
+            thumbColor: cs.onSurface,
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            overlayColor: Colors.white10,
+            overlayColor: cs.onSurface.withValues(alpha: 0.10),
           ),
           child: Slider(
             value: progress,
@@ -51,7 +51,6 @@ class PlayerControls extends ConsumerWidget {
           ),
         ),
 
-        // Time labels
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
@@ -59,11 +58,17 @@ class PlayerControls extends ConsumerWidget {
             children: [
               Text(
                 _fmt(position),
-                style: const TextStyle(fontSize: 11, color: Colors.white24),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurface.withValues(alpha: 0.24),
+                ),
               ),
               Text(
                 _fmt(duration),
-                style: const TextStyle(fontSize: 11, color: Colors.white24),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurface.withValues(alpha: 0.24),
+                ),
               ),
             ],
           ),
@@ -91,14 +96,16 @@ class PlayerControls extends ConsumerWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(
+                      color: cs.onSurface.withValues(alpha: 0.12),
+                    ),
                     borderRadius: BorderRadius.circular(3),
                   ),
-                  child: const Text(
+                  child: Text(
                     'BIT-PERFECT',
                     style: TextStyle(
                       fontSize: 8,
-                      color: Colors.white30,
+                      color: cs.onSurface.withValues(alpha: 0.30),
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.8,
                     ),
@@ -114,12 +121,10 @@ class PlayerControls extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // Transport
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Prev
             _TransportButton(
               icon: Icons.skip_previous_rounded,
               size: 28,
@@ -129,7 +134,6 @@ class PlayerControls extends ConsumerWidget {
 
             const SizedBox(width: 24),
 
-            // Play/Pause
             GestureDetector(
               onTap: player.currentTrack == null
                   ? null
@@ -142,16 +146,16 @@ class PlayerControls extends ConsumerWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   color: player.currentTrack == null
-                      ? Colors.white10
-                      : Colors.white,
+                      ? cs.onSurface.withValues(alpha: 0.10)
+                      : cs.onSurface,
                   borderRadius: BorderRadius.circular(28),
                 ),
                 child: isLoading
-                    ? const Padding(
-                        padding: EdgeInsets.all(18),
+                    ? Padding(
+                        padding: const EdgeInsets.all(18),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.black,
+                          color: cs.surface,
                         ),
                       )
                     : Icon(
@@ -159,8 +163,8 @@ class PlayerControls extends ConsumerWidget {
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
                         color: player.currentTrack == null
-                            ? Colors.white24
-                            : Colors.black,
+                            ? cs.onSurface.withValues(alpha: 0.24)
+                            : cs.surface,
                         size: 28,
                       ),
               ),
@@ -168,7 +172,6 @@ class PlayerControls extends ConsumerWidget {
 
             const SizedBox(width: 24),
 
-            // Next
             _TransportButton(
               icon: Icons.skip_next_rounded,
               size: 28,
@@ -180,13 +183,12 @@ class PlayerControls extends ConsumerWidget {
 
         const SizedBox(height: 20),
 
-        // Volume
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.volume_down_rounded,
               size: 14,
-              color: Colors.white24,
+              color: cs.onSurface.withValues(alpha: 0.24),
             ),
             Expanded(
               child: SliderTheme(
@@ -195,13 +197,13 @@ class PlayerControls extends ConsumerWidget {
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 3,
                   ),
-                  activeTrackColor: Colors.white38,
-                  inactiveTrackColor: Colors.white12,
-                  thumbColor: Colors.white54,
+                  activeTrackColor: cs.onSurface.withValues(alpha: 0.38),
+                  inactiveTrackColor: cs.onSurface.withValues(alpha: 0.12),
+                  thumbColor: cs.onSurface.withValues(alpha: 0.54),
                   overlayShape: const RoundSliderOverlayShape(
                     overlayRadius: 10,
                   ),
-                  overlayColor: Colors.white10,
+                  overlayColor: cs.onSurface.withValues(alpha: 0.10),
                 ),
                 child: Slider(
                   value: player.volume.clamp(0.0, 1.0),
@@ -209,10 +211,10 @@ class PlayerControls extends ConsumerWidget {
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.volume_up_rounded,
               size: 14,
-              color: Colors.white24,
+              color: cs.onSurface.withValues(alpha: 0.24),
             ),
           ],
         ),
@@ -227,7 +229,6 @@ class PlayerControls extends ConsumerWidget {
   }
 }
 
-// Loop button
 class _LoopButton extends StatelessWidget {
   final LoopMode mode;
   final VoidCallback onTap;
@@ -235,6 +236,7 @@ class _LoopButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final (icon, label, active) = switch (mode) {
       LoopMode.off => (Icons.repeat_rounded, '', false),
       LoopMode.track => (Icons.repeat_one_rounded, 'Track', true),
@@ -250,14 +252,22 @@ class _LoopButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: active ? Colors.white : Colors.white24),
+            Icon(
+              icon,
+              size: 18,
+              color: active
+                  ? cs.onSurface
+                  : cs.onSurface.withValues(alpha: 0.24),
+            ),
             if (label.isNotEmpty) ...[
               const SizedBox(width: 4),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 11,
-                  color: active ? Colors.white70 : Colors.white24,
+                  color: active
+                      ? cs.onSurface.withValues(alpha: 0.70)
+                      : cs.onSurface.withValues(alpha: 0.24),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -269,7 +279,6 @@ class _LoopButton extends StatelessWidget {
   }
 }
 
-// Generic icon toggle
 class _IconToggle extends StatelessWidget {
   final IconData icon;
   final bool active;
@@ -284,6 +293,7 @@ class _IconToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -294,7 +304,7 @@ class _IconToggle extends StatelessWidget {
           child: Icon(
             icon,
             size: 18,
-            color: active ? Colors.white : Colors.white24,
+            color: active ? cs.onSurface : cs.onSurface.withValues(alpha: 0.24),
           ),
         ),
       ),
@@ -302,7 +312,6 @@ class _IconToggle extends StatelessWidget {
   }
 }
 
-// Transport button
 class _TransportButton extends StatelessWidget {
   final IconData icon;
   final double size;
@@ -317,10 +326,13 @@ class _TransportButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return IconButton(
       icon: Icon(icon),
       iconSize: size,
-      color: enabled ? Colors.white54 : Colors.white12,
+      color: enabled
+          ? cs.onSurface.withValues(alpha: 0.54)
+          : cs.onSurface.withValues(alpha: 0.12),
       splashRadius: 20,
       onPressed: enabled ? onTap : null,
     );

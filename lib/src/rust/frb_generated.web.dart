@@ -28,6 +28,9 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AudioDeviceInfo dco_decode_audio_device_info(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -41,6 +44,9 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<AudioDeviceInfo> dco_decode_list_audio_device_info(dynamic raw);
 
   @protected
   Float32List dco_decode_list_prim_f_32_strict(dynamic raw);
@@ -82,6 +88,9 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AudioDeviceInfo sse_decode_audio_device_info(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -95,6 +104,11 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<AudioDeviceInfo> sse_decode_list_audio_device_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Float32List sse_decode_list_prim_f_32_strict(SseDeserializer deserializer);
@@ -142,6 +156,12 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_audio_device_info(
+    AudioDeviceInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -155,6 +175,12 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_audio_device_info(
+    List<AudioDeviceInfo> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_f_32_strict(

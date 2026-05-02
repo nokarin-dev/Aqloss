@@ -52,6 +52,7 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
     final track = player.currentTrack;
     final notifier = ref.read(playerProvider.notifier);
     final isPlaying = player.status == PlayerStatus.playing;
+    final cs = Theme.of(context).colorScheme;
 
     if (track == null) return const SizedBox.shrink();
 
@@ -70,21 +71,20 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF111111),
-          border: Border(top: BorderSide(color: Colors.white10)),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          border: Border(top: BorderSide(color: cs.outline)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Seek bar
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 2,
                 thumbShape: SliderComponentShape.noThumb,
                 overlayShape: SliderComponentShape.noOverlay,
-                activeTrackColor: Colors.white38,
-                inactiveTrackColor: Colors.white10,
+                activeTrackColor: cs.onSurface.withValues(alpha: 0.38),
+                inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
               ),
               child: Slider(
                 value: progress,
@@ -100,7 +100,6 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
               padding: const EdgeInsets.fromLTRB(12, 0, 8, 10),
               child: Row(
                 children: [
-                  // Album art
                   GestureDetector(
                     onTap: widget.onTap,
                     child: AnimatedSwitcher(
@@ -110,20 +109,20 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E1E),
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.06),
+                            color: cs.onSurface.withValues(alpha: 0.06),
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: _artBytes != null
                             ? Image.memory(_artBytes!, fit: BoxFit.cover)
-                            : const Center(
+                            : Center(
                                 child: Icon(
                                   Icons.music_note_rounded,
                                   size: 16,
-                                  color: Colors.white24,
+                                  color: cs.onSurface.withValues(alpha: 0.24),
                                 ),
                               ),
                       ),
@@ -131,7 +130,6 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                   ),
                   const SizedBox(width: 12),
 
-                  // Track info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,8 +137,8 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                       children: [
                         Text(
                           track.displayTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: cs.onSurface,
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
                           ),
@@ -149,8 +147,8 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                         ),
                         Text(
                           track.displayArtist,
-                          style: const TextStyle(
-                            color: Colors.white38,
+                          style: TextStyle(
+                            color: cs.onSurface.withValues(alpha: 0.38),
                             fontSize: 11,
                           ),
                           maxLines: 1,
@@ -160,24 +158,21 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                     ),
                   ),
 
-                  // Skip prev
                   _MiniBtn(
                     icon: Icons.skip_previous_rounded,
                     size: 20,
                     onTap: notifier.skipPrevious,
                   ),
 
-                  // Play/Pause
                   _MiniBtn(
                     icon: isPlaying
                         ? Icons.pause_rounded
                         : Icons.play_arrow_rounded,
                     size: 26,
-                    color: Colors.white,
+                    color: cs.onSurface,
                     onTap: isPlaying ? notifier.pause : notifier.play,
                   ),
 
-                  // Skip next
                   _MiniBtn(
                     icon: Icons.skip_next_rounded,
                     size: 20,
@@ -196,24 +191,29 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
 class _MiniBtn extends StatelessWidget {
   final IconData icon;
   final double size;
-  final Color color;
+  final Color? color;
   final VoidCallback? onTap;
 
   const _MiniBtn({
     required this.icon,
     required this.size,
-    this.color = const Color(0xFF888888),
+    this.color,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        child: Icon(icon, size: size, color: color),
+        child: Icon(
+          icon,
+          size: size,
+          color: color ?? cs.onSurface.withValues(alpha: 0.54),
+        ),
       ),
     );
   }

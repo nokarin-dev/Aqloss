@@ -7,7 +7,26 @@ import 'frb_generated.dart';
 import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-void initEngine() => AqlossCore.instance.api.crateApiInitEngine();
+Future<void> initEngine() => AqlossCore.instance.api.crateApiInitEngine();
+
+Future<void> initEngineWithDevice({
+  required String deviceId,
+  required bool exclusive,
+}) => AqlossCore.instance.api.crateApiInitEngineWithDevice(
+  deviceId: deviceId,
+  exclusive: exclusive,
+);
+
+Future<void> reinitEngine({
+  required String deviceId,
+  required bool exclusive,
+}) => AqlossCore.instance.api.crateApiReinitEngine(
+  deviceId: deviceId,
+  exclusive: exclusive,
+);
+
+Future<List<AudioDeviceInfo>> enumerateAudioDevices() =>
+    AqlossCore.instance.api.crateApiEnumerateAudioDevices();
 
 Future<TrackInfo> loadTrack({required String path}) =>
     AqlossCore.instance.api.crateApiLoadTrack(path: path);
@@ -75,3 +94,34 @@ Future<void> discordUpdatePaused({
 );
 
 Future<void> discordClear() => AqlossCore.instance.api.crateApiDiscordClear();
+
+class AudioDeviceInfo {
+  final String id;
+  final String name;
+  final bool isDefault;
+  final bool supportsExclusive;
+
+  const AudioDeviceInfo({
+    required this.id,
+    required this.name,
+    required this.isDefault,
+    required this.supportsExclusive,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      isDefault.hashCode ^
+      supportsExclusive.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AudioDeviceInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          isDefault == other.isDefault &&
+          supportsExclusive == other.supportsExclusive;
+}

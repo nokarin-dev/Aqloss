@@ -78,8 +78,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getDouble(_kVolumeKey) ?? 1.0;
     final vol = saved.clamp(0.0, 1.0);
-    await AudioService.setVolume(vol);
     if (mounted) state = state.copyWith(volume: vol);
+    try {
+      await AudioService.setVolume(vol);
+    } catch (_) {}
   }
 
   Future<void> _saveVolume(double volume) async {

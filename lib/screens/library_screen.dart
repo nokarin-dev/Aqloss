@@ -27,13 +27,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
     final isScanning = library.status == LibraryStatus.scanning;
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
             child: Row(
@@ -47,14 +46,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           child: TextField(
                             controller: _searchController,
                             autofocus: true,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
-                            decoration: const InputDecoration(
+                            style: TextStyle(color: cs.onSurface, fontSize: 14),
+                            decoration: InputDecoration(
                               hintText: 'Search tracks…',
                               hintStyle: TextStyle(
-                                color: Colors.white30,
+                                color: cs.onSurface.withValues(alpha: 0.30),
                                 fontSize: 14,
                               ),
                               border: InputBorder.none,
@@ -66,11 +62,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                 .setQuery,
                           ),
                         )
-                      : const Text(
-                          key: ValueKey('title'),
+                      : Text(
+                          key: const ValueKey('title'),
                           'Library',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: cs.onSurface,
                             fontSize: 22,
                             fontWeight: FontWeight.w300,
                             letterSpacing: -0.3,
@@ -94,7 +90,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
           ),
 
-          // Stats
           if (library.totalTracks > 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
@@ -103,12 +98,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
           const SizedBox(height: 8),
 
-          // Sort/filter bar
           _SortBar(library: library),
 
           const SizedBox(height: 4),
 
-          // Track list
           Expanded(
             child: _TrackList(library: library, isScanning: isScanning),
           ),
@@ -125,12 +118,17 @@ class _HeaderBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
         width: 32,
         height: 32,
-        child: Icon(icon, size: 18, color: Colors.white38),
+        child: Icon(
+          icon,
+          size: 18,
+          color: cs.onSurface.withValues(alpha: 0.38),
+        ),
       ),
     );
   }
@@ -142,6 +140,7 @@ class _Stats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final d = library.totalDuration;
     final time = d.inHours > 0
         ? '${d.inHours}h ${d.inMinutes.remainder(60)}m'
@@ -149,15 +148,21 @@ class _Stats extends StatelessWidget {
     return Row(
       children: [
         _Chip('${library.totalTracks}'),
-        const Text(
+        Text(
           ' tracks · ',
-          style: TextStyle(fontSize: 11, color: Colors.white24),
+          style: TextStyle(
+            fontSize: 11,
+            color: cs.onSurface.withValues(alpha: 0.24),
+          ),
         ),
         _Chip(time),
         if (library.losslessTracks.isNotEmpty) ...[
-          const Text(
+          Text(
             '  ·  ',
-            style: TextStyle(fontSize: 11, color: Colors.white24),
+            style: TextStyle(
+              fontSize: 11,
+              color: cs.onSurface.withValues(alpha: 0.24),
+            ),
           ),
           _Chip('${library.losslessTracks.length} lossless'),
         ],
@@ -172,14 +177,17 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Text(
       text,
-      style: const TextStyle(fontSize: 11, color: Colors.white30),
+      style: TextStyle(
+        fontSize: 11,
+        color: cs.onSurface.withValues(alpha: 0.30),
+      ),
     );
   }
 }
 
-// Sort bar
 class _SortBar extends ConsumerWidget {
   final LibraryState library;
   const _SortBar({required this.library});
@@ -187,6 +195,7 @@ class _SortBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final n = ref.read(libraryProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
 
     return SizedBox(
       height: 36,
@@ -213,7 +222,7 @@ class _SortBar extends ConsumerWidget {
           Container(
             width: 1,
             margin: const EdgeInsets.symmetric(vertical: 9),
-            color: Colors.white10,
+            color: cs.outline,
           ),
           const SizedBox(width: 8),
           ...[
@@ -254,6 +263,7 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -262,16 +272,22 @@ class _FilterPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: selected
-              ? Colors.white.withValues(alpha: 0.10)
+              ? cs.onSurface.withValues(alpha: 0.10)
               : Colors.transparent,
-          border: Border.all(color: selected ? Colors.white24 : Colors.white12),
+          border: Border.all(
+            color: selected
+                ? cs.onSurface.withValues(alpha: 0.24)
+                : cs.onSurface.withValues(alpha: 0.12),
+          ),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
-            color: selected ? Colors.white : Colors.white38,
+            color: selected
+                ? cs.onSurface
+                : cs.onSurface.withValues(alpha: 0.38),
             fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
           ),
         ),
@@ -294,6 +310,7 @@ class _SortPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -302,7 +319,7 @@ class _SortPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: selected
-              ? Colors.white.withValues(alpha: 0.06)
+              ? cs.onSurface.withValues(alpha: 0.06)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
@@ -313,7 +330,9 @@ class _SortPill extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: selected ? Colors.white60 : Colors.white24,
+                color: selected
+                    ? cs.onSurface.withValues(alpha: 0.60)
+                    : cs.onSurface.withValues(alpha: 0.24),
               ),
             ),
             if (selected && order != null) ...[
@@ -323,7 +342,7 @@ class _SortPill extends StatelessWidget {
                     ? Icons.arrow_upward_rounded
                     : Icons.arrow_downward_rounded,
                 size: 9,
-                color: Colors.white30,
+                color: cs.onSurface.withValues(alpha: 0.30),
               ),
             ],
           ],
@@ -333,7 +352,6 @@ class _SortPill extends StatelessWidget {
   }
 }
 
-// Track list
 class _TrackList extends ConsumerWidget {
   final LibraryState library;
   final bool isScanning;
@@ -341,8 +359,10 @@ class _TrackList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+
     if (isScanning) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -351,13 +371,16 @@ class _TrackList extends ConsumerWidget {
               height: 18,
               child: CircularProgressIndicator(
                 strokeWidth: 1.5,
-                color: Colors.white24,
+                color: cs.onSurface.withValues(alpha: 0.24),
               ),
             ),
-            SizedBox(height: 14),
+            const SizedBox(height: 14),
             Text(
               'Scanning…',
-              style: TextStyle(color: Colors.white24, fontSize: 12),
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.24),
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -370,10 +393,13 @@ class _TrackList extends ConsumerWidget {
 
     final tracks = library.filteredTracks;
     if (tracks.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'No results',
-          style: TextStyle(color: Colors.white24, fontSize: 12),
+          style: TextStyle(
+            color: cs.onSurface.withValues(alpha: 0.24),
+            fontSize: 12,
+          ),
         ),
       );
     }
@@ -402,7 +428,7 @@ class _TrackList extends ConsumerWidget {
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF141414),
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -418,20 +444,21 @@ class _TrackList extends ConsumerWidget {
 class _Empty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.folder_open_outlined,
             size: 36,
-            color: Colors.white12,
+            color: cs.onSurface.withValues(alpha: 0.12),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No music yet',
             style: TextStyle(
-              color: Colors.white38,
+              color: cs.onSurface.withValues(alpha: 0.38),
               fontSize: 14,
               fontWeight: FontWeight.w300,
             ),
@@ -441,7 +468,7 @@ class _Empty extends StatelessWidget {
             'Add a folder via the sidebar',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.2),
+              color: cs.onSurface.withValues(alpha: 0.20),
             ),
           ),
         ],
@@ -462,6 +489,7 @@ class _TrackOptions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
@@ -474,7 +502,7 @@ class _TrackOptions extends StatelessWidget {
                 width: 32,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: Colors.white12,
+                  color: cs.onSurface.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -482,8 +510,8 @@ class _TrackOptions extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               track.displayTitle,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: cs.onSurface,
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
               ),
@@ -492,17 +520,20 @@ class _TrackOptions extends StatelessWidget {
             ),
             Text(
               track.displayArtist,
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.38),
+                fontSize: 11,
+              ),
             ),
             const SizedBox(height: 14),
-            const Divider(color: Colors.white10, height: 1),
+            Divider(color: cs.outline, height: 1),
             const SizedBox(height: 10),
             if (playlists.isNotEmpty)
-              const Text(
+              Text(
                 'Add to playlist',
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.white38,
+                  color: cs.onSurface.withValues(alpha: 0.38),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -513,11 +544,17 @@ class _TrackOptions extends StatelessWidget {
                 dense: true,
                 title: Text(
                   pl.name,
-                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.60),
+                    fontSize: 13,
+                  ),
                 ),
                 subtitle: Text(
                   '${pl.length} tracks',
-                  style: const TextStyle(color: Colors.white24, fontSize: 10),
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.24),
+                    fontSize: 10,
+                  ),
                 ),
                 onTap: () {
                   notifier.addTrack(pl.id, track);
@@ -528,7 +565,7 @@ class _TrackOptions extends StatelessWidget {
                         'Added to "${pl.name}"',
                         style: const TextStyle(fontSize: 12),
                       ),
-                      backgroundColor: const Color(0xFF1E1E1E),
+                      backgroundColor: Theme.of(context).cardColor,
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 2),
                       shape: RoundedRectangleBorder(

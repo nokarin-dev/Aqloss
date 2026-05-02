@@ -66,7 +66,7 @@ class AqlossCore
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1670480286;
+  int get rustContentHash => 777196420;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -96,11 +96,18 @@ abstract class AqlossCoreApi extends BaseApi {
     required double durationSecs,
   });
 
+  Future<List<AudioDeviceInfo>> crateApiEnumerateAudioDevices();
+
   Future<PlaybackPosition> crateApiGetPosition();
 
   Future<Float32List> crateApiGetSpectrumData({required int bucketCount});
 
-  void crateApiInitEngine();
+  Future<void> crateApiInitEngine();
+
+  Future<void> crateApiInitEngineWithDevice({
+    required String deviceId,
+    required bool exclusive,
+  });
 
   bool crateApiIsExclusiveMode();
 
@@ -117,6 +124,11 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<String?> crateApiReadEmbeddedLyrics({required String path});
 
   Future<TrackInfo> crateApiReadMetadata({required String path});
+
+  Future<void> crateApiReinitEngine({
+    required String deviceId,
+    required bool exclusive,
+  });
 
   Future<List<String>> crateApiScanDirectory({required String path});
 
@@ -260,7 +272,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       );
 
   @override
-  Future<PlaybackPosition> crateApiGetPosition() {
+  Future<List<AudioDeviceInfo>> crateApiEnumerateAudioDevices() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -269,6 +281,33 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
             generalizedFrbRustBinding,
             serializer,
             funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_audio_device_info,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEnumerateAudioDevicesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEnumerateAudioDevicesConstMeta =>
+      const TaskConstMeta(debugName: "enumerate_audio_devices", argNames: []);
+
+  @override
+  Future<PlaybackPosition> crateApiGetPosition() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
             port: port_,
           );
         },
@@ -296,7 +335,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -317,12 +356,17 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   );
 
   @override
-  void crateApiInitEngine() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<void> crateApiInitEngine() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -339,12 +383,47 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "init_engine", argNames: []);
 
   @override
+  Future<void> crateApiInitEngineWithDevice({
+    required String deviceId,
+    required bool exclusive,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(deviceId, serializer);
+          sse_encode_bool(exclusive, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiInitEngineWithDeviceConstMeta,
+        argValues: [deviceId, exclusive],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiInitEngineWithDeviceConstMeta =>
+      const TaskConstMeta(
+        debugName: "init_engine_with_device",
+        argNames: ["deviceId", "exclusive"],
+      );
+
+  @override
   bool crateApiIsExclusiveMode() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -366,7 +445,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -392,7 +471,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 11,
             port: port_,
           );
         },
@@ -419,7 +498,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 12,
             port: port_,
           );
         },
@@ -446,7 +525,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 13,
             port: port_,
           );
         },
@@ -474,7 +553,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 14,
             port: port_,
           );
         },
@@ -502,7 +581,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 15,
             port: port_,
           );
         },
@@ -532,7 +611,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -551,6 +630,40 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "read_metadata", argNames: ["path"]);
 
   @override
+  Future<void> crateApiReinitEngine({
+    required String deviceId,
+    required bool exclusive,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(deviceId, serializer);
+          sse_encode_bool(exclusive, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReinitEngineConstMeta,
+        argValues: [deviceId, exclusive],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReinitEngineConstMeta => const TaskConstMeta(
+    debugName: "reinit_engine",
+    argNames: ["deviceId", "exclusive"],
+  );
+
+  @override
   Future<List<String>> crateApiScanDirectory({required String path}) {
     return handler.executeNormal(
       NormalTask(
@@ -560,7 +673,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 18,
             port: port_,
           );
         },
@@ -588,7 +701,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 19,
             port: port_,
           );
         },
@@ -616,7 +729,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 20,
             port: port_,
           );
         },
@@ -643,7 +756,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 21,
             port: port_,
           );
         },
@@ -674,6 +787,20 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   }
 
   @protected
+  AudioDeviceInfo dco_decode_audio_device_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return AudioDeviceInfo(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      isDefault: dco_decode_bool(arr[2]),
+      supportsExclusive: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
@@ -701,6 +828,12 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<AudioDeviceInfo> dco_decode_list_audio_device_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_audio_device_info).toList();
   }
 
   @protected
@@ -808,6 +941,21 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   }
 
   @protected
+  AudioDeviceInfo sse_decode_audio_device_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_isDefault = sse_decode_bool(deserializer);
+    var var_supportsExclusive = sse_decode_bool(deserializer);
+    return AudioDeviceInfo(
+      id: var_id,
+      name: var_name,
+      isDefault: var_isDefault,
+      supportsExclusive: var_supportsExclusive,
+    );
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -839,6 +987,20 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<AudioDeviceInfo> sse_decode_list_audio_device_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <AudioDeviceInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_audio_device_info(deserializer));
     }
     return ans_;
   }
@@ -981,6 +1143,18 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_audio_device_info(
+    AudioDeviceInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_bool(self.isDefault, serializer);
+    sse_encode_bool(self.supportsExclusive, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -1010,6 +1184,18 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_audio_device_info(
+    List<AudioDeviceInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_audio_device_info(item, serializer);
     }
   }
 

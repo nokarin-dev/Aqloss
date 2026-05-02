@@ -1,6 +1,7 @@
 import 'package:aqloss/src/rust/frb_generated.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io' show Platform;
 import 'app.dart';
@@ -30,5 +31,21 @@ void main() async {
 
   await AqlossCore.init();
   runApp(const ProviderScope(child: AqlossApp()));
-  await AudioService.init();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final (deviceId, exclusive) = await _loadAudioPrefs();
+    await AudioService.init(deviceId: deviceId, exclusive: exclusive);
+  });
+}
+
+Future<(String?, bool)> _loadAudioPrefs() async {
+  try {
+    final p = await SharedPreferences.getInstance();
+    final deviceId = p.getString('aqloss_selected_device_id');
+    final modeIdx = p.getInt('aqloss_output_mode') ?? 1;
+    final exclusive = modeIdx == 1;
+    return (deviceId, exclusive);
+  } catch (_) {
+    return (null, true);
+  }
 }

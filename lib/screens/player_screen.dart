@@ -19,7 +19,6 @@ class PlayerScreen extends ConsumerWidget {
     final isWide = MediaQuery.of(context).size.width > 700;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
       body: isWide
           ? _WideLayout(track: track, player: player)
           : _NarrowLayout(track: track, player: player),
@@ -27,7 +26,6 @@ class PlayerScreen extends ConsumerWidget {
   }
 }
 
-// Wide layout
 class _WideLayout extends ConsumerWidget {
   final Track? track;
   final PlayerState player;
@@ -36,10 +34,10 @@ class _WideLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
+    final cs = Theme.of(context).colorScheme;
 
     return Row(
       children: [
-        // Left column
         AnimatedContainer(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOutCubic,
@@ -50,7 +48,6 @@ class _WideLayout extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(32, 36, 16, 28),
             child: Column(
               children: [
-                // Album art
                 AspectRatio(aspectRatio: 1, child: _AlbumArtCard(track: track)),
                 if (hasLyrics) ...[
                   const SizedBox(height: 16),
@@ -66,7 +63,6 @@ class _WideLayout extends ConsumerWidget {
           ),
         ),
 
-        // Right column
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 36, 36, 28),
@@ -80,7 +76,7 @@ class _WideLayout extends ConsumerWidget {
                 SpectrumDisplay(
                   height: 40,
                   barCount: 32,
-                  color: Colors.white12,
+                  color: cs.onSurface.withValues(alpha: 0.12),
                 ),
                 const SizedBox(height: 20),
                 const PlayerControls(),
@@ -93,7 +89,6 @@ class _WideLayout extends ConsumerWidget {
   }
 }
 
-// Narrow layout
 class _NarrowLayout extends ConsumerWidget {
   final Track? track;
   final PlayerState player;
@@ -102,11 +97,11 @@ class _NarrowLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
+    final cs = Theme.of(context).colorScheme;
 
     return SafeArea(
       child: Column(
         children: [
-          // Top section
           AnimatedContainer(
             duration: const Duration(milliseconds: 350),
             curve: Curves.easeInOutCubic,
@@ -117,7 +112,6 @@ class _NarrowLayout extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Album art
                   Expanded(
                     child: Center(
                       child: AspectRatio(
@@ -130,7 +124,7 @@ class _NarrowLayout extends ConsumerWidget {
                   SpectrumDisplay(
                     height: 18,
                     barCount: 24,
-                    color: Colors.white12,
+                    color: cs.onSurface.withValues(alpha: 0.12),
                   ),
                   const SizedBox(height: 10),
                   _TrackInfo(track: track),
@@ -144,12 +138,15 @@ class _NarrowLayout extends ConsumerWidget {
             ),
           ),
 
-          // Lyrics panel
           if (track != null)
             Expanded(
               child: Container(
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Colors.white10)),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
                 ),
                 child: const LyricsView(),
               ),
@@ -160,7 +157,6 @@ class _NarrowLayout extends ConsumerWidget {
   }
 }
 
-// Album art card
 class _AlbumArtCard extends ConsumerStatefulWidget {
   final Track? track;
   const _AlbumArtCard({this.track});
@@ -209,6 +205,7 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
       switchInCurve: Curves.easeOut,
@@ -222,9 +219,9 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
       child: Container(
         key: ValueKey(widget.track?.path),
         decoration: BoxDecoration(
-          color: const Color(0xFF141414),
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.6),
@@ -236,11 +233,11 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
         clipBehavior: Clip.antiAlias,
         child: _artBytes != null
             ? Image.memory(_artBytes!, fit: BoxFit.cover)
-            : const Center(
+            : Center(
                 child: Icon(
                   Icons.music_note_rounded,
                   size: 64,
-                  color: Colors.white10,
+                  color: cs.onSurface.withValues(alpha: 0.10),
                 ),
               ),
       ),
@@ -248,13 +245,13 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
   }
 }
 
-// Track info
 class _TrackInfo extends StatelessWidget {
   final Track? track;
   const _TrackInfo({this.track});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final artist = track?.artist;
     final album = track?.album;
     final subtitle = [?artist, ?album].join(' — ');
@@ -267,10 +264,10 @@ class _TrackInfo extends StatelessWidget {
         children: [
           Text(
             track?.displayTitle ?? 'Nothing playing',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w400,
-              color: Colors.white,
+              color: cs.onSurface,
               letterSpacing: -0.3,
             ),
             maxLines: 1,
@@ -279,9 +276,9 @@ class _TrackInfo extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle.isEmpty ? '—' : subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: Colors.white38,
+              color: cs.onSurface.withValues(alpha: 0.38),
               fontWeight: FontWeight.w300,
             ),
             maxLines: 1,
@@ -293,7 +290,6 @@ class _TrackInfo extends StatelessWidget {
   }
 }
 
-// Format badges
 class _FormatRow extends StatelessWidget {
   final Track track;
   const _FormatRow({required this.track});
@@ -312,7 +308,12 @@ class _FormatRow extends StatelessWidget {
           ),
         if (track.bitDepth != null) _Badge('${track.bitDepth}-bit'),
         if (isExclusive)
-          _Badge('BIT-PERFECT', color: Colors.white.withValues(alpha: 0.1)),
+          _Badge(
+            'BIT-PERFECT',
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.10),
+          ),
       ],
     );
   }
@@ -325,18 +326,19 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: color,
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.12)),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
-          color: Colors.white30,
+          color: cs.onSurface.withValues(alpha: 0.30),
           letterSpacing: 0.5,
           fontWeight: FontWeight.w500,
         ),

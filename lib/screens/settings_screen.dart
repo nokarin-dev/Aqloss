@@ -1,24 +1,38 @@
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/audio_device_provider.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(audioDeviceProvider.notifier).scan();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
     final n = ref.read(settingsProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 48),
         children: [
-          const Text(
+          Text(
             'Settings',
             style: TextStyle(
-              color: Colors.white,
+              color: cs.onSurface,
               fontSize: 22,
               fontWeight: FontWeight.w300,
               letterSpacing: -0.3,
@@ -29,19 +43,7 @@ class SettingsScreen extends ConsumerWidget {
           // Audio Output
           _Label('Audio Output'),
           const SizedBox(height: 8),
-          _OptionRow(
-            title: 'Bit-perfect / Exclusive',
-            subtitle: 'Bypasses OS mixer · WASAPI · CoreAudio',
-            selected: s.outputMode == AudioOutputMode.exclusive,
-            onTap: () => n.setOutputMode(AudioOutputMode.exclusive),
-          ),
-          const SizedBox(height: 1),
-          _OptionRow(
-            title: 'System mixer',
-            subtitle: 'Shared mode · may resample audio',
-            selected: s.outputMode == AudioOutputMode.system,
-            onTap: () => n.setOutputMode(AudioOutputMode.system),
-          ),
+          const _AudioDeviceSection(),
 
           const SizedBox(height: 24),
 
@@ -74,7 +76,6 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (_) => n.toggleBitDepthDisplay(),
           ),
           const SizedBox(height: 1),
-          // Theme picker inline
           _PickerRow(
             title: 'Theme',
             options: const ['Dark', 'Light', 'System'],
@@ -111,7 +112,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 1),
           const _InfoRow(
             title: 'Audio engine',
-            value: 'Rust · Symphonia · CPAL',
+            value: 'Rust · Symphonia · CPAL · WASAPI',
           ),
         ],
       ),
@@ -123,18 +124,19 @@ class SettingsScreen extends ConsumerWidget {
     SettingsNotifier notifier,
     SettingsState settings,
   ) {
+    final cs = Theme.of(context).colorScheme;
     final controller = TextEditingController(
       text: settings.lastFmUsername ?? '',
     );
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        title: Text(
           'Last.fm Username',
           style: TextStyle(
-            color: Colors.white,
+            color: cs.onSurface,
             fontWeight: FontWeight.w400,
             fontSize: 16,
           ),
@@ -142,12 +144,12 @@ class SettingsScreen extends ConsumerWidget {
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(color: cs.onSurface, fontSize: 14),
           decoration: InputDecoration(
             hintText: 'Enter your username',
-            hintStyle: const TextStyle(color: Colors.white30),
+            hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.30)),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.06),
+            fillColor: cs.onSurface.withValues(alpha: 0.06),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
@@ -161,9 +163,12 @@ class SettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.white38, fontSize: 13),
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.38),
+                fontSize: 13,
+              ),
             ),
           ),
           TextButton(
@@ -171,9 +176,12 @@ class SettingsScreen extends ConsumerWidget {
               notifier.setLastFmUsername(controller.text.trim());
               Navigator.pop(ctx);
             },
-            child: const Text(
+            child: Text(
               'Save',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.70),
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -182,101 +190,386 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-// Building blocks
+// Audio device section
+class _AudioDeviceSection extends ConsumerWidget {
+  const _AudioDeviceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final devAsync = ref.watch(audioDeviceProvider);
+
+    return devAsync.when(
+      loading: () => _scanningRow(cs),
+      error: (e, _) => _errorRow(cs, e.toString()),
+      data: (state) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Device list
+          if (state.devices.isEmpty)
+            _scanningRow(cs)
+          else
+            ...state.devices.map(
+              (device) => Padding(
+                padding: const EdgeInsets.only(bottom: 1),
+                child: _DeviceRow(
+                  device: device,
+                  isSelected: device.id == state.selectedId,
+                  currentMode: state.outputMode,
+                  isSwitching: state.isSwitching,
+                  onSelect: (mode) => ref
+                      .read(audioDeviceProvider.notifier)
+                      .selectDevice(device.id, mode),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 8),
+
+          // Scan & refresh button
+          GestureDetector(
+            onTap: state.isSwitching
+                ? null
+                : () => ref.read(audioDeviceProvider.notifier).scan(),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (state.isSwitching)
+                    SizedBox(
+                      width: 11,
+                      height: 11,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: cs.onSurface.withValues(alpha: 0.38),
+                      ),
+                    )
+                  else
+                    Icon(
+                      Icons.refresh_rounded,
+                      size: 13,
+                      color: cs.onSurface.withValues(alpha: 0.38),
+                    ),
+                  const SizedBox(width: 6),
+                  Text(
+                    state.isSwitching ? 'Switching…' : 'Scan devices',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurface.withValues(alpha: 0.54),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scanningRow(ColorScheme cs) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: cs.onSurface.withValues(alpha: 0.02),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: cs.onSurface.withValues(alpha: 0.04)),
+    ),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            color: cs.onSurface.withValues(alpha: 0.38),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'Scanning audio devices…',
+          style: TextStyle(
+            fontSize: 12,
+            color: cs.onSurface.withValues(alpha: 0.38),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _errorRow(ColorScheme cs, String msg) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+    decoration: BoxDecoration(
+      color: cs.error.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: cs.error.withValues(alpha: 0.18)),
+    ),
+    child: Text(
+      'Could not scan devices: $msg',
+      style: TextStyle(fontSize: 12, color: cs.error.withValues(alpha: 0.80)),
+    ),
+  );
+}
+
+// Single device row
+class _DeviceRow extends StatelessWidget {
+  final AudioDeviceEntry device;
+  final bool isSelected;
+  final AudioOutputMode currentMode;
+  final bool isSwitching;
+  final void Function(AudioOutputMode) onSelect;
+
+  const _DeviceRow({
+    required this.device,
+    required this.isSelected,
+    required this.currentMode,
+    required this.isSwitching,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final canExclusive = device.supportsExclusive;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? cs.onSurface.withValues(alpha: 0.06)
+            : cs.onSurface.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isSelected
+              ? cs.onSurface.withValues(alpha: 0.12)
+              : cs.onSurface.withValues(alpha: 0.04),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Active indicator dot
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected
+                  ? cs.onSurface
+                  : cs.onSurface.withValues(alpha: 0.12),
+            ),
+          ),
+
+          // Device name & badges
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        device.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isSelected
+                              ? cs.onSurface
+                              : cs.onSurface.withValues(alpha: 0.60),
+                          fontWeight: isSelected
+                              ? FontWeight.w500
+                              : FontWeight.w400,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (device.isDefault) ...[
+                      const SizedBox(width: 6),
+                      _Badge(label: 'Default', cs: cs, subtle: true),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    if (canExclusive)
+                      _Badge(label: 'EXCLUSIVE', cs: cs, subtle: false)
+                    else
+                      _Badge(label: 'SHARED ONLY', cs: cs, subtle: true),
+                    if (isSelected) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        canExclusive && currentMode == AudioOutputMode.exclusive
+                            ? 'bit-perfect'
+                            : 'system mixer',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: cs.onSurface.withValues(alpha: 0.30),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Mode toggle
+          if (isSelected && canExclusive)
+            _ModeToggle(
+              exclusive: currentMode == AudioOutputMode.exclusive,
+              onChanged: (excl) => isSwitching
+                  ? null
+                  : onSelect(
+                      excl ? AudioOutputMode.exclusive : AudioOutputMode.system,
+                    ),
+              cs: cs,
+            )
+          else if (!isSelected)
+            GestureDetector(
+              onTap: isSwitching
+                  ? null
+                  : () => onSelect(
+                      canExclusive
+                          ? AudioOutputMode.exclusive
+                          : AudioOutputMode.system,
+                    ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: cs.onSurface.withValues(alpha: 0.10),
+                  ),
+                ),
+                child: Text(
+                  'Select',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurface.withValues(alpha: 0.40),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// Mode toggle
+class _ModeToggle extends StatelessWidget {
+  final bool exclusive;
+  final void Function(bool)? onChanged;
+  final ColorScheme cs;
+
+  const _ModeToggle({
+    required this.exclusive,
+    required this.onChanged,
+    required this.cs,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _pill('Shared', !exclusive, () => onChanged?.call(false)),
+        const SizedBox(width: 3),
+        _pill('Exclusive', exclusive, () => onChanged?.call(true)),
+      ],
+    );
+  }
+
+  Widget _pill(String label, bool active, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 130),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: active
+                ? cs.onSurface.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: active
+                  ? cs.onSurface.withValues(alpha: 0.24)
+                  : cs.onSurface.withValues(alpha: 0.06),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: active
+                  ? cs.onSurface
+                  : cs.onSurface.withValues(alpha: 0.36),
+              fontWeight: active ? FontWeight.w500 : FontWeight.w400,
+            ),
+          ),
+        ),
+      );
+}
+
+// Small badge
+class _Badge extends StatelessWidget {
+  final String label;
+  final ColorScheme cs;
+  final bool subtle;
+
+  const _Badge({required this.label, required this.cs, required this.subtle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: subtle
+            ? cs.onSurface.withValues(alpha: 0.05)
+            : cs.onSurface.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.6,
+          color: subtle
+              ? cs.onSurface.withValues(alpha: 0.38)
+              : cs.onSurface.withValues(alpha: 0.70),
+        ),
+      ),
+    );
+  }
+}
+
+// Shared UI widgets
 class _Label extends StatelessWidget {
   final String text;
   const _Label(this.text);
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 9,
         fontWeight: FontWeight.w600,
-        color: Colors.white24,
+        color: cs.onSurface.withValues(alpha: 0.24),
         letterSpacing: 1.5,
-      ),
-    );
-  }
-}
-
-// Selection Row
-class _OptionRow extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _OptionRow({
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: selected
-              ? Colors.white.withValues(alpha: 0.06)
-              : Colors.white.withValues(alpha: 0.02),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected
-                ? Colors.white.withValues(alpha: 0.12)
-                : Colors.white.withValues(alpha: 0.04),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: selected ? Colors.white : Colors.white54,
-                      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 11, color: Colors.white30),
-                  ),
-                ],
-              ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? Colors.white : Colors.white24,
-                  width: 1.5,
-                ),
-                color: selected ? Colors.white : Colors.transparent,
-              ),
-              child: selected
-                  ? const Icon(
-                      Icons.check_rounded,
-                      size: 9,
-                      color: Colors.black,
-                    )
-                  : null,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -297,14 +590,15 @@ class _ToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.02),
+          color: cs.onSurface.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.04)),
         ),
         child: Row(
           children: [
@@ -314,12 +608,18 @@ class _ToggleRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 13, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: cs.onSurface.withValues(alpha: 0.70),
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 11, color: Colors.white30),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurface.withValues(alpha: 0.30),
+                    ),
                   ),
                 ],
               ),
@@ -332,7 +632,6 @@ class _ToggleRow extends StatelessWidget {
   }
 }
 
-/// Tiny custom switch
 class _MiniSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -340,6 +639,7 @@ class _MiniSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -347,7 +647,7 @@ class _MiniSwitch extends StatelessWidget {
         width: 34,
         height: 18,
         decoration: BoxDecoration(
-          color: value ? Colors.white : Colors.white12,
+          color: value ? cs.onSurface : cs.onSurface.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(9),
         ),
         child: Padding(
@@ -359,7 +659,9 @@ class _MiniSwitch extends StatelessWidget {
               width: 14,
               height: 14,
               decoration: BoxDecoration(
-                color: value ? Colors.black : Colors.white38,
+                color: value
+                    ? cs.surface
+                    : cs.onSurface.withValues(alpha: 0.38),
                 shape: BoxShape.circle,
               ),
             ),
@@ -385,19 +687,23 @@ class _PickerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
+        color: cs.onSurface.withValues(alpha: 0.02),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.04)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(fontSize: 13, color: Colors.white70),
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onSurface.withValues(alpha: 0.70),
+              ),
             ),
           ),
           Row(
@@ -415,20 +721,22 @@ class _PickerRow extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: isSel
-                        ? Colors.white.withValues(alpha: 0.12)
+                        ? cs.onSurface.withValues(alpha: 0.12)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(5),
                     border: Border.all(
                       color: isSel
-                          ? Colors.white24
-                          : Colors.white.withValues(alpha: 0.06),
+                          ? cs.onSurface.withValues(alpha: 0.24)
+                          : cs.onSurface.withValues(alpha: 0.06),
                     ),
                   ),
                   child: Text(
                     e.value,
                     style: TextStyle(
                       fontSize: 11,
-                      color: isSel ? Colors.white : Colors.white38,
+                      color: isSel
+                          ? cs.onSurface
+                          : cs.onSurface.withValues(alpha: 0.38),
                       fontWeight: isSel ? FontWeight.w500 : FontWeight.w400,
                     ),
                   ),
@@ -454,32 +762,39 @@ class _TapRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.02),
+          color: cs.onSurface.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.04)),
         ),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 13, color: Colors.white70),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: cs.onSurface.withValues(alpha: 0.70),
+                ),
               ),
             ),
             Text(
               value,
-              style: const TextStyle(fontSize: 12, color: Colors.white38),
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.38),
+              ),
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 14,
-              color: Colors.white24,
+              color: cs.onSurface.withValues(alpha: 0.24),
             ),
           ],
         ),
@@ -495,24 +810,31 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
+        color: cs.onSurface.withValues(alpha: 0.02),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.04)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(fontSize: 13, color: Colors.white38),
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onSurface.withValues(alpha: 0.38),
+              ),
             ),
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 12, color: Colors.white24),
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.24),
+            ),
           ),
         ],
       ),

@@ -23,19 +23,19 @@ class TrackTile extends ConsumerWidget {
     final player = ref.watch(playerProvider);
     final isPlaying = player.currentTrack?.path == track.path;
     final format = AudioFormat.fromExtension(track.format);
+    final cs = Theme.of(context).colorScheme;
 
     return Draggable<Track>(
       data: track,
-      // Compact drag avatar
       feedback: Material(
         color: Colors.transparent,
         child: Container(
           width: 220,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(color: cs.onSurface.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.5),
@@ -47,16 +47,19 @@ class TrackTile extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.music_note_rounded,
                 size: 14,
-                color: Colors.white38,
+                color: cs.onSurface.withValues(alpha: 0.38),
               ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   track.displayTitle,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.70),
+                    fontSize: 12,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -107,6 +110,7 @@ class _TileBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       leading: _Leading(isPlaying: isPlaying, format: format, index: index),
@@ -116,7 +120,9 @@ class _TileBody extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontWeight: isPlaying ? FontWeight.w500 : FontWeight.w400,
-          color: isPlaying ? Colors.white : Colors.white70,
+          color: isPlaying
+              ? cs.onSurface
+              : cs.onSurface.withValues(alpha: 0.70),
           fontSize: 13,
         ),
       ),
@@ -127,7 +133,10 @@ class _TileBody extends StatelessWidget {
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 11, color: Colors.white30),
+        style: TextStyle(
+          fontSize: 11,
+          color: cs.onSurface.withValues(alpha: 0.30),
+        ),
       ),
       trailing: _Trailing(track: track, format: format),
       onTap: onTap,
@@ -144,6 +153,7 @@ class _Leading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       width: 36,
       height: 36,
@@ -154,21 +164,21 @@ class _Leading extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: cs.onSurface.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(5),
             ),
             child: Center(
               child: isPlaying
-                  ? const Icon(
+                  ? Icon(
                       Icons.equalizer_rounded,
                       size: 14,
-                      color: Colors.white54,
+                      color: cs.onSurface.withValues(alpha: 0.54),
                     )
                   : Text(
                       index != null ? '${index! + 1}' : '♪',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white24,
+                        color: cs.onSurface.withValues(alpha: 0.24),
                       ),
                     ),
             ),
@@ -180,8 +190,8 @@ class _Leading extends StatelessWidget {
               child: Container(
                 width: 5,
                 height: 5,
-                decoration: const BoxDecoration(
-                  color: Colors.white54,
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.54),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -199,13 +209,17 @@ class _Trailing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
           track.durationLabel,
-          style: const TextStyle(fontSize: 11, color: Colors.white24),
+          style: TextStyle(
+            fontSize: 11,
+            color: cs.onSurface.withValues(alpha: 0.24),
+          ),
         ),
         const SizedBox(height: 3),
         Text(
@@ -215,8 +229,8 @@ class _Trailing extends StatelessWidget {
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
             color: format.isLossless
-                ? Colors.white38
-                : Colors.white.withValues(alpha: 0.15),
+                ? cs.onSurface.withValues(alpha: 0.38)
+                : cs.onSurface.withValues(alpha: 0.15),
           ),
         ),
       ],

@@ -146,6 +146,9 @@ bool Win32Window::Create(const std::wstring& title,
 
   UpdateTheme(window);
 
+  MARGINS margins = {-1, -1, -1, -1};
+  DwmExtendFrameIntoClientArea(window, &margins);
+
   return OnCreate();
 }
 

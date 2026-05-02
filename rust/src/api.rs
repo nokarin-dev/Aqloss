@@ -2,10 +2,56 @@ use crate::{audio_engine::AudioEngine, metadata, PlaybackPosition, TrackInfo};
 use anyhow::Result;
 use flutter_rust_bridge::frb;
 
-pub fn init_engine() -> Result<()> {
-    AudioEngine::init()
+// Audio device info
+pub struct AudioDeviceInfo {
+    pub id: String,
+    pub name: String,
+    pub is_default: bool,
+    pub supports_exclusive: bool,
 }
 
+// Engine lifecycle
+pub fn init_engine() -> Result<()> {
+    AudioEngine::init_default()
+}
+
+pub fn init_engine_with_device(device_id: String, exclusive: bool) -> Result<()> {
+    AudioEngine::init_with_device(&device_id, exclusive)
+}
+
+pub fn reinit_engine(device_id: String, exclusive: bool) -> Result<()> {
+    AudioEngine::reinit(&device_id, exclusive)
+}
+
+// Device enumeration
+pub fn enumerate_audio_devices() -> Result<Vec<AudioDeviceInfo>> {
+    #[cfg(target_os = "windows")]
+    {
+        use crate::output::wasapi_exclusive;
+        let infos = wasapi_exclusive::enumerate_devices()?;
+        return Ok(infos
+            .into_iter()
+            .map(|d| AudioDeviceInfo {
+                id: d.id,
+                name: d.name,
+                is_default: d.is_default,
+                supports_exclusive: d.supports_exclusive,
+            })
+            .collect());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(vec![AudioDeviceInfo {
+            id: "default".to_owned(),
+            name: "System default".to_owned(),
+            is_default: true,
+            supports_exclusive: false,
+        }])
+    }
+}
+
+// Playback
 pub fn load_track(path: String) -> Result<TrackInfo> {
     let info = metadata::read_track_info(&path)?;
     AudioEngine::global().lock().unwrap().load(&path)?;
@@ -48,6 +94,7 @@ pub fn is_exclusive_mode() -> bool {
         .unwrap_or(false)
 }
 
+// Metadata
 pub fn read_metadata(path: String) -> Result<TrackInfo> {
     metadata::read_track_info(&path)
 }
@@ -64,15 +111,15 @@ pub fn read_embedded_lyrics(path: String) -> Result<Option<String>> {
     metadata::read_embedded_lyrics(&path)
 }
 
+// Spectrum
 pub fn get_spectrum_data(bucket_count: u32) -> Vec<f32> {
     let Some(arc) = AudioEngine::global_opt() else {
         return vec![];
     };
-    let x = arc.lock().unwrap().get_spectrum_data(bucket_count as usize);
-    x
+    let x = arc.lock().unwrap().get_spectrum_data(bucket_count as usize); x
 }
 
-// Update Discord presence while playing.
+// Discord RPC
 pub fn discord_update_playing(
     title: String,
     artist: String,
