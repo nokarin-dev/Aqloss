@@ -73,15 +73,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   @override
   bool get mounted => !_disposed;
 
-  // Volume persistence
+  // Volume
   Future<void> _restoreVolume() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getDouble(_kVolumeKey) ?? 1.0;
-    final vol = saved.clamp(0.0, 1.0);
-    if (mounted) state = state.copyWith(volume: vol);
-    try {
-      await AudioService.setVolume(vol);
-    } catch (_) {}
+    final saved = (prefs.getDouble(_kVolumeKey) ?? 1.0).clamp(0.0, 1.0);
+    if (mounted) {
+      state = state.copyWith(volume: saved);
+    }
   }
 
   Future<void> _saveVolume(double volume) async {
@@ -315,6 +313,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  // Helpers
   int _randomIndex(int length, {required int exclude}) {
     if (length <= 1) return 0;
     final rng = math.Random();

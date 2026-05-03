@@ -33,19 +33,24 @@ void main() async {
   runApp(const ProviderScope(child: AqlossApp()));
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
-    final (deviceId, exclusive) = await _loadAudioPrefs();
-    await AudioService.init(deviceId: deviceId, exclusive: exclusive);
+    final (deviceId, exclusive, volume) = await _loadStartupPrefs();
+    await AudioService.init(
+      deviceId: deviceId,
+      exclusive: exclusive,
+      volume: volume,
+    );
   });
 }
 
-Future<(String?, bool)> _loadAudioPrefs() async {
+Future<(String?, bool, double)> _loadStartupPrefs() async {
   try {
     final p = await SharedPreferences.getInstance();
     final deviceId = p.getString('aqloss_selected_device_id');
     final modeIdx = p.getInt('aqloss_output_mode') ?? 1;
     final exclusive = modeIdx == 1;
-    return (deviceId, exclusive);
+    final volume = (p.getDouble('aqloss_volume') ?? 1.0).clamp(0.0, 1.0);
+    return (deviceId, exclusive, volume);
   } catch (_) {
-    return (null, true);
+    return (null, true, 1.0);
   }
 }
