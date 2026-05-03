@@ -15,13 +15,16 @@ class PlaylistNotifier extends StateNotifier<List<Playlist>> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_kPlaylistsKey) ?? [];
-    final playlists = raw.map((s) {
-      try {
-        return Playlist.fromJson(jsonDecode(s) as Map<String, dynamic>);
-      } catch (_) {
-        return null;
-      }
-    }).whereType<Playlist>().toList();
+    final playlists = raw
+        .map((s) {
+          try {
+            return Playlist.fromJson(jsonDecode(s) as Map<String, dynamic>);
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<Playlist>()
+        .toList();
     state = playlists;
   }
 
@@ -42,7 +45,9 @@ class PlaylistNotifier extends StateNotifier<List<Playlist>> {
   }
 
   Future<void> rename(String id, String newName) async {
-    state = state.map((p) => p.id == id ? p.copyWith(name: newName) : p).toList();
+    state = state
+        .map((p) => p.id == id ? p.copyWith(name: newName) : p)
+        .toList();
     await _save();
   }
 
@@ -66,7 +71,9 @@ class PlaylistNotifier extends StateNotifier<List<Playlist>> {
     state = state.map((p) {
       if (p.id != playlistId) return p;
       final existing = p.tracks.map((t) => t.path).toSet();
-      final newTracks = tracks.where((t) => !existing.contains(t.path)).toList();
+      final newTracks = tracks
+          .where((t) => !existing.contains(t.path))
+          .toList();
       return p.copyWith(tracks: [...p.tracks, ...newTracks]);
     }).toList();
     await _save();
@@ -88,11 +95,10 @@ class PlaylistNotifier extends StateNotifier<List<Playlist>> {
     await _save();
   }
 
-  Playlist? find(String id) =>
-      state.where((p) => p.id == id).firstOrNull;
+  Playlist? find(String id) => state.where((p) => p.id == id).firstOrNull;
 }
 
 final playlistProvider =
     StateNotifierProvider<PlaylistNotifier, List<Playlist>>(
-  (ref) => PlaylistNotifier(),
-);
+      (ref) => PlaylistNotifier(),
+    );

@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:file_picker/file_picker.dart';
@@ -78,60 +79,139 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     return const PlayerScreen();
   }
 
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final ctrl =
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit1) {
+      setState(() => _route = 0);
+      return KeyEventResult.handled;
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit2) {
+      setState(() => _route = 1);
+      return KeyEventResult.handled;
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit3) {
+      setState(() => _route = 2);
+      return KeyEventResult.handled;
+    }
+    // Ctrl+B → toggle sidebar
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.keyB) {
+      _toggleSidebar();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.space) {
+      final player = ref.read(playerProvider);
+      if (player.currentTrack != null) {
+        if (player.status == PlayerStatus.playing) {
+          ref.read(playerProvider.notifier).pause();
+        } else {
+          ref.read(playerProvider.notifier).play();
+        }
+        return KeyEventResult.handled;
+      }
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      ref.read(playerProvider.notifier).skipPrevious();
+      return KeyEventResult.handled;
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      ref.read(playerProvider.notifier).skipNext();
+      return KeyEventResult.handled;
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      final vol = (ref.read(playerProvider).volume + 0.05).clamp(0.0, 1.0);
+      ref.read(playerProvider.notifier).setVolume(vol);
+      return KeyEventResult.handled;
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      final vol = (ref.read(playerProvider).volume - 0.05).clamp(0.0, 1.0);
+      ref.read(playerProvider.notifier).setVolume(vol);
+      return KeyEventResult.handled;
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.keyN) {
+      _showCreatePlaylistDialog();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  Future<void> _showCreatePlaylistDialog() async {
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _InputDialog(
+        title: 'New playlist',
+        hint: 'Playlist name',
+        confirmLabel: 'Create',
+        controller: ctrl,
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      ref.read(playlistProvider.notifier).create(name);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 700;
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
 
-    return Scaffold(
-      body: Column(
-        children: [
-          if (_isDesktop) _CustomTitleBar(isMaximized: _isMaximized),
-          Expanded(
-            child: isWide
-                ? Row(
-                    children: [
-                      _SideNav(
-                        route: _route,
-                        collapsed: _sidebarCollapsed,
-                        onSelect: (r) => setState(() => _route = r),
-                        onToggleCollapse: _toggleSidebar,
-                      ),
-                      Expanded(child: _buildScreen()),
-                    ],
-                  )
-                : _buildScreen(),
-          ),
-          if (!isWide && hasTrack && _route != 0)
-            MiniPlayerBar(onTap: () => setState(() => _route = 0)),
-        ],
-      ),
-      bottomNavigationBar: isWide
-          ? null
-          : NavigationBar(
-              surfaceTintColor: Colors.transparent,
-              selectedIndex: _route.clamp(0, 2),
-              onDestinationSelected: (i) => setState(() => _route = i),
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.play_circle_outline, size: 22),
-                  selectedIcon: Icon(Icons.play_circle_rounded, size: 22),
-                  label: 'Now Playing',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.library_music_outlined, size: 22),
-                  selectedIcon: Icon(Icons.library_music_rounded, size: 22),
-                  label: 'Library',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.tune_outlined, size: 22),
-                  selectedIcon: Icon(Icons.tune_rounded, size: 22),
-                  label: 'Settings',
-                ),
-              ],
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handleKey,
+      child: Scaffold(
+        body: Column(
+          children: [
+            if (_isDesktop) _CustomTitleBar(isMaximized: _isMaximized),
+            Expanded(
+              child: isWide
+                  ? Row(
+                      children: [
+                        _SideNav(
+                          route: _route,
+                          collapsed: _sidebarCollapsed,
+                          onSelect: (r) => setState(() => _route = r),
+                          onToggleCollapse: _toggleSidebar,
+                        ),
+                        Expanded(child: _buildScreen()),
+                      ],
+                    )
+                  : _buildScreen(),
             ),
+            if (!isWide && hasTrack && _route != 0)
+              MiniPlayerBar(onTap: () => setState(() => _route = 0)),
+          ],
+        ),
+        bottomNavigationBar: isWide
+            ? null
+            : NavigationBar(
+                surfaceTintColor: Colors.transparent,
+                selectedIndex: _route.clamp(0, 2),
+                onDestinationSelected: (i) => setState(() => _route = i),
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.play_circle_outline, size: 22),
+                    selectedIcon: Icon(Icons.play_circle_rounded, size: 22),
+                    label: 'Now Playing',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.library_music_outlined, size: 22),
+                    selectedIcon: Icon(Icons.library_music_rounded, size: 22),
+                    label: 'Library',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.tune_outlined, size: 22),
+                    selectedIcon: Icon(Icons.tune_rounded, size: 22),
+                    label: 'Settings',
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -155,8 +235,8 @@ class _SideNav extends ConsumerStatefulWidget {
 
 class _SideNavState extends ConsumerState<_SideNav>
     with SingleTickerProviderStateMixin {
-  static const _collapsedWidth = 48.0;
-  static const _expandedWidth = 200.0;
+  static const _collapsedWidth = 52.0;
+  static const _expandedWidth = 210.0;
   late final AnimationController _ctrl;
   late final Animation<double> _widthAnim;
 
@@ -235,6 +315,7 @@ class _SideNavState extends ConsumerState<_SideNav>
           children: [
             const SizedBox(height: 8),
 
+            // Collapse toggle
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               child: _CollapseBtn(
@@ -245,6 +326,7 @@ class _SideNavState extends ConsumerState<_SideNav>
 
             const SizedBox(height: 6),
 
+            // Now playing
             _NavItem(
               icon: Icons.play_circle_outline_rounded,
               activeIcon: Icons.play_circle_rounded,
@@ -256,6 +338,8 @@ class _SideNavState extends ConsumerState<_SideNav>
                   : null,
               onTap: () => widget.onSelect(0),
             ),
+
+            // Library
             _NavItem(
               icon: Icons.library_music_outlined,
               activeIcon: Icons.library_music_rounded,
@@ -265,9 +349,11 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(1),
             ),
 
+            // Section label
             if (!collapsed) const _SectionLabel('LIBRARY'),
             if (collapsed) const SizedBox(height: 4),
 
+            // Folders
             _NavItem(
               icon: Icons.folder_open_outlined,
               activeIcon: Icons.folder_open_rounded,
@@ -286,10 +372,12 @@ class _SideNavState extends ConsumerState<_SideNav>
                   : null,
               onTap: _showFolderManager,
             ),
+
+            // Rescan
             _NavItem(
               icon: Icons.refresh_rounded,
               activeIcon: Icons.refresh_rounded,
-              label: 'Rescan',
+              label: 'Rescan library',
               isActive: false,
               collapsed: collapsed,
               onTap: isScanning
@@ -299,7 +387,7 @@ class _SideNavState extends ConsumerState<_SideNav>
 
             if (!collapsed && library.totalTracks > 0)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
                 child: Text(
                   '${library.totalTracks} tracks',
                   style: TextStyle(
@@ -309,6 +397,7 @@ class _SideNavState extends ConsumerState<_SideNav>
                 ),
               ),
 
+            // Section label
             if (!collapsed)
               Row(
                 children: [
@@ -318,13 +407,14 @@ class _SideNavState extends ConsumerState<_SideNav>
                     padding: const EdgeInsets.only(right: 8),
                     child: _IconBtn(
                       icon: Icons.add_rounded,
-                      tooltip: 'New playlist',
+                      tooltip: 'New playlist (Ctrl+N)',
                       onTap: _createPlaylist,
                     ),
                   ),
                 ],
               )
-            else
+            else ...[
+              const SizedBox(height: 4),
               Tooltip(
                 message: 'New playlist',
                 preferBelow: false,
@@ -334,11 +424,11 @@ class _SideNavState extends ConsumerState<_SideNav>
                     height: 32,
                     child: Center(
                       child: Container(
-                        width: 22,
-                        height: 22,
+                        width: 24,
+                        height: 24,
                         decoration: BoxDecoration(
                           color: cs.onSurface.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Icon(
                           Icons.add_rounded,
@@ -350,9 +440,11 @@ class _SideNavState extends ConsumerState<_SideNav>
                   ),
                 ),
               ),
+            ],
 
+            // Playlist list
             Expanded(
-              child: collapsed || playlists.isEmpty
+              child: playlists.isEmpty
                   ? const SizedBox.shrink()
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -365,9 +457,10 @@ class _SideNavState extends ConsumerState<_SideNav>
                               .addTracks(pl.id, details.data),
                           builder: (ctx, candidates, rejected) {
                             final isOver = candidates.isNotEmpty;
-                            return Container(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              margin: EdgeInsets.symmetric(
+                                horizontal: collapsed ? 6 : 8,
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
@@ -383,23 +476,32 @@ class _SideNavState extends ConsumerState<_SideNav>
                                       )
                                     : null,
                               ),
-                              child: _PlaylistNavItem(
-                                playlist: pl,
-                                isActive: widget.route == (i + 10),
-                                onTap: () => widget.onSelect(i + 10),
-                                onDelete: () => ref
-                                    .read(playlistProvider.notifier)
-                                    .delete(pl.id),
-                                onRename: () => _renamePlaylist(context, pl),
-                                onPlay: pl.tracks.isNotEmpty
-                                    ? () => ref
-                                          .read(playerProvider.notifier)
-                                          .loadWithQueue(
-                                            pl.tracks.first,
-                                            pl.tracks,
-                                          )
-                                    : null,
-                              ),
+                              child: collapsed
+                                  // ── Collapsed: icon + tooltip ──
+                                  ? _PlaylistCollapsedIcon(
+                                      playlist: pl,
+                                      isActive: widget.route == (i + 10),
+                                      onTap: () => widget.onSelect(i + 10),
+                                    )
+                                  // ── Expanded: full item ──
+                                  : _PlaylistNavItem(
+                                      playlist: pl,
+                                      isActive: widget.route == (i + 10),
+                                      onTap: () => widget.onSelect(i + 10),
+                                      onDelete: () => ref
+                                          .read(playlistProvider.notifier)
+                                          .delete(pl.id),
+                                      onRename: () =>
+                                          _renamePlaylist(context, pl),
+                                      onPlay: pl.tracks.isNotEmpty
+                                          ? () => ref
+                                                .read(playerProvider.notifier)
+                                                .loadWithQueue(
+                                                  pl.tracks.first,
+                                                  pl.tracks,
+                                                )
+                                          : null,
+                                    ),
                             );
                           },
                         );
@@ -410,6 +512,7 @@ class _SideNavState extends ConsumerState<_SideNav>
             Divider(color: cs.outline, height: 1),
             const SizedBox(height: 4),
 
+            // Settings
             _NavItem(
               icon: Icons.settings_outlined,
               activeIcon: Icons.settings_rounded,
@@ -443,6 +546,84 @@ class _SideNavState extends ConsumerState<_SideNav>
   }
 }
 
+// Playlist icon
+class _PlaylistCollapsedIcon extends StatefulWidget {
+  final Playlist playlist;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _PlaylistCollapsedIcon({
+    required this.playlist,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  State<_PlaylistCollapsedIcon> createState() => _PlaylistCollapsedIconState();
+}
+
+class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final letter = widget.playlist.name.isNotEmpty
+        ? widget.playlist.name[0].toUpperCase()
+        : '♪';
+
+    return Tooltip(
+      message: '${widget.playlist.name} · ${widget.playlist.length} tracks',
+      preferBelow: false,
+      waitDuration: const Duration(milliseconds: 300),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            height: 34,
+            decoration: BoxDecoration(
+              color: widget.isActive
+                  ? cs.onSurface.withValues(alpha: 0.10)
+                  : _hovered
+                  ? cs.onSurface.withValues(alpha: 0.05)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Center(
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: widget.isActive
+                      ? cs.onSurface.withValues(alpha: 0.14)
+                      : cs.onSurface.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Center(
+                  child: Text(
+                    letter,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: widget.isActive
+                          ? cs.onSurface
+                          : cs.onSurface.withValues(alpha: 0.50),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Collapse button
 class _CollapseBtn extends StatefulWidget {
   final bool collapsed;
   final VoidCallback onTap;
@@ -462,7 +643,9 @@ class _CollapseBtnState extends State<_CollapseBtn> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Tooltip(
-        message: widget.collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+        message: widget.collapsed
+            ? 'Expand sidebar (Ctrl+B)'
+            : 'Collapse sidebar (Ctrl+B)',
         preferBelow: false,
         child: GestureDetector(
           onTap: widget.onTap,
@@ -523,6 +706,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
   }
 }
 
+// Nav item
 class _NavItem extends StatefulWidget {
   final IconData icon;
   final IconData activeIcon;
@@ -631,6 +815,7 @@ class _NavItemState extends State<_NavItem> {
   }
 }
 
+// Folder manager dialog
 class _FolderManagerDialog extends ConsumerWidget {
   const _FolderManagerDialog();
 
@@ -660,7 +845,7 @@ class _FolderManagerDialog extends ConsumerWidget {
       backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, minWidth: 360),
+        constraints: const BoxConstraints(maxWidth: 480, minWidth: 320),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -808,6 +993,7 @@ class _FolderManagerDialog extends ConsumerWidget {
   }
 }
 
+// Playlist nav item
 class _PlaylistNavItem extends StatefulWidget {
   final Playlist playlist;
   final bool isActive;
@@ -950,6 +1136,7 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
   }
 }
 
+// Playlist detail screen
 class _PlaylistDetailScreen extends ConsumerWidget {
   final Playlist playlist;
   const _PlaylistDetailScreen({required this.playlist});
@@ -1172,6 +1359,7 @@ class _PlaylistTrackTile extends ConsumerWidget {
   }
 }
 
+// Shared helpers
 class _InputDialog extends StatelessWidget {
   final String title;
   final String hint;
@@ -1320,6 +1508,7 @@ class _NowPlayingDot extends StatelessWidget {
   }
 }
 
+// Title bar
 class _CustomTitleBar extends StatelessWidget {
   final bool isMaximized;
   const _CustomTitleBar({required this.isMaximized});

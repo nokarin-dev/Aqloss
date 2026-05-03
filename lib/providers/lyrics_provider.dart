@@ -163,17 +163,17 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
   }
 }
 
-final lyricsProvider = StateNotifierProvider<LyricsNotifier, LyricsState>(
-      (ref) {
-    final notifier = LyricsNotifier();
-    ref.listen<PlayerState>(playerProvider, (prev, next) {
-      final path = next.currentTrack?.path;
-      if (path != null && path != prev?.currentTrack?.path) {
-        notifier.loadForTrack(path);
-      } else if (path == null) {
-        notifier.clear();
-      }
-    });
-    return notifier;
-  },
-);
+final lyricsProvider = StateNotifierProvider<LyricsNotifier, LyricsState>((
+  ref,
+) {
+  final notifier = LyricsNotifier();
+  ref.listen<PlayerState>(playerProvider, (prev, next) {
+    final path = next.currentTrack?.path;
+    if (path != null && path != prev?.currentTrack?.path) {
+      notifier.loadForTrack(path);
+    } else if (path == null) {
+      notifier.clear();
+    }
+  });
+  return notifier;
+});
