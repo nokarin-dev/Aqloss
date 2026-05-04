@@ -10,6 +10,24 @@ use std::time::Duration;
 
 static ENGINE: OnceLock<Arc<Mutex<AudioEngine>>> = OnceLock::new();
 
+// DSP config
+#[derive(Clone, Debug)]
+pub struct DspConfig {
+    pub replay_gain: f32,
+    pub soft_clip: bool,
+    pub skip_silence: bool,
+}
+
+impl Default for DspConfig {
+    fn default() -> Self {
+        Self {
+            replay_gain: 1.0,
+            soft_clip: true,
+            skip_silence: false,
+        }
+    }
+}
+
 struct PlayFlags {
     alive: AtomicBool,
     playing: AtomicBool,
@@ -28,6 +46,8 @@ impl PlayFlags {
 
 const SPECTRUM_BUF_FRAMES: usize = 4096;
 const VOLUME_RAMP_RATE: f32 = 0.003;
+const SILENCE_THRESHOLD: f32 = 0.0002;
+const SILENCE_FRAMES_MIN: usize = 512;
 
 pub struct AudioEngine {
     output: AudioOutput,
@@ -40,12 +60,14 @@ pub struct AudioEngine {
     flags: Arc<PlayFlags>,
     spectrum_buf: Arc<Mutex<Vec<f32>>>,
     spectrum_write_pos: Arc<AtomicU64>,
+    dsp: Arc<Mutex<DspConfig>>,
 }
 
 unsafe impl Send for AudioEngine {}
 unsafe impl Sync for AudioEngine {}
 
 impl AudioEngine {
+    // Init
     pub fn init_default() -> Result<()> {
         let output = AudioOutput::new_default()?;
         Self::store(output)
@@ -86,6 +108,7 @@ impl AudioEngine {
         } else {
             "Shared"
         };
+
         eprintln!(
             "[aqloss] reinit → {mode} @ {}Hz {}ch",
             engine.output.sample_rate, engine.output.channels
@@ -100,6 +123,7 @@ impl AudioEngine {
         } else {
             "Shared (system mixer)"
         };
+
         eprintln!(
             "[aqloss] audio output: {mode} @ {}Hz {}ch",
             output.sample_rate, output.channels
@@ -116,6 +140,7 @@ impl AudioEngine {
             flags: PlayFlags::new(),
             spectrum_buf: Arc::new(Mutex::new(vec![0.0f32; SPECTRUM_BUF_FRAMES])),
             spectrum_write_pos: Arc::new(AtomicU64::new(0)),
+            dsp: Arc::new(Mutex::new(DspConfig::default())),
         };
         ENGINE
             .set(Arc::new(Mutex::new(engine)))
@@ -126,13 +151,24 @@ impl AudioEngine {
     pub fn global() -> Arc<Mutex<Self>> {
         ENGINE.get().expect("AudioEngine not initialized").clone()
     }
-
     pub fn global_opt() -> Option<Arc<Mutex<Self>>> {
         ENGINE.get().cloned()
     }
-
     pub fn is_exclusive(&self) -> bool {
         self.output.exclusive
+    }
+
+    // DSP config
+    pub fn set_replay_gain(&mut self, linear_gain: f32) {
+        self.dsp.lock().unwrap().replay_gain = linear_gain.clamp(0.0, 64.0);
+    }
+
+    pub fn set_soft_clip(&mut self, enabled: bool) {
+        self.dsp.lock().unwrap().soft_clip = enabled;
+    }
+
+    pub fn set_skip_silence(&mut self, enabled: bool) {
+        self.dsp.lock().unwrap().skip_silence = enabled;
     }
 
     // Spectrum
@@ -149,12 +185,10 @@ impl AudioEngine {
                 buf[base..base + ch].iter().sum::<f32>() / ch as f32
             })
             .collect();
-
         let global_rms = (mono.iter().map(|s| s * s).sum::<f32>() / mono.len() as f32).sqrt();
         if global_rms < 1e-6 {
             return vec![0.0; n];
         }
-
         let frames_f = frames as f32;
         (0..n)
             .map(|i| {
@@ -173,11 +207,12 @@ impl AudioEngine {
             .collect()
     }
 
-    // Playback control
+    // Playback
     pub fn load(&mut self, path: &str) -> Result<()> {
         self.stop_thread();
         self.flags = PlayFlags::new();
         self.output.stop_drain();
+
         let dec = Decoder::open(path)?;
         let src_rate = dec.sample_rate();
         let src_ch = dec.channels();
@@ -280,7 +315,7 @@ impl AudioEngine {
         self.flags.playing.load(Ordering::SeqCst)
     }
 
-    // Thread management
+    // Thread
     fn stop_thread(&mut self) {
         if self.flags.alive.load(Ordering::SeqCst) {
             self.flags.playing.store(false, Ordering::SeqCst);
@@ -315,8 +350,13 @@ fn soft_clip(x: f32) -> f32 {
     x * (27.0 + x2) / (27.0 + 9.0 * x2)
 }
 
+#[inline]
+fn is_silent(samples: &[f32]) -> bool {
+    samples.iter().all(|s| s.abs() < SILENCE_THRESHOLD)
+}
+
 fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
-    let (out_channels, out_sample_rate, is_exclusive, spectrum_buf, spectrum_pos, dec_arc) = {
+    let (out_channels, out_sample_rate, is_exclusive, spectrum_buf, spectrum_pos, dec_arc, dsp_arc) = {
         let e = engine_arc.lock().unwrap();
         let dec = match e.decoder.as_ref() {
             Some(d) => d.clone(),
@@ -329,11 +369,16 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
             e.spectrum_buf.clone(),
             e.spectrum_write_pos.clone(),
             dec,
+            e.dsp.clone(),
         )
     };
 
     let target_samples = out_sample_rate * out_channels as usize / 4;
     let ring_capacity = out_sample_rate * out_channels as usize / 2 + 4096;
+
+    // Skip silence
+    let mut leading_silence_frames = 0usize;
+    let mut leading_done = false;
 
     loop {
         if !flags.alive.load(Ordering::Acquire) {
@@ -361,7 +406,9 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
                 let dec_ch = e.dec_channels;
                 let target_vol = e.volume;
+                let dsp = dsp_arc.lock().unwrap().clone();
 
+                // Resample
                 let resampled = if let Some(rs) = e.resampler.as_mut() {
                     match rs.process(&raw_samples) {
                         Ok(r) if !r.is_empty() => r,
@@ -371,8 +418,22 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                     raw_samples
                 };
 
+                // Channel adapt
                 let converted = adapt_channels(&resampled, dec_ch, out_channels);
 
+                // Skip leading silence
+                if dsp.skip_silence && !leading_done {
+                    if is_silent(&converted) {
+                        leading_silence_frames += converted.len();
+                        if leading_silence_frames < SILENCE_FRAMES_MIN * out_channels as usize {
+                            continue;
+                        }
+                    } else {
+                        leading_done = true;
+                    }
+                }
+
+                // Spectrum feed
                 {
                     let mut sb = spectrum_buf.lock().unwrap();
                     let buf_len = sb.len();
@@ -387,38 +448,58 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                 }
 
                 let mut smooth = e.smooth_volume;
-                let at_unity = (smooth - 1.0).abs() < VOLUME_RAMP_RATE
-                    && (target_vol - 1.0).abs() < VOLUME_RAMP_RATE;
-                let pure_passthrough = is_exclusive || at_unity;
+
+                // Exclusive mode
+                let pure_passthrough = is_exclusive;
 
                 {
                     let mut prod = e.output.producer.lock().unwrap();
                     if pure_passthrough {
                         prod.push_slice(&converted);
                     } else {
-                        let mut tmp = Vec::with_capacity(converted.len());
-                        for s in &converted {
-                            let diff = target_vol - smooth;
-                            if diff.abs() > VOLUME_RAMP_RATE {
-                                smooth += diff.signum() * VOLUME_RAMP_RATE;
-                            } else {
-                                smooth = target_vol;
+                        let at_unity = (smooth - 1.0).abs() < VOLUME_RAMP_RATE
+                            && (target_vol - 1.0).abs() < VOLUME_RAMP_RATE
+                            && (dsp.replay_gain - 1.0).abs() < 0.001;
+
+                        if at_unity && !dsp.soft_clip {
+                            prod.push_slice(&converted);
+                        } else {
+                            let mut tmp = Vec::with_capacity(converted.len());
+                            for s in &converted {
+                                // Smooth volume ramp
+                                let diff = target_vol - smooth;
+                                if diff.abs() > VOLUME_RAMP_RATE {
+                                    smooth += diff.signum() * VOLUME_RAMP_RATE;
+                                } else {
+                                    smooth = target_vol;
+                                }
+
+                                // Apply volume & ReplayGain
+                                let gained = s * smooth * dsp.replay_gain;
+
+                                // Soft-clip or hard-clip
+                                let out = if dsp.soft_clip {
+                                    soft_clip(gained)
+                                } else {
+                                    gained.clamp(-1.0, 1.0)
+                                };
+                                tmp.push(out);
                             }
-                            tmp.push(soft_clip(s * smooth));
+                            prod.push_slice(&tmp);
                         }
-                        prod.push_slice(&tmp);
                     }
                 }
-
                 e.smooth_volume = smooth;
             }
 
             Ok(None) => {
-                let tail = {
+                // Flush resampler tail
+                {
                     let mut e = engine_arc.lock().unwrap();
                     let dec_ch = e.dec_channels;
                     let target_vol = e.volume;
                     let mut smooth = e.smooth_volume;
+                    let dsp = dsp_arc.lock().unwrap().clone();
 
                     let raw_tail = e
                         .resampler
@@ -428,12 +509,8 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
                     if !raw_tail.is_empty() {
                         let converted = adapt_channels(&raw_tail, dec_ch, out_channels);
-                        let pure_passthrough = is_exclusive
-                            || ((smooth - 1.0).abs() < VOLUME_RAMP_RATE
-                                && (target_vol - 1.0).abs() < VOLUME_RAMP_RATE);
-
                         let mut prod = e.output.producer.lock().unwrap();
-                        if pure_passthrough {
+                        if is_exclusive {
                             prod.push_slice(&converted);
                         } else {
                             let mut tmp = Vec::with_capacity(converted.len());
@@ -444,16 +521,22 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                                 } else {
                                     smooth = target_vol;
                                 }
-                                tmp.push(soft_clip(s * smooth));
+                                let gained = s * smooth * dsp.replay_gain;
+                                let out = if dsp.soft_clip {
+                                    soft_clip(gained)
+                                } else {
+                                    gained.clamp(-1.0, 1.0)
+                                };
+                                tmp.push(out);
                             }
                             prod.push_slice(&tmp);
                         }
                         drop(prod);
                         e.smooth_volume = smooth;
                     }
-                };
-                let _ = tail;
+                }
 
+                // Wait for ring to drain before signalling end
                 let mut waited = 0u32;
                 while waited < 1000 {
                     if !flags.alive.load(Ordering::Acquire) {
@@ -465,7 +548,6 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                     thread::sleep(Duration::from_millis(5));
                     waited += 5;
                 }
-
                 flags.playing.store(false, Ordering::Release);
                 flags.alive.store(false, Ordering::Release);
                 break;

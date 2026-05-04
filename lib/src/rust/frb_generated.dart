@@ -66,7 +66,7 @@ class AqlossCore
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 777196420;
+  int get rustContentHash => -2089540238;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -133,6 +133,12 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<List<String>> crateApiScanDirectory({required String path});
 
   Future<void> crateApiSeek({required double positionSecs});
+
+  Future<void> crateApiSetReplayGain({required double linearGain});
+
+  Future<void> crateApiSetSkipSilence({required bool enabled});
+
+  Future<void> crateApiSetSoftClip({required bool enabled});
 
   Future<void> crateApiSetVolume({required double volume});
 
@@ -720,6 +726,92 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "seek", argNames: ["positionSecs"]);
 
   @override
+  Future<void> crateApiSetReplayGain({required double linearGain}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_f_32(linearGain, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetReplayGainConstMeta,
+        argValues: [linearGain],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetReplayGainConstMeta => const TaskConstMeta(
+    debugName: "set_replay_gain",
+    argNames: ["linearGain"],
+  );
+
+  @override
+  Future<void> crateApiSetSkipSilence({required bool enabled}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetSkipSilenceConstMeta,
+        argValues: [enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetSkipSilenceConstMeta =>
+      const TaskConstMeta(debugName: "set_skip_silence", argNames: ["enabled"]);
+
+  @override
+  Future<void> crateApiSetSoftClip({required bool enabled}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetSoftClipConstMeta,
+        argValues: [enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetSoftClipConstMeta =>
+      const TaskConstMeta(debugName: "set_soft_clip", argNames: ["enabled"]);
+
+  @override
   Future<void> crateApiSetVolume({required double volume}) {
     return handler.executeNormal(
       NormalTask(
@@ -729,7 +821,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 23,
             port: port_,
           );
         },
@@ -756,7 +848,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 24,
             port: port_,
           );
         },
@@ -804,6 +896,12 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
   }
 
   @protected
@@ -855,6 +953,12 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   }
 
   @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
@@ -884,8 +988,8 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   TrackInfo dco_decode_track_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return TrackInfo(
       path: dco_decode_String(arr[0]),
       title: dco_decode_opt_String(arr[1]),
@@ -899,6 +1003,8 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       channels: dco_decode_u_32(arr[9]),
       format: dco_decode_String(arr[10]),
       fileSizeBytes: dco_decode_u_64(arr[11]),
+      replayGainTrack: dco_decode_opt_box_autoadd_f_64(arr[12]),
+      replayGainAlbum: dco_decode_opt_box_autoadd_f_64(arr[13]),
     );
   }
 
@@ -959,6 +1065,12 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_f_64(deserializer));
   }
 
   @protected
@@ -1031,6 +1143,17 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   }
 
   @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_f_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1082,6 +1205,8 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
     var var_channels = sse_decode_u_32(deserializer);
     var var_format = sse_decode_String(deserializer);
     var var_fileSizeBytes = sse_decode_u_64(deserializer);
+    var var_replayGainTrack = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_replayGainAlbum = sse_decode_opt_box_autoadd_f_64(deserializer);
     return TrackInfo(
       path: var_path,
       title: var_title,
@@ -1095,6 +1220,8 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       channels: var_channels,
       format: var_format,
       fileSizeBytes: var_fileSizeBytes,
+      replayGainTrack: var_replayGainTrack,
+      replayGainAlbum: var_replayGainAlbum,
     );
   }
 
@@ -1158,6 +1285,12 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self, serializer);
   }
 
   @protected
@@ -1230,6 +1363,16 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1279,6 +1422,8 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
     sse_encode_u_32(self.channels, serializer);
     sse_encode_String(self.format, serializer);
     sse_encode_u_64(self.fileSizeBytes, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.replayGainTrack, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.replayGainAlbum, serializer);
   }
 
   @protected

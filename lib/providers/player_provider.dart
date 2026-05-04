@@ -4,8 +4,12 @@ import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+export 'package:aqloss/providers/settings_provider.dart'
+    show ReplayGainMode, StopAfterMode;
 
 const _kVolumeKey = 'aqloss_volume';
 
@@ -56,7 +60,6 @@ class PlayerState {
 
   bool get hasPrevious => queueIndex > 0;
   bool get hasNext => queueIndex < queue.length - 1;
-
   Track? get previousTrack => hasPrevious ? queue[queueIndex - 1] : null;
   Track? get nextTrack => hasNext ? queue[queueIndex + 1] : null;
 }
@@ -66,8 +69,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   bool _disposed = false;
   bool _handlingTrackEnd = false;
 
+  SettingsState Function()? _readSettings;
+
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
+  }
+
+  void injectSettingsReader(SettingsState Function() reader) {
+    _readSettings = reader;
   }
 
   @override
@@ -77,17 +86,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> _restoreVolume() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = (prefs.getDouble(_kVolumeKey) ?? 1.0).clamp(0.0, 1.0);
-    if (mounted) {
-      state = state.copyWith(volume: saved);
-    }
+    if (mounted) state = state.copyWith(volume: saved);
   }
 
-  Future<void> _saveVolume(double volume) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_kVolumeKey, volume);
+  Future<void> _saveVolume(double v) async {
+    (await SharedPreferences.getInstance()).setDouble(_kVolumeKey, v);
   }
 
-  // Queue management
+  // Queue
   Future<void> loadWithQueue(Track track, List<Track> queue) async {
     final idx = queue.indexWhere((t) => t.path == track.path);
     state = state.copyWith(queue: queue, queueIndex: idx < 0 ? 0 : idx);
@@ -115,6 +121,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     try {
       await AudioService.loadTrack(track.path);
       if (!mounted) return;
+
+      final s = _readSettings?.call();
+      if (s != null && s.replayGainEnabled) {
+        final isInOrder = _isPlayingAlbumInOrder();
+        await AudioService.applyReplayGainForTrack(
+          mode: s.replayGainMode,
+          preampDb: s.replayGainPreamp,
+          trackGainDb: track.replayGainTrack,
+          albumGainDb: track.replayGainAlbum,
+          isPlayingInOrder: isInOrder,
+        );
+      }
+
       await AudioService.play();
       if (!mounted) return;
       state = state.copyWith(status: PlayerStatus.playing);
@@ -125,17 +144,25 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  bool _isPlayingAlbumInOrder() {
+    final q = state.queue;
+    final idx = state.queueIndex;
+    if (q.isEmpty || idx == 0) return false;
+    final prev = q[idx - 1];
+    final curr = q[idx];
+    return prev.album == curr.album && prev.albumArtist == curr.albumArtist;
+  }
+
   // Transport
   Future<void> play() async {
     await AudioService.play();
     if (!mounted) return;
-    double freshPos = state.position.inMilliseconds / 1000.0;
+    double pos = state.position.inMilliseconds / 1000.0;
     try {
-      final p = await backend.getPosition();
-      freshPos = p.positionSecs;
+      pos = (await backend.getPosition()).positionSecs;
     } catch (_) {}
     state = state.copyWith(status: PlayerStatus.playing);
-    DiscordService.update(state, positionSecs: freshPos);
+    DiscordService.update(state, positionSecs: pos);
     _startTimer();
   }
 
@@ -162,7 +189,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _saveVolume(v);
   }
 
-  // Skip
+  Future<void> next() => skipNext();
+  Future<void> previous() => skipPrevious();
+
   Future<void> skipNext() async {
     final s = state;
     if (s.queue.isEmpty) return;
@@ -215,7 +244,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   void setLoopMode(LoopMode mode) => state = state.copyWith(loopMode: mode);
   void toggleShuffle() => state = state.copyWith(shuffle: !state.shuffle);
 
-  // Position polling
+  // Position poll
   void _startTimer() {
     _positionTimer?.cancel();
     _positionTimer = Timer.periodic(
@@ -234,18 +263,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (state.status == PlayerStatus.loading) return;
     try {
       final pos = await backend.getPosition();
-      if (!mounted) return;
-      if (state.status == PlayerStatus.loading) return;
+      if (!mounted || state.status == PlayerStatus.loading) return;
 
-      final newPosition = Duration(
-        milliseconds: (pos.positionSecs * 1000).round(),
-      );
-      final backendDuration = Duration(
+      final newPos = Duration(milliseconds: (pos.positionSecs * 1000).round());
+      final backendDur = Duration(
         milliseconds: (pos.durationSecs * 1000).round(),
       );
-
-      final effectiveDuration = backendDuration.inMilliseconds > 0
-          ? backendDuration
+      final effectiveDur = backendDur.inMilliseconds > 0
+          ? backendDur
           : (state.currentTrack?.duration ?? Duration.zero);
 
       if (pos.durationSecs > 0 && pos.positionSecs >= pos.durationSecs - 0.1) {
@@ -258,9 +283,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
 
       state = state.copyWith(
-        position: newPosition,
-        currentTrack: effectiveDuration != state.currentTrack?.duration
-            ? state.currentTrack?.copyWithDuration(effectiveDuration)
+        position: newPos,
+        currentTrack: effectiveDur != state.currentTrack?.duration
+            ? state.currentTrack?.copyWithDuration(effectiveDur)
             : state.currentTrack,
       );
     } catch (_) {}
@@ -269,11 +294,41 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   // Track end
   Future<void> _onTrackEnd() async {
     final s = state;
+
+    // Stop after
+    final stopAfter = _readSettings?.call().stopAfter ?? StopAfterMode.off;
+
+    if (stopAfter == StopAfterMode.track) {
+      state = state.copyWith(
+        status: PlayerStatus.paused,
+        position: s.currentTrack?.duration ?? Duration.zero,
+      );
+      DiscordService.update(state);
+      return;
+    }
+
+    if (stopAfter == StopAfterMode.album) {
+      final nextIdx = s.queueIndex + 1;
+      final nextTrack = (nextIdx < s.queue.length) ? s.queue[nextIdx] : null;
+      final sameAlbum =
+          nextTrack != null &&
+          nextTrack.album == s.currentTrack?.album &&
+          nextTrack.albumArtist == s.currentTrack?.albumArtist;
+      if (!sameAlbum) {
+        state = state.copyWith(
+          status: PlayerStatus.paused,
+          position: s.currentTrack?.duration ?? Duration.zero,
+        );
+        DiscordService.update(state);
+        return;
+      }
+    }
+
+    // Loop mode
     switch (s.loopMode) {
       case LoopMode.track:
         await seek(Duration.zero);
         await play();
-        break;
 
       case LoopMode.album:
         final albumTracks = s.queue
@@ -293,11 +348,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           state = state.copyWith(queueIndex: qIdx >= 0 ? qIdx : 0);
           await _loadAndPlay(first);
         }
-        break;
 
       case LoopMode.playlist:
         await skipNext();
-        break;
 
       case LoopMode.off:
         if (s.hasNext) {
@@ -309,7 +362,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           );
           DiscordService.update(state);
         }
-        break;
     }
   }
 
@@ -333,6 +385,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 }
 
-final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>(
-  (ref) => PlayerNotifier(),
-);
+final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
+  ref,
+) {
+  final notifier = PlayerNotifier();
+  notifier.injectSettingsReader(() => ref.read(settingsProvider));
+  return notifier;
+});

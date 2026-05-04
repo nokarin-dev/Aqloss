@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io' show Platform;
 import 'app.dart';
 import 'services/audio_service.dart';
+import 'providers/settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,14 +31,18 @@ void main() async {
   }
 
   await AqlossCore.init();
+
   runApp(const ProviderScope(child: AqlossApp()));
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     final (deviceId, exclusive, volume) = await _loadStartupPrefs();
+    final prefs = await SharedPreferences.getInstance();
+    final settings = await _loadSettingsState(prefs);
     await AudioService.init(
       deviceId: deviceId,
       exclusive: exclusive,
       volume: volume,
+      settings: settings,
     );
   });
 }
@@ -53,4 +58,20 @@ Future<(String?, bool, double)> _loadStartupPrefs() async {
   } catch (_) {
     return (null, true, 1.0);
   }
+}
+
+Future<SettingsState> _loadSettingsState(SharedPreferences p) async {
+  return SettingsState(
+    notchFilter: p.getBool('aqloss_notch_filter') ?? true,
+    skipSilence: p.getBool('aqloss_skip_silence') ?? false,
+    replayGainMode:
+        ReplayGainMode.values[(p.getInt('aqloss_replay_gain') ?? 0).clamp(
+          0,
+          ReplayGainMode.values.length - 1,
+        )],
+    replayGainPreamp: (p.getDouble('aqloss_replay_gain_preamp') ?? 0.0).clamp(
+      -12,
+      12,
+    ),
+  );
 }

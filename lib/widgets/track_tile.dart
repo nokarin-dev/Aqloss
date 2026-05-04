@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/models/audio_format.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
 
 class TrackTile extends ConsumerWidget {
   final Track track;
@@ -23,6 +24,7 @@ class TrackTile extends ConsumerWidget {
     final player = ref.watch(playerProvider);
     final isPlaying = player.currentTrack?.path == track.path;
     final format = AudioFormat.fromExtension(track.format);
+    final showBitDepth = ref.watch(settingsProvider).showBitDepthInLibrary;
     final cs = Theme.of(context).colorScheme;
 
     return Draggable<Track>(
@@ -75,6 +77,7 @@ class TrackTile extends ConsumerWidget {
           isPlaying: isPlaying,
           format: format,
           index: index,
+          showBitDepth: showBitDepth,
           onTap: onTap,
           onLongPress: onLongPress,
         ),
@@ -84,6 +87,7 @@ class TrackTile extends ConsumerWidget {
         isPlaying: isPlaying,
         format: format,
         index: index,
+        showBitDepth: showBitDepth,
         onTap: onTap,
         onLongPress: onLongPress,
       ),
@@ -96,6 +100,7 @@ class _TileBody extends StatelessWidget {
   final bool isPlaying;
   final AudioFormat format;
   final int? index;
+  final bool showBitDepth;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -103,6 +108,7 @@ class _TileBody extends StatelessWidget {
     required this.track,
     required this.isPlaying,
     required this.format,
+    required this.showBitDepth,
     this.index,
     this.onTap,
     this.onLongPress,
@@ -138,7 +144,11 @@ class _TileBody extends StatelessWidget {
           color: cs.onSurface.withValues(alpha: 0.30),
         ),
       ),
-      trailing: _Trailing(track: track, format: format),
+      trailing: _Trailing(
+        track: track,
+        format: format,
+        showBitDepth: showBitDepth,
+      ),
       onTap: onTap,
       onLongPress: onLongPress,
     );
@@ -205,11 +215,21 @@ class _Leading extends StatelessWidget {
 class _Trailing extends StatelessWidget {
   final Track track;
   final AudioFormat format;
-  const _Trailing({required this.track, required this.format});
+  final bool showBitDepth;
+  const _Trailing({
+    required this.track,
+    required this.format,
+    required this.showBitDepth,
+  });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
+    final formatStr = showBitDepth
+        ? track.formatLabel
+        : track.format.toUpperCase();
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -223,7 +243,7 @@ class _Trailing extends StatelessWidget {
         ),
         const SizedBox(height: 3),
         Text(
-          track.format.toUpperCase(),
+          formatStr,
           style: TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w600,

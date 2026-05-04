@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$TrackInfo {
 
- String get path; String? get title; String? get artist; String? get album; String? get albumArtist; int? get trackNumber; double get durationSecs; int get sampleRate; int? get bitDepth; int get channels; String get format; BigInt get fileSizeBytes;
+ String get path; String? get title; String? get artist; String? get album; String? get albumArtist; int? get trackNumber; double get durationSecs; int get sampleRate; int? get bitDepth; int get channels; String get format; BigInt get fileSizeBytes; double? get replayGainTrack; double? get replayGainAlbum;
 /// Create a copy of TrackInfo
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $TrackInfoCopyWith<TrackInfo> get copyWith => _$TrackInfoCopyWithImpl<TrackInfo>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrackInfo&&(identical(other.path, path) || other.path == path)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.album, album) || other.album == album)&&(identical(other.albumArtist, albumArtist) || other.albumArtist == albumArtist)&&(identical(other.trackNumber, trackNumber) || other.trackNumber == trackNumber)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs)&&(identical(other.sampleRate, sampleRate) || other.sampleRate == sampleRate)&&(identical(other.bitDepth, bitDepth) || other.bitDepth == bitDepth)&&(identical(other.channels, channels) || other.channels == channels)&&(identical(other.format, format) || other.format == format)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrackInfo&&(identical(other.path, path) || other.path == path)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.album, album) || other.album == album)&&(identical(other.albumArtist, albumArtist) || other.albumArtist == albumArtist)&&(identical(other.trackNumber, trackNumber) || other.trackNumber == trackNumber)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs)&&(identical(other.sampleRate, sampleRate) || other.sampleRate == sampleRate)&&(identical(other.bitDepth, bitDepth) || other.bitDepth == bitDepth)&&(identical(other.channels, channels) || other.channels == channels)&&(identical(other.format, format) || other.format == format)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes)&&(identical(other.replayGainTrack, replayGainTrack) || other.replayGainTrack == replayGainTrack)&&(identical(other.replayGainAlbum, replayGainAlbum) || other.replayGainAlbum == replayGainAlbum));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,path,title,artist,album,albumArtist,trackNumber,durationSecs,sampleRate,bitDepth,channels,format,fileSizeBytes);
+int get hashCode => Object.hash(runtimeType,path,title,artist,album,albumArtist,trackNumber,durationSecs,sampleRate,bitDepth,channels,format,fileSizeBytes,replayGainTrack,replayGainAlbum);
 
 @override
 String toString() {
-  return 'TrackInfo(path: $path, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, trackNumber: $trackNumber, durationSecs: $durationSecs, sampleRate: $sampleRate, bitDepth: $bitDepth, channels: $channels, format: $format, fileSizeBytes: $fileSizeBytes)';
+  return 'TrackInfo(path: $path, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, trackNumber: $trackNumber, durationSecs: $durationSecs, sampleRate: $sampleRate, bitDepth: $bitDepth, channels: $channels, format: $format, fileSizeBytes: $fileSizeBytes, replayGainTrack: $replayGainTrack, replayGainAlbum: $replayGainAlbum)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $TrackInfoCopyWith<$Res>  {
   factory $TrackInfoCopyWith(TrackInfo value, $Res Function(TrackInfo) _then) = _$TrackInfoCopyWithImpl;
 @useResult
 $Res call({
- String path, String? title, String? artist, String? album, String? albumArtist, int? trackNumber, double durationSecs, int sampleRate, int? bitDepth, int channels, String format, BigInt fileSizeBytes
+ String path, String? title, String? artist, String? album, String? albumArtist, int? trackNumber, double durationSecs, int sampleRate, int? bitDepth, int channels, String format, BigInt fileSizeBytes, double? replayGainTrack, double? replayGainAlbum
 });
 
 
@@ -62,7 +62,7 @@ class _$TrackInfoCopyWithImpl<$Res>
 
 /// Create a copy of TrackInfo
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? path = null,Object? title = freezed,Object? artist = freezed,Object? album = freezed,Object? albumArtist = freezed,Object? trackNumber = freezed,Object? durationSecs = null,Object? sampleRate = null,Object? bitDepth = freezed,Object? channels = null,Object? format = null,Object? fileSizeBytes = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? path = null,Object? title = freezed,Object? artist = freezed,Object? album = freezed,Object? albumArtist = freezed,Object? trackNumber = freezed,Object? durationSecs = null,Object? sampleRate = null,Object? bitDepth = freezed,Object? channels = null,Object? format = null,Object? fileSizeBytes = null,Object? replayGainTrack = freezed,Object? replayGainAlbum = freezed,}) {
   return _then(_self.copyWith(
 path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -76,7 +76,9 @@ as int,bitDepth: freezed == bitDepth ? _self.bitDepth : bitDepth // ignore: cast
 as int?,channels: null == channels ? _self.channels : channels // ignore: cast_nullable_to_non_nullable
 as int,format: null == format ? _self.format : format // ignore: cast_nullable_to_non_nullable
 as String,fileSizeBytes: null == fileSizeBytes ? _self.fileSizeBytes : fileSizeBytes // ignore: cast_nullable_to_non_nullable
-as BigInt,
+as BigInt,replayGainTrack: freezed == replayGainTrack ? _self.replayGainTrack : replayGainTrack // ignore: cast_nullable_to_non_nullable
+as double?,replayGainAlbum: freezed == replayGainAlbum ? _self.replayGainAlbum : replayGainAlbum // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -158,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String path,  String? title,  String? artist,  String? album,  String? albumArtist,  int? trackNumber,  double durationSecs,  int sampleRate,  int? bitDepth,  int channels,  String format,  BigInt fileSizeBytes)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String path,  String? title,  String? artist,  String? album,  String? albumArtist,  int? trackNumber,  double durationSecs,  int sampleRate,  int? bitDepth,  int channels,  String format,  BigInt fileSizeBytes,  double? replayGainTrack,  double? replayGainAlbum)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TrackInfo() when $default != null:
-return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtist,_that.trackNumber,_that.durationSecs,_that.sampleRate,_that.bitDepth,_that.channels,_that.format,_that.fileSizeBytes);case _:
+return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtist,_that.trackNumber,_that.durationSecs,_that.sampleRate,_that.bitDepth,_that.channels,_that.format,_that.fileSizeBytes,_that.replayGainTrack,_that.replayGainAlbum);case _:
   return orElse();
 
 }
@@ -179,10 +181,10 @@ return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtis
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String path,  String? title,  String? artist,  String? album,  String? albumArtist,  int? trackNumber,  double durationSecs,  int sampleRate,  int? bitDepth,  int channels,  String format,  BigInt fileSizeBytes)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String path,  String? title,  String? artist,  String? album,  String? albumArtist,  int? trackNumber,  double durationSecs,  int sampleRate,  int? bitDepth,  int channels,  String format,  BigInt fileSizeBytes,  double? replayGainTrack,  double? replayGainAlbum)  $default,) {final _that = this;
 switch (_that) {
 case _TrackInfo():
-return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtist,_that.trackNumber,_that.durationSecs,_that.sampleRate,_that.bitDepth,_that.channels,_that.format,_that.fileSizeBytes);}
+return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtist,_that.trackNumber,_that.durationSecs,_that.sampleRate,_that.bitDepth,_that.channels,_that.format,_that.fileSizeBytes,_that.replayGainTrack,_that.replayGainAlbum);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -196,10 +198,10 @@ return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtis
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String path,  String? title,  String? artist,  String? album,  String? albumArtist,  int? trackNumber,  double durationSecs,  int sampleRate,  int? bitDepth,  int channels,  String format,  BigInt fileSizeBytes)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String path,  String? title,  String? artist,  String? album,  String? albumArtist,  int? trackNumber,  double durationSecs,  int sampleRate,  int? bitDepth,  int channels,  String format,  BigInt fileSizeBytes,  double? replayGainTrack,  double? replayGainAlbum)?  $default,) {final _that = this;
 switch (_that) {
 case _TrackInfo() when $default != null:
-return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtist,_that.trackNumber,_that.durationSecs,_that.sampleRate,_that.bitDepth,_that.channels,_that.format,_that.fileSizeBytes);case _:
+return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtist,_that.trackNumber,_that.durationSecs,_that.sampleRate,_that.bitDepth,_that.channels,_that.format,_that.fileSizeBytes,_that.replayGainTrack,_that.replayGainAlbum);case _:
   return null;
 
 }
@@ -211,7 +213,7 @@ return $default(_that.path,_that.title,_that.artist,_that.album,_that.albumArtis
 
 
 class _TrackInfo implements TrackInfo {
-  const _TrackInfo({required this.path, this.title, this.artist, this.album, this.albumArtist, this.trackNumber, required this.durationSecs, required this.sampleRate, this.bitDepth, required this.channels, required this.format, required this.fileSizeBytes});
+  const _TrackInfo({required this.path, this.title, this.artist, this.album, this.albumArtist, this.trackNumber, required this.durationSecs, required this.sampleRate, this.bitDepth, required this.channels, required this.format, required this.fileSizeBytes, this.replayGainTrack, this.replayGainAlbum});
   
 
 @override final  String path;
@@ -226,6 +228,8 @@ class _TrackInfo implements TrackInfo {
 @override final  int channels;
 @override final  String format;
 @override final  BigInt fileSizeBytes;
+@override final  double? replayGainTrack;
+@override final  double? replayGainAlbum;
 
 /// Create a copy of TrackInfo
 /// with the given fields replaced by the non-null parameter values.
@@ -237,16 +241,16 @@ _$TrackInfoCopyWith<_TrackInfo> get copyWith => __$TrackInfoCopyWithImpl<_TrackI
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrackInfo&&(identical(other.path, path) || other.path == path)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.album, album) || other.album == album)&&(identical(other.albumArtist, albumArtist) || other.albumArtist == albumArtist)&&(identical(other.trackNumber, trackNumber) || other.trackNumber == trackNumber)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs)&&(identical(other.sampleRate, sampleRate) || other.sampleRate == sampleRate)&&(identical(other.bitDepth, bitDepth) || other.bitDepth == bitDepth)&&(identical(other.channels, channels) || other.channels == channels)&&(identical(other.format, format) || other.format == format)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrackInfo&&(identical(other.path, path) || other.path == path)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.album, album) || other.album == album)&&(identical(other.albumArtist, albumArtist) || other.albumArtist == albumArtist)&&(identical(other.trackNumber, trackNumber) || other.trackNumber == trackNumber)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs)&&(identical(other.sampleRate, sampleRate) || other.sampleRate == sampleRate)&&(identical(other.bitDepth, bitDepth) || other.bitDepth == bitDepth)&&(identical(other.channels, channels) || other.channels == channels)&&(identical(other.format, format) || other.format == format)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes)&&(identical(other.replayGainTrack, replayGainTrack) || other.replayGainTrack == replayGainTrack)&&(identical(other.replayGainAlbum, replayGainAlbum) || other.replayGainAlbum == replayGainAlbum));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,path,title,artist,album,albumArtist,trackNumber,durationSecs,sampleRate,bitDepth,channels,format,fileSizeBytes);
+int get hashCode => Object.hash(runtimeType,path,title,artist,album,albumArtist,trackNumber,durationSecs,sampleRate,bitDepth,channels,format,fileSizeBytes,replayGainTrack,replayGainAlbum);
 
 @override
 String toString() {
-  return 'TrackInfo(path: $path, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, trackNumber: $trackNumber, durationSecs: $durationSecs, sampleRate: $sampleRate, bitDepth: $bitDepth, channels: $channels, format: $format, fileSizeBytes: $fileSizeBytes)';
+  return 'TrackInfo(path: $path, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, trackNumber: $trackNumber, durationSecs: $durationSecs, sampleRate: $sampleRate, bitDepth: $bitDepth, channels: $channels, format: $format, fileSizeBytes: $fileSizeBytes, replayGainTrack: $replayGainTrack, replayGainAlbum: $replayGainAlbum)';
 }
 
 
@@ -257,7 +261,7 @@ abstract mixin class _$TrackInfoCopyWith<$Res> implements $TrackInfoCopyWith<$Re
   factory _$TrackInfoCopyWith(_TrackInfo value, $Res Function(_TrackInfo) _then) = __$TrackInfoCopyWithImpl;
 @override @useResult
 $Res call({
- String path, String? title, String? artist, String? album, String? albumArtist, int? trackNumber, double durationSecs, int sampleRate, int? bitDepth, int channels, String format, BigInt fileSizeBytes
+ String path, String? title, String? artist, String? album, String? albumArtist, int? trackNumber, double durationSecs, int sampleRate, int? bitDepth, int channels, String format, BigInt fileSizeBytes, double? replayGainTrack, double? replayGainAlbum
 });
 
 
@@ -274,7 +278,7 @@ class __$TrackInfoCopyWithImpl<$Res>
 
 /// Create a copy of TrackInfo
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? path = null,Object? title = freezed,Object? artist = freezed,Object? album = freezed,Object? albumArtist = freezed,Object? trackNumber = freezed,Object? durationSecs = null,Object? sampleRate = null,Object? bitDepth = freezed,Object? channels = null,Object? format = null,Object? fileSizeBytes = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? path = null,Object? title = freezed,Object? artist = freezed,Object? album = freezed,Object? albumArtist = freezed,Object? trackNumber = freezed,Object? durationSecs = null,Object? sampleRate = null,Object? bitDepth = freezed,Object? channels = null,Object? format = null,Object? fileSizeBytes = null,Object? replayGainTrack = freezed,Object? replayGainAlbum = freezed,}) {
   return _then(_TrackInfo(
 path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -288,7 +292,9 @@ as int,bitDepth: freezed == bitDepth ? _self.bitDepth : bitDepth // ignore: cast
 as int?,channels: null == channels ? _self.channels : channels // ignore: cast_nullable_to_non_nullable
 as int,format: null == format ? _self.format : format // ignore: cast_nullable_to_non_nullable
 as String,fileSizeBytes: null == fileSizeBytes ? _self.fileSizeBytes : fileSizeBytes // ignore: cast_nullable_to_non_nullable
-as BigInt,
+as BigInt,replayGainTrack: freezed == replayGainTrack ? _self.replayGainTrack : replayGainTrack // ignore: cast_nullable_to_non_nullable
+as double?,replayGainAlbum: freezed == replayGainAlbum ? _self.replayGainAlbum : replayGainAlbum // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 

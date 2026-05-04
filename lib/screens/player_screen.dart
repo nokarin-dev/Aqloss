@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/lyrics_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/player_controls.dart';
 import 'package:aqloss/widgets/spectrum_display.dart';
@@ -26,6 +27,7 @@ class PlayerScreen extends ConsumerWidget {
   }
 }
 
+// Wide layout
 class _WideLayout extends ConsumerWidget {
   final Track? track;
   final PlayerState player;
@@ -34,6 +36,7 @@ class _WideLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
+    final settings = ref.watch(settingsProvider);
     final cs = Theme.of(context).colorScheme;
 
     return Row(
@@ -48,7 +51,14 @@ class _WideLayout extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(32, 36, 16, 28),
             child: Column(
               children: [
-                AspectRatio(aspectRatio: 1, child: _AlbumArtCard(track: track)),
+                // Album art card
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: _AlbumArtCard(
+                    track: track,
+                    showBackground: settings.showAlbumArtBackground,
+                  ),
+                ),
                 if (hasLyrics) ...[
                   const SizedBox(height: 16),
                   Expanded(
@@ -73,12 +83,15 @@ class _WideLayout extends ConsumerWidget {
                 const SizedBox(height: 6),
                 if (track != null) _FormatRow(track: track!),
                 const Spacer(),
-                SpectrumDisplay(
-                  height: 40,
-                  barCount: 32,
-                  color: cs.onSurface.withValues(alpha: 0.12),
-                ),
-                const SizedBox(height: 20),
+                // Spectrum
+                if (settings.spectrumEnabled) ...[
+                  SpectrumDisplay(
+                    height: 40,
+                    barCount: 32,
+                    color: cs.onSurface.withValues(alpha: 0.12),
+                  ),
+                  const SizedBox(height: 20),
+                ],
                 const PlayerControls(),
               ],
             ),
@@ -89,6 +102,7 @@ class _WideLayout extends ConsumerWidget {
   }
 }
 
+// Narrow layout
 class _NarrowLayout extends ConsumerWidget {
   final Track? track;
   final PlayerState player;
@@ -97,6 +111,7 @@ class _NarrowLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
+    final settings = ref.watch(settingsProvider);
     final cs = Theme.of(context).colorScheme;
 
     return SafeArea(
@@ -116,17 +131,22 @@ class _NarrowLayout extends ConsumerWidget {
                     child: Center(
                       child: AspectRatio(
                         aspectRatio: 1,
-                        child: _AlbumArtCard(track: track),
+                        child: _AlbumArtCard(
+                          track: track,
+                          showBackground: settings.showAlbumArtBackground,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  SpectrumDisplay(
-                    height: 18,
-                    barCount: 24,
-                    color: cs.onSurface.withValues(alpha: 0.12),
-                  ),
-                  const SizedBox(height: 10),
+                  if (settings.spectrumEnabled) ...[
+                    SpectrumDisplay(
+                      height: 18,
+                      barCount: 24,
+                      color: cs.onSurface.withValues(alpha: 0.12),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   _TrackInfo(track: track),
                   const SizedBox(height: 4),
                   if (track != null) _FormatRow(track: track!),
@@ -157,9 +177,11 @@ class _NarrowLayout extends ConsumerWidget {
   }
 }
 
+// Album art card
 class _AlbumArtCard extends ConsumerStatefulWidget {
   final Track? track;
-  const _AlbumArtCard({this.track});
+  final bool showBackground;
+  const _AlbumArtCard({this.track, required this.showBackground});
 
   @override
   ConsumerState<_AlbumArtCard> createState() => _AlbumArtCardState();
@@ -206,6 +228,7 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
       switchInCurve: Curves.easeOut,
@@ -216,35 +239,72 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
           child: child,
         ),
       ),
-      child: Container(
-        key: ValueKey(widget.track?.path),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.6),
-              blurRadius: 40,
-              offset: const Offset(0, 16),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: _artBytes != null
-            ? Image.memory(_artBytes!, fit: BoxFit.cover)
-            : Center(
-                child: Icon(
-                  Icons.music_note_rounded,
-                  size: 64,
-                  color: cs.onSurface.withValues(alpha: 0.10),
+      child: Stack(
+        key: ValueKey('${widget.track?.path}_${widget.showBackground}'),
+        children: [
+          // Background art
+          if (widget.showBackground && _artBytes != null)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.memory(_artBytes!, fit: BoxFit.cover),
+                    ),
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.35),
+                              Colors.black.withValues(alpha: 0.55),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+
+          // Main art container
+          Container(
+            decoration: BoxDecoration(
+              color: widget.showBackground && _artBytes != null
+                  ? Colors.transparent
+                  : Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 40,
+                  offset: const Offset(0, 16),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: _artBytes != null
+                ? Image.memory(_artBytes!, fit: BoxFit.cover)
+                : Center(
+                    child: Icon(
+                      Icons.music_note_rounded,
+                      size: 64,
+                      color: cs.onSurface.withValues(alpha: 0.10),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
 }
 
+// Track info
 class _TrackInfo extends StatelessWidget {
   final Track? track;
   const _TrackInfo({this.track});
@@ -290,6 +350,7 @@ class _TrackInfo extends StatelessWidget {
   }
 }
 
+// Format row
 class _FormatRow extends StatelessWidget {
   final Track track;
   const _FormatRow({required this.track});

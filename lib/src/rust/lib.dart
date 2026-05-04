@@ -54,5 +54,7 @@ sealed class TrackInfo with _$TrackInfo {
     required int channels,
     required String format,
     required BigInt fileSizeBytes,
+    double? replayGainTrack,
+    double? replayGainAlbum,
   }) = _TrackInfo;
 }

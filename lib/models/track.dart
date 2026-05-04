@@ -11,6 +11,8 @@ class Track {
   final int channels;
   final String format;
   final int fileSizeBytes;
+  final double? replayGainTrack;
+  final double? replayGainAlbum;
 
   const Track({
     required this.path,
@@ -25,6 +27,8 @@ class Track {
     required this.channels,
     required this.format,
     required this.fileSizeBytes,
+    this.replayGainTrack,
+    this.replayGainAlbum,
   });
 
   Track copyWith({
@@ -40,6 +44,8 @@ class Track {
     int? channels,
     String? format,
     int? fileSizeBytes,
+    double? replayGainTrack,
+    double? replayGainAlbum,
   }) => Track(
     path: path ?? this.path,
     title: title ?? this.title,
@@ -53,6 +59,8 @@ class Track {
     channels: channels ?? this.channels,
     format: format ?? this.format,
     fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+    replayGainTrack: replayGainTrack ?? this.replayGainTrack,
+    replayGainAlbum: replayGainAlbum ?? this.replayGainAlbum,
   );
 
   factory Track.fromJson(Map<String, dynamic> json) => Track(
@@ -68,6 +76,8 @@ class Track {
     channels: json['channels'] as int,
     format: json['format'] as String,
     fileSizeBytes: json['fileSizeBytes'] as int,
+    replayGainTrack: (json['replayGainTrack'] as num?)?.toDouble(),
+    replayGainAlbum: (json['replayGainAlbum'] as num?)?.toDouble(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -83,6 +93,8 @@ class Track {
     'channels': channels,
     'format': format,
     'fileSizeBytes': fileSizeBytes,
+    'replayGainTrack': replayGainTrack,
+    'replayGainAlbum': replayGainAlbum,
   };
 
   @override
@@ -94,9 +106,9 @@ class Track {
 
   @override
   String toString() =>
-      'Track(title: $title, artist: $artist, format: $format, sampleRate: ${sampleRate}Hz)';
+      'Track(title: $title, artist: $artist, format: $format, '
+      'sampleRate: ${sampleRate}Hz, rg_track: $replayGainTrack dB)';
 
-  // Display helpers
   String get displayTitle => title ?? path.split('/').last;
   String get displayArtist => artist ?? 'Unknown Artist';
   String get displayAlbum => album ?? 'Unknown Album';
@@ -104,12 +116,9 @@ class Track {
   Duration get duration =>
       Duration(milliseconds: (durationSecs * 1000).round());
 
-  // Override duration from a more accurate backend measurement
-  Track copyWithDuration(Duration d) => copyWith(
-    durationSecs: d.inMilliseconds / 1000.0,
-  );
+  Track copyWithDuration(Duration d) =>
+      copyWith(durationSecs: d.inMilliseconds / 1000.0);
 
-  // e.g. "FLAC · 96kHz · 24bit"
   String get formatLabel {
     final khz =
         '${(sampleRate / 1000).toStringAsFixed(sampleRate % 1000 == 0 ? 0 : 1)}kHz';
@@ -117,14 +126,14 @@ class Track {
     return '$format · $khz$bits';
   }
 
-  // e.g. "5:43"
   String get durationLabel {
     final m = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
   }
 
-  // File size
   String get fileSizeLabel =>
       '${(fileSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB';
+
+  bool get hasReplayGain => replayGainTrack != null || replayGainAlbum != null;
 }

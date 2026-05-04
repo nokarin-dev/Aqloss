@@ -27,6 +27,15 @@ pub fn read_track_info(path: &str) -> Result<TrackInfo> {
 
     let file_size_bytes = std::fs::metadata(path)?.len();
 
+    // ReplayGain tags
+    let replay_gain_track = tag
+        .and_then(|t| t.get_string(ItemKey::ReplayGainTrackGain))
+        .and_then(|v| parse_gain_db(v));
+
+    let replay_gain_album = tag
+        .and_then(|t| t.get_string(ItemKey::ReplayGainAlbumGain))
+        .and_then(|v| parse_gain_db(v));
+
     Ok(TrackInfo {
         path: path.to_string(),
         title,
@@ -40,7 +49,17 @@ pub fn read_track_info(path: &str) -> Result<TrackInfo> {
         channels,
         format,
         file_size_bytes,
+        replay_gain_track,
+        replay_gain_album,
     })
+}
+
+fn parse_gain_db(s: &str) -> Option<f64> {
+    let trimmed = s
+        .trim()
+        .trim_end_matches(|c: char| c.is_alphabetic() || c == ' ')
+        .trim();
+    trimmed.parse::<f64>().ok()
 }
 
 pub fn read_album_art(path: &str) -> Result<Option<Vec<u8>>> {
@@ -73,23 +92,23 @@ pub fn scan_directory(dir: &str) -> Result<Vec<String>> {
     ];
 
     let mut paths = Vec::new();
-
     for entry in walkdir::WalkDir::new(dir)
         .follow_links(true)
         .into_iter()
         .filter_map(|e| e.ok())
     {
-        let p = entry.path();
-        if !p.is_file() {
+        let path = entry.path();
+        if !path.is_file() {
             continue;
         }
-        if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             if SUPPORTED.contains(&ext.to_lowercase().as_str()) {
-                paths.push(p.to_string_lossy().into_owned());
+                if let Some(s) = path.to_str() {
+                    paths.push(s.to_string());
+                }
             }
         }
     }
-
     paths.sort();
     Ok(paths)
 }

@@ -22,6 +22,8 @@ pub struct TrackInfo {
     pub channels: u32,
     pub format: String,
     pub file_size_bytes: u64,
+    pub replay_gain_track: Option<f64>,
+    pub replay_gain_album: Option<f64>,
 }
 
 pub struct PlaybackPosition {

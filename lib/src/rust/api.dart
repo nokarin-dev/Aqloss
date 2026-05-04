@@ -50,6 +50,15 @@ bool isPlaying() => AqlossCore.instance.api.crateApiIsPlaying();
 
 bool isExclusiveMode() => AqlossCore.instance.api.crateApiIsExclusiveMode();
 
+Future<void> setReplayGain({required double linearGain}) =>
+    AqlossCore.instance.api.crateApiSetReplayGain(linearGain: linearGain);
+
+Future<void> setSoftClip({required bool enabled}) =>
+    AqlossCore.instance.api.crateApiSetSoftClip(enabled: enabled);
+
+Future<void> setSkipSilence({required bool enabled}) =>
+    AqlossCore.instance.api.crateApiSetSkipSilence(enabled: enabled);
+
 Future<TrackInfo> readMetadata({required String path}) =>
     AqlossCore.instance.api.crateApiReadMetadata(path: path);
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/widgets/settings_watcher.dart';
 import 'screens/home_screen.dart';
 
 class AqlossApp extends ConsumerWidget {
@@ -21,11 +22,12 @@ class AqlossApp extends ConsumerWidget {
       themeMode: materialThemeMode,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      home: const HomeScreen(),
+      home: const SettingsWatcher(child: HomeScreen()),
     );
   }
 }
 
+// Theme
 ThemeData _buildDarkTheme() {
   const surface = Color(0xFF0A0A0A);
   const surfaceVariant = Color(0xFF0D0D0D);
@@ -95,12 +97,12 @@ ThemeData _buildDarkTheme() {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
+        (s) => s.contains(WidgetState.selected)
             ? Colors.black
             : const Color(0x4DFFFFFF),
       ),
       trackColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
+        (s) => s.contains(WidgetState.selected)
             ? onSurface
             : const Color(0x1FFFFFFF),
       ),
@@ -180,12 +182,12 @@ ThemeData _buildLightTheme() {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
+        (s) => s.contains(WidgetState.selected)
             ? Colors.white
             : const Color(0x4D000000),
       ),
       trackColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
+        (s) => s.contains(WidgetState.selected)
             ? onSurface
             : const Color(0x1F000000),
       ),
