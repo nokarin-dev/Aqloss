@@ -38,17 +38,16 @@ class _WideLayout extends ConsumerWidget {
     final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
     final settings = ref.watch(settingsProvider);
     final cs = Theme.of(context).colorScheme;
+    final width = MediaQuery.of(context).size.width;
 
     return Row(
       children: [
         AnimatedContainer(
-          duration: const Duration(milliseconds: 350),
+          duration: const Duration(milliseconds: 320),
           curve: Curves.easeInOutCubic,
-          width: hasLyrics
-              ? MediaQuery.of(context).size.width * 0.28
-              : MediaQuery.of(context).size.width * 0.46,
+          width: hasLyrics ? width * 0.28 : width * 0.44,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 36, 16, 28),
+            padding: const EdgeInsets.fromLTRB(28, 32, 16, 24),
             child: Column(
               children: [
                 // Album art card
@@ -60,7 +59,7 @@ class _WideLayout extends ConsumerWidget {
                   ),
                 ),
                 if (hasLyrics) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -75,22 +74,22 @@ class _WideLayout extends ConsumerWidget {
 
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 36, 36, 28),
+            padding: const EdgeInsets.fromLTRB(16, 32, 32, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _TrackInfo(track: track),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 if (track != null) _FormatRow(track: track!),
                 const Spacer(),
                 // Spectrum
                 if (settings.spectrumEnabled) ...[
                   SpectrumDisplay(
-                    height: 40,
+                    height: 36,
                     barCount: 32,
-                    color: cs.onSurface.withValues(alpha: 0.12),
+                    color: cs.onSurface.withValues(alpha: 0.10),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                 ],
                 const PlayerControls(),
               ],
@@ -113,17 +112,17 @@ class _NarrowLayout extends ConsumerWidget {
     final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
     final settings = ref.watch(settingsProvider);
     final cs = Theme.of(context).colorScheme;
+    final size = MediaQuery.of(context).size;
 
     return SafeArea(
       child: Column(
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 350),
+            duration: const Duration(milliseconds: 320),
             curve: Curves.easeInOutCubic,
-            height:
-                MediaQuery.of(context).size.height * (hasLyrics ? 0.48 : 0.72),
+            height: size.height * (hasLyrics ? 0.46 : 0.70),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -138,21 +137,21 @@ class _NarrowLayout extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   if (settings.spectrumEnabled) ...[
                     SpectrumDisplay(
-                      height: 18,
+                      height: 16,
                       barCount: 24,
-                      color: cs.onSurface.withValues(alpha: 0.12),
+                      color: cs.onSurface.withValues(alpha: 0.10),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                   ],
                   _TrackInfo(track: track),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   if (track != null) _FormatRow(track: track!),
-                  const SizedBox(height: 14),
-                  const PlayerControls(),
                   const SizedBox(height: 12),
+                  const PlayerControls(),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -162,11 +161,7 @@ class _NarrowLayout extends ConsumerWidget {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                  ),
+                  border: Border(top: BorderSide(color: cs.outline)),
                 ),
                 child: const LyricsView(),
               ),
@@ -230,12 +225,12 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
     final cs = Theme.of(context).colorScheme;
 
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 380),
       switchInCurve: Curves.easeOut,
       transitionBuilder: (child, anim) => FadeTransition(
         opacity: anim,
         child: ScaleTransition(
-          scale: Tween(begin: 0.96, end: 1.0).animate(anim),
+          scale: Tween(begin: 0.97, end: 1.0).animate(anim),
           child: child,
         ),
       ),
@@ -246,7 +241,7 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
           if (widget.showBackground && _artBytes != null)
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 child: Stack(
                   children: [
                     Positioned.fill(
@@ -259,8 +254,8 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Colors.black.withValues(alpha: 0.35),
-                              Colors.black.withValues(alpha: 0.55),
+                              Colors.black.withValues(alpha: 0.30),
+                              Colors.black.withValues(alpha: 0.52),
                             ],
                           ),
                         ),
@@ -277,13 +272,13 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
               color: widget.showBackground && _artBytes != null
                   ? Colors.transparent
                   : Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  blurRadius: 40,
-                  offset: const Offset(0, 16),
+                  color: Colors.black.withValues(alpha: 0.55),
+                  blurRadius: 44,
+                  offset: const Offset(0, 18),
                 ),
               ],
             ),
@@ -293,8 +288,8 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
                 : Center(
                     child: Icon(
                       Icons.music_note_rounded,
-                      size: 64,
-                      color: cs.onSurface.withValues(alpha: 0.10),
+                      size: 60,
+                      color: cs.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
           ),
@@ -312,12 +307,13 @@ class _TrackInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isWide = MediaQuery.of(context).size.width > 700;
     final artist = track?.artist;
     final album = track?.album;
-    final subtitle = [?artist, ?album].join(' — ');
+    final subtitle = [?artist, ?album].join(' - ');
 
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 220),
       child: Column(
         key: ValueKey(track?.path),
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +321,7 @@ class _TrackInfo extends StatelessWidget {
           Text(
             track?.displayTitle ?? 'Nothing playing',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: isWide ? 20 : 18,
               fontWeight: FontWeight.w400,
               color: cs.onSurface,
               letterSpacing: -0.3,
@@ -333,12 +329,12 @@ class _TrackInfo extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
-            subtitle.isEmpty ? '—' : subtitle,
+            subtitle.isEmpty ? '-' : subtitle,
             style: TextStyle(
-              fontSize: 13,
-              color: cs.onSurface.withValues(alpha: 0.38),
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.36),
               fontWeight: FontWeight.w300,
             ),
             maxLines: 1,
@@ -359,7 +355,7 @@ class _FormatRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isExclusive = backend.isExclusiveMode();
     return Wrap(
-      spacing: 6,
+      spacing: 5,
       runSpacing: 4,
       children: [
         _Badge(track.format),
@@ -373,7 +369,7 @@ class _FormatRow extends StatelessWidget {
             'BIT-PERFECT',
             color: Theme.of(
               context,
-            ).colorScheme.onSurface.withValues(alpha: 0.10),
+            ).colorScheme.onSurface.withValues(alpha: 0.08),
           ),
       ],
     );
@@ -389,19 +385,19 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color,
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.12)),
-        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.circular(3),
       ),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10,
-          color: cs.onSurface.withValues(alpha: 0.30),
+          fontSize: 9,
+          color: cs.onSurface.withValues(alpha: 0.28),
           letterSpacing: 0.5,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

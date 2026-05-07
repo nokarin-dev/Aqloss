@@ -161,7 +161,7 @@ jobs:
             mv "Aqloss-ios-unsigned.ipa" "Aqloss-ios.ipa"
             echo "✓ IPA packaged: $(du -h Aqloss-ios.ipa | cut -f1)"
           else
-            echo "⚠ Runner.app not found — listing build/ios:"
+            echo "⚠ Runner.app not found - listing build/ios:"
             find build/ios -name "*.app" | head -10
             exit 1
           fi

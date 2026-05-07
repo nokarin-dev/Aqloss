@@ -52,6 +52,9 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
   List<AudioDeviceInfo> dco_decode_list_audio_device_info(dynamic raw);
 
   @protected
+  List<double> dco_decode_list_prim_f_32_loose(dynamic raw);
+
+  @protected
   Float32List dco_decode_list_prim_f_32_strict(dynamic raw);
 
   @protected
@@ -118,6 +121,9 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
   List<AudioDeviceInfo> sse_decode_list_audio_device_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<double> sse_decode_list_prim_f_32_loose(SseDeserializer deserializer);
 
   @protected
   Float32List sse_decode_list_prim_f_32_strict(SseDeserializer deserializer);
@@ -194,6 +200,12 @@ abstract class AqlossCoreApiImplPlatform extends BaseApiImpl<AqlossCoreWire> {
   @protected
   void sse_encode_list_audio_device_info(
     List<AudioDeviceInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_f_32_loose(
+    List<double> self,
     SseSerializer serializer,
   );
 

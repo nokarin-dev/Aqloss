@@ -40,6 +40,7 @@ dependencies:
   shared_preferences: ^2.5.5
   window_manager: ^0.5.1
   http: ^1.6.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

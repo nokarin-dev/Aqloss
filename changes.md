@@ -1,17 +1,17 @@
 # Changelog
 
-All notable changes to Frame Extractor are documented here.
+All notable changes to Aqloss are documented here.
 
 This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-## [Unreleased]
-### Initial release v0.1.0
+No Changes Yet.
 
 ---
 
-No Release Yet.
+## [0.1.0] - 2026-05-07
+### Initial release v0.1.0
 
 ---
 

@@ -59,6 +59,27 @@ Future<void> setSoftClip({required bool enabled}) =>
 Future<void> setSkipSilence({required bool enabled}) =>
     AqlossCore.instance.api.crateApiSetSkipSilence(enabled: enabled);
 
+Future<void> setGapless({required bool enabled}) =>
+    AqlossCore.instance.api.crateApiSetGapless(enabled: enabled);
+
+Future<void> setCrossfadeSecs({required double secs}) =>
+    AqlossCore.instance.api.crateApiSetCrossfadeSecs(secs: secs);
+
+Future<void> setEqEnabled({required bool enabled}) =>
+    AqlossCore.instance.api.crateApiSetEqEnabled(enabled: enabled);
+
+Future<void> setEqGains({required List<double> gains}) =>
+    AqlossCore.instance.api.crateApiSetEqGains(gains: gains);
+
+Future<void> setEqBand({required int band, required double gainDb}) =>
+    AqlossCore.instance.api.crateApiSetEqBand(band: band, gainDb: gainDb);
+
+Future<Float32List> getEqGains() =>
+    AqlossCore.instance.api.crateApiGetEqGains();
+
+Future<Float32List> getSpectrumData({required int bucketCount}) =>
+    AqlossCore.instance.api.crateApiGetSpectrumData(bucketCount: bucketCount);
+
 Future<TrackInfo> readMetadata({required String path}) =>
     AqlossCore.instance.api.crateApiReadMetadata(path: path);
 
@@ -70,9 +91,6 @@ Future<List<String>> scanDirectory({required String path}) =>
 
 Future<String?> readEmbeddedLyrics({required String path}) =>
     AqlossCore.instance.api.crateApiReadEmbeddedLyrics(path: path);
-
-Future<Float32List> getSpectrumData({required int bucketCount}) =>
-    AqlossCore.instance.api.crateApiGetSpectrumData(bucketCount: bucketCount);
 
 Future<void> discordUpdatePlaying({
   required String title,

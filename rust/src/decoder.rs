@@ -23,7 +23,7 @@ pub struct Decoder {
 }
 
 impl Decoder {
-    pub fn open(path: &str) -> Result<Self> {
+    pub fn open(path: &str, gapless: bool) -> Result<Self> {
         let file = File::open(path)?;
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -39,7 +39,7 @@ impl Decoder {
             &hint,
             mss,
             &FormatOptions {
-                enable_gapless: true,
+                enable_gapless: gapless,
                 ..Default::default()
             },
             &MetadataOptions::default(),
@@ -76,14 +76,12 @@ impl Decoder {
         })
     }
 
-    /// Decode and return the next packet as interleaved f32 samples.
-    /// Returns `Ok(None)` when the stream is exhausted.
     pub fn next_packet(&mut self) -> Result<Option<Vec<f32>>> {
         loop {
             let packet = match self.format.next_packet() {
                 Ok(p) => p,
                 Err(SymphError::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                    return Ok(None);
+                    return Ok(None)
                 }
                 Err(SymphError::ResetRequired) => {
                     self.decoder.reset();
@@ -92,24 +90,20 @@ impl Decoder {
                 Err(_) => return Ok(None),
             };
 
-            // Skip packets that belong to other tracks (e.g. cover art)
             if packet.track_id() != self.track_id {
                 continue;
             }
 
             let decoded = match self.decoder.decode(&packet) {
                 Ok(d) => d,
-                Err(SymphError::DecodeError(_)) => continue, // skip bad frame
+                Err(SymphError::DecodeError(_)) => continue,
                 Err(e) => return Err(e.into()),
             };
 
             let spec = *decoded.spec();
             let mut buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, spec);
             buf.copy_interleaved_ref(decoded);
-
-            // Update position from packet timestamp
             self.position_secs = packet.ts() as f64 / self.sample_rate as f64;
-
             return Ok(Some(buf.samples().to_vec()));
         }
     }

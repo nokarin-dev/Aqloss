@@ -15,6 +15,7 @@ class PlayerControls extends ConsumerWidget {
     final duration = player.currentTrack?.duration ?? Duration.zero;
     final position = player.position;
     final cs = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 700;
 
     final double progress;
     if (duration.inMilliseconds > 0 && player.currentTrack != null) {
@@ -34,7 +35,7 @@ class PlayerControls extends ConsumerWidget {
             trackHeight: 2,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
             activeTrackColor: cs.onSurface,
-            inactiveTrackColor: cs.onSurface.withValues(alpha: 0.12),
+            inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
             thumbColor: cs.onSurface,
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
             overlayColor: cs.onSurface.withValues(alpha: 0.10),
@@ -59,22 +60,22 @@ class PlayerControls extends ConsumerWidget {
               Text(
                 _fmt(position),
                 style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurface.withValues(alpha: 0.24),
+                  fontSize: 10,
+                  color: cs.onSurface.withValues(alpha: 0.22),
                 ),
               ),
               Text(
                 _fmt(duration),
                 style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurface.withValues(alpha: 0.24),
+                  fontSize: 10,
+                  color: cs.onSurface.withValues(alpha: 0.22),
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 20),
+        SizedBox(height: isMobile ? 14 : 18),
 
         Row(
           children: [
@@ -89,24 +90,24 @@ class PlayerControls extends ConsumerWidget {
 
             if (isExclusive)
               Tooltip(
-                message: 'WASAPI Exclusive — bit-perfect output',
+                message: 'WASAPI Exclusive - bit-perfect output',
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
+                    horizontal: 5,
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: cs.onSurface.withValues(alpha: 0.12),
+                      color: cs.onSurface.withValues(alpha: 0.10),
                     ),
                     borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
                     'BIT-PERFECT',
                     style: TextStyle(
-                      fontSize: 8,
-                      color: cs.onSurface.withValues(alpha: 0.30),
-                      fontWeight: FontWeight.w600,
+                      fontSize: 7,
+                      color: cs.onSurface.withValues(alpha: 0.28),
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -119,7 +120,7 @@ class PlayerControls extends ConsumerWidget {
           ],
         ),
 
-        const SizedBox(height: 16),
+        SizedBox(height: isMobile ? 12 : 14),
 
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -127,12 +128,12 @@ class PlayerControls extends ConsumerWidget {
           children: [
             _TransportButton(
               icon: Icons.skip_previous_rounded,
-              size: 28,
+              size: isMobile ? 26 : 28,
               enabled: player.currentTrack != null,
               onTap: notifier.skipPrevious,
             ),
 
-            const SizedBox(width: 24),
+            SizedBox(width: isMobile ? 20 : 24),
 
             GestureDetector(
               onTap: player.currentTrack == null
@@ -142,17 +143,17 @@ class PlayerControls extends ConsumerWidget {
                   : notifier.play,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                width: 56,
-                height: 56,
+                width: isMobile ? 52 : 56,
+                height: isMobile ? 52 : 56,
                 decoration: BoxDecoration(
                   color: player.currentTrack == null
-                      ? cs.onSurface.withValues(alpha: 0.10)
+                      ? cs.onSurface.withValues(alpha: 0.08)
                       : cs.onSurface,
-                  borderRadius: BorderRadius.circular(28),
+                  shape: BoxShape.circle,
                 ),
                 child: isLoading
                     ? Padding(
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(17),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: cs.surface,
@@ -163,32 +164,32 @@ class PlayerControls extends ConsumerWidget {
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
                         color: player.currentTrack == null
-                            ? cs.onSurface.withValues(alpha: 0.24)
+                            ? cs.onSurface.withValues(alpha: 0.22)
                             : cs.surface,
-                        size: 28,
+                        size: isMobile ? 26 : 28,
                       ),
               ),
             ),
 
-            const SizedBox(width: 24),
+            SizedBox(width: isMobile ? 20 : 24),
 
             _TransportButton(
               icon: Icons.skip_next_rounded,
-              size: 28,
+              size: isMobile ? 26 : 28,
               enabled: player.currentTrack != null,
               onTap: notifier.skipNext,
             ),
           ],
         ),
 
-        const SizedBox(height: 20),
+        SizedBox(height: isMobile ? 16 : 20),
 
         Row(
           children: [
             Icon(
               Icons.volume_down_rounded,
-              size: 14,
-              color: cs.onSurface.withValues(alpha: 0.24),
+              size: 13,
+              color: cs.onSurface.withValues(alpha: 0.22),
             ),
             Expanded(
               child: SliderTheme(
@@ -197,13 +198,13 @@ class PlayerControls extends ConsumerWidget {
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 3,
                   ),
-                  activeTrackColor: cs.onSurface.withValues(alpha: 0.38),
-                  inactiveTrackColor: cs.onSurface.withValues(alpha: 0.12),
+                  activeTrackColor: cs.onSurface.withValues(alpha: 0.36),
+                  inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
                   thumbColor: cs.onSurface.withValues(alpha: 0.54),
                   overlayShape: const RoundSliderOverlayShape(
                     overlayRadius: 10,
                   ),
-                  overlayColor: cs.onSurface.withValues(alpha: 0.10),
+                  overlayColor: cs.onSurface.withValues(alpha: 0.08),
                 ),
                 child: Slider(
                   value: player.volume.clamp(0.0, 1.0),
@@ -213,8 +214,8 @@ class PlayerControls extends ConsumerWidget {
             ),
             Icon(
               Icons.volume_up_rounded,
-              size: 14,
-              color: cs.onSurface.withValues(alpha: 0.24),
+              size: 13,
+              color: cs.onSurface.withValues(alpha: 0.22),
             ),
           ],
         ),
@@ -254,20 +255,20 @@ class _LoopButton extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 17,
               color: active
                   ? cs.onSurface
-                  : cs.onSurface.withValues(alpha: 0.24),
+                  : cs.onSurface.withValues(alpha: 0.22),
             ),
             if (label.isNotEmpty) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: 3),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: active
                       ? cs.onSurface.withValues(alpha: 0.70)
-                      : cs.onSurface.withValues(alpha: 0.24),
+                      : cs.onSurface.withValues(alpha: 0.22),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -303,8 +304,8 @@ class _IconToggle extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           child: Icon(
             icon,
-            size: 18,
-            color: active ? cs.onSurface : cs.onSurface.withValues(alpha: 0.24),
+            size: 17,
+            color: active ? cs.onSurface : cs.onSurface.withValues(alpha: 0.22),
           ),
         ),
       ),

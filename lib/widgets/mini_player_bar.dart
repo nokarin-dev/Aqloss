@@ -80,55 +80,50 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
           children: [
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
-                trackHeight: 2,
+                trackHeight: 1.5,
                 thumbShape: SliderComponentShape.noThumb,
                 overlayShape: SliderComponentShape.noOverlay,
-                activeTrackColor: cs.onSurface.withValues(alpha: 0.38),
-                inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
+                activeTrackColor: cs.onSurface.withValues(alpha: 0.36),
+                inactiveTrackColor: cs.onSurface.withValues(alpha: 0.08),
               ),
               child: Slider(
                 value: progress,
                 onChanged: (v) {
-                  if (duration.inMilliseconds > 0) {
-                    notifier.seek(duration * v);
-                  }
+                  if (duration.inMilliseconds > 0) notifier.seek(duration * v);
                 },
               ),
             ),
 
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 8, 10),
+              padding: const EdgeInsets.fromLTRB(12, 0, 6, 8),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: widget.onTap,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: Container(
-                        key: ValueKey(track.path),
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: cs.onSurface.withValues(alpha: 0.06),
-                          ),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    child: Container(
+                      key: ValueKey(track.path),
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: cs.onSurface.withValues(alpha: 0.06),
                         ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _artBytes != null
-                            ? Image.memory(_artBytes!, fit: BoxFit.cover)
-                            : Center(
-                                child: Icon(
-                                  Icons.music_note_rounded,
-                                  size: 16,
-                                  color: cs.onSurface.withValues(alpha: 0.24),
-                                ),
-                              ),
                       ),
+                      clipBehavior: Clip.antiAlias,
+                      child: _artBytes != null
+                          ? Image.memory(_artBytes!, fit: BoxFit.cover)
+                          : Center(
+                              child: Icon(
+                                Icons.music_note_rounded,
+                                size: 14,
+                                color: cs.onSurface.withValues(alpha: 0.22),
+                              ),
+                            ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
 
                   Expanded(
                     child: Column(
@@ -148,7 +143,7 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                         Text(
                           track.displayArtist,
                           style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.38),
+                            color: cs.onSurface.withValues(alpha: 0.36),
                             fontSize: 11,
                           ),
                           maxLines: 1,
@@ -212,7 +207,7 @@ class _MiniBtn extends StatelessWidget {
         child: Icon(
           icon,
           size: size,
-          color: color ?? cs.onSurface.withValues(alpha: 0.54),
+          color: color ?? cs.onSurface.withValues(alpha: 0.52),
         ),
       ),
     );

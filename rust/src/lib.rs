@@ -1,6 +1,8 @@
 pub mod api;
 pub mod audio_engine;
 pub mod decoder;
+pub mod discord_rpc;
+pub mod eq;
 mod frb_generated;
 pub mod metadata;
 pub mod output;
@@ -32,5 +34,3 @@ pub struct PlaybackPosition {
     pub sample_rate: u32,
     pub bit_depth: u32,
 }
-
-pub mod discord_rpc;

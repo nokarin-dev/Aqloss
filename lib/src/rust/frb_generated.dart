@@ -66,7 +66,7 @@ class AqlossCore
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -2089540238;
+  int get rustContentHash => 1314461503;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -97,6 +97,8 @@ abstract class AqlossCoreApi extends BaseApi {
   });
 
   Future<List<AudioDeviceInfo>> crateApiEnumerateAudioDevices();
+
+  Future<Float32List> crateApiGetEqGains();
 
   Future<PlaybackPosition> crateApiGetPosition();
 
@@ -133,6 +135,16 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<List<String>> crateApiScanDirectory({required String path});
 
   Future<void> crateApiSeek({required double positionSecs});
+
+  Future<void> crateApiSetCrossfadeSecs({required double secs});
+
+  Future<void> crateApiSetEqBand({required int band, required double gainDb});
+
+  Future<void> crateApiSetEqEnabled({required bool enabled});
+
+  Future<void> crateApiSetEqGains({required List<double> gains});
+
+  Future<void> crateApiSetGapless({required bool enabled});
 
   Future<void> crateApiSetReplayGain({required double linearGain});
 
@@ -305,7 +317,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "enumerate_audio_devices", argNames: []);
 
   @override
-  Future<PlaybackPosition> crateApiGetPosition() {
+  Future<Float32List> crateApiGetEqGains() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -314,6 +326,33 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
             generalizedFrbRustBinding,
             serializer,
             funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_f_32_strict,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiGetEqGainsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetEqGainsConstMeta =>
+      const TaskConstMeta(debugName: "get_eq_gains", argNames: []);
+
+  @override
+  Future<PlaybackPosition> crateApiGetPosition() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
             port: port_,
           );
         },
@@ -341,7 +380,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -370,7 +409,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -402,7 +441,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -429,7 +468,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -451,7 +490,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -477,7 +516,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -504,7 +543,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -531,7 +570,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -559,7 +598,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 15,
             port: port_,
           );
         },
@@ -587,7 +626,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -617,7 +656,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -649,7 +688,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 18,
             port: port_,
           );
         },
@@ -679,7 +718,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 19,
             port: port_,
           );
         },
@@ -707,7 +746,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 20,
             port: port_,
           );
         },
@@ -726,6 +765,149 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "seek", argNames: ["positionSecs"]);
 
   @override
+  Future<void> crateApiSetCrossfadeSecs({required double secs}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_f_32(secs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetCrossfadeSecsConstMeta,
+        argValues: [secs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetCrossfadeSecsConstMeta =>
+      const TaskConstMeta(debugName: "set_crossfade_secs", argNames: ["secs"]);
+
+  @override
+  Future<void> crateApiSetEqBand({required int band, required double gainDb}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(band, serializer);
+          sse_encode_f_32(gainDb, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetEqBandConstMeta,
+        argValues: [band, gainDb],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetEqBandConstMeta => const TaskConstMeta(
+    debugName: "set_eq_band",
+    argNames: ["band", "gainDb"],
+  );
+
+  @override
+  Future<void> crateApiSetEqEnabled({required bool enabled}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetEqEnabledConstMeta,
+        argValues: [enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetEqEnabledConstMeta =>
+      const TaskConstMeta(debugName: "set_eq_enabled", argNames: ["enabled"]);
+
+  @override
+  Future<void> crateApiSetEqGains({required List<double> gains}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_f_32_loose(gains, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetEqGainsConstMeta,
+        argValues: [gains],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetEqGainsConstMeta =>
+      const TaskConstMeta(debugName: "set_eq_gains", argNames: ["gains"]);
+
+  @override
+  Future<void> crateApiSetGapless({required bool enabled}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetGaplessConstMeta,
+        argValues: [enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetGaplessConstMeta =>
+      const TaskConstMeta(debugName: "set_gapless", argNames: ["enabled"]);
+
+  @override
   Future<void> crateApiSetReplayGain({required double linearGain}) {
     return handler.executeNormal(
       NormalTask(
@@ -735,7 +917,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 26,
             port: port_,
           );
         },
@@ -765,7 +947,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 27,
             port: port_,
           );
         },
@@ -793,7 +975,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 28,
             port: port_,
           );
         },
@@ -821,7 +1003,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 29,
             port: port_,
           );
         },
@@ -848,7 +1030,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 30,
             port: port_,
           );
         },
@@ -932,6 +1114,12 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   List<AudioDeviceInfo> dco_decode_list_audio_device_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_audio_device_info).toList();
+  }
+
+  @protected
+  List<double> dco_decode_list_prim_f_32_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<double>;
   }
 
   @protected
@@ -1115,6 +1303,13 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       ans_.add(sse_decode_audio_device_info(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  List<double> sse_decode_list_prim_f_32_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getFloat32List(len_);
   }
 
   @protected
@@ -1330,6 +1525,18 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
     for (final item in self) {
       sse_encode_audio_device_info(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_list_prim_f_32_loose(
+    List<double> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putFloat32List(
+      self is Float32List ? self : Float32List.fromList(self),
+    );
   }
 
   @protected

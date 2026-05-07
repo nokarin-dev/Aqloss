@@ -390,7 +390,7 @@ jobs:
           Requires:       gtk3, xz-libs, alsa-lib
 
           %description
-          Aqloss — high-quality local music player powered by a Rust audio engine.
+          Aqloss - high-quality local music player powered by a Rust audio engine.
 
           %install
           BUNDLE=\$(cat $RPMROOT/SOURCES/bundle_path.txt)

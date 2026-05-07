@@ -27,14 +27,13 @@ class AqlossApp extends ConsumerWidget {
   }
 }
 
-// Theme
 ThemeData _buildDarkTheme() {
-  const surface = Color(0xFF0A0A0A);
-  const surfaceVariant = Color(0xFF0D0D0D);
-  const card = Color(0xFF141414);
+  const surface = Color(0xFF080808);
+  const surfaceVariant = Color(0xFF0E0E0E);
+  const card = Color(0xFF111111);
   const onSurface = Colors.white;
-  const border = Color(0x0FFFFFFF);
-  const indicator = Color(0x1AFFFFFF);
+  const border = Color(0x12FFFFFF);
+  const indicator = Color(0x14FFFFFF);
 
   return ThemeData(
     colorScheme: const ColorScheme(
@@ -62,35 +61,45 @@ ThemeData _buildDarkTheme() {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       titleTextStyle: TextStyle(
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: FontWeight.w300,
         color: onSurface,
-        letterSpacing: 1.5,
+        letterSpacing: 2,
       ),
-      iconTheme: IconThemeData(color: Color(0x8AFFFFFF), size: 20),
+      iconTheme: IconThemeData(color: Color(0x70FFFFFF), size: 20),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: surfaceVariant,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: indicator,
+      indicatorColor: Colors.transparent,
+      elevation: 0,
+      height: 56,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return const IconThemeData(color: onSurface, size: 20);
+          return const IconThemeData(color: onSurface, size: 22);
         }
-        return const IconThemeData(color: Color(0x4DFFFFFF), size: 20);
+        return const IconThemeData(color: Color(0x38FFFFFF), size: 22);
       }),
-      labelTextStyle: WidgetStateProperty.all(
-        const TextStyle(fontSize: 10, color: Color(0x61FFFFFF)),
-      ),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const TextStyle(
+            fontSize: 10,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          );
+        }
+        return const TextStyle(fontSize: 10, color: Color(0x40FFFFFF));
+      }),
     ),
     listTileTheme: const ListTileThemeData(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      minLeadingWidth: 0,
     ),
     sliderTheme: const SliderThemeData(
-      activeTrackColor: Color(0xB3FFFFFF),
-      inactiveTrackColor: Color(0x1FFFFFFF),
+      activeTrackColor: Color(0xCCFFFFFF),
+      inactiveTrackColor: Color(0x16FFFFFF),
       thumbColor: onSurface,
-      overlayColor: Color(0x1AFFFFFF),
+      overlayColor: Color(0x14FFFFFF),
       trackHeight: 2,
       thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
       overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
@@ -99,27 +108,42 @@ ThemeData _buildDarkTheme() {
       thumbColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected)
             ? Colors.black
-            : const Color(0x4DFFFFFF),
+            : const Color(0x40FFFFFF),
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected)
             ? onSurface
-            : const Color(0x1FFFFFFF),
+            : const Color(0x18FFFFFF),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: const Color(0x8AFFFFFF)),
+      style: TextButton.styleFrom(foregroundColor: const Color(0x80FFFFFF)),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: card,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: card,
+      surfaceTintColor: Colors.transparent,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: card,
+      contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      behavior: SnackBarBehavior.floating,
     ),
   );
 }
 
 ThemeData _buildLightTheme() {
-  const surface = Color(0xFFF8F8F8);
-  const surfaceVariant = Color(0xFFEFEFEF);
+  const surface = Color(0xFFF5F5F5);
+  const surfaceVariant = Color(0xFFECECEC);
   const card = Colors.white;
   const onSurface = Colors.black;
-  const border = Color(0x1A000000);
-  const indicator = Color(0x1A000000);
+  const border = Color(0x12000000);
+  const indicator = Color(0x10000000);
 
   return ThemeData(
     colorScheme: const ColorScheme(
@@ -147,35 +171,45 @@ ThemeData _buildLightTheme() {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       titleTextStyle: TextStyle(
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: FontWeight.w300,
         color: onSurface,
-        letterSpacing: 1.5,
+        letterSpacing: 2,
       ),
-      iconTheme: IconThemeData(color: Color(0x8A000000), size: 20),
+      iconTheme: IconThemeData(color: Color(0x70000000), size: 20),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: surfaceVariant,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: indicator,
+      indicatorColor: Colors.transparent,
+      elevation: 0,
+      height: 56,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return const IconThemeData(color: onSurface, size: 20);
+          return const IconThemeData(color: onSurface, size: 22);
         }
-        return const IconThemeData(color: Color(0x4D000000), size: 20);
+        return const IconThemeData(color: Color(0x38000000), size: 22);
       }),
-      labelTextStyle: WidgetStateProperty.all(
-        const TextStyle(fontSize: 10, color: Color(0x61000000)),
-      ),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const TextStyle(
+            fontSize: 10,
+            color: Colors.black,
+            fontWeight: FontWeight.w500,
+          );
+        }
+        return const TextStyle(fontSize: 10, color: Color(0x40000000));
+      }),
     ),
     listTileTheme: const ListTileThemeData(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      minLeadingWidth: 0,
     ),
     sliderTheme: const SliderThemeData(
-      activeTrackColor: Color(0x8A000000),
-      inactiveTrackColor: Color(0x1F000000),
+      activeTrackColor: Color(0x99000000),
+      inactiveTrackColor: Color(0x14000000),
       thumbColor: onSurface,
-      overlayColor: Color(0x1F000000),
+      overlayColor: Color(0x14000000),
       trackHeight: 2,
       thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
       overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
@@ -184,16 +218,31 @@ ThemeData _buildLightTheme() {
       thumbColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected)
             ? Colors.white
-            : const Color(0x4D000000),
+            : const Color(0x40000000),
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected)
             ? onSurface
-            : const Color(0x1F000000),
+            : const Color(0x18000000),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: const Color(0x8A000000)),
+      style: TextButton.styleFrom(foregroundColor: const Color(0x80000000)),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: card,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: card,
+      surfaceTintColor: Colors.transparent,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: card,
+      contentTextStyle: const TextStyle(color: Colors.black, fontSize: 13),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      behavior: SnackBarBehavior.floating,
     ),
   );
 }

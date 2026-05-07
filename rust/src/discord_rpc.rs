@@ -99,7 +99,7 @@ pub fn update_playing(
     let state_str = if album.is_empty() {
         truncate(artist, 128)
     } else {
-        truncate(&format!("{artist} — {album}"), 128)
+        truncate(&format!("{artist} - {album}"), 128)
     };
 
     let large_img = match album_art_url {

@@ -15,7 +15,6 @@ class AudioService {
     SettingsState? settings,
   }) async {
     if (volume != null) _cachedVolume = volume.clamp(0.0, 1.0);
-
     try {
       if (deviceId != null) {
         await Future(
@@ -30,7 +29,7 @@ class AudioService {
         ).timeout(const Duration(seconds: 8));
       }
     } catch (e) {
-      debugPrint('[AudioService] init error: $e — retrying shared');
+      debugPrint('[AudioService] init error: $e - retrying shared');
       try {
         await Future(
           () => backend.initEngine(),
@@ -40,9 +39,8 @@ class AudioService {
         return;
       }
     }
-
     await _applyVolume();
-    if (settings != null) await applyDspSettings(settings);
+    if (settings != null) await applyAllDsp(settings);
   }
 
   // Playback
@@ -62,23 +60,19 @@ class AudioService {
     await _applyVolume();
   }
 
-  // DSP
-  static Future<void> applyDspSettings(SettingsState s) async {
-    // Soft clip
-    try {
-      await backend.setSoftClip(enabled: s.notchFilter);
-    } catch (_) {}
-
-    // Skip silence
-    try {
-      await backend.setSkipSilence(enabled: s.skipSilence);
-    } catch (_) {}
-
-    if (!s.replayGainEnabled) {
-      try {
-        await backend.setReplayGain(linearGain: 1.0);
-      } catch (_) {}
-    }
+  static Future<void> applyAllDsp(SettingsState s) async {
+    await Future.wait([
+      backend.setSoftClip(enabled: s.notchFilter).catchError((_) {}),
+      backend.setSkipSilence(enabled: s.skipSilence).catchError((_) {}),
+      backend.setGapless(enabled: s.gaplessPlayback).catchError((_) {}),
+      backend
+          .setCrossfadeSecs(secs: s.crossfadeSecs.toDouble())
+          .catchError((_) {}),
+      backend.setEqEnabled(enabled: s.eqEnabled).catchError((_) {}),
+      backend.setEqGains(gains: s.eqGains).catchError((_) {}),
+      if (!s.replayGainEnabled)
+        backend.setReplayGain(linearGain: 1.0).catchError((_) {}),
+    ]);
   }
 
   static Future<void> applyReplayGainForTrack({
@@ -92,35 +86,23 @@ class AudioService {
       await backend.setReplayGain(linearGain: 1.0);
       return;
     }
-
     double? gainDb;
     switch (mode) {
       case ReplayGainMode.track:
         gainDb = trackGainDb;
-        break;
       case ReplayGainMode.album:
         gainDb = albumGainDb ?? trackGainDb;
-        break;
       case ReplayGainMode.auto:
         gainDb = isPlayingInOrder ? (albumGainDb ?? trackGainDb) : trackGainDb;
-        break;
       case ReplayGainMode.off:
         break;
     }
-
-    if (gainDb == null) {
-      gainDb = preampDb;
-    } else {
-      gainDb = gainDb + preampDb;
-    }
-
-    gainDb = gainDb.clamp(-40.0, 20.0);
-    final linearGain = math.pow(10.0, gainDb / 20.0).toDouble();
-
+    gainDb = ((gainDb ?? 0.0) + preampDb).clamp(-40.0, 20.0);
+    final linear = math.pow(10.0, gainDb / 20.0).toDouble();
     try {
-      await backend.setReplayGain(linearGain: linearGain.toDouble());
+      await backend.setReplayGain(linearGain: linear);
     } catch (e) {
-      debugPrint('[AudioService] setReplayGain error: $e');
+      debugPrint('[AudioService] setReplayGain: $e');
     }
   }
 
@@ -129,7 +111,7 @@ class AudioService {
     try {
       await backend.setVolume(volume: _cachedVolume);
     } catch (e) {
-      debugPrint('[AudioService] setVolume error: $e');
+      debugPrint('[AudioService] setVolume: $e');
     }
   }
 }

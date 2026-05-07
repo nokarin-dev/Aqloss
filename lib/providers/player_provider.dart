@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:aqloss/services/audio_service.dart';
+import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-export 'package:aqloss/providers/settings_provider.dart'
-    show ReplayGainMode, StopAfterMode;
 
 const _kVolumeKey = 'aqloss_volume';
 
@@ -68,32 +66,28 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _positionTimer;
   bool _disposed = false;
   bool _handlingTrackEnd = false;
-
   SettingsState Function()? _readSettings;
 
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
   }
 
-  void injectSettingsReader(SettingsState Function() reader) {
-    _readSettings = reader;
+  void injectSettingsReader(SettingsState Function() r) {
+    _readSettings = r;
   }
 
   @override
   bool get mounted => !_disposed;
 
-  // Volume
   Future<void> _restoreVolume() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = (prefs.getDouble(_kVolumeKey) ?? 1.0).clamp(0.0, 1.0);
-    if (mounted) state = state.copyWith(volume: saved);
+    final p = await SharedPreferences.getInstance();
+    final v = (p.getDouble(_kVolumeKey) ?? 1.0).clamp(0.0, 1.0);
+    if (mounted) state = state.copyWith(volume: v);
   }
 
-  Future<void> _saveVolume(double v) async {
-    (await SharedPreferences.getInstance()).setDouble(_kVolumeKey, v);
-  }
+  Future<void> _saveVolume(double v) async =>
+      (await SharedPreferences.getInstance()).setDouble(_kVolumeKey, v);
 
-  // Queue
   Future<void> loadWithQueue(Track track, List<Track> queue) async {
     final idx = queue.indexWhere((t) => t.path == track.path);
     state = state.copyWith(queue: queue, queueIndex: idx < 0 ? 0 : idx);
@@ -113,6 +107,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> _loadAndPlay(Track track) async {
     _stopTimer();
     _handlingTrackEnd = false;
+    ScrobbleController.instance.onTrackStop();
     state = state.copyWith(
       status: PlayerStatus.loading,
       currentTrack: track,
@@ -121,39 +116,35 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     try {
       await AudioService.loadTrack(track.path);
       if (!mounted) return;
-
       final s = _readSettings?.call();
       if (s != null && s.replayGainEnabled) {
-        final isInOrder = _isPlayingAlbumInOrder();
         await AudioService.applyReplayGainForTrack(
           mode: s.replayGainMode,
           preampDb: s.replayGainPreamp,
           trackGainDb: track.replayGainTrack,
           albumGainDb: track.replayGainAlbum,
-          isPlayingInOrder: isInOrder,
+          isPlayingInOrder: _isAlbumInOrder(),
         );
       }
-
       await AudioService.play();
       if (!mounted) return;
       state = state.copyWith(status: PlayerStatus.playing);
       DiscordService.update(state, positionSecs: 0.0);
+      ScrobbleController.instance.onTrackStart(track);
       _startTimer();
     } catch (e) {
       if (mounted) state = state.copyWith(status: PlayerStatus.error);
     }
   }
 
-  bool _isPlayingAlbumInOrder() {
+  bool _isAlbumInOrder() {
     final q = state.queue;
     final idx = state.queueIndex;
     if (q.isEmpty || idx == 0) return false;
-    final prev = q[idx - 1];
-    final curr = q[idx];
-    return prev.album == curr.album && prev.albumArtist == curr.albumArtist;
+    return q[idx - 1].album == q[idx].album &&
+        q[idx - 1].albumArtist == q[idx].albumArtist;
   }
 
-  // Transport
   Future<void> play() async {
     await AudioService.play();
     if (!mounted) return;
@@ -174,11 +165,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> seek(Duration position) async {
-    final posSec = position.inMilliseconds / 1000.0;
-    await AudioService.seek(posSec);
+    final sec = position.inMilliseconds / 1000.0;
+    await AudioService.seek(sec);
     state = state.copyWith(position: position);
     if (state.status == PlayerStatus.playing) {
-      DiscordService.updateAfterSeek(state, posSec);
+      DiscordService.updateAfterSeek(state, sec);
     }
   }
 
@@ -195,61 +186,54 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> skipNext() async {
     final s = state;
     if (s.queue.isEmpty) return;
-
-    int nextIdx;
+    int idx;
     if (s.shuffle) {
-      nextIdx = _randomIndex(s.queue.length, exclude: s.queueIndex);
-    } else if (s.hasNext) {
-      nextIdx = s.queueIndex + 1;
-    } else if (s.loopMode == LoopMode.playlist) {
-      nextIdx = 0;
-    } else {
+      idx = _rand(s.queue.length, exclude: s.queueIndex);
+    } else if (s.hasNext)
+      idx = s.queueIndex + 1;
+    else if (s.loopMode == LoopMode.playlist)
+      idx = 0;
+    else
       return;
-    }
-
-    state = state.copyWith(queueIndex: nextIdx);
-    await _loadAndPlay(s.queue[nextIdx]);
+    state = state.copyWith(queueIndex: idx);
+    await _loadAndPlay(s.queue[idx]);
   }
 
   Future<void> skipPrevious() async {
     final s = state;
     if (s.queue.isEmpty) return;
-
     if (s.position.inSeconds > 3) {
       await seek(Duration.zero);
       return;
     }
-
-    int prevIdx;
+    int idx;
     if (s.hasPrevious) {
-      prevIdx = s.queueIndex - 1;
-    } else if (s.loopMode == LoopMode.playlist) {
-      prevIdx = s.queue.length - 1;
-    } else {
+      idx = s.queueIndex - 1;
+    } else if (s.loopMode == LoopMode.playlist)
+      idx = s.queue.length - 1;
+    else {
       await seek(Duration.zero);
       return;
     }
-
-    state = state.copyWith(queueIndex: prevIdx);
-    await _loadAndPlay(s.queue[prevIdx]);
+    state = state.copyWith(queueIndex: idx);
+    await _loadAndPlay(s.queue[idx]);
   }
 
-  // Loop & Shuffle
   void cycleLoopMode() {
-    final next =
-        LoopMode.values[(state.loopMode.index + 1) % LoopMode.values.length];
-    state = state.copyWith(loopMode: next);
+    state = state.copyWith(
+      loopMode:
+          LoopMode.values[(state.loopMode.index + 1) % LoopMode.values.length],
+    );
   }
 
-  void setLoopMode(LoopMode mode) => state = state.copyWith(loopMode: mode);
+  void setLoopMode(LoopMode m) => state = state.copyWith(loopMode: m);
   void toggleShuffle() => state = state.copyWith(shuffle: !state.shuffle);
 
-  // Position poll
   void _startTimer() {
     _positionTimer?.cancel();
     _positionTimer = Timer.periodic(
       const Duration(milliseconds: 500),
-      (_) => _pollPosition(),
+      (_) => _poll(),
     );
   }
 
@@ -258,20 +242,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _positionTimer = null;
   }
 
-  Future<void> _pollPosition() async {
-    if (state.currentTrack == null) return;
-    if (state.status == PlayerStatus.loading) return;
+  Future<void> _poll() async {
+    if (state.currentTrack == null || state.status == PlayerStatus.loading) {
+      return;
+    }
     try {
       final pos = await backend.getPosition();
       if (!mounted || state.status == PlayerStatus.loading) return;
-
       final newPos = Duration(milliseconds: (pos.positionSecs * 1000).round());
-      final backendDur = Duration(
-        milliseconds: (pos.durationSecs * 1000).round(),
-      );
-      final effectiveDur = backendDur.inMilliseconds > 0
-          ? backendDur
+      final dur = Duration(milliseconds: (pos.durationSecs * 1000).round());
+      final effDur = dur.inMilliseconds > 0
+          ? dur
           : (state.currentTrack?.duration ?? Duration.zero);
+
+      ScrobbleController.instance.onPositionUpdate(newPos);
 
       if (pos.durationSecs > 0 && pos.positionSecs >= pos.durationSecs - 0.1) {
         if (_handlingTrackEnd) return;
@@ -281,22 +265,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         _handlingTrackEnd = false;
         return;
       }
-
       state = state.copyWith(
         position: newPos,
-        currentTrack: effectiveDur != state.currentTrack?.duration
-            ? state.currentTrack?.copyWithDuration(effectiveDur)
+        currentTrack: effDur != state.currentTrack?.duration
+            ? state.currentTrack?.copyWithDuration(effDur)
             : state.currentTrack,
       );
     } catch (_) {}
   }
 
-  // Track end
   Future<void> _onTrackEnd() async {
     final s = state;
-
-    // Stop after
     final stopAfter = _readSettings?.call().stopAfter ?? StopAfterMode.off;
+    ScrobbleController.instance.onTrackStop();
 
     if (stopAfter == StopAfterMode.track) {
       state = state.copyWith(
@@ -306,15 +287,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       DiscordService.update(state);
       return;
     }
-
     if (stopAfter == StopAfterMode.album) {
-      final nextIdx = s.queueIndex + 1;
-      final nextTrack = (nextIdx < s.queue.length) ? s.queue[nextIdx] : null;
-      final sameAlbum =
-          nextTrack != null &&
-          nextTrack.album == s.currentTrack?.album &&
-          nextTrack.albumArtist == s.currentTrack?.albumArtist;
-      if (!sameAlbum) {
+      final next = s.queueIndex + 1 < s.queue.length
+          ? s.queue[s.queueIndex + 1]
+          : null;
+      if (next == null ||
+          next.album != s.currentTrack?.album ||
+          next.albumArtist != s.currentTrack?.albumArtist) {
         state = state.copyWith(
           status: PlayerStatus.paused,
           position: s.currentTrack?.duration ?? Duration.zero,
@@ -329,29 +308,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       case LoopMode.track:
         await seek(Duration.zero);
         await play();
-
       case LoopMode.album:
-        final albumTracks = s.queue
+        final album = s.queue
             .where((t) => t.album == s.currentTrack?.album)
             .toList();
-        final idx = albumTracks.indexWhere(
-          (t) => t.path == s.currentTrack?.path,
-        );
-        if (idx >= 0 && idx < albumTracks.length - 1) {
-          final next = albumTracks[idx + 1];
-          final qIdx = s.queue.indexWhere((t) => t.path == next.path);
-          state = state.copyWith(queueIndex: qIdx >= 0 ? qIdx : s.queueIndex);
-          await _loadAndPlay(next);
-        } else if (albumTracks.isNotEmpty) {
-          final first = albumTracks.first;
-          final qIdx = s.queue.indexWhere((t) => t.path == first.path);
-          state = state.copyWith(queueIndex: qIdx >= 0 ? qIdx : 0);
-          await _loadAndPlay(first);
-        }
-
+        final idx = album.indexWhere((t) => t.path == s.currentTrack?.path);
+        final next = idx >= 0 && idx < album.length - 1
+            ? album[idx + 1]
+            : album.first;
+        final qIdx = s.queue.indexWhere((t) => t.path == next.path);
+        state = state.copyWith(queueIndex: qIdx >= 0 ? qIdx : 0);
+        await _loadAndPlay(next);
       case LoopMode.playlist:
         await skipNext();
-
       case LoopMode.off:
         if (s.hasNext) {
           await skipNext();
@@ -365,21 +334,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  // Helpers
-  int _randomIndex(int length, {required int exclude}) {
+  int _rand(int length, {required int exclude}) {
     if (length <= 1) return 0;
-    final rng = math.Random();
-    int idx;
+    int i;
     do {
-      idx = rng.nextInt(length);
-    } while (idx == exclude);
-    return idx;
+      i = math.Random().nextInt(length);
+    } while (i == exclude);
+    return i;
   }
 
   @override
   void dispose() {
     _disposed = true;
     _stopTimer();
+    ScrobbleController.instance.dispose();
     DiscordService.dispose();
     super.dispose();
   }
@@ -388,7 +356,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
   ref,
 ) {
-  final notifier = PlayerNotifier();
-  notifier.injectSettingsReader(() => ref.read(settingsProvider));
-  return notifier;
+  final n = PlayerNotifier();
+  n.injectSettingsReader(() => ref.read(settingsProvider));
+  return n;
 });
