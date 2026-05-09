@@ -27,8 +27,8 @@ class TrackTile extends ConsumerWidget {
     final showBitDepth = ref.watch(settingsProvider).showBitDepthInLibrary;
     final cs = Theme.of(context).colorScheme;
 
-    return Draggable<Track>(
-      data: track,
+    return Draggable<List<Track>>(
+      data: [track],
       feedback: Material(
         color: Colors.transparent,
         child: Container(
@@ -225,11 +225,9 @@ class _Trailing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     final formatStr = showBitDepth
         ? track.formatLabel
         : track.format.toUpperCase();
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
