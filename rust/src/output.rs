@@ -70,12 +70,28 @@ impl AudioOutput {
         use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
         let host = cpal::default_host();
-        let device = if let Some(_id) = device_id {
-            host.default_output_device()
-                .ok_or_else(|| anyhow!("No audio output device found"))?
-        } else {
-            host.default_output_device()
-                .ok_or_else(|| anyhow!("No audio output device found"))?
+
+        let device = match device_id {
+            Some(id) => {
+                let found = host
+                    .output_devices()
+                    .ok()
+                    .and_then(|mut devs| devs.find(|d| d.name().ok().as_deref() == Some(id)));
+                match found {
+                    Some(d) => {
+                        eprintln!("[aqloss] output device: {id}");
+                        d
+                    }
+                    None => {
+                        eprintln!("[aqloss] device '{id}' not found, using system default");
+                        host.default_output_device()
+                            .ok_or_else(|| anyhow!("No audio output device found"))?
+                    }
+                }
+            }
+            None => host
+                .default_output_device()
+                .ok_or_else(|| anyhow!("No audio output device found"))?,
         };
 
         let supported = device.default_output_config()?;
@@ -117,8 +133,11 @@ impl AudioOutput {
         stream.play()?;
 
         eprintln!(
-            "[aqloss] shared-mode: {}Hz {}ch (buffer={} frames)",
-            sample_rate, channels, CPAL_BUFFER_FRAMES
+            "[aqloss] shared-mode: {} @ {}Hz {}ch (buffer={} frames)",
+            device_id.unwrap_or("default"),
+            sample_rate,
+            channels,
+            CPAL_BUFFER_FRAMES
         );
 
         Ok(Self {
