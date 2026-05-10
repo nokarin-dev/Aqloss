@@ -49,15 +49,16 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   Widget build(BuildContext context) {
     final lyrics = ref.watch(lyricsProvider);
     final player = ref.watch(playerProvider);
+    final cs = Theme.of(context).colorScheme;
 
     if (lyrics.isLoading) {
-      return const Center(
+      return Center(
         child: SizedBox(
           width: 20,
           height: 20,
           child: CircularProgressIndicator(
             strokeWidth: 1.5,
-            color: Colors.white24,
+            color: cs.onSurface.withValues(alpha: 0.20),
           ),
         ),
       );
@@ -68,18 +69,25 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.lyrics_outlined, size: 32, color: Colors.white12),
+            Icon(
+              Icons.lyrics_outlined,
+              size: 32,
+              color: cs.onSurface.withValues(alpha: 0.10),
+            ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'No lyrics found',
-              style: TextStyle(fontSize: 13, color: Colors.white24),
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onSurface.withValues(alpha: 0.24),
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               'Embed lyrics in the audio file tags,\nor add a .lrc file next to it',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.12),
+                color: cs.onSurface.withValues(alpha: 0.14),
               ),
               textAlign: TextAlign.center,
             ),
@@ -154,9 +162,9 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
             padding: const EdgeInsets.all(24),
             child: Text(
               lyrics.rawText!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: Colors.white54,
+                color: cs.onSurface.withValues(alpha: 0.50),
                 height: 1.8,
               ),
               textAlign: TextAlign.center,
@@ -190,33 +198,39 @@ class _MeasuredLyricLineState extends State<_MeasuredLyricLine> {
   final _key = GlobalKey();
 
   @override
-  void didUpdateWidget(_MeasuredLyricLine old) {
-    super.didUpdateWidget(old);
-    _reportHeight();
-  }
-
-  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _reportHeight());
   }
 
+  @override
+  void didUpdateWidget(_MeasuredLyricLine old) {
+    super.didUpdateWidget(old);
+    _reportHeight();
+  }
+
   void _reportHeight() {
-    final ctx = _key.currentContext;
-    if (ctx == null) return;
-    final box = ctx.findRenderObject() as RenderBox?;
+    final box = _key.currentContext?.findRenderObject() as RenderBox?;
     if (box != null) widget.onHeight(box.size.height);
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = widget.isCurrent
+        ? cs.onSurface
+        : widget.isPast
+        ? cs.onSurface.withValues(alpha: 0.28)
+        : cs.onSurface.withValues(alpha: 0.22);
+    final highlight = cs.onSurface.withValues(alpha: 0.05);
+
     return AnimatedContainer(
       key: _key,
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: widget.isCurrent
           ? BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: highlight,
               borderRadius: BorderRadius.circular(8),
             )
           : null,
@@ -225,11 +239,7 @@ class _MeasuredLyricLineState extends State<_MeasuredLyricLine> {
         style: TextStyle(
           fontSize: widget.isCurrent ? 16 : 13.5,
           fontWeight: widget.isCurrent ? FontWeight.w500 : FontWeight.w300,
-          color: widget.isCurrent
-              ? Colors.white
-              : widget.isPast
-              ? Colors.white30
-              : Colors.white24,
+          color: color,
           height: 1.45,
         ),
         textAlign: TextAlign.center,
@@ -247,6 +257,7 @@ class _SourceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (source == LyricsSource.none) return const SizedBox.shrink();
 
+    final cs = Theme.of(context).colorScheme;
     final (icon, label) = switch (source) {
       LyricsSource.embedded => (Icons.music_note, 'Embedded'),
       LyricsSource.lrcFile => (Icons.text_snippet_outlined, '.lrc file'),
@@ -259,13 +270,13 @@ class _SourceBadge extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 11, color: Colors.white24),
+          Icon(icon, size: 11, color: cs.onSurface.withValues(alpha: 0.22)),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10,
-              color: Colors.white24,
+              color: cs.onSurface.withValues(alpha: 0.22),
               letterSpacing: 0.5,
             ),
           ),
