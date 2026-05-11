@@ -24,10 +24,6 @@ dependencies:
   freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0
 
-  # Database
-  drift: ^2.18.0
-  sqlite3_flutter_libs: ^0.6.0+eol
-
   # File picking
   file_picker: ^11.0.2
 
