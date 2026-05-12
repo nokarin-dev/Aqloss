@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-    <id>xyz.nokarin.Aqloss</id>
+    <id>xyz.nokarin.aqloss</id>
     <name>Aqloss</name>
     <summary>Lossless everywhere.</summary>
     <description>
@@ -9,7 +9,7 @@
         </p>
     </description>
 
-    <launchable type="desktop-id">xyz.nokarin.Aqloss.desktop</launchable>
+    <launchable type="desktop-id">xyz.nokarin.aqloss.desktop</launchable>
 
     <url type="homepage">https://github.com/nokarin-dev/aqloss</url>
     <url type="bugtracker">https://github.com/nokarin-dev/aqloss/issues</url>
@@ -33,18 +33,18 @@
 
     <screenshots>
         <screenshot type="default">
-            <image>https://github.com/nokarin-dev/Aqloss/blob/a63e5ff34b8c06b9cdace40bbc3ebc27d7a4a2d2/assets/preview/playing.png</image>
-            <caption>PLaying</caption>
+            <image>https://github.com/nokarin-dev/aqloss/blob/a63e5ff34b8c06b9cdace40bbc3ebc27d7a4a2d2/assets/preview/playing.png</image>
+            <caption>Playing</caption>
         </screenshot>
         <screenshot>
-            <image>https://github.com/nokarin-dev/Aqloss/blob/a63e5ff34b8c06b9cdace40bbc3ebc27d7a4a2d2/assets/preview/library.png</image>
+            <image>https://github.com/nokarin-dev/aqloss/blob/a63e5ff34b8c06b9cdace40bbc3ebc27d7a4a2d2/assets/preview/library.png</image>
             <caption>Library</caption>
         </screenshot>
     </screenshots>
 
     <releases>
         <release version="0.1.0" date="2026-04-30">
-            <url type="details">https://github.com/nokarin-dev/Aqloss/releases/tag/v0.1.0</url>
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.1.0</url>
             <description>
                 <p>Initial release Aqloss</p>
             </description>

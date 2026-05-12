@@ -14,14 +14,15 @@ void main() async {
   if (!Platform.isAndroid && !Platform.isIOS) {
     await windowManager.ensureInitialized();
     await windowManager.waitUntilReadyToShow(
-      const WindowOptions(
-        size: Size(1100, 700),
-        minimumSize: Size(1100, 700),
+      WindowOptions(
+        size: const Size(1100, 700),
+        minimumSize: const Size(1100, 700),
         center: true,
         titleBarStyle: TitleBarStyle.hidden,
-        windowButtonVisibility: false,
+        windowButtonVisibility: Platform.isMacOS ? false : null,
         skipTaskbar: false,
         title: 'Aqloss',
+        backgroundColor: Platform.isLinux ? Colors.transparent : null,
       ),
       () async {
         await windowManager.show();
