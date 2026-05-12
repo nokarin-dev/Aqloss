@@ -9,6 +9,7 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
+#include <libgen.h>
 
 struct _Aqloss
 {
