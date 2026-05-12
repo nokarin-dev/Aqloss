@@ -49,9 +49,21 @@ static void aqloss_activate(GApplication *application)
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 
-  FlView *view = fl_view_new(project);
+  char exe_path[PATH_MAX];
+  ssize_t exePathLen = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+  if (exePathLen)
+  {
+    exe_path[exePathLen] = '\0';
+    char *exe_dir = dirname(exe_path);
 
+    char aot_path[PATH_MAX];
+    snprintf(aot_path, sizeof(aot_path), "%s/../../lib/%s/libapp.so", exe_dir, APPLICATION_ID);
+    fl_dart_project_set_aot_library_path(project, aot_path);
+  }
+
+  FlView *view = fl_view_new(project);
   GdkRGBA background_color;
+
   gdk_rgba_parse(&background_color, "#00000000");
   fl_view_set_background_color(view, &background_color);
 
