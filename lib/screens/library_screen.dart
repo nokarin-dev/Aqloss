@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:flutter/material.dart';
@@ -407,20 +408,44 @@ class _TrackList extends ConsumerWidget {
     final playerNotifier = ref.read(playerProvider.notifier);
     final playlists = ref.watch(playlistProvider);
     final playlistNotifier = ref.read(playlistProvider.notifier);
+    final isDesktop =
+        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
     return ListView.builder(
       itemCount: tracks.length,
-      itemBuilder: (ctx, i) => TrackTile(
-        track: tracks[i],
-        index: i,
-        onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
-        onLongPress: () =>
-            _showOptions(ctx, tracks[i], playlists, playlistNotifier),
-      ),
+      itemBuilder: (ctx, i) {
+        final tile = TrackTile(
+          track: tracks[i],
+          index: i,
+          onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
+          // Long press for mobile; desktop uses right-click below
+          onLongPress: isDesktop
+              ? null
+              : () => _showMobileOptions(
+                  ctx,
+                  tracks[i],
+                  playlists,
+                  playlistNotifier,
+                ),
+        );
+        if (!isDesktop) return tile;
+        return GestureDetector(
+          onSecondaryTapUp: (details) => _showContextMenu(
+            ctx,
+            ref,
+            details.globalPosition,
+            tracks[i],
+            tracks,
+            playlists,
+            playlistNotifier,
+          ),
+          child: tile,
+        );
+      },
     );
   }
 
-  void _showOptions(
+  void _showMobileOptions(
     BuildContext context,
     Track track,
     List playlists,
@@ -436,6 +461,156 @@ class _TrackList extends ConsumerWidget {
         track: track,
         playlists: playlists,
         notifier: playlistNotifier,
+      ),
+    );
+  }
+
+  Future<void> _showContextMenu(
+    BuildContext context,
+    WidgetRef ref,
+    Offset position,
+    Track track,
+    List<Track> allTracks,
+    List playlists,
+    PlaylistNotifier playlistNotifier,
+  ) async {
+    final playerNotifier = ref.read(playerProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    final selected = await showMenu<String>(
+      context: context,
+      color: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      elevation: 8,
+      position: RelativeRect.fromRect(
+        position & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'play',
+          height: 36,
+          child: _ContextMenuItem(
+            icon: Icons.play_arrow_rounded,
+            label: 'Play',
+            cs: cs,
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        if (playlists.isNotEmpty) ...[
+          PopupMenuItem(
+            enabled: false,
+            height: 28,
+            child: Text(
+              'Add to playlist',
+              style: TextStyle(
+                fontSize: 10,
+                letterSpacing: 0.5,
+                color: cs.onSurface.withValues(alpha: 0.36),
+              ),
+            ),
+          ),
+          ...playlists.map(
+            (pl) => PopupMenuItem<String>(
+              value: 'playlist_${pl.id}',
+              height: 36,
+              child: _ContextMenuItem(
+                icon: Icons.queue_music_rounded,
+                label: pl.name,
+                sub: '${pl.length} tracks',
+                cs: cs,
+              ),
+            ),
+          ),
+          const PopupMenuDivider(height: 1),
+        ],
+        PopupMenuItem(
+          value: 'info',
+          height: 36,
+          child: _ContextMenuItem(
+            icon: Icons.info_outline_rounded,
+            label: 'File info',
+            cs: cs,
+          ),
+        ),
+      ],
+    );
+
+    if (selected == null || !context.mounted) return;
+
+    if (selected == 'play') {
+      playerNotifier.loadWithQueue(track, allTracks);
+    } else if (selected.startsWith('playlist_')) {
+      final id = selected.substring('playlist_'.length);
+      await playlistNotifier.addTrack(id, track);
+      if (context.mounted) {
+        try {
+          final pl = playlists.firstWhere((p) => p.id == id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Added to "${pl.name}"',
+                style: const TextStyle(fontSize: 12),
+              ),
+              backgroundColor: Theme.of(context).cardColor,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        } catch (_) {}
+      }
+    } else if (selected == 'info') {
+      if (context.mounted) _showFileInfo(context, track, cs);
+    }
+  }
+
+  void _showFileInfo(BuildContext context, Track track, ColorScheme cs) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          track.displayTitle,
+          style: TextStyle(
+            color: cs.onSurface,
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _FileInfoRow('Artist', track.displayArtist, cs),
+            _FileInfoRow('Album', track.displayAlbum, cs),
+            _FileInfoRow('Format', track.format, cs),
+            _FileInfoRow(
+              'Sample rate',
+              '${(track.sampleRate / 1000).toStringAsFixed(1)} kHz',
+              cs,
+            ),
+            if (track.bitDepth != null)
+              _FileInfoRow('Bit depth', '${track.bitDepth}-bit', cs),
+            _FileInfoRow('Duration', track.durationLabel, cs),
+            _FileInfoRow('Size', track.fileSizeLabel, cs),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.50),
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -581,4 +756,80 @@ class _TrackOptions extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ContextMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? sub;
+  final ColorScheme cs;
+  const _ContextMenuItem({
+    required this.icon,
+    required this.label,
+    required this.cs,
+    this.sub,
+  });
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 15, color: cs.onSurface.withValues(alpha: 0.50)),
+      const SizedBox(width: 10),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: cs.onSurface.withValues(alpha: 0.80),
+            ),
+          ),
+          if (sub != null)
+            Text(
+              sub!,
+              style: TextStyle(
+                fontSize: 10,
+                color: cs.onSurface.withValues(alpha: 0.36),
+              ),
+            ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _FileInfoRow extends StatelessWidget {
+  final String label, value;
+  final ColorScheme cs;
+  const _FileInfoRow(this.label, this.value, this.cs);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.38),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurface.withValues(alpha: 0.72),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

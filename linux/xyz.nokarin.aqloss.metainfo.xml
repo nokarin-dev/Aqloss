@@ -43,7 +43,19 @@
     </screenshots>
 
     <releases>
-        <release version="0.1.0" date="2026-04-30">
+        <release version="0.1.1" date="2026-05-13">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.1.1</url>
+            <description>
+                <p>UI Adjustment, fix audio output, Playlist reorder, and more.</p>
+                <ul>
+                    <li>Audio output device selection not respected</li>
+                    <li>Playlist reorder moves item one position too far when dragging down</li>
+                    <li>Dragging a track from the library to a playlist sidebar item did nothing</li>
+                    <li>Lyrics text stays white in light mode</li>
+                </ul>
+            </description>
+        </release>
+        <release version="0.1.0" date="2026-05-07">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.1.0</url>
             <description>
                 <p>Initial release Aqloss</p>

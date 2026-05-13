@@ -159,6 +159,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
 
+    final showDesktopMiniPlayer = isWide && hasTrack && _route != 0;
+    final showMobileMiniPlayer = !isWide && hasTrack && _route != 0;
+
     return Focus(
       autofocus: true,
       onKeyEvent: _handleKey,
@@ -181,7 +184,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
                     )
                   : _buildScreen(),
             ),
-            if (!isWide && hasTrack && _route != 0)
+            // Desktop mini player
+            if (showDesktopMiniPlayer)
+              MiniPlayerBar(onTap: () => setState(() => _route = 0)),
+            // Mobile mini player
+            if (showMobileMiniPlayer)
               MiniPlayerBar(onTap: () => setState(() => _route = 0)),
           ],
         ),
