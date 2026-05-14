@@ -5,10 +5,8 @@ set(BINARY_NAME "Aqloss")
 set(APPLICATION_ID "xyz.nokarin.aqloss")
 
 option(FLATPAK "Build for Flatpak" OFF)
-
 if("$ENV{FLATPAK}" STREQUAL "true")
   set(FLATPAK ON)
-  target_compile_definitions(${BINARY_NAME} PRIVATE FLATPAK=1)
 endif()
 
 cmake_policy(SET CMP0063 NEW)
@@ -51,6 +49,10 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 
 add_subdirectory("runner")
+
+if(FLATPAK)
+  target_compile_definitions(${BINARY_NAME} PRIVATE FLATPAK=1)
+endif()
 
 add_dependencies(${BINARY_NAME} flutter_assemble)
 
