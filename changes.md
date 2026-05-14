@@ -10,6 +10,12 @@ No Changes Yet.
 
 ---
 
+### [0.2.0] - 2026-05-14
+
+### Fixed
+
+- AOT library not found when app starts
+
 ## [0.1.1] - 2026-05-13
 
 ### Fixed
@@ -36,5 +42,7 @@ No Changes Yet.
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/frameextractor/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/nokarin-dev/frameextractor/compare/v0.2.0...HEAD
+[0.1.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.2.0
+[0.1.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.1.0
