@@ -299,7 +299,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _InfoRow(
                       icon: Icons.music_note_rounded,
                       title: 'Aqloss',
-                      value: 'Version 0.1.1',
+                      value: 'Version 0.2.0',
                     ),
                     _Div(),
                     _InfoRow(

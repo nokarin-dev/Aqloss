@@ -8,6 +8,7 @@ option(FLATPAK "Build for Flatpak" OFF)
 
 if("$ENV{FLATPAK}" STREQUAL "true")
   set(FLATPAK ON)
+  target_compile_definitions(${BINARY_NAME} PRIVATE FLATPAK=1)
 endif()
 
 cmake_policy(SET CMP0063 NEW)

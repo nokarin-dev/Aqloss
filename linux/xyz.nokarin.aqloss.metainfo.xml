@@ -43,6 +43,12 @@
     </screenshots>
 
     <releases>
+        <release version="0.2.0" date="2026-05-13">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.0</url>
+            <description>
+                <p>Fixed AOT library not found when app starts</p>
+            </description>
+        </release>
         <release version="0.1.1" date="2026-05-13">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.1.1</url>
             <description>
