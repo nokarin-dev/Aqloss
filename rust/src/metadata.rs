@@ -1,7 +1,20 @@
 use crate::TrackInfo;
 use anyhow::Result;
+use image::{imageops::FilterType, ImageFormat};
 use lofty::prelude::{Accessor, AudioFile, ItemKey, TaggedFileExt};
-use std::path::Path;
+use lru::LruCache;
+use std::{io::Cursor, num::NonZeroUsize, path::Path, sync::Mutex};
+
+// LRU cache
+const CACHE_SIZE: usize = 128;
+const THUMB_SIZE: u32 = 300;
+
+static THUMB_CACHE: std::sync::OnceLock<Mutex<LruCache<String, Vec<u8>>>> =
+    std::sync::OnceLock::new();
+
+fn thumb_cache() -> &'static Mutex<LruCache<String, Vec<u8>>> {
+    THUMB_CACHE.get_or_init(|| Mutex::new(LruCache::new(NonZeroUsize::new(CACHE_SIZE).unwrap())))
+}
 
 pub fn read_track_info(path: &str) -> Result<TrackInfo> {
     let tagged = lofty::read_from_path(path)?;
@@ -62,6 +75,7 @@ fn parse_gain_db(s: &str) -> Option<f64> {
     trimmed.parse::<f64>().ok()
 }
 
+// Returns raw embedded album art bytes
 pub fn read_album_art(path: &str) -> Result<Option<Vec<u8>>> {
     let tagged = lofty::read_from_path(path)?;
     if let Some(tag) = tagged.primary_tag() {
@@ -70,6 +84,48 @@ pub fn read_album_art(path: &str) -> Result<Option<Vec<u8>>> {
         }
     }
     Ok(None)
+}
+
+// Returns a resized JPEG thumbnail
+pub fn read_album_art_thumbnail(path: &str) -> Result<Option<Vec<u8>>> {
+    {
+        let mut cache = thumb_cache().lock().unwrap();
+        if let Some(cached) = cache.get(path) {
+            return Ok(Some(cached.clone()));
+        }
+    }
+
+    let raw = match read_album_art(path)? {
+        Some(b) => b,
+        None => return Ok(None),
+    };
+
+    let thumb = make_thumbnail(&raw)?;
+
+    {
+        let mut cache = thumb_cache().lock().unwrap();
+        cache.put(path.to_string(), thumb.clone());
+    }
+
+    Ok(Some(thumb))
+}
+
+// Evict a path from the thumbnail cache
+pub fn evict_thumbnail_cache(path: &str) {
+    thumb_cache().lock().unwrap().pop(path);
+}
+
+fn make_thumbnail(raw: &[u8]) -> Result<Vec<u8>> {
+    let img = image::load_from_memory(raw)?;
+    let (w, h) = (img.width(), img.height());
+    let resized = if w > THUMB_SIZE || h > THUMB_SIZE {
+        img.resize(THUMB_SIZE, THUMB_SIZE, FilterType::Triangle)
+    } else {
+        img
+    };
+    let mut out = Vec::with_capacity(16 * 1024);
+    resized.write_to(&mut Cursor::new(&mut out), ImageFormat::Jpeg)?;
+    Ok(out)
 }
 
 pub fn read_embedded_lyrics(path: &str) -> Result<Option<String>> {

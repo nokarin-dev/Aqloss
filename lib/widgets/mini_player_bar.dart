@@ -1,6 +1,5 @@
 import 'dart:io' show Platform;
 import 'dart:typed_data';
-import 'package:aqloss/models/track.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
@@ -51,7 +50,6 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
   @override
   Widget build(BuildContext context) {
     final player = ref.watch(playerProvider);
-    final notifier = ref.read(playerProvider.notifier);
     final track = player.currentTrack;
     if (track == null) return const SizedBox.shrink();
 
@@ -62,31 +60,17 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
     final isDesktop =
         Platform.isWindows || Platform.isLinux || Platform.isMacOS;
     return isDesktop
-        ? _DesktopBar(
-            artBytes: _artBytes,
-            notifier: notifier,
-            player: player,
-            onTap: widget.onTap,
-          )
-        : _MobileBar(
-            artBytes: _artBytes,
-            notifier: notifier,
-            player: player,
-            onTap: widget.onTap,
-          );
+        ? _DesktopBar(artBytes: _artBytes, player: player, onTap: widget.onTap)
+        : _MobileBar(artBytes: _artBytes, player: player, onTap: widget.onTap);
   }
 }
 
-// Desktop bar
 class _DesktopBar extends ConsumerWidget {
   final Uint8List? artBytes;
-  final PlayerNotifier notifier;
   final PlayerState player;
   final VoidCallback onTap;
-
   const _DesktopBar({
     required this.artBytes,
-    required this.notifier,
     required this.player,
     required this.onTap,
   });
@@ -94,6 +78,7 @@ class _DesktopBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
+    final notifier = ref.read(playerProvider.notifier);
     final track = player.currentTrack!;
     final isPlaying = player.status == PlayerStatus.playing;
     final isLoading = player.status == PlayerStatus.loading;
@@ -111,226 +96,222 @@ class _DesktopBar extends ConsumerWidget {
         color: cs.surfaceContainerHighest,
         border: Border(top: BorderSide(color: cs.outline)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
-          // Seekbar
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 2,
-              thumbShape: SliderComponentShape.noThumb,
-              overlayShape: SliderComponentShape.noOverlay,
-              activeTrackColor: cs.onSurface.withValues(alpha: 0.54),
-              inactiveTrackColor: cs.onSurface.withValues(alpha: 0.08),
-            ),
-            child: SizedBox(
-              height: 14,
-              child: Slider(
-                value: progress,
-                onChanged: (v) {
-                  if (duration.inMilliseconds > 0) notifier.seek(duration * v);
-                },
-              ),
-            ),
-          ),
-
-          // Main bar row
+          // Main content
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 0, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
             child: Row(
               children: [
-                // Album art
+                // Left
                 GestureDetector(
                   onTap: onTap,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    child: Container(
-                      key: ValueKey(track.path),
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: cs.onSurface.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(
-                          color: cs.onSurface.withValues(alpha: 0.06),
+                  child: Row(
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 280),
+                        child: Container(
+                          key: ValueKey(track.path),
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: cs.onSurface.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: cs.onSurface.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: artBytes != null
+                              ? Image.memory(artBytes!, fit: BoxFit.cover)
+                              : Center(
+                                  child: Icon(
+                                    Icons.music_note_rounded,
+                                    size: 16,
+                                    color: cs.onSurface.withValues(alpha: 0.22),
+                                  ),
+                                ),
                         ),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: artBytes != null
-                          ? Image.memory(artBytes!, fit: BoxFit.cover)
-                          : Center(
-                              child: Icon(
-                                Icons.music_note_rounded,
-                                size: 14,
-                                color: cs.onSurface.withValues(alpha: 0.22),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 180,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              track.displayTitle,
+                              style: TextStyle(
+                                color: cs.onSurface,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              track.displayArtist,
+                              style: TextStyle(
+                                color: cs.onSurface.withValues(alpha: 0.40),
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            // Format & exclusive badge
+                            Row(
+                              children: [
+                                if (isExclusive)
+                                  _Badge('BIT-PERFECT', cs)
+                                else
+                                  _Badge(
+                                    '${track.format} · ${_khz(track.sampleRate)}',
+                                    cs,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Center
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _Btn(
+                            icon: Icons.shuffle_rounded,
+                            size: 15,
+                            active: player.shuffle,
+                            tooltip: 'Shuffle',
+                            onTap: notifier.toggleShuffle,
+                          ),
+                          _Btn(
+                            icon: Icons.skip_previous_rounded,
+                            size: 20,
+                            tooltip: 'Previous',
+                            onTap: notifier.skipPrevious,
+                          ),
+                          _PlayBtn(
+                            isPlaying: isPlaying,
+                            isLoading: isLoading,
+                            cs: cs,
+                            onTap: isPlaying ? notifier.pause : notifier.play,
+                          ),
+                          _Btn(
+                            icon: Icons.skip_next_rounded,
+                            size: 20,
+                            tooltip: 'Next',
+                            onTap: notifier.skipNext,
+                          ),
+                          _LoopBtn(
+                            mode: player.loopMode,
+                            onTap: notifier.cycleLoopMode,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      // Time controls
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(width: 20),
+                          Text(
+                            _fmt(player.position),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                              color: cs.onSurface.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3,
+                                thumbShape: SliderComponentShape.noThumb,
+                                overlayShape: SliderComponentShape.noOverlay,
+                                activeTrackColor: cs.onSurface.withValues(
+                                  alpha: 0.50,
+                                ),
+                                inactiveTrackColor: cs.onSurface.withValues(
+                                  alpha: 0.08,
+                                ),
+                              ),
+                              child: SizedBox(
+                                height: 12,
+                                child: Slider(
+                                  value: progress,
+                                  onChanged: (v) {
+                                    if (duration.inMilliseconds > 0) {
+                                      notifier.seek(duration * v);
+                                    }
+                                  },
+                                ),
                               ),
                             ),
-                    ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            _fmt(duration),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                              color: cs.onSurface.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
 
-                const SizedBox(width: 10),
-
-                // Track info
-                Expanded(
-                  flex: 3,
-                  child: GestureDetector(
-                    onTap: onTap,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          track.displayTitle,
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          track.displayArtist,
-                          style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.38),
-                            fontSize: 10,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Transport controls
+                // Right
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _BarBtn(
-                      icon: Icons.shuffle_rounded,
-                      active: player.shuffle,
-                      size: 14,
-                      tooltip: 'Shuffle',
-                      onTap: notifier.toggleShuffle,
+                    Icon(
+                      Icons.volume_down_rounded,
+                      size: 20,
+                      color: cs.onSurface.withValues(alpha: 0.24),
                     ),
-                    const SizedBox(width: 2),
-                    _BarBtn(
-                      icon: Icons.skip_previous_rounded,
-                      size: 18,
-                      tooltip: 'Previous',
-                      onTap: notifier.skipPrevious,
-                    ),
-                    const SizedBox(width: 2),
-                    _PlayBtn(
-                      isPlaying: isPlaying,
-                      isLoading: isLoading,
-                      enabled: true,
-                      cs: cs,
-                      onTap: isPlaying ? notifier.pause : notifier.play,
-                    ),
-                    const SizedBox(width: 2),
-                    _BarBtn(
-                      icon: Icons.skip_next_rounded,
-                      size: 18,
-                      tooltip: 'Next',
-                      onTap: notifier.skipNext,
-                    ),
-                    const SizedBox(width: 2),
-                    _LoopBtn(
-                      mode: player.loopMode,
-                      onTap: notifier.cycleLoopMode,
+                    SizedBox(
+                      width: 140,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 1.5,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 4,
+                          ),
+                          activeTrackColor: cs.onSurface.withValues(
+                            alpha: 0.44,
+                          ),
+                          inactiveTrackColor: cs.onSurface.withValues(
+                            alpha: 0.10,
+                          ),
+                          thumbColor: cs.onSurface.withValues(alpha: 0.65),
+                          overlayColor: cs.onSurface.withValues(alpha: 0.06),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 10,
+                          ),
+                        ),
+                        child: Slider(
+                          value: player.volume.clamp(0.0, 1.0),
+                          onChanged: notifier.setVolume,
+                        ),
+                      ),
                     ),
                   ],
-                ),
-
-                const SizedBox(width: 12),
-
-                // Time
-                Text(
-                  _fmt(player.position),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: cs.onSurface.withValues(alpha: 0.38),
-                  ),
-                ),
-                Text(
-                  ' / ',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: cs.onSurface.withValues(alpha: 0.20),
-                  ),
-                ),
-                Text(
-                  _fmt(duration),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: cs.onSurface.withValues(alpha: 0.22),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                // Format badge
-                if (isExclusive)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: cs.onSurface.withValues(alpha: 0.12),
-                      ),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: Text(
-                      'BIT-PERFECT',
-                      style: TextStyle(
-                        fontSize: 7,
-                        color: cs.onSurface.withValues(alpha: 0.28),
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  )
-                else
-                  _FormatBadge(track: track, cs: cs),
-
-                const SizedBox(width: 10),
-
-                // Volume
-                Icon(
-                  Icons.volume_down_rounded,
-                  size: 13,
-                  color: cs.onSurface.withValues(alpha: 0.22),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 1.5,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 3,
-                      ),
-                      activeTrackColor: cs.onSurface.withValues(alpha: 0.40),
-                      inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
-                      thumbColor: cs.onSurface.withValues(alpha: 0.60),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 8,
-                      ),
-                      overlayColor: cs.onSurface.withValues(alpha: 0.08),
-                    ),
-                    child: Slider(
-                      value: player.volume.clamp(0.0, 1.0),
-                      onChanged: notifier.setVolume,
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -345,25 +326,25 @@ class _DesktopBar extends ConsumerWidget {
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
   }
+
+  String _khz(int sr) =>
+      '${(sr / 1000).toStringAsFixed(sr % 1000 == 0 ? 0 : 1)}kHz';
 }
 
-// Mobile bar
-class _MobileBar extends StatelessWidget {
+class _MobileBar extends ConsumerWidget {
   final Uint8List? artBytes;
-  final PlayerNotifier notifier;
   final PlayerState player;
   final VoidCallback onTap;
-
   const _MobileBar({
     required this.artBytes,
-    required this.notifier,
     required this.player,
     required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
+    final notifier = ref.read(playerProvider.notifier);
     final track = player.currentTrack!;
     final isPlaying = player.status == PlayerStatus.playing;
     final duration = track.duration;
@@ -403,30 +384,26 @@ class _MobileBar extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(12, 0, 6, 8),
               child: Row(
                 children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    child: Container(
-                      key: ValueKey(track.path),
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: cs.onSurface.withValues(alpha: 0.06),
-                        ),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: cs.onSurface.withValues(alpha: 0.06),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: artBytes != null
-                          ? Image.memory(artBytes!, fit: BoxFit.cover)
-                          : Center(
-                              child: Icon(
-                                Icons.music_note_rounded,
-                                size: 14,
-                                color: cs.onSurface.withValues(alpha: 0.22),
-                              ),
-                            ),
                     ),
+                    clipBehavior: Clip.antiAlias,
+                    child: artBytes != null
+                        ? Image.memory(artBytes!, fit: BoxFit.cover)
+                        : Center(
+                            child: Icon(
+                              Icons.music_note_rounded,
+                              size: 14,
+                              color: cs.onSurface.withValues(alpha: 0.22),
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -456,24 +433,23 @@ class _MobileBar extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _BarBtn(
+                  _Btn(
                     icon: Icons.skip_previous_rounded,
                     size: 20,
-                    tooltip: 'Previous',
+                    tooltip: '',
                     onTap: notifier.skipPrevious,
                   ),
                   _PlayBtn(
                     isPlaying: isPlaying,
                     isLoading: false,
-                    enabled: true,
                     cs: cs,
                     small: true,
                     onTap: isPlaying ? notifier.pause : notifier.play,
                   ),
-                  _BarBtn(
+                  _Btn(
                     icon: Icons.skip_next_rounded,
                     size: 20,
-                    tooltip: 'Next',
+                    tooltip: '',
                     onTap: notifier.skipNext,
                   ),
                 ],
@@ -486,18 +462,14 @@ class _MobileBar extends StatelessWidget {
   }
 }
 
-// ── Shared components ─────────────────────────────────────────────────────────
-
 class _PlayBtn extends StatelessWidget {
-  final bool isPlaying, isLoading, enabled;
+  final bool isPlaying, isLoading;
   final bool small;
   final ColorScheme cs;
   final VoidCallback? onTap;
-
   const _PlayBtn({
     required this.isPlaying,
     required this.isLoading,
-    required this.enabled,
     required this.cs,
     required this.onTap,
     this.small = false,
@@ -505,18 +477,17 @@ class _PlayBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sz = small ? 32.0 : 34.0;
-    final iconSz = small ? 18.0 : 20.0;
+    final sz = small ? 32.0 : 36.0;
     return GestureDetector(
-      onTap: enabled ? onTap : null,
+      onTap: onTap,
       child: Container(
         width: sz,
         height: sz,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(color: cs.onSurface, shape: BoxShape.circle),
         child: isLoading
             ? Padding(
-                padding: const EdgeInsets.all(9),
+                padding: const EdgeInsets.all(8),
                 child: CircularProgressIndicator(
                   strokeWidth: 1.5,
                   color: cs.surface,
@@ -525,66 +496,66 @@ class _PlayBtn extends StatelessWidget {
             : Icon(
                 isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 color: cs.surface,
-                size: iconSz,
+                size: small ? 24 : 26,
               ),
       ),
     );
   }
 }
 
-class _BarBtn extends StatefulWidget {
+class _Btn extends StatefulWidget {
   final IconData icon;
   final double size;
   final bool active;
   final String tooltip;
   final VoidCallback? onTap;
-
-  const _BarBtn({
+  const _Btn({
     required this.icon,
     required this.size,
     required this.tooltip,
     this.active = false,
     this.onTap,
   });
-
   @override
-  State<_BarBtn> createState() => _BarBtnState();
+  State<_Btn> createState() => _BtnState();
 }
 
-class _BarBtnState extends State<_BarBtn> {
+class _BtnState extends State<_Btn> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final child = MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? cs.onSurface.withValues(alpha: 0.06)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            widget.icon,
+            size: widget.size,
+            color: widget.active
+                ? cs.onSurface
+                : cs.onSurface.withValues(alpha: _hovered ? 0.70 : 0.44),
+          ),
+        ),
+      ),
+    );
+    if (widget.tooltip.isEmpty) return child;
     return Tooltip(
       message: widget.tooltip,
       preferBelow: false,
       waitDuration: const Duration(milliseconds: 600),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 110),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-            decoration: BoxDecoration(
-              color: _hovered
-                  ? cs.onSurface.withValues(alpha: 0.06)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              widget.icon,
-              size: widget.size,
-              color: widget.active
-                  ? cs.onSurface
-                  : cs.onSurface.withValues(alpha: _hovered ? 0.70 : 0.42),
-            ),
-          ),
-        ),
-      ),
+      child: child,
     );
   }
 }
@@ -608,13 +579,14 @@ class _LoopBtnState extends State<_LoopBtn> {
       LoopMode.album => (Icons.repeat_rounded, 'A', true),
       LoopMode.playlist => (Icons.repeat_rounded, '∞', true),
     };
+    final tipText = switch (widget.mode) {
+      LoopMode.off => 'Loop: off',
+      LoopMode.track => 'Loop: track',
+      LoopMode.album => 'Loop: album',
+      LoopMode.playlist => 'Loop: all',
+    };
     return Tooltip(
-      message: switch (widget.mode) {
-        LoopMode.off => 'Loop: off',
-        LoopMode.track => 'Loop: track',
-        LoopMode.album => 'Loop: album',
-        LoopMode.playlist => 'Loop: all',
-      },
+      message: tipText,
       preferBelow: false,
       waitDuration: const Duration(milliseconds: 600),
       child: MouseRegion(
@@ -625,7 +597,7 @@ class _LoopBtnState extends State<_LoopBtn> {
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 110),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: _hovered
                   ? cs.onSurface.withValues(alpha: 0.06)
@@ -637,10 +609,10 @@ class _LoopBtnState extends State<_LoopBtn> {
               children: [
                 Icon(
                   icon,
-                  size: 14,
+                  size: 15,
                   color: active
                       ? cs.onSurface
-                      : cs.onSurface.withValues(alpha: 0.42),
+                      : cs.onSurface.withValues(alpha: 0.44),
                 ),
                 if (label.isNotEmpty) ...[
                   const SizedBox(width: 2),
@@ -650,7 +622,7 @@ class _LoopBtnState extends State<_LoopBtn> {
                       fontSize: 9,
                       color: active
                           ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.42),
+                          : cs.onSurface.withValues(alpha: 0.44),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -664,30 +636,25 @@ class _LoopBtnState extends State<_LoopBtn> {
   }
 }
 
-class _FormatBadge extends StatelessWidget {
-  final Track track;
+class _Badge extends StatelessWidget {
+  final String text;
   final ColorScheme cs;
-  const _FormatBadge({required this.track, required this.cs});
+  const _Badge(this.text, this.cs);
   @override
-  Widget build(BuildContext context) {
-    final khz = (track.sampleRate / 1000).toStringAsFixed(
-      track.sampleRate % 1000 == 0 ? 0 : 1,
-    );
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
-        borderRadius: BorderRadius.circular(3),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+    decoration: BoxDecoration(
+      border: Border.all(color: cs.onSurface.withValues(alpha: 0.10)),
+      borderRadius: BorderRadius.circular(3),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 8,
+        letterSpacing: 0.3,
+        color: cs.onSurface.withValues(alpha: 0.28),
+        fontWeight: FontWeight.w600,
       ),
-      child: Text(
-        '${track.format} · ${khz}kHz',
-        style: TextStyle(
-          fontSize: 8,
-          letterSpacing: 0.3,
-          color: cs.onSurface.withValues(alpha: 0.24),
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }

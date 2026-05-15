@@ -1,5 +1,6 @@
 use crate::{
-    decoder::Decoder, eq::Equalizer, output::AudioOutput, resampler::Resampler, PlaybackPosition,
+    decoder::Decoder, eq::Equalizer, logger, output::AudioOutput, resampler::Resampler,
+    PlaybackPosition,
 };
 use anyhow::{anyhow, Result};
 use ringbuf::traits::Producer;
@@ -68,6 +69,7 @@ pub struct AudioEngine {
     spectrum_pos: Arc<AtomicU64>,
     dsp: Arc<Mutex<DspConfig>>,
     eq: Arc<Mutex<Equalizer>>,
+    pub decode_thread_died: Arc<AtomicBool>,
 }
 
 unsafe impl Send for AudioEngine {}
@@ -76,14 +78,23 @@ unsafe impl Sync for AudioEngine {}
 impl AudioEngine {
     // Init
     pub fn init_default() -> Result<()> {
+        logger::init();
+        logger::info_audio("AudioEngine::init_default");
         Self::store(AudioOutput::new_default()?)
     }
 
     pub fn init_with_device(device_id: &str, exclusive: bool) -> Result<()> {
+        logger::init();
+        logger::info_audio(format!(
+            "AudioEngine::init_with_device id={device_id} exclusive={exclusive}"
+        ));
         Self::store(AudioOutput::new_with_device(device_id, exclusive)?)
     }
 
     pub fn reinit(device_id: &str, exclusive: bool) -> Result<()> {
+        logger::info_audio(format!(
+            "AudioEngine::reinit id={device_id} exclusive={exclusive}"
+        ));
         let arc = ENGINE
             .get()
             .ok_or_else(|| anyhow!("Engine not initialized"))?;
@@ -106,12 +117,48 @@ impl AudioEngine {
         }
         e.output = new_out;
         e.smooth_volume = e.volume;
+        e.decode_thread_died.store(false, Ordering::SeqCst);
+        logger::info_audio("AudioEngine::reinit complete");
+        Ok(())
+    }
+
+    pub fn recover_engine() -> Result<()> {
+        logger::warn_audio("AudioEngine::recover_engine - attempting audio recovery");
+        let arc = ENGINE
+            .get()
+            .ok_or_else(|| anyhow!("Engine not initialized"))?;
+        let mut e = arc.lock().unwrap();
+        e.stop_thread();
+        e.output.start_drain();
+        let new_out = AudioOutput::new_default()?;
+        if let Some(ref dec) = e.decoder {
+            let sr = dec.lock().unwrap().sample_rate();
+            let ch = dec.lock().unwrap().channels();
+            e.resampler = if sr != new_out.sample_rate {
+                Some(Resampler::new(sr, new_out.sample_rate, ch)?)
+            } else {
+                None
+            };
+        }
+        {
+            let mut eq = e.eq.lock().unwrap();
+            eq.reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
+        }
+        e.output = new_out;
+        e.smooth_volume = e.volume;
+        e.flags = PlayFlags::new();
+        e.decode_thread_died.store(false, Ordering::SeqCst);
+        logger::info_audio("AudioEngine::recover_engine - output re-opened");
         Ok(())
     }
 
     fn store(output: AudioOutput) -> Result<()> {
         let sr = output.sample_rate;
         let ch = output.channels as usize;
+        logger::info_audio(format!(
+            "AudioOutput opened: {}Hz {}ch exclusive={}",
+            sr, ch, output.exclusive
+        ));
         let engine = Self {
             output,
             decoder: None,
@@ -126,6 +173,7 @@ impl AudioEngine {
             spectrum_pos: Arc::new(AtomicU64::new(0)),
             dsp: Arc::new(Mutex::new(DspConfig::default())),
             eq: Arc::new(Mutex::new(Equalizer::new(sr, ch))),
+            decode_thread_died: Arc::new(AtomicBool::new(false)),
         };
         ENGINE
             .set(Arc::new(Mutex::new(engine)))
@@ -142,34 +190,45 @@ impl AudioEngine {
     pub fn is_exclusive(&self) -> bool {
         self.output.exclusive
     }
+    pub fn is_decode_thread_dead(&self) -> bool {
+        self.decode_thread_died.load(Ordering::SeqCst)
+    }
 
     // DSP setters
     pub fn set_replay_gain(&mut self, linear_gain: f32) {
-        self.dsp.lock().unwrap().replay_gain = linear_gain.clamp(0.0, 64.0);
+        let v = linear_gain.clamp(0.0, 64.0);
+        logger::debug_audio(format!("set_replay_gain linear={v:.4}"));
+        self.dsp.lock().unwrap().replay_gain = v;
     }
-
     pub fn set_soft_clip(&mut self, enabled: bool) {
+        logger::debug_audio(format!("set_soft_clip enabled={enabled}"));
         self.dsp.lock().unwrap().soft_clip = enabled;
     }
-
     pub fn set_skip_silence(&mut self, enabled: bool) {
+        logger::debug_audio(format!("set_skip_silence enabled={enabled}"));
         self.dsp.lock().unwrap().skip_silence = enabled;
     }
     pub fn set_gapless(&mut self, enabled: bool) {
+        logger::debug_audio(format!("set_gapless enabled={enabled}"));
         self.dsp.lock().unwrap().gapless = enabled;
     }
     pub fn set_crossfade_secs(&mut self, secs: f32) {
-        self.dsp.lock().unwrap().crossfade_secs = secs.clamp(0.0, 12.0);
+        let v = secs.clamp(0.0, 12.0);
+        logger::debug_audio(format!("set_crossfade_secs secs={v:.2}"));
+        self.dsp.lock().unwrap().crossfade_secs = v;
     }
 
     // EQ setters
     pub fn set_eq_enabled(&mut self, enabled: bool) {
+        logger::debug_audio(format!("set_eq_enabled enabled={enabled}"));
         self.eq.lock().unwrap().set_enabled(enabled);
     }
     pub fn set_eq_gains(&mut self, gains: Vec<f32>) {
+        logger::debug_audio(format!("set_eq_gains {:?}", gains));
         self.eq.lock().unwrap().set_all_gains(&gains);
     }
     pub fn set_eq_band(&mut self, band: usize, gain_db: f32) {
+        logger::debug_audio(format!("set_eq_band band={band} gain={gain_db:.1}dB"));
         self.eq.lock().unwrap().set_gain(band, gain_db);
     }
     pub fn get_eq_gains(&self) -> Vec<f32> {
@@ -212,6 +271,7 @@ impl AudioEngine {
 
     // Playback
     pub fn load(&mut self, path: &str) -> Result<()> {
+        logger::info_audio(format!("load: {path}"));
         let gapless = self.dsp.lock().unwrap().gapless;
         let crossfade_secs = self.dsp.lock().unwrap().crossfade_secs;
 
@@ -219,11 +279,12 @@ impl AudioEngine {
             && self.decoder.is_some()
             && self.flags.playing.load(Ordering::SeqCst)
         {
+            logger::debug_audio(format!(
+                "crossfade queued next track ({crossfade_secs:.2}s)"
+            ));
             let next = Decoder::open(path, gapless)?;
             let shared_next = Arc::new(Mutex::new(next));
-
             *self.next_decoder.get_or_insert_with(|| shared_next.clone()) = shared_next.clone();
-
             return Ok(());
         }
 
@@ -231,14 +292,23 @@ impl AudioEngine {
         self.flags = PlayFlags::new();
         self.output.stop_drain();
         self.next_decoder = None;
+        self.decode_thread_died.store(false, Ordering::SeqCst);
 
         let dec = Decoder::open(path, gapless)?;
         let src_rate = dec.sample_rate();
         let src_ch = dec.channels();
+        logger::debug_audio(format!(
+            "decoder opened: {src_rate}Hz {src_ch}ch → output {}Hz {}ch",
+            self.output.sample_rate, self.output.channels
+        ));
 
         self.dec_sample_rate = src_rate;
         self.dec_channels = src_ch;
         self.resampler = if src_rate != self.output.sample_rate {
+            logger::debug_audio(format!(
+                "resampler: {}→{}Hz",
+                src_rate, self.output.sample_rate
+            ));
             Some(Resampler::new(src_rate, self.output.sample_rate, src_ch)?)
         } else {
             None
@@ -248,67 +318,68 @@ impl AudioEngine {
             let mut eq = self.eq.lock().unwrap();
             eq.reset_sample_rate(self.output.sample_rate, self.output.channels as usize);
         }
-
         self.spectrum_buf.lock().unwrap().fill(0.0);
         self.spectrum_pos.store(0, Ordering::Relaxed);
         self.smooth_volume = self.volume;
         self.decoder = Some(Arc::new(Mutex::new(dec)));
+        logger::info_audio("load: OK");
         Ok(())
     }
 
     pub fn play(&mut self) -> Result<()> {
         if self.decoder.is_none() {
+            logger::warn_audio("play() called with no track loaded");
             return Err(anyhow!("No track loaded"));
         }
         self.output.stop_drain();
         if self.flags.alive.load(Ordering::SeqCst) {
+            logger::debug_audio("play() - thread alive, resuming");
             self.flags.playing.store(true, Ordering::SeqCst);
             return Ok(());
         }
+        logger::info_audio("play() - starting decode thread");
         self.start_thread();
         Ok(())
     }
 
     pub fn pause(&mut self) -> Result<()> {
+        logger::info_audio("pause()");
         self.flags.playing.store(false, Ordering::SeqCst);
         self.output.start_drain();
         Ok(())
     }
 
     pub fn stop(&mut self) -> Result<()> {
+        logger::info_audio("stop()");
         self.stop_thread();
         self.output.stop_drain();
         self.decoder = None;
         self.next_decoder = None;
         self.resampler = None;
+        self.decode_thread_died.store(false, Ordering::SeqCst);
         self.spectrum_buf.lock().unwrap().fill(0.0);
         Ok(())
     }
 
     pub fn seek(&mut self, position_secs: f64) -> Result<()> {
+        logger::info_audio(format!("seek({position_secs:.3}s)"));
         let dec = self
             .decoder
             .as_ref()
             .ok_or_else(|| anyhow!("No track loaded"))?
             .clone();
-
         let was_playing = self.flags.playing.load(Ordering::SeqCst);
-
         self.flags.playing.store(false, Ordering::SeqCst);
         self.output.start_drain();
         self.flags.seek_pending.store(true, Ordering::SeqCst);
-
         thread::sleep(Duration::from_millis(20));
         dec.lock().unwrap().seek(position_secs)?;
-
         if let Some(rs) = self.resampler.as_mut() {
             rs.reset();
         }
-
         self.spectrum_buf.lock().unwrap().fill(0.0);
         self.smooth_volume = self.volume;
         self.flags.seek_pending.store(false, Ordering::SeqCst);
-
         if was_playing {
             self.output.stop_drain();
             self.flags.playing.store(true, Ordering::SeqCst);
@@ -317,7 +388,9 @@ impl AudioEngine {
     }
 
     pub fn set_volume(&mut self, volume: f32) -> Result<()> {
-        self.volume = volume.clamp(0.0, 1.0);
+        let v = volume.clamp(0.0, 1.0);
+        logger::debug_audio(format!("set_volume {v:.3}"));
+        self.volume = v;
         Ok(())
     }
 
@@ -342,6 +415,7 @@ impl AudioEngine {
     // Thread
     fn stop_thread(&mut self) {
         if self.flags.alive.load(Ordering::SeqCst) {
+            logger::debug_audio("stopping decode thread...");
             self.flags.playing.store(false, Ordering::SeqCst);
             self.flags.alive.store(false, Ordering::SeqCst);
             let mut waited = 0u32;
@@ -349,6 +423,7 @@ impl AudioEngine {
                 thread::sleep(Duration::from_millis(5));
                 waited += 5;
             }
+            logger::debug_audio(format!("decode thread stopped (waited {waited}ms)"));
         }
     }
 
@@ -357,7 +432,9 @@ impl AudioEngine {
         self.flags.alive.store(true, Ordering::SeqCst);
         self.flags.playing.store(true, Ordering::SeqCst);
         let flags = self.flags.clone();
-        thread::spawn(move || decode_loop(arc, flags));
+        let died_flag = self.decode_thread_died.clone();
+        logger::debug_audio("spawning decode thread");
+        thread::spawn(move || decode_loop(arc, flags, died_flag));
     }
 }
 
@@ -373,13 +450,24 @@ fn soft_clip(x: f32) -> f32 {
     x * (27.0 + x2) / (27.0 + 9.0 * x2)
 }
 
-// Decode loop
-fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
+fn decode_loop(
+    engine_arc: Arc<Mutex<AudioEngine>>,
+    flags: Arc<PlayFlags>,
+    died_flag: Arc<AtomicBool>,
+) {
+    logger::info_audio("decode_loop: started");
+
     let (out_ch, out_sr, is_exclusive, spec_buf, spec_pos, dec_arc, dsp_arc, eq_arc) = {
         let e = engine_arc.lock().unwrap();
         let dec = match e.decoder.as_ref() {
             Some(d) => d.clone(),
-            None => return,
+            None => {
+                logger::error_audio("decode_loop: no decoder - aborting");
+                died_flag.store(true, Ordering::Release);
+                flags.playing.store(false, Ordering::Release);
+                flags.alive.store(false, Ordering::Release);
+                return;
+            }
         };
         (
             e.output.channels as u32,
@@ -400,14 +488,19 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
     // Crossfade state
     let mut fade_in_dec: Option<Arc<Mutex<Decoder>>> = None;
-    let mut crossfade_ramp = 0usize; // frames remaining in crossfade
+    let mut crossfade_ramp = 0usize;
     let crossfade_total_frames = {
         let secs = dsp_arc.lock().unwrap().crossfade_secs;
         (secs * out_sr as f32) as usize
     };
 
+    let mut underrun_count = 0u32;
+    let mut last_underrun_log = std::time::Instant::now();
+
     loop {
         if !flags.alive.load(Ordering::Acquire) {
+            logger::info_audio("decode_loop: clean exit (alive=false)");
+            flags.playing.store(false, Ordering::Release);
             break;
         }
         if !flags.playing.load(Ordering::Acquire) {
@@ -417,6 +510,14 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
 
         let vacant = engine_arc.lock().unwrap().output.ring_vacant();
         if ring_cap.saturating_sub(vacant) >= target_samples {
+            underrun_count += 1;
+            if last_underrun_log.elapsed().as_secs() >= 1 {
+                if underrun_count > 5 {
+                    logger::warn_audio(format!("buffer underrun x{underrun_count} in last second"));
+                }
+                underrun_count = 0;
+                last_underrun_log = std::time::Instant::now();
+            }
             thread::sleep(Duration::from_millis(2));
             continue;
         }
@@ -425,6 +526,7 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
         if fade_in_dec.is_none() && crossfade_total_frames > 0 {
             let next = engine_arc.lock().unwrap().next_decoder.clone();
             if next.is_some() {
+                logger::info_audio("decode_loop: crossfade starting");
                 fade_in_dec = next;
                 crossfade_ramp = crossfade_total_frames;
             }
@@ -447,7 +549,11 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                 let resampled = if let Some(rs) = e.resampler.as_mut() {
                     match rs.process(&raw) {
                         Ok(r) if !r.is_empty() => r,
-                        _ => continue,
+                        Ok(_) => continue,
+                        Err(err) => {
+                            logger::error_audio(format!("resampler error: {err}"));
+                            continue;
+                        }
                     }
                 } else {
                     raw
@@ -480,10 +586,8 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                                 let t = ((pos + f) as f32 / total as f32).clamp(0.0, 1.0);
                                 for c in 0..out_ch as usize {
                                     let i = f * out_ch as usize + c;
-                                    let fade_out = 1.0 - t;
-                                    let fade_in = t;
                                     let next_s = next_conv.get(i).copied().unwrap_or(0.0);
-                                    converted[i] = converted[i] * fade_out + next_s * fade_in;
+                                    converted[i] = converted[i] * (1.0 - t) + next_s * t;
                                 }
                             }
                             crossfade_ramp = crossfade_ramp.saturating_sub(frames);
@@ -534,20 +638,18 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
             }
 
             Ok(None) => {
-                // Flush resampler tail
+                logger::info_audio("decode_loop: end of stream, flushing tail");
                 {
                     let mut e = engine_arc.lock().unwrap();
                     let dec_ch = e.dec_channels;
                     let target_vol = e.volume;
                     let mut smooth = e.smooth_volume;
                     let dsp = dsp_arc.lock().unwrap().clone();
-
                     let raw_tail = e
                         .resampler
                         .as_mut()
                         .and_then(|rs| rs.flush().ok())
                         .unwrap_or_default();
-
                     if !raw_tail.is_empty() {
                         let mut converted = adapt_channels(&raw_tail, dec_ch, out_ch);
                         eq_arc.lock().unwrap().process_interleaved(&mut converted);
@@ -576,8 +678,6 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                         e.smooth_volume = smooth;
                     }
                 }
-
-                // Wait for ring to drain before signalling end
                 let mut waited = 0u32;
                 while waited < 1000 {
                     if !flags.alive.load(Ordering::Acquire) {
@@ -589,13 +689,15 @@ fn decode_loop(engine_arc: Arc<Mutex<AudioEngine>>, flags: Arc<PlayFlags>) {
                     thread::sleep(Duration::from_millis(5));
                     waited += 5;
                 }
+                logger::info_audio("decode_loop: track finished - clean exit");
                 flags.playing.store(false, Ordering::Release);
                 flags.alive.store(false, Ordering::Release);
                 break;
             }
 
             Err(e) => {
-                eprintln!("[decoder] fatal: {e}");
+                logger::error_audio(format!("decode_loop: fatal decoder error: {e}"));
+                died_flag.store(true, Ordering::Release);
                 flags.playing.store(false, Ordering::Release);
                 flags.alive.store(false, Ordering::Release);
                 break;

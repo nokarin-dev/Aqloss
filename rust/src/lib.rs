@@ -4,6 +4,7 @@ pub mod decoder;
 pub mod discord_rpc;
 pub mod eq;
 mod frb_generated;
+pub mod logger;
 pub mod metadata;
 pub mod output;
 pub mod resampler;

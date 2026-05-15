@@ -1,4 +1,4 @@
-use crate::{audio_engine::AudioEngine, metadata, PlaybackPosition, TrackInfo};
+use crate::{audio_engine::AudioEngine, logger, metadata, PlaybackPosition, TrackInfo};
 use anyhow::Result;
 use flutter_rust_bridge::frb;
 
@@ -12,13 +12,24 @@ pub struct AudioDeviceInfo {
 
 // Engine lifecycle
 pub fn init_engine() -> Result<()> {
+    logger::init();
     AudioEngine::init_default()
 }
 pub fn init_engine_with_device(device_id: String, exclusive: bool) -> Result<()> {
+    logger::init();
     AudioEngine::init_with_device(&device_id, exclusive)
 }
 pub fn reinit_engine(device_id: String, exclusive: bool) -> Result<()> {
     AudioEngine::reinit(&device_id, exclusive)
+}
+pub fn recover_engine() -> Result<()> {
+    AudioEngine::recover_engine()
+}
+#[frb(sync)]
+pub fn is_decode_thread_dead() -> bool {
+    AudioEngine::global_opt()
+        .map(|a| a.lock().unwrap().is_decode_thread_dead())
+        .unwrap_or(false)
 }
 
 // Device enumeration
@@ -153,11 +164,21 @@ pub fn read_metadata(path: String) -> Result<TrackInfo> {
 pub fn read_album_art(path: String) -> Result<Option<Vec<u8>>> {
     metadata::read_album_art(&path)
 }
+pub fn read_album_art_thumbnail(path: String) -> Result<Option<Vec<u8>>> {
+    metadata::read_album_art_thumbnail(&path)
+}
+pub fn evict_thumbnail_cache(path: String) {
+    metadata::evict_thumbnail_cache(&path);
+}
 pub fn scan_directory(path: String) -> Result<Vec<String>> {
     metadata::scan_directory(&path)
 }
 pub fn read_embedded_lyrics(path: String) -> Result<Option<String>> {
     metadata::read_embedded_lyrics(&path)
+}
+
+pub fn set_log_path(path: String) -> () {
+    logger::set_path(path);
 }
 
 // Discord RPC

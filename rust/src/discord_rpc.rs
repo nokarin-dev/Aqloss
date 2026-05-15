@@ -42,10 +42,10 @@ fn ensure_ready(guard: &mut Option<RpcState>) {
 
     let mut client = Client::new(CLIENT_ID);
     client
-        .on_ready(|_| eprintln!("[discord-rpc] Ready!"))
+        .on_ready(|_| crate::logger::info_discord("Ready!"))
         .persist();
     client
-        .on_error(|ctx| eprintln!("[discord-rpc] Error: {:?}", ctx.event))
+        .on_error(|ctx| crate::logger::error_discord(format!("Error: {:?}", ctx.event)))
         .persist();
     client.start();
 
@@ -54,7 +54,7 @@ fn ensure_ready(guard: &mut Option<RpcState>) {
     let started = std::time::Instant::now();
     while !Client::is_ready() {
         if started.elapsed() >= deadline {
-            eprintln!("[discord-rpc] Timed out waiting for Discord handshake");
+            crate::logger::warn_discord("Timed out waiting for Discord handshake");
             *guard = Some(RpcState {
                 client,
                 ready: false,
@@ -63,7 +63,7 @@ fn ensure_ready(guard: &mut Option<RpcState>) {
         }
         thread::sleep(poll);
     }
-    eprintln!("[discord-rpc] Connected to Discord");
+    crate::logger::info_discord("Connected to Discord");
     *guard = Some(RpcState {
         client,
         ready: true,
@@ -102,6 +102,8 @@ pub fn update_playing(
         truncate(&format!("{artist} - {album}"), 128)
     };
 
+    let find_artist = truncate(title, 32);
+
     let large_img = match album_art_url {
         Some(url) if !url.is_empty() && is_direct_image_url(url) => url,
         _ => "aqloss",
@@ -121,6 +123,16 @@ pub fn update_playing(
             .state(&state_str)
             .details(&title_truncated)
             .timestamps(|t| t.start(start_ts).end(end_ts))
+            .append_buttons(|button| {
+                button
+                    .label(format!("Find {find_artist}"))
+                    .url("https://google.com")
+            })
+            .append_buttons(|button| {
+                button
+                    .label("Listen with Aqloss")
+                    .url("https://nokarin.xyz/projects/aqloss")
+            })
             .assets(|a| {
                 a.large_image(large_img)
                     .large_text(&large_text)
@@ -128,7 +140,7 @@ pub fn update_playing(
                     .small_text("Aqloss")
             })
     }) {
-        eprintln!("[discord-rpc] set_activity failed: {e}");
+        crate::logger::error_discord(format!("set_activity failed: {e}"));
         state.ready = Client::is_ready();
     }
     Ok(())
@@ -175,7 +187,7 @@ pub fn update_paused(
                     .small_text("Aqloss - Paused")
             })
     }) {
-        eprintln!("[discord-rpc] set_activity (paused) failed: {e}");
+        crate::logger::error_discord(format!("set_activity (paused) failed: {e}"));
         state.ready = Client::is_ready();
     }
     Ok(())
@@ -190,7 +202,7 @@ pub fn clear() -> Result<()> {
         return Ok(());
     }
     if let Err(e) = state.client.clear_activity() {
-        eprintln!("[discord-rpc] clear_activity failed: {e}");
+        crate::logger::error_discord(format!("clear_activity failed: {e}"));
         state.ready = Client::is_ready();
     }
     Ok(())
