@@ -47,15 +47,17 @@ fn log_dir() -> PathBuf {
 fn open_log(dir: &Path, name: &str) -> File {
     let path = dir.join(name);
     OpenOptions::new()
+        .write(true)
         .create(true)
-        .append(true)
+        .truncate(true)
         .open(&path)
         .unwrap_or_else(|_| {
-            // last resort: write to /tmp
+            // last resort
             let fallback = PathBuf::from("/tmp").join(name);
             OpenOptions::new()
+                .write(true)
                 .create(true)
-                .append(true)
+                .truncate(true)
                 .open(fallback)
                 .expect("cannot open any log file")
         })

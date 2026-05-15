@@ -16,7 +16,8 @@ enum LogTarget {
   scrobble('scrobble.log'),
   audioService('audio_service.log'),
   lastfm('lastfm.log'),
-  deviceProdiver('device_provider.log');
+  deviceProdiver('device_provider.log'),
+  playerProvider('player_provider.log');
 
   final String fileName;
   const LogTarget(this.fileName);
@@ -57,7 +58,7 @@ class Logger {
     for (var file in _files.values) {
       await file.writeAsString(
         startSession,
-        mode: FileMode.append,
+        mode: FileMode.write,
         flush: true,
       );
     }
@@ -80,7 +81,7 @@ class Logger {
 
     final file = _files[target];
     if (file != null) {
-      await file.writeAsString(line, mode: FileMode.append, flush: true);
+      await file.writeAsString(line, mode: FileMode.write, flush: true);
     }
   }
 
@@ -125,4 +126,14 @@ class Logger {
       _instance._log(LogTarget.deviceProdiver, LogLevel.warn, msg);
   static void errorDeviceProvider(String msg) =>
       _instance._log(LogTarget.deviceProdiver, LogLevel.error, msg);
+
+  // PlayerProviuder
+  static void debugPlayerProvider(String msg) =>
+      _instance._log(LogTarget.playerProvider, LogLevel.debug, msg);
+  static void infoPlayerProvider(String msg) =>
+      _instance._log(LogTarget.playerProvider, LogLevel.info, msg);
+  static void warnPlayerProvider(String msg) =>
+      _instance._log(LogTarget.playerProvider, LogLevel.warn, msg);
+  static void errorPlayerProvider(String msg) =>
+      _instance._log(LogTarget.playerProvider, LogLevel.error, msg);
 }
