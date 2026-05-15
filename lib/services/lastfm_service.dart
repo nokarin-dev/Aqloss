@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:aqloss/util/logger.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 const _kApiUrl = 'https://ws.audioscrobbler.com/2.0/';
@@ -39,7 +39,7 @@ class LastFmService {
     required LastFmCredentials creds,
   }) async {
     if (!creds.isValid) {
-      debugPrint(
+      Logger.errorLastfm(
         '[LastFm] No API key configured. User must provide one in settings.',
       );
       return null;
@@ -58,12 +58,12 @@ class LastFmService {
           .timeout(const Duration(seconds: 15));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body.containsKey('error')) {
-        debugPrint('[LastFm] auth error ${body['error']}: ${body['message']}');
+        Logger.errorLastfm('auth error ${body['error']}: ${body['message']}');
         return null;
       }
       return body['session']?['key'] as String?;
     } catch (e) {
-      debugPrint('[LastFm] auth exception: $e');
+      Logger.errorLastfm('auth exception: $e');
       return null;
     }
   }
@@ -93,7 +93,7 @@ class LastFmService {
           .post(Uri.parse(_kApiUrl), body: params)
           .timeout(const Duration(seconds: 10));
     } catch (e) {
-      debugPrint('[LastFm] nowPlaying: $e');
+      Logger.debugLastfm('nowPlaying: $e');
     }
   }
 
@@ -125,14 +125,14 @@ class LastFmService {
           .timeout(const Duration(seconds: 15));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body.containsKey('error')) {
-        debugPrint(
-          '[LastFm] scrobble error ${body['error']}: ${body['message']}',
+        Logger.errorLastfm(
+          'scrobble error ${body['error']}: ${body['message']}',
         );
         return false;
       }
       return true;
     } catch (e) {
-      debugPrint('[LastFm] scrobble: $e');
+      Logger.debugLastfm('scrobble: $e');
       return false;
     }
   }

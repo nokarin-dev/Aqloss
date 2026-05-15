@@ -1,4 +1,5 @@
 import 'package:aqloss/src/rust/frb_generated.dart';
+import 'package:aqloss/util/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +33,8 @@ void main() async {
   }
 
   await AqlossCore.init();
+
+  await Logger.init();
 
   runApp(const ProviderScope(child: AqlossApp()));
 

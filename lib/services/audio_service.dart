@@ -1,11 +1,47 @@
+import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
+import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
 
 class AudioService {
   // Volume cache
   static double _cachedVolume = 1.0;
+
+  // Freeze watchdog
+  static Timer? _watchdog;
+  static bool _recovering = false;
+  static void Function()? onFreezeDetected;
+
+  static void _startWatchdog() {
+    _watchdog?.cancel();
+    _watchdog = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (_recovering) return;
+      try {
+        final dead = backend.isDecodeThreadDead();
+        if (dead) {
+          _recovering = true;
+          Logger.debugAudioService('FREEZE detected - recovering engine');
+          try {
+            await Future(
+              () => backend.recoverEngine(),
+            ).timeout(const Duration(seconds: 6));
+            Logger.debugAudioService('recoverEngine() OK');
+            onFreezeDetected?.call();
+          } catch (e) {
+            Logger.debugAudioService('recoverEngine() failed: $e');
+          } finally {
+            _recovering = false;
+          }
+        }
+      } catch (_) {}
+    });
+  }
+
+  static void stopWatchdog() {
+    _watchdog?.cancel();
+    _watchdog = null;
+  }
 
   // Init
   static Future<void> init({
@@ -18,6 +54,7 @@ class AudioService {
     try {
       if (deviceId != null) {
         await Future(
+
           () => backend.initEngineWithDevice(
             deviceId: deviceId,
             exclusive: exclusive,
@@ -29,18 +66,19 @@ class AudioService {
         ).timeout(const Duration(seconds: 8));
       }
     } catch (e) {
-      debugPrint('[AudioService] init error: $e - retrying shared');
+      Logger.warnAudioService('init error: $e - retrying shared');
       try {
         await Future(
           () => backend.initEngine(),
         ).timeout(const Duration(seconds: 6));
       } catch (e2) {
-        debugPrint('[AudioService] shared init failed: $e2');
+        Logger.errorAudioService('shared init failed: $e2');
         return;
       }
     }
     await _applyVolume();
     if (settings != null) await applyAllDsp(settings);
+    _startWatchdog();
   }
 
   // Playback
@@ -102,7 +140,7 @@ class AudioService {
     try {
       await backend.setReplayGain(linearGain: linear);
     } catch (e) {
-      debugPrint('[AudioService] setReplayGain: $e');
+      Logger.debugAudioService('setReplayGain: $e');
     }
   }
 
@@ -111,7 +149,7 @@ class AudioService {
     try {
       await backend.setVolume(volume: _cachedVolume);
     } catch (e) {
-      debugPrint('[AudioService] setVolume: $e');
+      Logger.debugAudioService('setVolume: $e');
     }
   }
 }

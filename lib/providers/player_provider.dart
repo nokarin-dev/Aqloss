@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/util/logger.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/settings_provider.dart';
@@ -70,6 +71,24 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
+    AudioService.onFreezeDetected = () async {
+      final track = state.currentTrack;
+      if (track == null) return;
+      Logger.warnPlayerProvider(
+        'freeze recovery - reloading ${track.displayTitle}',
+      );
+      final posSecs = state.position.inMilliseconds / 1000.0;
+      try {
+        await AudioService.loadTrack(track.path);
+        if (posSecs > 1.0) await AudioService.seek(posSecs);
+        await AudioService.play();
+        if (mounted) state = state.copyWith(status: PlayerStatus.playing);
+        _startTimer();
+      } catch (e) {
+        Logger.errorPlayerProvider('freeze recovery failed: $e');
+        if (mounted) state = state.copyWith(status: PlayerStatus.error);
+      }
+    };
   }
 
   void injectSettingsReader(SettingsState Function() r) {
@@ -189,12 +208,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     int idx;
     if (s.shuffle) {
       idx = _rand(s.queue.length, exclude: s.queueIndex);
-    } else if (s.hasNext)
+    } else if (s.hasNext) {
       idx = s.queueIndex + 1;
-    else if (s.loopMode == LoopMode.playlist)
+    } else if (s.loopMode == LoopMode.playlist) {
       idx = 0;
-    else
+    } else {
       return;
+    }
     state = state.copyWith(queueIndex: idx);
     await _loadAndPlay(s.queue[idx]);
   }
@@ -209,9 +229,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     int idx;
     if (s.hasPrevious) {
       idx = s.queueIndex - 1;
-    } else if (s.loopMode == LoopMode.playlist)
+    } else if (s.loopMode == LoopMode.playlist) {
       idx = s.queue.length - 1;
-    else {
+    } else {
       await seek(Duration.zero);
       return;
     }
@@ -347,6 +367,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   void dispose() {
     _disposed = true;
     _stopTimer();
+    AudioService.stopWatchdog();
     ScrobbleController.instance.dispose();
     DiscordService.dispose();
     super.dispose();

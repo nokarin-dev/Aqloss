@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/services/lastfm_service.dart';
 
@@ -81,7 +81,7 @@ class ScrobbleController {
       timestamp: ts,
       durationSecs: track.duration.inSeconds,
     );
-    debugPrint('[ScrobbleController] "${track.displayTitle}" ok=$ok');
+    Logger.infoScrobble('"${track.displayTitle}" ok=$ok');
   }
 
   void dispose() {
