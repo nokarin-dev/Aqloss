@@ -1,9 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/models/audio_format.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/src/rust/api.dart' as backend;
 
 class TrackTile extends ConsumerWidget {
   final Track track;
@@ -119,7 +121,12 @@ class _TileBody extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: _Leading(isPlaying: isPlaying, format: format, index: index),
+      leading: _Leading(
+        isPlaying: isPlaying,
+        format: format,
+        path: track.path,
+        index: index,
+      ),
       title: Text(
         track.displayTitle,
         maxLines: 1,
@@ -155,11 +162,54 @@ class _TileBody extends StatelessWidget {
   }
 }
 
-class _Leading extends StatelessWidget {
+class _Leading extends ConsumerStatefulWidget {
   final bool isPlaying;
   final AudioFormat format;
+  final String path;
   final int? index;
-  const _Leading({required this.isPlaying, required this.format, this.index});
+  const _Leading({
+    required this.isPlaying,
+    required this.format,
+    required this.path,
+    this.index,
+  });
+
+  @override
+  ConsumerState<_Leading> createState() => _LeadingState();
+}
+
+class _LeadingState extends ConsumerState<_Leading> {
+  Uint8List? _artBytes;
+  String? _loadedPath;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.path != _loadedPath) _loadArt(widget.path);
+  }
+
+  Future<void> _loadArt(String? path) async {
+    if (path == null) {
+      if (mounted) {
+        setState(() {
+          _artBytes = null;
+          _loadedPath = null;
+        });
+      }
+      return;
+    }
+    _loadedPath = path;
+    try {
+      final bytes = await backend.readAlbumArtThumbnail(path: path);
+      if (mounted && _loadedPath == path) {
+        setState(
+          () => _artBytes = bytes != null ? Uint8List.fromList(bytes) : null,
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => _artBytes = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,22 +228,16 @@ class _Leading extends StatelessWidget {
               borderRadius: BorderRadius.circular(5),
             ),
             child: Center(
-              child: isPlaying
+              child: widget.isPlaying
                   ? Icon(
                       Icons.equalizer_rounded,
                       size: 14,
                       color: cs.onSurface.withValues(alpha: 0.54),
                     )
-                  : Text(
-                      index != null ? '${index! + 1}' : '♪',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.24),
-                      ),
-                    ),
+                  : Image.memory(_artBytes!, fit: BoxFit.cover),
             ),
           ),
-          if (format.isLossless)
+          if (widget.format.isLossless)
             Positioned(
               top: 1,
               right: 1,

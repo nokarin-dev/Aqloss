@@ -1,11 +1,13 @@
-import 'dart:io' show Platform;
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/widgets/now_playing_header.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/track_tile.dart';
+import 'package:aqloss/widgets/track_grid_item.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -16,8 +18,6 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _searchController = TextEditingController();
-  bool _searchOpen = false;
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -28,64 +28,100 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
     final isScanning = library.status == LibraryStatus.scanning;
+    final viewMode = ref.watch(settingsProvider).libraryViewMode;
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Now playing banner
+          const NowPlayingHeader(),
+
+          // Search box & view mode toggles
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
             child: Row(
               children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: _searchOpen
-                      ? SizedBox(
-                          key: const ValueKey('search'),
-                          height: 32,
+                // Search field
+                Expanded(
+                  child: Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: cs.onSurface.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        Icon(
+                          Icons.search_rounded,
+                          size: 16,
+                          color: cs.onSurface.withValues(alpha: 0.28),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
                           child: TextField(
                             controller: _searchController,
-                            autofocus: true,
-                            style: TextStyle(color: cs.onSurface, fontSize: 14),
+                            style: TextStyle(color: cs.onSurface, fontSize: 13),
                             decoration: InputDecoration(
                               hintText: 'Search tracks…',
                               hintStyle: TextStyle(
-                                color: cs.onSurface.withValues(alpha: 0.30),
-                                fontSize: 14,
+                                color: cs.onSurface.withValues(alpha: 0.28),
+                                fontSize: 13,
                               ),
                               border: InputBorder.none,
                               isDense: true,
-                              contentPadding: EdgeInsets.zero,
+                              contentPadding: const EdgeInsets.only(bottom: 2),
                             ),
                             onChanged: ref
                                 .read(libraryProvider.notifier)
                                 .setQuery,
                           ),
-                        )
-                      : Text(
-                          key: const ValueKey('title'),
-                          'Library',
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w300,
-                            letterSpacing: -0.3,
-                          ),
                         ),
+                        if (_searchController.text.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              _searchController.clear();
+                              ref.read(libraryProvider.notifier).setQuery('');
+                              setState(() {});
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 14,
+                                color: cs.onSurface.withValues(alpha: 0.28),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-                const Spacer(),
-                _HeaderBtn(
-                  icon: _searchOpen
-                      ? Icons.close_rounded
-                      : Icons.search_rounded,
-                  onTap: () {
-                    setState(() => _searchOpen = !_searchOpen);
-                    if (!_searchOpen) {
-                      _searchController.clear();
-                      ref.read(libraryProvider.notifier).setQuery('');
-                    }
-                  },
+                const SizedBox(width: 6),
+                // Detail / Grid view toggle
+                _ViewModeButton(
+                  icon: Icons.view_list_rounded,
+                  tooltip: 'Detail view',
+                  active: viewMode == LibraryViewMode.detail,
+                  onTap: () => ref
+                      .read(settingsProvider.notifier)
+                      .setLibraryViewMode(LibraryViewMode.detail),
+                ),
+                const SizedBox(width: 2),
+                _ViewModeButton(
+                  icon: Icons.grid_view_rounded,
+                  tooltip: 'Grid view',
+                  active: viewMode == LibraryViewMode.grid,
+                  onTap: () => ref
+                      .read(settingsProvider.notifier)
+                      .setLibraryViewMode(LibraryViewMode.grid),
                 ),
               ],
             ),
@@ -93,43 +129,24 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
           if (library.totalTracks > 0)
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: _Stats(library: library),
             ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           _SortBar(library: library),
 
           const SizedBox(height: 4),
 
           Expanded(
-            child: _TrackList(library: library, isScanning: isScanning),
+            child: _TrackList(
+              library: library,
+              isScanning: isScanning,
+              viewMode: viewMode,
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HeaderBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _HeaderBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 32,
-        height: 32,
-        child: Icon(
-          icon,
-          size: 18,
-          color: cs.onSurface.withValues(alpha: 0.38),
-        ),
       ),
     );
   }
@@ -356,7 +373,12 @@ class _SortPill extends StatelessWidget {
 class _TrackList extends ConsumerWidget {
   final LibraryState library;
   final bool isScanning;
-  const _TrackList({required this.library, required this.isScanning});
+  final LibraryViewMode viewMode;
+  const _TrackList({
+    required this.library,
+    required this.isScanning,
+    required this.viewMode,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -408,44 +430,39 @@ class _TrackList extends ConsumerWidget {
     final playerNotifier = ref.read(playerProvider.notifier);
     final playlists = ref.watch(playlistProvider);
     final playlistNotifier = ref.read(playlistProvider.notifier);
-    final isDesktop =
-        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
+    if (viewMode == LibraryViewMode.grid) {
+      return GridView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 8,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: 0.78,
+        ),
+        itemCount: tracks.length,
+        itemBuilder: (ctx, i) => TrackGridItem(
+          track: tracks[i],
+          onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
+          onLongPress: () =>
+              _showOptions(ctx, tracks[i], playlists, playlistNotifier),
+        ),
+      );
+    }
 
     return ListView.builder(
       itemCount: tracks.length,
-      itemBuilder: (ctx, i) {
-        final tile = TrackTile(
-          track: tracks[i],
-          index: i,
-          onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
-          // Long press for mobile; desktop uses right-click below
-          onLongPress: isDesktop
-              ? null
-              : () => _showMobileOptions(
-                  ctx,
-                  tracks[i],
-                  playlists,
-                  playlistNotifier,
-                ),
-        );
-        if (!isDesktop) return tile;
-        return GestureDetector(
-          onSecondaryTapUp: (details) => _showContextMenu(
-            ctx,
-            ref,
-            details.globalPosition,
-            tracks[i],
-            tracks,
-            playlists,
-            playlistNotifier,
-          ),
-          child: tile,
-        );
-      },
+      itemBuilder: (ctx, i) => TrackTile(
+        track: tracks[i],
+        index: i,
+        onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
+        onLongPress: () =>
+            _showOptions(ctx, tracks[i], playlists, playlistNotifier),
+      ),
     );
   }
 
-  void _showMobileOptions(
+  void _showOptions(
     BuildContext context,
     Track track,
     List playlists,
@@ -461,156 +478,6 @@ class _TrackList extends ConsumerWidget {
         track: track,
         playlists: playlists,
         notifier: playlistNotifier,
-      ),
-    );
-  }
-
-  Future<void> _showContextMenu(
-    BuildContext context,
-    WidgetRef ref,
-    Offset position,
-    Track track,
-    List<Track> allTracks,
-    List playlists,
-    PlaylistNotifier playlistNotifier,
-  ) async {
-    final playerNotifier = ref.read(playerProvider.notifier);
-    final cs = Theme.of(context).colorScheme;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-
-    final selected = await showMenu<String>(
-      context: context,
-      color: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 8,
-      position: RelativeRect.fromRect(
-        position & const Size(1, 1),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'play',
-          height: 36,
-          child: _ContextMenuItem(
-            icon: Icons.play_arrow_rounded,
-            label: 'Play',
-            cs: cs,
-          ),
-        ),
-        const PopupMenuDivider(height: 1),
-        if (playlists.isNotEmpty) ...[
-          PopupMenuItem(
-            enabled: false,
-            height: 28,
-            child: Text(
-              'Add to playlist',
-              style: TextStyle(
-                fontSize: 10,
-                letterSpacing: 0.5,
-                color: cs.onSurface.withValues(alpha: 0.36),
-              ),
-            ),
-          ),
-          ...playlists.map(
-            (pl) => PopupMenuItem<String>(
-              value: 'playlist_${pl.id}',
-              height: 36,
-              child: _ContextMenuItem(
-                icon: Icons.queue_music_rounded,
-                label: pl.name,
-                sub: '${pl.length} tracks',
-                cs: cs,
-              ),
-            ),
-          ),
-          const PopupMenuDivider(height: 1),
-        ],
-        PopupMenuItem(
-          value: 'info',
-          height: 36,
-          child: _ContextMenuItem(
-            icon: Icons.info_outline_rounded,
-            label: 'File info',
-            cs: cs,
-          ),
-        ),
-      ],
-    );
-
-    if (selected == null || !context.mounted) return;
-
-    if (selected == 'play') {
-      playerNotifier.loadWithQueue(track, allTracks);
-    } else if (selected.startsWith('playlist_')) {
-      final id = selected.substring('playlist_'.length);
-      await playlistNotifier.addTrack(id, track);
-      if (context.mounted) {
-        try {
-          final pl = playlists.firstWhere((p) => p.id == id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Added to "${pl.name}"',
-                style: const TextStyle(fontSize: 12),
-              ),
-              backgroundColor: Theme.of(context).cardColor,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          );
-        } catch (_) {}
-      }
-    } else if (selected == 'info') {
-      if (context.mounted) _showFileInfo(context, track, cs);
-    }
-  }
-
-  void _showFileInfo(BuildContext context, Track track, ColorScheme cs) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text(
-          track.displayTitle,
-          style: TextStyle(
-            color: cs.onSurface,
-            fontSize: 15,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _FileInfoRow('Artist', track.displayArtist, cs),
-            _FileInfoRow('Album', track.displayAlbum, cs),
-            _FileInfoRow('Format', track.format, cs),
-            _FileInfoRow(
-              'Sample rate',
-              '${(track.sampleRate / 1000).toStringAsFixed(1)} kHz',
-              cs,
-            ),
-            if (track.bitDepth != null)
-              _FileInfoRow('Bit depth', '${track.bitDepth}-bit', cs),
-            _FileInfoRow('Duration', track.durationLabel, cs),
-            _FileInfoRow('Size', track.fileSizeLabel, cs),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.50),
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -758,78 +625,49 @@ class _TrackOptions extends StatelessWidget {
   }
 }
 
-class _ContextMenuItem extends StatelessWidget {
+class _ViewModeButton extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final String? sub;
-  final ColorScheme cs;
-  const _ContextMenuItem({
+  final String tooltip;
+  final bool active;
+  final VoidCallback onTap;
+  const _ViewModeButton({
     required this.icon,
-    required this.label,
-    required this.cs,
-    this.sub,
+    required this.tooltip,
+    required this.active,
+    required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Icon(icon, size: 15, color: cs.onSurface.withValues(alpha: 0.50)),
-      const SizedBox(width: 10),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: cs.onSurface.withValues(alpha: 0.80),
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: active
+                ? cs.onSurface.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: active
+                  ? cs.onSurface.withValues(alpha: 0.20)
+                  : cs.onSurface.withValues(alpha: 0.08),
             ),
           ),
-          if (sub != null)
-            Text(
-              sub!,
-              style: TextStyle(
-                fontSize: 10,
-                color: cs.onSurface.withValues(alpha: 0.36),
-              ),
-            ),
-        ],
+          child: Icon(
+            icon,
+            size: 16,
+            color: active
+                ? cs.onSurface.withValues(alpha: 0.70)
+                : cs.onSurface.withValues(alpha: 0.28),
+          ),
+        ),
       ),
-    ],
-  );
-}
-
-class _FileInfoRow extends StatelessWidget {
-  final String label, value;
-  final ColorScheme cs;
-  const _FileInfoRow(this.label, this.value, this.cs);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 90,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurface.withValues(alpha: 0.38),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurface.withValues(alpha: 0.72),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 }
