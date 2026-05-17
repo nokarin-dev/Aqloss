@@ -8,6 +8,10 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- find button discord RPC now links to YouTube Music search
+
 ### Fixed
 
 - Call backend only on drag end to prevent seek throttle

@@ -55,6 +55,7 @@
             <description>
                 <p>Added helpers, fix discord button label overflow, cursor pointer, seek throttle, and more.</p>
                 <ul>
+                    <li>find button discord RPC now links to YouTube Music search</li>
                     <li>Call backend only on drag end to prevent seek throttle</li>
                     <li>All button now should has pointer now</li>
                     <li>Discord button label overflow</li>

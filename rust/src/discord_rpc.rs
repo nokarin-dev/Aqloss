@@ -104,6 +104,17 @@ pub fn update_playing(
 
     let find_artist = truncate(title, 27);
 
+    let query = format!("{title} {artist}");
+    let encoded: String = query
+        .chars()
+        .map(|c| match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+            ' ' => "+".to_string(),
+            c => format!("%{:02X}", c as u32),
+        })
+        .collect();
+    let ytm_query = format!("https://music.youtube.com/search?q={encoded}");
+
     let large_img = match album_art_url {
         Some(url) if !url.is_empty() && is_direct_image_url(url) => url,
         _ => "aqloss",
@@ -123,11 +134,7 @@ pub fn update_playing(
             .state(&state_str)
             .details(&title_truncated)
             .timestamps(|t| t.start(start_ts).end(end_ts))
-            .append_buttons(|button| {
-                button
-                    .label(format!("Find {find_artist}"))
-                    .url("https://google.com")
-            })
+            .append_buttons(|button| button.label(format!("Find {find_artist}")).url(&ytm_query))
             .append_buttons(|button| {
                 button
                     .label("Listen with Aqloss")
