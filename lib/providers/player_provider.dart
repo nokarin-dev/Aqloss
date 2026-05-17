@@ -192,6 +192,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  void seekPreview(Duration position) {
+    state = state.copyWith(position: position);
+  }
+
+  Future<void> seekCommit(Duration position) async {
+    final sec = position.inMilliseconds / 1000.0;
+    await AudioService.seek(sec);
+    state = state.copyWith(position: position);
+    if (state.status == PlayerStatus.playing) {
+      DiscordService.updateAfterSeek(state, sec);
+    }
+  }
+
   Future<void> setVolume(double volume) async {
     final v = volume.clamp(0.0, 1.0);
     await AudioService.setVolume(v);

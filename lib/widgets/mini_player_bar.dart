@@ -240,7 +240,12 @@ class _DesktopBar extends ConsumerWidget {
                           inactiveColor: cs.onSurface.withValues(alpha: 0.08),
                           onChanged: (v) {
                             if (duration.inMilliseconds > 0) {
-                              notifier.seek(duration * v);
+                              notifier.seekPreview(duration * v);
+                            }
+                          },
+                          onChangeEnd: (v) {
+                            if (duration.inMilliseconds > 0) {
+                              notifier.seekCommit(duration * v);
                             }
                           },
                         ),
@@ -432,7 +437,12 @@ class _DesktopBar extends ConsumerWidget {
                           inactiveColor: cs.onSurface.withValues(alpha: 0.08),
                           onChanged: (v) {
                             if (duration.inMilliseconds > 0) {
-                              notifier.seek(duration * v);
+                              notifier.seekPreview(duration * v);
+                            }
+                          },
+                          onChangeEnd: (v) {
+                            if (duration.inMilliseconds > 0) {
+                              notifier.seekCommit(duration * v);
                             }
                           },
                         ),
@@ -536,7 +546,12 @@ class _MobileBar extends ConsumerWidget {
               activeColor: cs.onSurface.withValues(alpha: 0.36),
               inactiveColor: cs.onSurface.withValues(alpha: 0.08),
               onChanged: (v) {
-                if (duration.inMilliseconds > 0) notifier.seek(duration * v);
+                if (duration.inMilliseconds > 0)
+                  notifier.seekPreview(duration * v);
+              },
+              onChangeEnd: (v) {
+                if (duration.inMilliseconds > 0)
+                  notifier.seekCommit(duration * v);
               },
             ),
             Padding(

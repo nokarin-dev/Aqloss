@@ -53,8 +53,9 @@
         <release version="0.2.2" date="2026-05-17">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.2</url>
             <description>
-                <p>Added helpers, fix discord button label overflow, cursor pointer.</p>
+                <p>Added helpers, fix discord button label overflow, cursor pointer, seek throttle, and more.</p>
                 <ul>
+                    <li>Call backend only on drag end to prevent seek throttle</li>
                     <li>All button now should has pointer now</li>
                     <li>Discord button label overflow</li>
                     <li>Added helpers to prevent backend crash</li>

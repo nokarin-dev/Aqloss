@@ -10,6 +10,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Fixed
 
+- Call backend only on drag end to prevent seek throttle
 - All button now should has pointer now
 - Discord button label overflow
 - Added helpers to prevent backend crash

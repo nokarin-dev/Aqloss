@@ -39,7 +39,14 @@ class PlayerControls extends ConsumerWidget {
               ? null
               : (v) {
                   if (duration.inMilliseconds > 0) {
-                    notifier.seek(duration * v.clamp(0.0, 1.0));
+                    notifier.seekPreview(duration * v.clamp(0.0, 1.0));
+                  }
+                },
+          onChangeEnd: player.currentTrack == null
+              ? null
+              : (v) {
+                  if (duration.inMilliseconds > 0) {
+                    notifier.seekCommit(duration * v.clamp(0.0, 1.0));
                   }
                 },
         ),

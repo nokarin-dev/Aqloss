@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class CustomSlider extends StatefulWidget {
   final double value;
   final ValueChanged<double>? onChanged;
+  final ValueChanged<double>? onChangeEnd;
   final double trackHeight;
   final double thumbRadius;
   final bool showThumb;
@@ -14,6 +15,7 @@ class CustomSlider extends StatefulWidget {
     super.key,
     required this.value,
     this.onChanged,
+    this.onChangeEnd,
     this.trackHeight = 2,
     this.thumbRadius = 5,
     this.showThumb = true,
@@ -28,17 +30,30 @@ class CustomSlider extends StatefulWidget {
 
 class _CustomSliderState extends State<CustomSlider> {
   bool _dragging = false;
+  double _dragValue = 0.0;
 
   void _handleTapDown(TapDownDetails d, double width) {
     if (widget.onChanged == null) return;
     final v = (d.localPosition.dx / width).clamp(0.0, 1.0);
     widget.onChanged!(v);
+    widget.onChangeEnd?.call(v);
   }
 
-  void _handleDrag(DragUpdateDetails d, double width) {
+  void _handleDragStart(DragStartDetails d, double width) {
+    _dragValue = (d.localPosition.dx / width).clamp(0.0, 1.0);
+    setState(() => _dragging = true);
+  }
+
+  void _handleDragUpdate(DragUpdateDetails d, double width) {
     if (widget.onChanged == null) return;
     final v = (d.localPosition.dx / width).clamp(0.0, 1.0);
+    _dragValue = v;
     widget.onChanged!(v);
+  }
+
+  void _handleDragEnd(DragEndDetails _) {
+    setState(() => _dragging = false);
+    widget.onChangeEnd?.call(_dragValue);
   }
 
   @override
@@ -55,9 +70,9 @@ class _CustomSliderState extends State<CustomSlider> {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapDown: (d) => _handleTapDown(d, w),
-          onHorizontalDragStart: (_) => setState(() => _dragging = true),
-          onHorizontalDragUpdate: (d) => _handleDrag(d, w),
-          onHorizontalDragEnd: (_) => setState(() => _dragging = false),
+          onHorizontalDragStart: (d) => _handleDragStart(d, w),
+          onHorizontalDragUpdate: (d) => _handleDragUpdate(d, w),
+          onHorizontalDragEnd: _handleDragEnd,
           child: SizedBox(
             height: widget.thumbRadius * 2 + 8,
             child: CustomPaint(
@@ -99,7 +114,6 @@ class _SliderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final cy = size.height / 2;
-    final trackY = cy;
     final left = thumbRadius;
     final right = size.width - thumbRadius;
     final trackW = right - left;
@@ -117,17 +131,13 @@ class _SliderPainter extends CustomPainter {
       ..strokeWidth = trackHeight
       ..style = PaintingStyle.stroke;
 
-    // inactive track
-    canvas.drawLine(Offset(left, trackY), Offset(right, trackY), trackPaint);
-    // active track
+    canvas.drawLine(Offset(left, cy), Offset(right, cy), trackPaint);
     if (fillX > left) {
-      canvas.drawLine(Offset(left, trackY), Offset(fillX, trackY), fillPaint);
+      canvas.drawLine(Offset(left, cy), Offset(fillX, cy), fillPaint);
     }
-
-    // thumb
     if (showThumb) {
       canvas.drawCircle(
-        Offset(fillX, trackY),
+        Offset(fillX, cy),
         thumbRadius,
         Paint()..color = thumbColor,
       );
