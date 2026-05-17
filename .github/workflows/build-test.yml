@@ -6,19 +6,25 @@ on:
       - main
     paths-ignore:
       - "**.md"
+      - "**.ico"
       - ".gitignore"
       - "LICENSE"
       - "assets/banner/**"
       - "assets/preview/**"
+      - ".github/codeowners"
+      - ".github/funding.yml"
   pull_request:
     branches:
       - main
     paths-ignore:
       - "**.md"
+      - "**.ico"
       - ".gitignore"
       - "LICENSE"
       - "assets/banner/**"
       - "assets/preview/**"
+      - ".github/codeowners"
+      - ".github/funding.yml"
 permissions:
   contents: read
   checks: write

@@ -37,6 +37,7 @@ dependencies:
   window_manager: ^0.5.1
   http: ^1.6.0
   crypto: ^3.0.7
+  open_file: ^3.5.11
 
 dev_dependencies:
   flutter_test:

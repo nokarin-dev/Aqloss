@@ -3,25 +3,67 @@ import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/settings_watcher.dart';
+import 'package:window_manager/window_manager.dart';
 import 'screens/home_screen.dart';
 
-class AqlossApp extends ConsumerWidget {
+class AqlossApp extends ConsumerStatefulWidget {
   const AqlossApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AqlossApp> createState() => _AqlossAppState();
+}
+
+class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
+  bool _isMaximize = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    _checkMaximize();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  Future<void> _checkMaximize() async {
+    final fs = await windowManager.isMaximized();
+    if (mounted) setState(() => _isMaximize = fs);
+  }
+
+  @override
+  void onWindowMaximize() => setState(() => _isMaximize = true);
+
+  @override
+  void onWindowUnmaximize() => setState(() => _isMaximize = false);
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final materialThemeMode = switch (settings.themeMode) {
       ThemeMode.dark => theme.ThemeMode.dark,
       ThemeMode.light => theme.ThemeMode.light,
       ThemeMode.system => theme.ThemeMode.system,
     };
+
     return MaterialApp(
+      color: Colors.transparent,
       title: 'Aqloss',
       debugShowCheckedModeBanner: false,
       themeMode: materialThemeMode,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
+      builder: (context, child) {
+        return ClipRRect(
+          borderRadius: _isMaximize
+              ? BorderRadius.zero
+              : BorderRadius.circular(12.0),
+          child: child,
+        );
+      },
       home: const SettingsWatcher(child: HomeScreen()),
     );
   }
@@ -134,6 +176,22 @@ ThemeData _buildDarkTheme() {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       behavior: SnackBarBehavior.floating,
     ),
+    scrollbarTheme: ScrollbarThemeData(
+      thickness: WidgetStateProperty.all(3),
+      radius: const Radius.circular(99),
+      crossAxisMargin: 6,
+      mainAxisMargin: 6,
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.dragged) ||
+            states.contains(WidgetState.hovered)) {
+          return const Color(0x60FFFFFF);
+        }
+        return const Color(0x28FFFFFF);
+      }),
+      trackColor: WidgetStateProperty.all(Colors.transparent),
+      trackBorderColor: WidgetStateProperty.all(Colors.transparent),
+      interactive: true,
+    ),
   );
 }
 
@@ -243,6 +301,22 @@ ThemeData _buildLightTheme() {
       contentTextStyle: const TextStyle(color: Colors.black, fontSize: 13),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       behavior: SnackBarBehavior.floating,
+    ),
+    scrollbarTheme: ScrollbarThemeData(
+      thickness: WidgetStateProperty.all(3),
+      radius: const Radius.circular(99),
+      crossAxisMargin: 6,
+      mainAxisMargin: 6,
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.dragged) ||
+            states.contains(WidgetState.hovered)) {
+          return const Color(0x60000000);
+        }
+        return const Color(0x28000000);
+      }),
+      trackColor: WidgetStateProperty.all(Colors.transparent),
+      trackBorderColor: WidgetStateProperty.all(Colors.transparent),
+      interactive: true,
     ),
   );
 }

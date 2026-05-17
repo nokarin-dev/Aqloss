@@ -11,9 +11,12 @@ import 'settings_screen.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/mini_player_bar.dart';
+import 'package:aqloss/widgets/playlist_art_icon.dart';
+import 'package:aqloss/widgets/now_playing_header.dart';
 
 const _kSidebarCollapsed = 'aqloss_sidebar_collapsed';
 
@@ -159,44 +162,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
 
-    final showDesktopMiniPlayer = isWide && hasTrack && _route != 0;
-    final showMobileMiniPlayer = !isWide && hasTrack && _route != 0;
-
     return Focus(
       autofocus: true,
       onKeyEvent: _handleKey,
       child: Scaffold(
-        body: Column(
-          children: [
-            if (_isDesktop) _CustomTitleBar(isMaximized: _isMaximized),
-            Expanded(
-              child: isWide
-                  ? Row(
-                      children: [
-                        _SideNav(
-                          route: _route,
-                          collapsed: _sidebarCollapsed,
-                          onSelect: (r) => setState(() => _route = r),
-                          onToggleCollapse: _toggleSidebar,
-                        ),
-                        Expanded(child: _buildScreen()),
-                      ],
-                    )
-                  : _buildScreen(),
-            ),
-            // Desktop mini player
-            if (showDesktopMiniPlayer)
-              MiniPlayerBar(onTap: () => setState(() => _route = 0)),
-            // Mobile mini player
-            if (showMobileMiniPlayer)
-              MiniPlayerBar(onTap: () => setState(() => _route = 0)),
-          ],
+        body: ColoredBox(
+          color: Theme.of(context).colorScheme.surface,
+          child: Column(
+            children: [
+              if (_isDesktop) _CustomTitleBar(isMaximized: _isMaximized),
+              Expanded(
+                child: isWide
+                    ? Row(
+                        children: [
+                          _SideNav(
+                            route: _route,
+                            collapsed: _sidebarCollapsed,
+                            onSelect: (r) => setState(() => _route = r),
+                            onToggleCollapse: _toggleSidebar,
+                          ),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                Expanded(child: _buildScreen()),
+                                if (hasTrack && _route != 0)
+                                  MiniPlayerBar(
+                                    onTap: () => setState(() => _route = 0),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : _buildScreen(),
+              ),
+            ],
+          ),
         ),
         bottomNavigationBar: isWide
             ? null
             : _MobileNavBar(
                 selectedIndex: _route.clamp(0, 2),
                 onDestinationSelected: (i) => setState(() => _route = i),
+                hasTrack: hasTrack && _route != 0,
+                onMiniPlayerTap: () => setState(() => _route = 0),
               ),
       ),
     );
@@ -206,56 +215,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
 class _MobileNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
+  final bool hasTrack;
+  final VoidCallback onMiniPlayerTap;
 
   const _MobileNavBar({
     required this.selectedIndex,
     required this.onDestinationSelected,
+    required this.hasTrack,
+    required this.onMiniPlayerTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        border: Border(top: BorderSide(color: cs.outline)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 52,
-          child: Row(
-            children: [
-              _NavTab(
-                icon: Icons.play_circle_outline_rounded,
-                activeIcon: Icons.play_circle_rounded,
-                label: 'Now Playing',
-                isSelected: selectedIndex == 0,
-                onTap: () => onDestinationSelected(0),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasTrack) MiniPlayerBar(onTap: onMiniPlayerTap),
+        Container(
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            border: Border(top: BorderSide(color: cs.outline)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 52,
+              child: Row(
+                children: [
+                  _NavTab(
+                    icon: Icons.play_circle_outline_rounded,
+                    activeIcon: Icons.play_circle_rounded,
+                    label: 'Now Playing',
+                    isSelected: selectedIndex == 0,
+                    onTap: () => onDestinationSelected(0),
+                  ),
+                  _NavTab(
+                    icon: Icons.library_music_outlined,
+                    activeIcon: Icons.library_music_rounded,
+                    label: 'Library',
+                    isSelected: selectedIndex == 1,
+                    onTap: () => onDestinationSelected(1),
+                  ),
+                  _NavTab(
+                    icon: Icons.tune_outlined,
+                    activeIcon: Icons.tune_rounded,
+                    label: 'Settings',
+                    isSelected: selectedIndex == 2,
+                    onTap: () => onDestinationSelected(2),
+                  ),
+                ],
               ),
-              _NavTab(
-                icon: Icons.library_music_outlined,
-                activeIcon: Icons.library_music_rounded,
-                label: 'Library',
-                isSelected: selectedIndex == 1,
-                onTap: () => onDestinationSelected(1),
-              ),
-              _NavTab(
-                icon: Icons.tune_outlined,
-                activeIcon: Icons.tune_rounded,
-                label: 'Settings',
-                isSelected: selectedIndex == 2,
-                onTap: () => onDestinationSelected(2),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _NavTab extends StatelessWidget {
+class _NavTab extends ConsumerWidget {
   final IconData icon;
   final IconData activeIcon;
   final String label;
@@ -271,8 +290,11 @@ class _NavTab extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
+    final isIslands = ref.watch(settingsProvider).appStyle == AppStyle.islands;
+    final activeColor = isIslands ? cs.primary : cs.onSurface;
+    final inactiveColor = cs.onSurface.withValues(alpha: 0.35);
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -283,19 +305,15 @@ class _NavTab extends StatelessWidget {
             Icon(
               isSelected ? activeIcon : icon,
               size: 22,
-              color: isSelected
-                  ? cs.onSurface
-                  : cs.onSurface.withValues(alpha: 0.35),
+              color: isSelected ? activeColor : inactiveColor,
             ),
             const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: isSelected
-                    ? cs.onSurface
-                    : cs.onSurface.withValues(alpha: 0.35),
-                fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                color: isSelected ? activeColor : inactiveColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],
@@ -324,8 +342,8 @@ class _SideNav extends ConsumerStatefulWidget {
 
 class _SideNavState extends ConsumerState<_SideNav>
     with SingleTickerProviderStateMixin {
-  static const _collapsedWidth = 48.0;
-  static const _expandedWidth = 200.0;
+  static const _collapsedWidth = 56.0;
+  static const _expandedWidth = 230.0;
   late final AnimationController _ctrl;
   late final Animation<double> _widthAnim;
 
@@ -382,10 +400,25 @@ class _SideNavState extends ConsumerState<_SideNav>
     final playlists = ref.watch(playlistProvider);
     final library = ref.watch(libraryProvider);
     final player = ref.watch(playerProvider);
+    final appStyle = ref.watch(settingsProvider).appStyle;
     final isScanning = library.status == LibraryStatus.scanning;
     final collapsed = widget.collapsed;
     final cs = Theme.of(context).colorScheme;
 
+    // Islands sidebar
+    if (appStyle == AppStyle.islands) {
+      return _buildIslandsSidebar(
+        context,
+        playlists,
+        library,
+        player,
+        isScanning,
+        collapsed,
+        cs,
+      );
+    }
+
+    // Legacy sidebar
     return AnimatedBuilder(
       animation: _widthAnim,
       builder: (context, child) {
@@ -399,6 +432,7 @@ class _SideNavState extends ConsumerState<_SideNav>
           color: cs.surfaceContainerHighest,
           border: Border(right: BorderSide(color: cs.outline)),
         ),
+        padding: EdgeInsets.all(5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -414,6 +448,11 @@ class _SideNavState extends ConsumerState<_SideNav>
             ),
 
             const SizedBox(height: 4),
+
+            if (!collapsed)
+              _SectionLabel('NAVIGATE')
+            else
+              const SizedBox(height: 2),
 
             // Now playing
             _NavItem(
@@ -553,19 +592,266 @@ class _SideNavState extends ConsumerState<_SideNav>
                                 horizontal: collapsed ? 5 : 6,
                                 vertical: 1,
                               ),
-                              decoration: BoxDecoration(
-                                color: isOver
-                                    ? cs.onSurface.withValues(alpha: 0.07)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(6),
-                                border: isOver
-                                    ? Border.all(
+                              decoration: isOver
+                                  ? BoxDecoration(
+                                      color: cs.onSurface.withValues(
+                                        alpha: 0.07,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
                                         color: cs.onSurface.withValues(
                                           alpha: 0.16,
                                         ),
-                                      )
-                                    : null,
+                                      ),
+                                    )
+                                  : null,
+                              child: collapsed
+                                  ? _PlaylistCollapsedIcon(
+                                      playlist: pl,
+                                      isActive: widget.route == (i + 10),
+                                      onTap: () => widget.onSelect(i + 10),
+                                    )
+                                  : _PlaylistNavItem(
+                                      playlist: pl,
+                                      isActive: widget.route == (i + 10),
+                                      onTap: () => widget.onSelect(i + 10),
+                                      onDelete: () => ref
+                                          .read(playlistProvider.notifier)
+                                          .delete(pl.id),
+                                      onRename: () =>
+                                          _renamePlaylist(context, pl),
+                                      onPlay: pl.tracks.isNotEmpty
+                                          ? () => ref
+                                                .read(playerProvider.notifier)
+                                                .loadWithQueue(
+                                                  pl.tracks.first,
+                                                  pl.tracks,
+                                                )
+                                          : null,
+                                    ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+
+            Divider(color: cs.outline, height: 1),
+            const SizedBox(height: 2),
+
+            // Settings
+            _NavItem(
+              icon: Icons.settings_outlined,
+              activeIcon: Icons.settings_rounded,
+              label: 'Settings',
+              isActive: widget.route == 2,
+              collapsed: collapsed,
+              onTap: () => widget.onSelect(2),
+            ),
+
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIslandsSidebar(
+    BuildContext context,
+    List playlists,
+    LibraryState library,
+    PlayerState player,
+    bool isScanning,
+    bool collapsed,
+    ColorScheme cs,
+  ) {
+    return AnimatedBuilder(
+      animation: _widthAnim,
+      builder: (context, child) {
+        final w =
+            60 +
+            (_expandedWidth - 60) * _widthAnim.value;
+        return SizedBox(width: w, child: child);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.all(Radius.circular(5)),
+        ),
+        margin: EdgeInsets.all(5),
+        padding: EdgeInsets.all(5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 6),
+
+            // Collapse toggle
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: _CollapseBtn(
+                collapsed: collapsed,
+                onTap: widget.onToggleCollapse,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            if (!collapsed)
+              _SectionLabel('NAVIGATE')
+            else
+              const SizedBox(height: 2),
+
+            // Now playing
+            _NavItem(
+              icon: Icons.play_circle_outline_rounded,
+              activeIcon: Icons.play_circle_rounded,
+              label: 'Now Playing',
+              isActive: widget.route == 0,
+              collapsed: collapsed,
+              trailing: player.currentTrack != null
+                  ? _NowPlayingDot(status: player.status)
+                  : null,
+              onTap: () => widget.onSelect(0),
+            ),
+
+            // Library
+            _NavItem(
+              icon: Icons.library_music_outlined,
+              activeIcon: Icons.library_music_rounded,
+              label: 'Library',
+              isActive: widget.route == 1,
+              collapsed: collapsed,
+              onTap: () => widget.onSelect(1),
+            ),
+
+            if (!collapsed)
+              _SectionLabel('LIBRARY')
+            else
+              const SizedBox(height: 2),
+
+            // Folders
+            _NavItem(
+              icon: Icons.folder_open_outlined,
+              activeIcon: Icons.folder_open_rounded,
+              label: 'Folders',
+              isActive: false,
+              collapsed: collapsed,
+              trailing: isScanning
+                  ? SizedBox(
+                      width: 11,
+                      height: 11,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.2,
+                        color: cs.onSurface.withValues(alpha: 0.22),
+                      ),
+                    )
+                  : null,
+              onTap: _showFolderManager,
+            ),
+
+            // Rescan
+            _NavItem(
+              icon: Icons.refresh_rounded,
+              activeIcon: Icons.refresh_rounded,
+              label: 'Rescan',
+              isActive: false,
+              collapsed: collapsed,
+              onTap: isScanning
+                  ? null
+                  : () => ref.read(libraryProvider.notifier).rescanAll(),
+            ),
+
+            if (!collapsed && library.totalTracks > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 3, 14, 1),
+                child: Text(
+                  '${library.totalTracks} tracks',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurface.withValues(alpha: 0.22),
+                  ),
+                ),
+              ),
+
+            // Section label
+            if (!collapsed)
+              Row(
+                children: [
+                  _SectionLabel('PLAYLISTS'),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: _IconBtn(
+                      icon: Icons.add_rounded,
+                      tooltip: 'New playlist (Ctrl+N)',
+                      onTap: _createPlaylist,
+                    ),
+                  ),
+                ],
+              )
+            else ...[
+              const SizedBox(height: 2),
+              Tooltip(
+                message: 'New playlist',
+                preferBelow: false,
+                child: GestureDetector(
+                  onTap: _createPlaylist,
+                  child: SizedBox(
+                    height: 30,
+                    child: Center(
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: cs.onSurface.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Icon(
+                          Icons.add_rounded,
+                          size: 13,
+                          color: cs.onSurface.withValues(alpha: 0.36),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
+            // Playlist list
+            Expanded(
+              child: playlists.isEmpty
+                  ? const SizedBox.shrink()
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      itemCount: playlists.length,
+                      itemBuilder: (ctx, i) {
+                        final pl = playlists[i];
+                        return DragTarget<List<Track>>(
+                          onAcceptWithDetails: (details) => ref
+                              .read(playlistProvider.notifier)
+                              .addTracks(pl.id, details.data),
+                          builder: (ctx, candidates, rejected) {
+                            final isOver = candidates.isNotEmpty;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              margin: EdgeInsets.symmetric(
+                                horizontal: collapsed ? 5 : 6,
+                                vertical: 1,
                               ),
+                              decoration: isOver
+                                  ? BoxDecoration(
+                                      color: cs.onSurface.withValues(
+                                        alpha: 0.07,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: cs.onSurface.withValues(
+                                          alpha: 0.16,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
                               child: collapsed
                                   ? _PlaylistCollapsedIcon(
                                       playlist: pl,
@@ -656,10 +942,6 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final letter = widget.playlist.name.isNotEmpty
-        ? widget.playlist.name[0].toUpperCase()
-        : '♪';
-
     return Tooltip(
       message: '${widget.playlist.name} · ${widget.playlist.length} tracks',
       preferBelow: false,
@@ -671,7 +953,7 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
           onTap: widget.onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
-            height: 30,
+            height: 36,
             decoration: BoxDecoration(
               color: widget.isActive
                   ? cs.onSurface.withValues(alpha: 0.10)
@@ -681,27 +963,10 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Center(
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: widget.isActive
-                      ? cs.onSurface.withValues(alpha: 0.14)
-                      : cs.onSurface.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Center(
-                  child: Text(
-                    letter,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: widget.isActive
-                          ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.50),
-                    ),
-                  ),
-                ),
+              child: PlaylistArtIcon(
+                playlist: widget.playlist,
+                size: 26,
+                radius: 5,
               ),
             ),
           ),
@@ -1134,13 +1399,7 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           child: Row(
             children: [
-              Icon(
-                Icons.queue_music_rounded,
-                size: 13,
-                color: widget.isActive
-                    ? cs.onSurface.withValues(alpha: 0.70)
-                    : cs.onSurface.withValues(alpha: 0.28),
-              ),
+              PlaylistArtIcon(playlist: widget.playlist, size: 30, radius: 5),
               const SizedBox(width: 7),
               Expanded(
                 child: Column(
@@ -1255,7 +1514,7 @@ class _PlaylistDetailScreen extends ConsumerWidget {
             padding: EdgeInsets.fromLTRB(
               isMobile ? 16 : 24,
               isMobile ? 16 : 24,
-              isMobile ? 16 : 24,
+              isMobile ? 18 : 24,
               8,
             ),
             child: Row(
@@ -1308,6 +1567,7 @@ class _PlaylistDetailScreen extends ConsumerWidget {
             ),
           ),
           Divider(color: cs.outline, height: 1),
+          const NowPlayingHeader(),
           Expanded(
             child: current.tracks.isEmpty
                 ? Center(
@@ -1375,7 +1635,7 @@ class _PlaylistDetailScreen extends ConsumerWidget {
   }
 }
 
-class _PlaylistTrackTile extends ConsumerWidget {
+class _PlaylistTrackTile extends ConsumerStatefulWidget {
   final Track track;
   final int index;
   final VoidCallback onTap;
@@ -1387,75 +1647,106 @@ class _PlaylistTrackTile extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PlaylistTrackTile> createState() => _PlaylistTrackTileState();
+}
+
+class _PlaylistTrackTileState extends ConsumerState<_PlaylistTrackTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
     final isPlaying =
-        ref.watch(playerProvider).currentTrack?.path == track.path;
+        ref.watch(playerProvider).currentTrack?.path == widget.track.path;
     final cs = Theme.of(context).colorScheme;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.only(left: 16, right: 0),
-      dense: true,
-      leading: SizedBox(
-        width: 32,
-        height: 32,
-        child: Center(
-          child: Text(
-            isPlaying ? '▶' : '${index + 1}',
-            style: TextStyle(
-              fontSize: isPlaying ? 11 : 10,
-              color: isPlaying
-                  ? cs.onSurface
-                  : cs.onSurface.withValues(alpha: 0.28),
-            ),
-          ),
-        ),
-      ),
-      title: Text(
-        track.displayTitle,
-        style: TextStyle(
-          color: isPlaying
-              ? cs.onSurface
-              : cs.onSurface.withValues(alpha: 0.70),
-          fontSize: 13,
-          fontWeight: isPlaying ? FontWeight.w500 : FontWeight.w400,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        track.displayArtist,
-        style: TextStyle(
-          color: cs.onSurface.withValues(alpha: 0.30),
-          fontSize: 11,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            track.durationLabel,
-            style: TextStyle(
-              fontSize: 11,
-              color: cs.onSurface.withValues(alpha: 0.22),
-            ),
-          ),
-          const SizedBox(width: 4),
-          ReorderableDragStartListener(
-            index: index,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-              child: Icon(
-                Icons.drag_handle_rounded,
-                size: 15,
-                color: cs.onSurface.withValues(alpha: 0.22),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          color: _hovered
+              ? cs.onSurface.withValues(alpha: 0.03)
+              : Colors.transparent,
+          padding: const EdgeInsets.only(left: 16, right: 0, top: 6, bottom: 6),
+          child: Row(
+            children: [
+              // Index / playing indicator
+              SizedBox(
+                width: 32,
+                child: Center(
+                  child: Text(
+                    isPlaying ? '▶' : '${widget.index + 1}',
+                    style: TextStyle(
+                      fontSize: isPlaying ? 11 : 10,
+                      color: isPlaying
+                          ? cs.onSurface
+                          : cs.onSurface.withValues(alpha: 0.28),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.track.displayTitle,
+                      style: TextStyle(
+                        color: isPlaying
+                            ? cs.onSurface
+                            : cs.onSurface.withValues(alpha: 0.70),
+                        fontSize: 13,
+                        fontWeight: isPlaying
+                            ? FontWeight.w500
+                            : FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.track.displayArtist,
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.30),
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                widget.track.durationLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurface.withValues(alpha: 0.22),
+                ),
+              ),
+              const SizedBox(width: 4),
+              ReorderableDragStartListener(
+                index: widget.index,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 12,
+                  ),
+                  child: Icon(
+                    Icons.drag_handle_rounded,
+                    size: 15,
+                    color: cs.onSurface.withValues(alpha: 0.22),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      onTap: onTap,
     );
   }
 }

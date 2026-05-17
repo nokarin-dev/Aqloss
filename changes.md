@@ -6,11 +6,30 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-No Changes Yet.
+## [Unreleased]
+
+### Added
+
+- Aqloss logging
+- 128-entry LRU cache for album art thumbnails
+- Islands theme
+- Grid / Detail view toggle in library
+- Now playing header on library and playlist
+- Mini player
+
+### Fixed
+- Buffer underrun warning spam
+- Window not rounded on linux 
+
+### Changed
+
+- Library and playlist now displaying cover art
+- Images are resized to a maximum of 300×300 and recompressed to JPEG to reduce ram usage
+- remove material widgets from library and settings screen
 
 ---
 
-### [0.2.0] - 2026-05-14
+## [0.2.0] - 2026-05-14
 
 ### Fixed
 

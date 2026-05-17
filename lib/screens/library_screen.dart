@@ -1,6 +1,9 @@
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/now_playing_header.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
+import 'package:aqloss/widgets/q_sheet.dart';
+import 'package:aqloss/widgets/q_spinner.dart';
+import 'package:aqloss/widgets/q_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -18,9 +21,12 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _searchController = TextEditingController();
+  final _focusNode = FocusNode();
+
   @override
   void dispose() {
     _searchController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -29,86 +35,37 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final library = ref.watch(libraryProvider);
     final isScanning = library.status == LibraryStatus.scanning;
     final viewMode = ref.watch(settingsProvider).libraryViewMode;
-    final cs = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      body: Column(
+    return ColoredBox(
+      color: Colors.transparent,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Now playing banner
           const NowPlayingHeader(),
 
-          // Search box & view mode toggles
+          // Search + view toggle
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
             child: Row(
               children: [
-                // Search field
                 Expanded(
-                  child: Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: cs.onSurface.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: cs.onSurface.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 10),
-                        Icon(
-                          Icons.search_rounded,
-                          size: 16,
-                          color: cs.onSurface.withValues(alpha: 0.28),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            style: TextStyle(color: cs.onSurface, fontSize: 13),
-                            decoration: InputDecoration(
-                              hintText: 'Search tracks…',
-                              hintStyle: TextStyle(
-                                color: cs.onSurface.withValues(alpha: 0.28),
-                                fontSize: 13,
-                              ),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.only(bottom: 2),
-                            ),
-                            onChanged: ref
-                                .read(libraryProvider.notifier)
-                                .setQuery,
-                          ),
-                        ),
-                        if (_searchController.text.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              ref.read(libraryProvider.notifier).setQuery('');
-                              setState(() {});
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              child: Icon(
-                                Icons.close_rounded,
-                                size: 14,
-                                color: cs.onSurface.withValues(alpha: 0.28),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                  child: _SearchBox(
+                    controller: _searchController,
+                    focusNode: _focusNode,
+                    onChanged: (q) {
+                      ref.read(libraryProvider.notifier).setQuery(q);
+                      setState(() {});
+                    },
+                    onClear: () {
+                      _searchController.clear();
+                      ref.read(libraryProvider.notifier).setQuery('');
+                      setState(() {});
+                    },
                   ),
                 ),
                 const SizedBox(width: 6),
-                // Detail / Grid view toggle
                 _ViewModeButton(
                   icon: Icons.view_list_rounded,
-                  tooltip: 'Detail view',
                   active: viewMode == LibraryViewMode.detail,
                   onTap: () => ref
                       .read(settingsProvider.notifier)
@@ -117,7 +74,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 const SizedBox(width: 2),
                 _ViewModeButton(
                   icon: Icons.grid_view_rounded,
-                  tooltip: 'Grid view',
                   active: viewMode == LibraryViewMode.grid,
                   onTap: () => ref
                       .read(settingsProvider.notifier)
@@ -134,9 +90,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
 
           const SizedBox(height: 4),
-
           _SortBar(library: library),
-
           const SizedBox(height: 4),
 
           Expanded(
@@ -152,6 +106,75 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 }
 
+// Search box
+class _SearchBox extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _SearchBox({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: focusNode.requestFocus,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        height: 36,
+        decoration: BoxDecoration(
+          color: cs.onSurface.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 10),
+            Icon(
+              Icons.search_rounded,
+              size: 16,
+              color: cs.onSurface.withValues(alpha: 0.28),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: EditableText(
+                controller: controller,
+                focusNode: focusNode,
+                onChanged: onChanged,
+                style: TextStyle(color: cs.onSurface, fontSize: 13),
+                cursorColor: cs.onSurface.withValues(alpha: 0.60),
+                backgroundCursorColor: Colors.transparent,
+                cursorWidth: 1.2,
+                cursorRadius: const Radius.circular(1),
+                selectionColor: cs.onSurface.withValues(alpha: 0.15),
+              ),
+            ),
+            if (controller.text.isNotEmpty)
+              GestureDetector(
+                onTap: onClear,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: cs.onSurface.withValues(alpha: 0.28),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Stats row
 class _Stats extends StatelessWidget {
   final LibraryState library;
   const _Stats({required this.library});
@@ -163,49 +186,19 @@ class _Stats extends StatelessWidget {
     final time = d.inHours > 0
         ? '${d.inHours}h ${d.inMinutes.remainder(60)}m'
         : '${d.inMinutes}m';
-    return Row(
-      children: [
-        _Chip('${library.totalTracks}'),
-        Text(
-          ' tracks · ',
-          style: TextStyle(
-            fontSize: 11,
-            color: cs.onSurface.withValues(alpha: 0.24),
-          ),
-        ),
-        _Chip(time),
-        if (library.losslessTracks.isNotEmpty) ...[
-          Text(
-            '  ·  ',
-            style: TextStyle(
-              fontSize: 11,
-              color: cs.onSurface.withValues(alpha: 0.24),
-            ),
-          ),
-          _Chip('${library.losslessTracks.length} lossless'),
-        ],
-      ],
+    final style = TextStyle(
+      fontSize: 11,
+      color: cs.onSurface.withValues(alpha: 0.28),
     );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final String text;
-  const _Chip(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Text(
-      text,
-      style: TextStyle(
-        fontSize: 11,
-        color: cs.onSurface.withValues(alpha: 0.30),
-      ),
+      '${library.totalTracks} tracks · $time'
+      '${library.losslessTracks.isNotEmpty ? ' · ${library.losslessTracks.length} lossless' : ''}',
+      style: style,
     );
   }
 }
 
+// Sort / filter bar
 class _SortBar extends ConsumerWidget {
   final LibraryState library;
   const _SortBar({required this.library});
@@ -240,7 +233,7 @@ class _SortBar extends ConsumerWidget {
           Container(
             width: 1,
             margin: const EdgeInsets.symmetric(vertical: 9),
-            color: cs.outline,
+            color: cs.onSurface.withValues(alpha: 0.08),
           ),
           const SizedBox(width: 8),
           ...[
@@ -370,6 +363,7 @@ class _SortPill extends StatelessWidget {
   }
 }
 
+// Track list
 class _TrackList extends ConsumerWidget {
   final LibraryState library;
   final bool isScanning;
@@ -389,14 +383,7 @@ class _TrackList extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: cs.onSurface.withValues(alpha: 0.24),
-              ),
-            ),
+            QSpinner(size: 18, color: cs.onSurface.withValues(alpha: 0.24)),
             const SizedBox(height: 14),
             Text(
               'Scanning…',
@@ -453,6 +440,7 @@ class _TrackList extends ConsumerWidget {
     return ListView.builder(
       itemCount: tracks.length,
       itemBuilder: (ctx, i) => TrackTile(
+        key: ValueKey(tracks[i].path),
         track: tracks[i],
         index: i,
         onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
@@ -463,17 +451,13 @@ class _TrackList extends ConsumerWidget {
   }
 
   void _showOptions(
-    BuildContext context,
+    BuildContext ctx,
     Track track,
     List playlists,
     PlaylistNotifier playlistNotifier,
   ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+    showQSheet(
+      context: ctx,
       builder: (_) => _TrackOptions(
         track: track,
         playlists: playlists,
@@ -483,6 +467,7 @@ class _TrackList extends ConsumerWidget {
   }
 }
 
+// Empty state
 class _Empty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -494,13 +479,13 @@ class _Empty extends StatelessWidget {
           Icon(
             Icons.folder_open_outlined,
             size: 36,
-            color: cs.onSurface.withValues(alpha: 0.12),
+            color: cs.onSurface.withValues(alpha: 0.10),
           ),
           const SizedBox(height: 16),
           Text(
             'No music yet',
             style: TextStyle(
-              color: cs.onSurface.withValues(alpha: 0.38),
+              color: cs.onSurface.withValues(alpha: 0.36),
               fontSize: 14,
               fontWeight: FontWeight.w300,
             ),
@@ -510,7 +495,7 @@ class _Empty extends StatelessWidget {
             'Add a folder via the sidebar',
             style: TextStyle(
               fontSize: 11,
-              color: cs.onSurface.withValues(alpha: 0.20),
+              color: cs.onSurface.withValues(alpha: 0.18),
             ),
           ),
         ],
@@ -519,6 +504,7 @@ class _Empty extends StatelessWidget {
   }
 }
 
+// Track options sheet
 class _TrackOptions extends StatelessWidget {
   final Track track;
   final List playlists;
@@ -532,107 +518,132 @@ class _TrackOptions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 32,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // drag handle
+          Center(
+            child: Container(
+              width: 32,
+              height: 3,
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 14),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            track.displayTitle,
+            style: TextStyle(
+              color: cs.onSurface,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            track.displayArtist,
+            style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.36),
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 14),
+          // custom divider — no Material Divider widget
+          Container(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+          const SizedBox(height: 12),
+          if (playlists.isNotEmpty) ...[
             Text(
-              track.displayTitle,
+              'Add to playlist',
               style: TextStyle(
-                color: cs.onSurface,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              track.displayArtist,
-              style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.38),
-                fontSize: 11,
+                fontSize: 10,
+                color: cs.onSurface.withValues(alpha: 0.32),
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 14),
-            Divider(color: cs.outline, height: 1),
-            const SizedBox(height: 10),
-            if (playlists.isNotEmpty)
-              Text(
-                'Add to playlist',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: cs.onSurface.withValues(alpha: 0.38),
-                  letterSpacing: 0.5,
-                ),
-              ),
             const SizedBox(height: 6),
-            ...playlists.map(
-              (pl) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                title: Text(
-                  pl.name,
-                  style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.60),
-                    fontSize: 13,
-                  ),
-                ),
-                subtitle: Text(
-                  '${pl.length} tracks',
-                  style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.24),
-                    fontSize: 10,
-                  ),
-                ),
-                onTap: () {
-                  notifier.addTrack(pl.id, track);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Added to "${pl.name}"',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      backgroundColor: Theme.of(context).cardColor,
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
           ],
+          ...playlists.map(
+            (pl) => _PlaylistOptionRow(
+              pl: pl,
+              onTap: () {
+                notifier.addTrack(pl.id, track);
+                Navigator.pop(context);
+                QToast.show(context, 'Added to "${pl.name}"');
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaylistOptionRow extends StatefulWidget {
+  final dynamic pl;
+  final VoidCallback onTap;
+  const _PlaylistOptionRow({required this.pl, required this.onTap});
+  @override
+  State<_PlaylistOptionRow> createState() => _PlaylistOptionRowState();
+}
+
+class _PlaylistOptionRowState extends State<_PlaylistOptionRow> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          color: _hovered
+              ? cs.onSurface.withValues(alpha: 0.04)
+              : Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.pl.name,
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.60),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${widget.pl.length} tracks',
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.24),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+// View mode button
 class _ViewModeButton extends StatelessWidget {
   final IconData icon;
-  final String tooltip;
   final bool active;
   final VoidCallback onTap;
   const _ViewModeButton({
     required this.icon,
-    required this.tooltip,
     required this.active,
     required this.onTap,
   });
@@ -640,32 +651,29 @@ class _ViewModeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: active
+              ? cs.onSurface.withValues(alpha: 0.10)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
             color: active
-                ? cs.onSurface.withValues(alpha: 0.10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: active
-                  ? cs.onSurface.withValues(alpha: 0.20)
-                  : cs.onSurface.withValues(alpha: 0.08),
-            ),
+                ? cs.onSurface.withValues(alpha: 0.20)
+                : cs.onSurface.withValues(alpha: 0.08),
           ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: active
-                ? cs.onSurface.withValues(alpha: 0.70)
-                : cs.onSurface.withValues(alpha: 0.28),
-          ),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: active
+              ? cs.onSurface.withValues(alpha: 0.70)
+              : cs.onSurface.withValues(alpha: 0.28),
         ),
       ),
     );

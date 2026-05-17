@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:aqloss/util/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
@@ -90,7 +90,7 @@ class AudioDeviceNotifier extends AsyncNotifier<AudioDeviceState> {
         ),
       );
     } catch (e, st) {
-      debugPrint('[AudioDeviceProvider] scan error: $e');
+      Logger.errorDeviceProvider('scan error: $e');
       state = AsyncValue.error(e, st);
     }
   }
@@ -115,7 +115,7 @@ class AudioDeviceNotifier extends AsyncNotifier<AudioDeviceState> {
         ),
       );
     } catch (e) {
-      debugPrint('[AudioDeviceProvider] selectDevice error: $e');
+      Logger.errorDeviceProvider('selectDevice error: $e');
       state = AsyncValue.data(current.copyWith(isSwitching: false));
       rethrow;
     }

@@ -25,6 +25,11 @@ Future<void> reinitEngine({
   exclusive: exclusive,
 );
 
+Future<void> recoverEngine() => AqlossCore.instance.api.crateApiRecoverEngine();
+
+bool isDecodeThreadDead() =>
+    AqlossCore.instance.api.crateApiIsDecodeThreadDead();
+
 Future<List<AudioDeviceInfo>> enumerateAudioDevices() =>
     AqlossCore.instance.api.crateApiEnumerateAudioDevices();
 
@@ -86,11 +91,20 @@ Future<TrackInfo> readMetadata({required String path}) =>
 Future<Uint8List?> readAlbumArt({required String path}) =>
     AqlossCore.instance.api.crateApiReadAlbumArt(path: path);
 
+Future<Uint8List?> readAlbumArtThumbnail({required String path}) =>
+    AqlossCore.instance.api.crateApiReadAlbumArtThumbnail(path: path);
+
+Future<void> evictThumbnailCache({required String path}) =>
+    AqlossCore.instance.api.crateApiEvictThumbnailCache(path: path);
+
 Future<List<String>> scanDirectory({required String path}) =>
     AqlossCore.instance.api.crateApiScanDirectory(path: path);
 
 Future<String?> readEmbeddedLyrics({required String path}) =>
     AqlossCore.instance.api.crateApiReadEmbeddedLyrics(path: path);
+
+Future<void> setLogPath({required String path}) =>
+    AqlossCore.instance.api.crateApiSetLogPath(path: path);
 
 Future<void> discordUpdatePlaying({
   required String title,

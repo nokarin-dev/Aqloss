@@ -338,7 +338,24 @@ impl AudioEngine {
             return Ok(());
         }
         logger::info_audio("play() - starting decode thread");
-        self.start_thread();
+        self.flags.alive.store(true, Ordering::SeqCst);
+        self.flags.playing.store(true, Ordering::SeqCst);
+        let flags = self.flags.clone();
+        let died_flag = self.decode_thread_died.clone();
+        logger::debug_audio("spawning decode thread");
+        let arc = Self::global();
+        thread::spawn(move || decode_loop(arc, flags, died_flag));
+
+        let ring_cap = self.output.sample_rate as usize * self.output.channels as usize + 4096;
+        let prefill_target = ring_cap / 4;
+        let deadline = std::time::Instant::now() + Duration::from_millis(500);
+        while std::time::Instant::now() < deadline {
+            if self.output.ring_vacant() <= ring_cap - prefill_target {
+                break;
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        logger::debug_audio("pre-fill done, audio output active");
         Ok(())
     }
 
@@ -426,16 +443,6 @@ impl AudioEngine {
             logger::debug_audio(format!("decode thread stopped (waited {waited}ms)"));
         }
     }
-
-    fn start_thread(&mut self) {
-        let arc = Self::global();
-        self.flags.alive.store(true, Ordering::SeqCst);
-        self.flags.playing.store(true, Ordering::SeqCst);
-        let flags = self.flags.clone();
-        let died_flag = self.decode_thread_died.clone();
-        logger::debug_audio("spawning decode thread");
-        thread::spawn(move || decode_loop(arc, flags, died_flag));
-    }
 }
 
 #[inline(always)]
@@ -481,8 +488,9 @@ fn decode_loop(
         )
     };
 
-    let target_samples = out_sr * out_ch as usize / 4;
-    let ring_cap = out_sr * out_ch as usize / 2 + 4096;
+    let ring_cap = out_sr * out_ch as usize + 4096;
+    let throttle_threshold = ring_cap / 4;
+    let underrun_threshold = (out_sr as usize * out_ch as usize * 50) / 1000;
     let mut leading_silent = 0usize;
     let mut leading_done = false;
 
@@ -509,7 +517,8 @@ fn decode_loop(
         }
 
         let vacant = engine_arc.lock().unwrap().output.ring_vacant();
-        if ring_cap.saturating_sub(vacant) >= target_samples {
+
+        if vacant > ring_cap.saturating_sub(underrun_threshold) {
             underrun_count += 1;
             if last_underrun_log.elapsed().as_secs() >= 1 {
                 if underrun_count > 5 {
@@ -518,6 +527,12 @@ fn decode_loop(
                 underrun_count = 0;
                 last_underrun_log = std::time::Instant::now();
             }
+        } else if last_underrun_log.elapsed().as_secs() >= 1 {
+            underrun_count = 0;
+            last_underrun_log = std::time::Instant::now();
+        }
+
+        if vacant < throttle_threshold {
             thread::sleep(Duration::from_millis(2));
             continue;
         }

@@ -5,6 +5,10 @@ enum AudioOutputMode { system, exclusive }
 
 enum ThemeMode { dark, light, system }
 
+enum AppStyle { legacy, islands }
+
+enum LibraryViewMode { detail, grid }
+
 enum ReplayGainMode { off, track, album, auto }
 
 enum CrossfadeMode { off, short, medium, long }
@@ -19,6 +23,8 @@ const _kGapless = 'aqloss_gapless';
 const _kCrossfade = 'aqloss_crossfade';
 const _kStopAfter = 'aqloss_stop_after';
 const _kTheme = 'aqloss_theme';
+const _kAppStyle = 'aqloss_app_style';
+const _kLibraryViewMode = 'aqloss_library_view_mode';
 const _kShowBitDepth = 'aqloss_show_bit_depth';
 const _kScrobble = 'aqloss_scrobble';
 const _kLastFmUser = 'aqloss_lastfm_user';
@@ -47,6 +53,8 @@ class SettingsState {
   final List<double> eqGains;
   final bool notchFilter;
   final ThemeMode themeMode;
+  final AppStyle appStyle;
+  final LibraryViewMode libraryViewMode;
   final bool showBitDepthInLibrary;
   final bool showAlbumArtBackground;
   final bool spectrumEnabled;
@@ -72,6 +80,8 @@ class SettingsState {
     this.eqGains = const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     this.notchFilter = true,
     this.themeMode = ThemeMode.dark,
+    this.appStyle = AppStyle.legacy,
+    this.libraryViewMode = LibraryViewMode.detail,
     this.showBitDepthInLibrary = true,
     this.showAlbumArtBackground = true,
     this.spectrumEnabled = true,
@@ -126,6 +136,8 @@ class SettingsState {
     List<double>? eqGains,
     bool? notchFilter,
     ThemeMode? themeMode,
+    AppStyle? appStyle,
+    LibraryViewMode? libraryViewMode,
     bool? showBitDepthInLibrary,
     bool? showAlbumArtBackground,
     bool? spectrumEnabled,
@@ -153,6 +165,8 @@ class SettingsState {
     eqGains: eqGains ?? this.eqGains,
     notchFilter: notchFilter ?? this.notchFilter,
     themeMode: themeMode ?? this.themeMode,
+    appStyle: appStyle ?? this.appStyle,
+    libraryViewMode: libraryViewMode ?? this.libraryViewMode,
     showBitDepthInLibrary: showBitDepthInLibrary ?? this.showBitDepthInLibrary,
     showAlbumArtBackground:
         showAlbumArtBackground ?? this.showAlbumArtBackground,
@@ -198,6 +212,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       eqGains: eqGains,
       notchFilter: p.getBool(_kNotchFilter) ?? true,
       themeMode: ThemeMode.values[(p.getInt(_kTheme) ?? 0).clamp(0, 2)],
+      appStyle: AppStyle.values[(p.getInt(_kAppStyle) ?? 0).clamp(0, 2)],
+      libraryViewMode: LibraryViewMode
+          .values[(p.getInt(_kLibraryViewMode) ?? 0).clamp(0, 1)],
       showBitDepthInLibrary: p.getBool(_kShowBitDepth) ?? true,
       showAlbumArtBackground: p.getBool(_kShowAlbumArtBg) ?? true,
       spectrumEnabled: p.getBool(_kSpectrumEnabled) ?? true,
@@ -231,6 +248,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       ),
       p.setBool(_kNotchFilter, state.notchFilter),
       p.setInt(_kTheme, state.themeMode.index),
+      p.setInt(_kAppStyle, state.appStyle.index),
+      p.setInt(_kLibraryViewMode, state.libraryViewMode.index),
       p.setBool(_kShowBitDepth, state.showBitDepthInLibrary),
       p.setBool(_kShowAlbumArtBg, state.showAlbumArtBackground),
       p.setBool(_kSpectrumEnabled, state.spectrumEnabled),
@@ -307,6 +326,16 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void setTheme(ThemeMode m) {
     state = state.copyWith(themeMode: m);
+    _save();
+  }
+
+  void setAppStyle(AppStyle s) {
+    state = state.copyWith(appStyle: s);
+    _save();
+  }
+
+  void setLibraryViewMode(LibraryViewMode m) {
+    state = state.copyWith(libraryViewMode: m);
     _save();
   }
 

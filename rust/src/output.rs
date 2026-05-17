@@ -27,7 +27,7 @@ enum AudioStream {
 }
 
 const RING_EXTRA_FRAMES: usize = 4096;
-const CPAL_BUFFER_FRAMES: usize = 512;
+const CPAL_BUFFER_FRAMES: usize = 4096;
 
 impl AudioOutput {
     pub fn new_default() -> Result<Self> {
@@ -104,7 +104,7 @@ impl AudioOutput {
             buffer_size: cpal::BufferSize::Fixed(CPAL_BUFFER_FRAMES as u32),
         };
 
-        let ring_cap = (sample_rate as usize * channels as usize / 2) + RING_EXTRA_FRAMES;
+        let ring_cap = (sample_rate as usize * channels as usize) + RING_EXTRA_FRAMES;
         let rb = HeapRb::<f32>::new(ring_cap);
         let (prod, mut cons) = rb.split();
 
@@ -338,7 +338,7 @@ pub mod wasapi_exclusive {
                 ));
             }
 
-            let ring_cap = (chosen_sr as usize * chosen_ch as usize / 2) + RING_EXTRA_FRAMES;
+            let ring_cap = (chosen_sr as usize * chosen_ch as usize) + RING_EXTRA_FRAMES;
             let rb = HeapRb::<f32>::new(ring_cap);
             let (prod, cons) = rb.split();
 

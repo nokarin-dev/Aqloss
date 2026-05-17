@@ -36,39 +36,61 @@ static void set_rgba_visual(GtkWindow *window)
   }
 }
 
+static void apply_transparent_css(GtkWindow *window)
+{
+  GtkCssProvider *provider = gtk_css_provider_new();
+  gchar *css = g_strdup(
+      "window {"
+      "  background-color: transparent;"
+      "  box-shadow: none;"
+      "  border: none;"
+      "}"
+      "window > * {"
+      "  background-color: transparent;"
+      "}");
+
+  gtk_css_provider_load_from_data(provider, css, -1, nullptr);
+  g_free(css);
+
+  gtk_style_context_add_provider(
+      gtk_widget_get_style_context(GTK_WIDGET(window)),
+      GTK_STYLE_PROVIDER(provider),
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+  g_object_unref(provider);
+}
+
 static void aqloss_activate(GApplication *application)
 {
   Aqloss *self = AQLOSS_APP(application);
-  GtkWindow *window =
-      GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  GtkWindow *window = GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
   gtk_window_set_decorated(window, FALSE);
 
   set_rgba_visual(window);
+  apply_transparent_css(window);
 
   gtk_window_set_default_size(window, 1280, 720);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
-  fl_dart_project_set_dart_entrypoint_arguments(
-      project, self->dart_entrypoint_arguments);
+  fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);
 
-  #ifdef FLATPAK
-    char exe_path[PATH_MAX];
-    ssize_t exePathLen = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
-    if (exePathLen)
-    {
-      exe_path[exePathLen] = '\0';
-      char *exe_dir = dirname(exe_path);
-
-      char aot_path[PATH_MAX];
-      snprintf(aot_path, sizeof(aot_path), "%s/../../lib/%s/libapp.so", exe_dir, APPLICATION_ID);
-      fl_dart_project_set_aot_library_path(project, aot_path);
-    }
-  #endif
+#ifdef FLATPAK
+  char exe_path[PATH_MAX];
+  ssize_t exePathLen = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+  if (exePathLen)
+  {
+    exe_path[exePathLen] = '\0';
+    char *exe_dir = dirname(exe_path);
+    char aot_path[PATH_MAX];
+    snprintf(aot_path, sizeof(aot_path), "%s/../../lib/%s/libapp.so", exe_dir, APPLICATION_ID);
+    fl_dart_project_set_aot_library_path(project, aot_path);
+  }
+#endif
 
   FlView *view = fl_view_new(project);
-  GdkRGBA background_color;
 
+  GdkRGBA background_color;
   gdk_rgba_parse(&background_color, "#00000000");
   fl_view_set_background_color(view, &background_color);
 
@@ -82,13 +104,10 @@ static void aqloss_activate(GApplication *application)
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
-static gboolean aqloss_local_command_line(GApplication *application,
-                                          gchar ***arguments,
-                                          int *exit_status)
+static gboolean aqloss_local_command_line(GApplication *application, gchar ***arguments, int *exit_status)
 {
   Aqloss *self = AQLOSS_APP(application);
   self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
-
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error))
   {
@@ -96,7 +115,6 @@ static gboolean aqloss_local_command_line(GApplication *application,
     *exit_status = 1;
     return TRUE;
   }
-
   g_application_activate(application);
   *exit_status = 0;
   return TRUE;

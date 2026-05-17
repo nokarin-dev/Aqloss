@@ -1,9 +1,14 @@
+import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/eq_panel.dart';
 import 'package:aqloss/widgets/lastfm_auth_row.dart';
+import 'package:aqloss/widgets/custom_slider.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -28,300 +33,336 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final narrow = MediaQuery.of(context).size.width < 600;
     final hPad = narrow ? 20.0 : 32.0;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(hPad, narrow ? 24 : 32, hPad, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Settings',
-                    style: TextStyle(
-                      color: cs.onSurface,
-                      fontSize: narrow ? 20 : 24,
-                      fontWeight: FontWeight.w300,
-                      letterSpacing: -0.5,
-                    ),
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(hPad, narrow ? 24 : 32, hPad, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Settings',
+                  style: TextStyle(
+                    color: cs.onSurface,
+                    fontSize: narrow ? 20 : 24,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: -0.5,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Aqloss preferences',
-                    style: TextStyle(
-                      color: cs.onSurface.withValues(alpha: 0.30),
-                      fontSize: 11,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Aqloss preferences',
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.30),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        SliverPadding(
+          padding: EdgeInsets.symmetric(
+            horizontal: hPad,
+            vertical: narrow ? 20 : 28,
+          ),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              // Audio Output
+              _SectionHeader(
+                icon: Icons.speaker_rounded,
+                title: 'Audio Output',
+              ),
+              const SizedBox(height: 10),
+              const _AudioDeviceSection(),
+              _gap(narrow),
+
+              // Playback
+              _SectionHeader(
+                icon: Icons.play_circle_outline_rounded,
+                title: 'Playback',
+              ),
+              const SizedBox(height: 10),
+              _SettingsCard(
+                children: [
+                  _ToggleRow(
+                    icon: Icons.skip_next_rounded,
+                    title: 'Gapless playback',
+                    subtitle:
+                        'Removes silence between consecutive tracks for seamless album listening.',
+                    value: s.gaplessPlayback,
+                    onChanged: (_) => n.toggleGapless(),
+                  ),
+                  _Div(),
+                  _PickerRow(
+                    icon: Icons.compare_arrows_rounded,
+                    title: 'Crossfade',
+                    subtitle:
+                        'Fade the ending track out while fading the next one in. Disabled when gapless is on.',
+                    options: const ['Off', '2s', '4s', '8s'],
+                    selected: s.crossfade.index,
+                    onChanged: (i) => n.setCrossfade(CrossfadeMode.values[i]),
+                    disabled: s.gaplessPlayback,
+                    disabledHint: 'Disabled while gapless is on',
+                  ),
+                  _Div(),
+                  _PickerRow(
+                    icon: Icons.graphic_eq_rounded,
+                    title: 'ReplayGain',
+                    subtitle:
+                        'Normalises loudness using tags embedded in the file.',
+                    options: const ['Off', 'Track', 'Album', 'Auto'],
+                    selected: s.replayGainMode.index,
+                    onChanged: (i) =>
+                        n.setReplayGainMode(ReplayGainMode.values[i]),
+                  ),
+                  if (s.replayGainEnabled) ...[
+                    _Div(),
+                    _SliderRow(
+                      icon: Icons.tune_rounded,
+                      title: 'Pre-amp',
+                      subtitle:
+                          'Boost or cut applied before ReplayGain. Negative values prevent clipping.',
+                      value: s.replayGainPreamp,
+                      min: -12,
+                      max: 12,
+                      divisions: 24,
+                      label: (v) =>
+                          '${v >= 0 ? '+' : ''}${v.toStringAsFixed(1)} dB',
+                      onChanged: n.setReplayGainPreamp,
                     ),
+                  ],
+                  _Div(),
+                  _ToggleRow(
+                    icon: Icons.fast_forward_rounded,
+                    title: 'Skip silence',
+                    subtitle:
+                        'Skips leading/trailing silence at track boundaries. Useful for live recordings.',
+                    value: s.skipSilence,
+                    onChanged: (_) => n.toggleSkipSilence(),
+                  ),
+                  _Div(),
+                  _PickerRow(
+                    icon: Icons.stop_circle_outlined,
+                    title: 'Stop after',
+                    subtitle:
+                        'Automatically stops playback after the current track or album finishes.',
+                    options: const ['Off', 'Track', 'Album'],
+                    selected: s.stopAfter.index,
+                    onChanged: (i) => n.setStopAfter(StopAfterMode.values[i]),
                   ),
                 ],
               ),
-            ),
+              _gap(narrow),
+
+              // DSP / EQ
+              _SectionHeader(icon: Icons.equalizer_rounded, title: 'DSP / EQ'),
+              const SizedBox(height: 10),
+              _SettingsCard(
+                children: [
+                  _ToggleRow(
+                    icon: Icons.bar_chart_rounded,
+                    title: '10-band Equalizer',
+                    subtitle:
+                        'Per-frequency gain ±12 dB using peaking EQ filters. No effect in WASAPI Exclusive.',
+                    value: s.eqEnabled,
+                    onChanged: (_) => n.toggleEq(),
+                  ),
+                  if (s.eqEnabled) ...[_Div(), const EqPanel()],
+                  _Div(),
+                  _ToggleRow(
+                    icon: Icons.compress_rounded,
+                    title: 'Soft-clip limiter',
+                    subtitle:
+                        'Prevents digital clipping above 0 dBFS. Recommended with ReplayGain pre-amp or EQ boosts.',
+                    value: s.notchFilter,
+                    onChanged: (_) => n.toggleNotchFilter(),
+                  ),
+                ],
+              ),
+              _gap(narrow),
+
+              // Display
+              _SectionHeader(icon: Icons.palette_outlined, title: 'Display'),
+              const SizedBox(height: 10),
+              _SettingsCard(
+                children: [
+                  _PickerRow(
+                    icon: Icons.dark_mode_outlined,
+                    title: 'Theme',
+                    subtitle: 'Colour scheme for the app.',
+                    options: const ['Dark', 'Light', 'System'],
+                    selected: s.themeMode.index,
+                    onChanged: (i) => n.setTheme(ThemeMode.values[i]),
+                  ),
+                  _Div(),
+                  _PickerRow(
+                    icon: Icons.palette_outlined,
+                    title: 'UI Style',
+                    subtitle:
+                        'Choose between Legacy, Islands, or Glass sidebar style.',
+                    options: const ['Legacy', 'Islands'],
+                    selected: s.appStyle.index,
+                    onChanged: (i) => n.setAppStyle(AppStyle.values[i]),
+                  ),
+                  _Div(),
+                  _ToggleRow(
+                    icon: Icons.image_outlined,
+                    title: 'Album art background',
+                    subtitle:
+                        'Blurred album art behind the player. Disable on low-end devices to save GPU.',
+                    value: s.showAlbumArtBackground,
+                    onChanged: (_) => n.toggleAlbumArtBackground(),
+                  ),
+                  _Div(),
+                  _ToggleRow(
+                    icon: Icons.info_outline_rounded,
+                    title: 'Format details in library',
+                    subtitle:
+                        'Shows bit depth and sample rate next to each track.',
+                    value: s.showBitDepthInLibrary,
+                    onChanged: (_) => n.toggleBitDepthDisplay(),
+                  ),
+                  _Div(),
+                  _ToggleRow(
+                    icon: Icons.show_chart_rounded,
+                    title: 'Spectrum analyser',
+                    subtitle:
+                        'Real-time frequency display on the player screen.',
+                    value: s.spectrumEnabled,
+                    onChanged: (_) => n.toggleSpectrum(),
+                  ),
+                  if (s.spectrumEnabled) ...[
+                    _Div(),
+                    _PickerRow(
+                      icon: Icons.auto_graph_rounded,
+                      title: 'Spectrum style',
+                      subtitle: 'Visual style of the analyser.',
+                      options: const ['Bars', 'Wave', 'Dots'],
+                      selected: s.spectrumStyle,
+                      onChanged: n.setSpectrumStyle,
+                    ),
+                  ],
+                ],
+              ),
+              _gap(narrow),
+
+              // Last.fm
+              _SectionHeader(icon: Icons.podcasts_rounded, title: 'Last.fm'),
+              const SizedBox(height: 10),
+              _SettingsCard(
+                children: [
+                  _ToggleRow(
+                    icon: Icons.radio_button_checked_rounded,
+                    title: 'Scrobble',
+                    subtitle:
+                        'Submit track plays to Last.fm after 50% played or 4 minutes.',
+                    value: s.scrobbleLastFm,
+                    onChanged: (_) => n.toggleScrobble(),
+                  ),
+                  if (s.scrobbleLastFm) ...[_Div(), const LastFmAuthRow()],
+                ],
+              ),
+              _gap(narrow),
+
+              // Keyboard shortcuts
+              _SectionHeader(
+                icon: Icons.keyboard_outlined,
+                title: 'Keyboard Shortcuts',
+              ),
+              const SizedBox(height: 10),
+              _SettingsCard(
+                children: [
+                  _ShortcutRow(label: 'Play / Pause', shortcut: 'Space'),
+                  _Div(),
+                  _ShortcutRow(label: 'Previous track', shortcut: 'Ctrl ←'),
+                  _Div(),
+                  _ShortcutRow(label: 'Next track', shortcut: 'Ctrl →'),
+                  _Div(),
+                  _ShortcutRow(label: 'Volume up 5%', shortcut: 'Ctrl ↑'),
+                  _Div(),
+                  _ShortcutRow(label: 'Volume down 5%', shortcut: 'Ctrl ↓'),
+                  _Div(),
+                  _ShortcutRow(label: 'Toggle sidebar', shortcut: 'Ctrl B'),
+                  _Div(),
+                  _ShortcutRow(label: 'Now Playing', shortcut: 'Ctrl 1'),
+                  _Div(),
+                  _ShortcutRow(label: 'Library', shortcut: 'Ctrl 2'),
+                  _Div(),
+                  _ShortcutRow(label: 'Settings', shortcut: 'Ctrl 3'),
+                  _Div(),
+                  _ShortcutRow(label: 'New playlist', shortcut: 'Ctrl N'),
+                ],
+              ),
+              _gap(narrow),
+
+              // About
+              _SectionHeader(icon: Icons.info_outline_rounded, title: 'About'),
+              const SizedBox(height: 10),
+              _SettingsCard(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.folder_rounded,
+                          size: 15,
+                          color: cs.onSurface.withValues(alpha: 0.22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Logs Folder',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: cs.onSurface.withValues(alpha: 0.42),
+                            ),
+                          ),
+                        ),
+                        _HoverTextBtn(
+                          label: 'Open Logs',
+                          onTap: () async {
+                            final appDir =
+                                await getApplicationSupportDirectory();
+                            final logDirPath = p.join(appDir.path, 'logs');
+                            OpenFile.open(logDirPath);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  _Div(),
+                  _InfoRow(
+                    icon: Icons.music_note_rounded,
+                    title: 'Aqloss',
+                    value: 'Version 0.2.0',
+                  ),
+                  _Div(),
+                  _InfoRow(
+                    icon: Icons.memory_rounded,
+                    title: 'Audio engine',
+                    value: 'Rust · Symphonia',
+                  ),
+                  _Div(),
+                  _InfoRow(
+                    icon: Icons.headphones_rounded,
+                    title: 'Output backends',
+                    value: 'CPAL · WASAPI',
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 48),
+            ]),
           ),
-
-          SliverPadding(
-            padding: EdgeInsets.symmetric(
-              horizontal: hPad,
-              vertical: narrow ? 20 : 28,
-            ),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Audio Output
-                _SectionHeader(
-                  icon: Icons.speaker_rounded,
-                  title: 'Audio Output',
-                ),
-                const SizedBox(height: 10),
-                const _AudioDeviceSection(),
-                _gap(narrow),
-
-                // Playback
-                _SectionHeader(
-                  icon: Icons.play_circle_outline_rounded,
-                  title: 'Playback',
-                ),
-                const SizedBox(height: 10),
-                _SettingsCard(
-                  children: [
-                    _ToggleRow(
-                      icon: Icons.skip_next_rounded,
-                      title: 'Gapless playback',
-                      subtitle:
-                          'Removes silence between consecutive tracks for seamless album listening.',
-                      value: s.gaplessPlayback,
-                      onChanged: (_) => n.toggleGapless(),
-                    ),
-                    _Div(),
-                    _PickerRow(
-                      icon: Icons.compare_arrows_rounded,
-                      title: 'Crossfade',
-                      subtitle:
-                          'Fade the ending track out while fading the next one in. Disabled when gapless is on.',
-                      options: const ['Off', '2s', '4s', '8s'],
-                      selected: s.crossfade.index,
-                      onChanged: (i) => n.setCrossfade(CrossfadeMode.values[i]),
-                      disabled: s.gaplessPlayback,
-                      disabledHint: 'Disabled while gapless is on',
-                    ),
-                    _Div(),
-                    _PickerRow(
-                      icon: Icons.graphic_eq_rounded,
-                      title: 'ReplayGain',
-                      subtitle:
-                          'Normalises loudness using tags embedded in the file.',
-                      options: const ['Off', 'Track', 'Album', 'Auto'],
-                      selected: s.replayGainMode.index,
-                      onChanged: (i) =>
-                          n.setReplayGainMode(ReplayGainMode.values[i]),
-                    ),
-                    if (s.replayGainEnabled) ...[
-                      _Div(),
-                      _SliderRow(
-                        icon: Icons.tune_rounded,
-                        title: 'Pre-amp',
-                        subtitle:
-                            'Boost or cut applied before ReplayGain. Negative values prevent clipping.',
-                        value: s.replayGainPreamp,
-                        min: -12,
-                        max: 12,
-                        divisions: 24,
-                        label: (v) =>
-                            '${v >= 0 ? '+' : ''}${v.toStringAsFixed(1)} dB',
-                        onChanged: n.setReplayGainPreamp,
-                      ),
-                    ],
-                    _Div(),
-                    _ToggleRow(
-                      icon: Icons.fast_forward_rounded,
-                      title: 'Skip silence',
-                      subtitle:
-                          'Skips leading/trailing silence at track boundaries. Useful for live recordings.',
-                      value: s.skipSilence,
-                      onChanged: (_) => n.toggleSkipSilence(),
-                    ),
-                    _Div(),
-                    _PickerRow(
-                      icon: Icons.stop_circle_outlined,
-                      title: 'Stop after',
-                      subtitle:
-                          'Automatically stops playback after the current track or album finishes.',
-                      options: const ['Off', 'Track', 'Album'],
-                      selected: s.stopAfter.index,
-                      onChanged: (i) => n.setStopAfter(StopAfterMode.values[i]),
-                    ),
-                  ],
-                ),
-                _gap(narrow),
-
-                // DSP / EQ
-                _SectionHeader(
-                  icon: Icons.equalizer_rounded,
-                  title: 'DSP / EQ',
-                ),
-                const SizedBox(height: 10),
-                _SettingsCard(
-                  children: [
-                    _ToggleRow(
-                      icon: Icons.bar_chart_rounded,
-                      title: '10-band Equalizer',
-                      subtitle:
-                          'Per-frequency gain ±12 dB using peaking EQ filters. No effect in WASAPI Exclusive.',
-                      value: s.eqEnabled,
-                      onChanged: (_) => n.toggleEq(),
-                    ),
-                    if (s.eqEnabled) ...[_Div(), const EqPanel()],
-                    _Div(),
-                    _ToggleRow(
-                      icon: Icons.compress_rounded,
-                      title: 'Soft-clip limiter',
-                      subtitle:
-                          'Prevents digital clipping above 0 dBFS. Recommended with ReplayGain pre-amp or EQ boosts.',
-                      value: s.notchFilter,
-                      onChanged: (_) => n.toggleNotchFilter(),
-                    ),
-                  ],
-                ),
-                _gap(narrow),
-
-                // Display
-                _SectionHeader(icon: Icons.palette_outlined, title: 'Display'),
-                const SizedBox(height: 10),
-                _SettingsCard(
-                  children: [
-                    _PickerRow(
-                      icon: Icons.dark_mode_outlined,
-                      title: 'Theme',
-                      subtitle: 'Colour scheme for the app.',
-                      options: const ['Dark', 'Light', 'System'],
-                      selected: s.themeMode.index,
-                      onChanged: (i) => n.setTheme(ThemeMode.values[i]),
-                    ),
-                    _Div(),
-                    _ToggleRow(
-                      icon: Icons.image_outlined,
-                      title: 'Album art background',
-                      subtitle:
-                          'Blurred album art behind the player. Disable on low-end devices to save GPU.',
-                      value: s.showAlbumArtBackground,
-                      onChanged: (_) => n.toggleAlbumArtBackground(),
-                    ),
-                    _Div(),
-                    _ToggleRow(
-                      icon: Icons.info_outline_rounded,
-                      title: 'Format details in library',
-                      subtitle:
-                          'Shows bit depth and sample rate next to each track.',
-                      value: s.showBitDepthInLibrary,
-                      onChanged: (_) => n.toggleBitDepthDisplay(),
-                    ),
-                    _Div(),
-                    _ToggleRow(
-                      icon: Icons.show_chart_rounded,
-                      title: 'Spectrum analyser',
-                      subtitle:
-                          'Real-time frequency display on the player screen.',
-                      value: s.spectrumEnabled,
-                      onChanged: (_) => n.toggleSpectrum(),
-                    ),
-                    if (s.spectrumEnabled) ...[
-                      _Div(),
-                      _PickerRow(
-                        icon: Icons.auto_graph_rounded,
-                        title: 'Spectrum style',
-                        subtitle: 'Visual style of the analyser.',
-                        options: const ['Bars', 'Wave', 'Dots'],
-                        selected: s.spectrumStyle,
-                        onChanged: n.setSpectrumStyle,
-                      ),
-                    ],
-                  ],
-                ),
-                _gap(narrow),
-
-                // Last.fm
-                _SectionHeader(icon: Icons.podcasts_rounded, title: 'Last.fm'),
-                const SizedBox(height: 10),
-                _SettingsCard(
-                  children: [
-                    _ToggleRow(
-                      icon: Icons.radio_button_checked_rounded,
-                      title: 'Scrobble',
-                      subtitle:
-                          'Submit track plays to Last.fm after 50% played or 4 minutes.',
-                      value: s.scrobbleLastFm,
-                      onChanged: (_) => n.toggleScrobble(),
-                    ),
-                    if (s.scrobbleLastFm) ...[_Div(), const LastFmAuthRow()],
-                  ],
-                ),
-                _gap(narrow),
-
-                // Keyboard shortcuts
-                _SectionHeader(
-                  icon: Icons.keyboard_outlined,
-                  title: 'Keyboard Shortcuts',
-                ),
-                const SizedBox(height: 10),
-                _SettingsCard(
-                  children: [
-                    _ShortcutRow(label: 'Play / Pause', shortcut: 'Space'),
-                    _Div(),
-                    _ShortcutRow(label: 'Previous track', shortcut: 'Ctrl ←'),
-                    _Div(),
-                    _ShortcutRow(label: 'Next track', shortcut: 'Ctrl →'),
-                    _Div(),
-                    _ShortcutRow(label: 'Volume up 5%', shortcut: 'Ctrl ↑'),
-                    _Div(),
-                    _ShortcutRow(label: 'Volume down 5%', shortcut: 'Ctrl ↓'),
-                    _Div(),
-                    _ShortcutRow(label: 'Toggle sidebar', shortcut: 'Ctrl B'),
-                    _Div(),
-                    _ShortcutRow(label: 'Now Playing', shortcut: 'Ctrl 1'),
-                    _Div(),
-                    _ShortcutRow(label: 'Library', shortcut: 'Ctrl 2'),
-                    _Div(),
-                    _ShortcutRow(label: 'Settings', shortcut: 'Ctrl 3'),
-                    _Div(),
-                    _ShortcutRow(label: 'New playlist', shortcut: 'Ctrl N'),
-                  ],
-                ),
-                _gap(narrow),
-
-                // About
-                _SectionHeader(
-                  icon: Icons.info_outline_rounded,
-                  title: 'About',
-                ),
-                const SizedBox(height: 10),
-                _SettingsCard(
-                  children: [
-                    _InfoRow(
-                      icon: Icons.music_note_rounded,
-                      title: 'Aqloss',
-                      value: 'Version 0.2.0',
-                    ),
-                    _Div(),
-                    _InfoRow(
-                      icon: Icons.memory_rounded,
-                      title: 'Audio engine',
-                      value: 'Rust · Symphonia',
-                    ),
-                    _Div(),
-                    _InfoRow(
-                      icon: Icons.headphones_rounded,
-                      title: 'Output backends',
-                      value: 'CPAL · WASAPI',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 48),
-              ]),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -380,13 +421,10 @@ class _AudioDeviceSection extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            SizedBox(
-              width: 13,
-              height: 13,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: cs.onSurface.withValues(alpha: 0.36),
-              ),
+            QSpinner(
+              size: 13,
+              color: cs.onSurface.withValues(alpha: 0.36),
+              strokeWidth: 1.5,
             ),
             const SizedBox(width: 12),
             Text(
@@ -463,13 +501,10 @@ class _ScanButtonState extends State<_ScanButton> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (widget.isScanning)
-                SizedBox(
-                  width: 11,
-                  height: 11,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: cs.onSurface.withValues(alpha: 0.36),
-                  ),
+                QSpinner(
+                  size: 11,
+                  color: cs.onSurface.withValues(alpha: 0.36),
+                  strokeWidth: 1.5,
                 )
               else
                 Icon(
@@ -740,11 +775,10 @@ class _SettingsCard extends StatelessWidget {
 
 class _Div extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Divider(
+  Widget build(BuildContext context) => Container(
     height: 1,
+    margin: const EdgeInsets.symmetric(horizontal: 14),
     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-    indent: 14,
-    endIndent: 14,
   );
 }
 
@@ -774,7 +808,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // Row types
-class _ToggleRow extends StatelessWidget {
+class _ToggleRow extends StatefulWidget {
   final IconData icon;
   final String title, subtitle;
   final bool value;
@@ -788,53 +822,74 @@ class _ToggleRow extends StatelessWidget {
   });
 
   @override
+  State<_ToggleRow> createState() => _ToggleRowState();
+}
+
+class _ToggleRowState extends State<_ToggleRow> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: () => onChanged(!value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Icon(
-                icon,
-                size: 16,
-                color: cs.onSurface.withValues(alpha: 0.34),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: cs.onSurface.withValues(alpha: 0.80),
-                    ),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () => widget.onChanged(!widget.value),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          color: _hovered
+              ? cs.onSurface.withValues(alpha: 0.025)
+              : Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(
+                    widget.icon,
+                    size: 16,
+                    color: cs.onSurface.withValues(alpha: 0.34),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurface.withValues(alpha: 0.28),
-                      height: 1.4,
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.80),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.subtitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurface.withValues(alpha: 0.28),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 12),
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: _MiniSwitch(
+                    value: widget.value,
+                    onChanged: widget.onChanged,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: _MiniSwitch(value: value, onChanged: onChanged),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1022,26 +1077,60 @@ class _SliderRow extends StatelessWidget {
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 28),
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                trackHeight: 2,
-                activeTrackColor: cs.onSurface.withValues(alpha: 0.58),
-                inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
-                thumbColor: cs.onSurface.withValues(alpha: 0.80),
-                overlayShape: SliderComponentShape.noOverlay,
-              ),
-              child: Slider(
-                value: value,
-                min: min,
-                max: max,
-                divisions: divisions,
-                onChanged: onChanged,
-              ),
+            child: _RangeSlider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
+              cs: cs,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// Range slider
+class _RangeSlider extends StatefulWidget {
+  final double value, min, max;
+  final int divisions;
+  final ValueChanged<double> onChanged;
+  final ColorScheme cs;
+  const _RangeSlider({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.onChanged,
+    required this.cs,
+  });
+  @override
+  State<_RangeSlider> createState() => _RangeSliderState();
+}
+
+class _RangeSliderState extends State<_RangeSlider> {
+  void _snap(double normalised) {
+    final range = widget.max - widget.min;
+    final step = range / widget.divisions;
+    final raw = widget.min + normalised * range;
+    final snapped = (raw / step).round() * step;
+    widget.onChanged(snapped.clamp(widget.min, widget.max));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final normalised = ((widget.value - widget.min) / (widget.max - widget.min))
+        .clamp(0.0, 1.0);
+    return CustomSlider(
+      value: normalised,
+      trackHeight: 2,
+      thumbRadius: 6,
+      activeColor: widget.cs.onSurface.withValues(alpha: 0.58),
+      inactiveColor: widget.cs.onSurface.withValues(alpha: 0.10),
+      thumbColor: widget.cs.onSurface.withValues(alpha: 0.80),
+      onChanged: _snap,
     );
   }
 }
@@ -1267,4 +1356,45 @@ class _Badge extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _HoverTextBtn extends StatefulWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _HoverTextBtn({required this.label, required this.onTap});
+  @override
+  State<_HoverTextBtn> createState() => _HoverTextBtnState();
+}
+
+class _HoverTextBtnState extends State<_HoverTextBtn> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? cs.onSurface.withValues(alpha: 0.06)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: cs.onSurface.withValues(alpha: 0.12)),
+          ),
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontSize: 11,
+              color: cs.onSurface.withValues(alpha: 0.60),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

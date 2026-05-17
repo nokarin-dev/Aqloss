@@ -29,8 +29,9 @@ class TrackTile extends ConsumerWidget {
     final showBitDepth = ref.watch(settingsProvider).showBitDepthInLibrary;
     final cs = Theme.of(context).colorScheme;
 
-    return Draggable<List<Track>>(
+    return LongPressDraggable<List<Track>>(
       data: [track],
+      hapticFeedbackOnStart: true,
       feedback: Material(
         color: Colors.transparent,
         child: Container(
@@ -97,7 +98,7 @@ class TrackTile extends ConsumerWidget {
   }
 }
 
-class _TileBody extends StatelessWidget {
+class _TileBody extends StatefulWidget {
   final Track track;
   final bool isPlaying;
   final AudioFormat format;
@@ -117,88 +118,141 @@ class _TileBody extends StatelessWidget {
   });
 
   @override
+  State<_TileBody> createState() => _TileBodyState();
+}
+
+class _TileBodyState extends State<_TileBody> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: _Leading(
-        isPlaying: isPlaying,
-        format: format,
-        path: track.path,
-        index: index,
-      ),
-      title: Text(
-        track.displayTitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontWeight: isPlaying ? FontWeight.w500 : FontWeight.w400,
-          color: isPlaying
-              ? cs.onSurface
-              : cs.onSurface.withValues(alpha: 0.70),
-          fontSize: 13,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          color: _hovered
+              ? cs.onSurface.withValues(alpha: 0.03)
+              : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          child: Row(
+            children: [
+              _ArtThumb(
+                path: widget.track.path,
+                isPlaying: widget.isPlaying,
+                isLossless: widget.format.isLossless,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.track.displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: widget.isPlaying
+                            ? FontWeight.w500
+                            : FontWeight.w400,
+                        color: widget.isPlaying
+                            ? cs.onSurface
+                            : cs.onSurface.withValues(alpha: 0.72),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        if (widget.track.artist != null) widget.track.artist!,
+                        if (widget.track.album != null) widget.track.album!,
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurface.withValues(alpha: 0.30),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.track.durationLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurface.withValues(alpha: 0.24),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.showBitDepth
+                        ? widget.track.formatLabel
+                        : widget.track.format.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                      color: widget.format.isLossless
+                          ? cs.onSurface.withValues(alpha: 0.38)
+                          : cs.onSurface.withValues(alpha: 0.15),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-      subtitle: Text(
-        [
-          if (track.artist != null) track.artist!,
-          if (track.album != null) track.album!,
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 11,
-          color: cs.onSurface.withValues(alpha: 0.30),
-        ),
-      ),
-      trailing: _Trailing(
-        track: track,
-        format: format,
-        showBitDepth: showBitDepth,
-      ),
-      onTap: onTap,
-      onLongPress: onLongPress,
     );
   }
 }
 
-class _Leading extends ConsumerStatefulWidget {
-  final bool isPlaying;
-  final AudioFormat format;
+class _ArtThumb extends ConsumerStatefulWidget {
   final String path;
-  final int? index;
-  const _Leading({
-    required this.isPlaying,
-    required this.format,
+  final bool isPlaying;
+  final bool isLossless;
+
+  const _ArtThumb({
     required this.path,
-    this.index,
+    required this.isPlaying,
+    required this.isLossless,
   });
 
   @override
-  ConsumerState<_Leading> createState() => _LeadingState();
+  ConsumerState<_ArtThumb> createState() => _ArtThumbState();
 }
 
-class _LeadingState extends ConsumerState<_Leading> {
+class _ArtThumbState extends ConsumerState<_ArtThumb> {
   Uint8List? _artBytes;
   String? _loadedPath;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (widget.path != _loadedPath) _loadArt(widget.path);
+  void initState() {
+    super.initState();
+    _loadArt(widget.path);
   }
 
-  Future<void> _loadArt(String? path) async {
-    if (path == null) {
-      if (mounted) {
-        setState(() {
-          _artBytes = null;
-          _loadedPath = null;
-        });
-      }
-      return;
-    }
+  @override
+  void didUpdateWidget(_ArtThumb old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) _loadArt(widget.path);
+  }
+
+  Future<void> _loadArt(String path) async {
     _loadedPath = path;
+    if (mounted) setState(() => _artBytes = null);
     try {
       final bytes = await backend.readAlbumArtThumbnail(path: path);
       if (mounted && _loadedPath == path) {
@@ -207,7 +261,7 @@ class _LeadingState extends ConsumerState<_Leading> {
         );
       }
     } catch (_) {
-      if (mounted) setState(() => _artBytes = null);
+      if (mounted && _loadedPath == path) setState(() => _artBytes = null);
     }
   }
 
@@ -220,24 +274,28 @@ class _LeadingState extends ConsumerState<_Leading> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Center(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(5),
+            child: Container(
+              width: 36,
+              height: 36,
+              color: cs.onSurface.withValues(alpha: 0.05),
               child: widget.isPlaying
                   ? Icon(
                       Icons.equalizer_rounded,
                       size: 14,
                       color: cs.onSurface.withValues(alpha: 0.54),
                     )
-                  : Image.memory(_artBytes!, fit: BoxFit.cover),
+                  : _artBytes != null
+                  ? Image.memory(_artBytes!, fit: BoxFit.cover)
+                  : Icon(
+                      Icons.music_note_rounded,
+                      size: 14,
+                      color: cs.onSurface.withValues(alpha: 0.18),
+                    ),
             ),
           ),
-          if (widget.format.isLossless)
+          if (widget.isLossless)
             Positioned(
               top: 1,
               right: 1,
@@ -245,57 +303,13 @@ class _LeadingState extends ConsumerState<_Leading> {
                 width: 5,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.54),
+                  color: cs.onSurface.withValues(alpha: 0.55),
                   shape: BoxShape.circle,
                 ),
               ),
             ),
         ],
       ),
-    );
-  }
-}
-
-class _Trailing extends StatelessWidget {
-  final Track track;
-  final AudioFormat format;
-  final bool showBitDepth;
-  const _Trailing({
-    required this.track,
-    required this.format,
-    required this.showBitDepth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final formatStr = showBitDepth
-        ? track.formatLabel
-        : track.format.toUpperCase();
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          track.durationLabel,
-          style: TextStyle(
-            fontSize: 11,
-            color: cs.onSurface.withValues(alpha: 0.24),
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          formatStr,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-            color: format.isLossless
-                ? cs.onSurface.withValues(alpha: 0.38)
-                : cs.onSurface.withValues(alpha: 0.15),
-          ),
-        ),
-      ],
     );
   }
 }

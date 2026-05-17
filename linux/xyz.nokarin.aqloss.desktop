@@ -2,8 +2,8 @@
 Version=1.0
 Type=Application
 Name=Aqloss
-GenericName=Lossless everywhere.
-Comment=Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback.
+GenericName=Audio, uncompromised.
+Comment=Aqloss is a music player built around a Rust audio engine, with optional WASAPI Exclusive mode on Windows for bit-perfect output to compatible hardware.
 Exec=Aqloss
 Icon=xyz.nokarin.aqloss
 Categories=Audio;Music;Player;AudioVideo;

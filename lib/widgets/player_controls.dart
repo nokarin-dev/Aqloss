@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/widgets/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 class PlayerControls extends ConsumerWidget {
@@ -17,40 +18,33 @@ class PlayerControls extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 700;
 
-    final double progress;
-    if (duration.inMilliseconds > 0 && player.currentTrack != null) {
-      progress = (position.inMilliseconds / duration.inMilliseconds)
-          .clamp(0.0, 1.0)
-          .toDouble();
-    } else {
-      progress = 0.0;
-    }
+    final double progress =
+        duration.inMilliseconds > 0 && player.currentTrack != null
+        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
 
     final isExclusive = backend.isExclusiveMode();
 
     return Column(
       children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 2,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-            activeTrackColor: cs.onSurface,
-            inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
-            thumbColor: cs.onSurface,
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            overlayColor: cs.onSurface.withValues(alpha: 0.10),
-          ),
-          child: Slider(
-            value: progress,
-            onChanged: player.currentTrack == null
-                ? null
-                : (v) {
-                    if (duration.inMilliseconds > 0) {
-                      notifier.seek(duration * v.clamp(0.0, 1.0));
-                    }
-                  },
-          ),
+        // Seek bar
+        CustomSlider(
+          value: progress,
+          trackHeight: 2,
+          thumbRadius: 5,
+          activeColor: cs.onSurface,
+          inactiveColor: cs.onSurface.withValues(alpha: 0.10),
+          thumbColor: cs.onSurface,
+          onChanged: player.currentTrack == null
+              ? null
+              : (v) {
+                  if (duration.inMilliseconds > 0) {
+                    notifier.seek(duration * v.clamp(0.0, 1.0));
+                  }
+                },
         ),
+
+        const SizedBox(height: 4),
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -85,37 +79,9 @@ class PlayerControls extends ConsumerWidget {
               tooltip: 'Shuffle',
               onTap: notifier.toggleShuffle,
             ),
-
             const Spacer(),
-
-            if (isExclusive)
-              Tooltip(
-                message: 'WASAPI Exclusive - bit-perfect output',
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: cs.onSurface.withValues(alpha: 0.10),
-                    ),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    'BIT-PERFECT',
-                    style: TextStyle(
-                      fontSize: 7,
-                      color: cs.onSurface.withValues(alpha: 0.28),
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ),
-
+            if (isExclusive) _BitPerfectBadge(cs: cs),
             const Spacer(),
-
             _LoopButton(mode: player.loopMode, onTap: notifier.cycleLoopMode),
           ],
         ),
@@ -132,47 +98,20 @@ class PlayerControls extends ConsumerWidget {
               enabled: player.currentTrack != null,
               onTap: notifier.skipPrevious,
             ),
-
             SizedBox(width: isMobile ? 20 : 24),
-
-            GestureDetector(
+            _PlayButton(
+              isPlaying: isPlaying,
+              isLoading: isLoading,
+              hasTrack: player.currentTrack != null,
+              isMobile: isMobile,
+              cs: cs,
               onTap: player.currentTrack == null
                   ? null
                   : isPlaying
                   ? notifier.pause
                   : notifier.play,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                width: isMobile ? 52 : 56,
-                height: isMobile ? 52 : 56,
-                decoration: BoxDecoration(
-                  color: player.currentTrack == null
-                      ? cs.onSurface.withValues(alpha: 0.08)
-                      : cs.onSurface,
-                  shape: BoxShape.circle,
-                ),
-                child: isLoading
-                    ? Padding(
-                        padding: const EdgeInsets.all(17),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: cs.surface,
-                        ),
-                      )
-                    : Icon(
-                        isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: player.currentTrack == null
-                            ? cs.onSurface.withValues(alpha: 0.22)
-                            : cs.surface,
-                        size: isMobile ? 26 : 28,
-                      ),
-              ),
             ),
-
             SizedBox(width: isMobile ? 20 : 24),
-
             _TransportButton(
               icon: Icons.skip_next_rounded,
               size: isMobile ? 26 : 28,
@@ -184,6 +123,7 @@ class PlayerControls extends ConsumerWidget {
 
         SizedBox(height: isMobile ? 16 : 20),
 
+        // Volume
         Row(
           children: [
             Icon(
@@ -192,24 +132,14 @@ class PlayerControls extends ConsumerWidget {
               color: cs.onSurface.withValues(alpha: 0.22),
             ),
             Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 1.5,
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 3,
-                  ),
-                  activeTrackColor: cs.onSurface.withValues(alpha: 0.36),
-                  inactiveTrackColor: cs.onSurface.withValues(alpha: 0.10),
-                  thumbColor: cs.onSurface.withValues(alpha: 0.54),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 10,
-                  ),
-                  overlayColor: cs.onSurface.withValues(alpha: 0.08),
-                ),
-                child: Slider(
-                  value: player.volume.clamp(0.0, 1.0),
-                  onChanged: notifier.setVolume,
-                ),
+              child: CustomSlider(
+                value: player.volume.clamp(0.0, 1.0),
+                trackHeight: 1.5,
+                thumbRadius: 4,
+                activeColor: cs.onSurface.withValues(alpha: 0.38),
+                inactiveColor: cs.onSurface.withValues(alpha: 0.10),
+                thumbColor: cs.onSurface.withValues(alpha: 0.58),
+                onChanged: notifier.setVolume,
               ),
             ),
             Icon(
@@ -230,57 +160,134 @@ class PlayerControls extends ConsumerWidget {
   }
 }
 
-class _LoopButton extends StatelessWidget {
-  final LoopMode mode;
-  final VoidCallback onTap;
-  const _LoopButton({required this.mode, required this.onTap});
+// Play button
+class _PlayButton extends StatefulWidget {
+  final bool isPlaying, isLoading, hasTrack, isMobile;
+  final ColorScheme cs;
+  final VoidCallback? onTap;
+  const _PlayButton({
+    required this.isPlaying,
+    required this.isLoading,
+    required this.hasTrack,
+    required this.isMobile,
+    required this.cs,
+    this.onTap,
+  });
+  @override
+  State<_PlayButton> createState() => _PlayButtonState();
+}
 
+class _PlayButtonState extends State<_PlayButton> {
+  bool _hovered = false;
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final (icon, label, active) = switch (mode) {
-      LoopMode.off => (Icons.repeat_rounded, '', false),
-      LoopMode.track => (Icons.repeat_one_rounded, 'Track', true),
-      LoopMode.album => (Icons.repeat_rounded, 'Album', true),
-      LoopMode.playlist => (Icons.repeat_rounded, 'All', true),
-    };
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 17,
-              color: active
-                  ? cs.onSurface
-                  : cs.onSurface.withValues(alpha: 0.22),
-            ),
-            if (label.isNotEmpty) ...[
-              const SizedBox(width: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: active
-                      ? cs.onSurface.withValues(alpha: 0.70)
-                      : cs.onSurface.withValues(alpha: 0.22),
-                  fontWeight: FontWeight.w500,
+    final sz = widget.isMobile ? 52.0 : 56.0;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: sz,
+          height: sz,
+          decoration: BoxDecoration(
+            color: !widget.hasTrack
+                ? widget.cs.onSurface.withValues(alpha: 0.08)
+                : _hovered
+                ? widget.cs.onSurface.withValues(alpha: 0.88)
+                : widget.cs.onSurface,
+            shape: BoxShape.circle,
+          ),
+          child: widget.isLoading
+              ? Padding(
+                  padding: const EdgeInsets.all(17),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: widget.cs.surface,
+                  ),
+                )
+              : Icon(
+                  widget.isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  color: widget.hasTrack
+                      ? widget.cs.surface
+                      : widget.cs.onSurface.withValues(alpha: 0.22),
+                  size: widget.isMobile ? 26 : 28,
                 ),
-              ),
-            ],
-          ],
         ),
       ),
     );
   }
 }
 
-class _IconToggle extends StatelessWidget {
+class _LoopButton extends StatefulWidget {
+  final LoopMode mode;
+  final VoidCallback onTap;
+  const _LoopButton({required this.mode, required this.onTap});
+  @override
+  State<_LoopButton> createState() => _LoopButtonState();
+}
+
+class _LoopButtonState extends State<_LoopButton> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final (icon, label, active) = switch (widget.mode) {
+      LoopMode.off => (Icons.repeat_rounded, '', false),
+      LoopMode.track => (Icons.repeat_one_rounded, 'Track', true),
+      LoopMode.album => (Icons.repeat_rounded, 'Album', true),
+      LoopMode.playlist => (Icons.repeat_rounded, 'All', true),
+    };
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? cs.onSurface.withValues(alpha: 0.06)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 17,
+                color: active
+                    ? cs.onSurface
+                    : cs.onSurface.withValues(alpha: 0.22),
+              ),
+              if (label.isNotEmpty) ...[
+                const SizedBox(width: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: active
+                        ? cs.onSurface.withValues(alpha: 0.70)
+                        : cs.onSurface.withValues(alpha: 0.22),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IconToggle extends StatefulWidget {
   final IconData icon;
   final bool active;
   final String tooltip;
@@ -291,21 +298,39 @@ class _IconToggle extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
   });
+  @override
+  State<_IconToggle> createState() => _IconToggleState();
+}
 
+class _IconToggleState extends State<_IconToggle> {
+  bool _hovered = false;
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Icon(
-            icon,
-            size: 17,
-            color: active ? cs.onSurface : cs.onSurface.withValues(alpha: 0.22),
+      message: widget.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 110),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? cs.onSurface.withValues(alpha: 0.06)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 17,
+              color: widget.active
+                  ? cs.onSurface
+                  : cs.onSurface.withValues(alpha: 0.22),
+            ),
           ),
         ),
       ),
@@ -313,7 +338,7 @@ class _IconToggle extends StatelessWidget {
   }
 }
 
-class _TransportButton extends StatelessWidget {
+class _TransportButton extends StatefulWidget {
   final IconData icon;
   final double size;
   final bool enabled;
@@ -324,18 +349,63 @@ class _TransportButton extends StatelessWidget {
     required this.enabled,
     this.onTap,
   });
+  @override
+  State<_TransportButton> createState() => _TransportButtonState();
+}
 
+class _TransportButtonState extends State<_TransportButton> {
+  bool _hovered = false;
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return IconButton(
-      icon: Icon(icon),
-      iconSize: size,
-      color: enabled
-          ? cs.onSurface.withValues(alpha: 0.54)
-          : cs.onSurface.withValues(alpha: 0.12),
-      splashRadius: 20,
-      onPressed: enabled ? onTap : null,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.enabled ? widget.onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 110),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _hovered && widget.enabled
+                ? cs.onSurface.withValues(alpha: 0.06)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            widget.icon,
+            size: widget.size,
+            color: widget.enabled
+                ? cs.onSurface.withValues(alpha: _hovered ? 0.80 : 0.54)
+                : cs.onSurface.withValues(alpha: 0.12),
+          ),
+        ),
+      ),
     );
   }
+}
+
+class _BitPerfectBadge extends StatelessWidget {
+  final ColorScheme cs;
+  const _BitPerfectBadge({required this.cs});
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: 'WASAPI Exclusive – bit-perfect output',
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        'BIT-PERFECT',
+        style: TextStyle(
+          fontSize: 7,
+          color: cs.onSurface.withValues(alpha: 0.28),
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
+    ),
+  );
 }
