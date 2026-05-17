@@ -102,7 +102,7 @@ pub fn update_playing(
         truncate(&format!("{artist} - {album}"), 128)
     };
 
-    let find_artist = truncate(title, 32);
+    let find_artist = truncate(title, 27);
 
     let large_img = match album_art_url {
         Some(url) if !url.is_empty() && is_direct_image_url(url) => url,

@@ -73,10 +73,9 @@ impl AudioOutput {
 
         let device = match device_id {
             Some(id) => {
-                let found = host
-                    .output_devices()
-                    .ok()
-                    .and_then(|mut devs| devs.find(|d| d.name().ok().as_deref() == Some(id)));
+                let found = host.output_devices().ok().and_then(|mut devs| {
+                    devs.find(|d| d.description().ok().as_ref().map(|desc| desc.name()) == Some(id))
+                });
                 match found {
                     Some(d) => {
                         eprintln!("[aqloss] output device: {id}");

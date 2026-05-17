@@ -679,6 +679,7 @@ class _MiniPlayBtnState extends State<_MiniPlayBtn> {
   Widget build(BuildContext context) {
     final sz = widget.small ? 32.0 : 36.0;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -738,6 +739,7 @@ class _MiniBtnState extends State<_MiniBtn> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final child = MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -802,6 +804,7 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
       preferBelow: false,
       waitDuration: const Duration(milliseconds: 600),
       child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(

@@ -81,7 +81,7 @@ class Logger {
 
     final file = _files[target];
     if (file != null) {
-      await file.writeAsString(line, mode: FileMode.write, flush: true);
+      await file.writeAsString(line, mode: FileMode.append, flush: true);
     }
   }
 

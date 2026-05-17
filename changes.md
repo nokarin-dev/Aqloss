@@ -6,7 +6,13 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-No Changes Yet.
+## [Unreleased]
+
+### Fixed
+
+- All button now should has pointer now
+- Discord button label overflow
+- Added helpers to prevent backend crash
 
 ---
 

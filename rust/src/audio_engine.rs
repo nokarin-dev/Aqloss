@@ -187,6 +187,12 @@ impl AudioEngine {
     pub fn global_opt() -> Option<Arc<Mutex<Self>>> {
         ENGINE.get().cloned()
     }
+    pub fn global_safe() -> Result<Arc<Mutex<Self>>> {
+        ENGINE
+            .get()
+            .cloned()
+            .ok_or_else(|| anyhow!("AudioEngine not initialized"))
+    }
     pub fn is_exclusive(&self) -> bool {
         self.output.exclusive
     }

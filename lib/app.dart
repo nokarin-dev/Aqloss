@@ -159,7 +159,23 @@ ThemeData _buildDarkTheme() {
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: const Color(0x80FFFFFF)),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0x80FFFFFF),
+        enabledMouseCursor: SystemMouseCursors.click,
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(enabledMouseCursor: SystemMouseCursors.click),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        enabledMouseCursor: SystemMouseCursors.click,
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        enabledMouseCursor: SystemMouseCursors.click,
+      ),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: card,
@@ -285,7 +301,23 @@ ThemeData _buildLightTheme() {
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: const Color(0x80000000)),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0x80000000),
+        enabledMouseCursor: SystemMouseCursors.click,
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(enabledMouseCursor: SystemMouseCursors.click),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        enabledMouseCursor: SystemMouseCursors.click,
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        enabledMouseCursor: SystemMouseCursors.click,
+      ),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: card,

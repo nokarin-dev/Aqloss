@@ -341,7 +341,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _InfoRow(
                     icon: Icons.music_note_rounded,
                     title: 'Aqloss',
-                    value: 'Version 0.2.1',
+                    value: 'Version 0.2.2',
                   ),
                   _Div(),
                   _InfoRow(
@@ -483,6 +483,7 @@ class _ScanButtonState extends State<_ScanButton> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -670,6 +671,7 @@ class _SelectBtnState extends State<_SelectBtn> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.click,
     onEnter: (_) => setState(() => _hovered = true),
     onExit: (_) => setState(() => _hovered = false),
     child: GestureDetector(
@@ -832,6 +834,7 @@ class _ToggleRowState extends State<_ToggleRow> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -1372,6 +1375,7 @@ class _HoverTextBtnState extends State<_HoverTextBtn> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(

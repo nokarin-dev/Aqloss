@@ -7,6 +7,7 @@ import 'package:aqloss/providers/settings_provider.dart';
 class AudioService {
   // Volume cache
   static double _cachedVolume = 1.0;
+  static bool _engineReady = false;
 
   // Freeze watchdog
   static Timer? _watchdog;
@@ -26,6 +27,7 @@ class AudioService {
             await Future(
               () => backend.recoverEngine(),
             ).timeout(const Duration(seconds: 6));
+            _engineReady = true;
             Logger.debugAudioService('recoverEngine() OK');
             onFreezeDetected?.call();
           } catch (e) {
@@ -50,11 +52,11 @@ class AudioService {
     double? volume,
     SettingsState? settings,
   }) async {
+    _engineReady = false;
     if (volume != null) _cachedVolume = volume.clamp(0.0, 1.0);
     try {
       if (deviceId != null) {
         await Future(
-
           () => backend.initEngineWithDevice(
             deviceId: deviceId,
             exclusive: exclusive,
@@ -76,6 +78,7 @@ class AudioService {
         return;
       }
     }
+    _engineReady = true;
     await _applyVolume();
     if (settings != null) await applyAllDsp(settings);
     _startWatchdog();
@@ -83,15 +86,30 @@ class AudioService {
 
   // Playback
   static Future<void> loadTrack(String path) async {
+    if (!_engineReady) throw Exception('AudioEngine not ready');
     await backend.loadTrack(path: path);
     await _applyVolume();
   }
 
-  static Future<void> play() async => backend.play();
-  static Future<void> pause() async => backend.pause();
-  static Future<void> stop() async => backend.stop();
-  static Future<void> seek(double positionSecs) async =>
-      backend.seek(positionSecs: positionSecs);
+  static Future<void> play() async {
+    if (!_engineReady) throw Exception('AudioEngine not ready');
+    return backend.play();
+  }
+
+  static Future<void> pause() async {
+    if (!_engineReady) return;
+    return backend.pause();
+  }
+
+  static Future<void> stop() async {
+    if (!_engineReady) return;
+    return backend.stop();
+  }
+
+  static Future<void> seek(double positionSecs) async {
+    if (!_engineReady) throw Exception('AudioEngine not ready');
+    return backend.seek(positionSecs: positionSecs);
+  }
 
   static Future<void> setVolume(double volume) async {
     _cachedVolume = volume.clamp(0.0, 1.0);

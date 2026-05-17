@@ -56,29 +56,34 @@ pub fn enumerate_audio_devices() -> Result<Vec<AudioDeviceInfo>> {
     }])
 }
 
+// Helper
+fn engine() -> Result<std::sync::Arc<std::sync::Mutex<AudioEngine>>> {
+    AudioEngine::global_opt().ok_or_else(|| anyhow::anyhow!("AudioEngine not ready"))
+}
+
 // Playback
 pub fn load_track(path: String) -> Result<TrackInfo> {
     let info = metadata::read_track_info(&path)?;
-    AudioEngine::global().lock().unwrap().load(&path)?;
+    engine()?.lock().unwrap().load(&path)?;
     Ok(info)
 }
 pub fn play() -> Result<()> {
-    AudioEngine::global().lock().unwrap().play()
+    engine()?.lock().unwrap().play()
 }
 pub fn pause() -> Result<()> {
-    AudioEngine::global().lock().unwrap().pause()
+    engine()?.lock().unwrap().pause()
 }
 pub fn stop() -> Result<()> {
-    AudioEngine::global().lock().unwrap().stop()
+    engine()?.lock().unwrap().stop()
 }
 pub fn seek(position_secs: f64) -> Result<()> {
-    AudioEngine::global().lock().unwrap().seek(position_secs)
+    engine()?.lock().unwrap().seek(position_secs)
 }
 pub fn set_volume(volume: f32) -> Result<()> {
-    AudioEngine::global().lock().unwrap().set_volume(volume)
+    engine()?.lock().unwrap().set_volume(volume)
 }
 pub fn get_position() -> Result<PlaybackPosition> {
-    AudioEngine::global().lock().unwrap().get_position()
+    engine()?.lock().unwrap().get_position()
 }
 
 #[frb(sync)]
@@ -96,49 +101,37 @@ pub fn is_exclusive_mode() -> bool {
 
 // DSP
 pub fn set_replay_gain(linear_gain: f32) -> Result<()> {
-    AudioEngine::global()
-        .lock()
-        .unwrap()
-        .set_replay_gain(linear_gain);
+    engine()?.lock().unwrap().set_replay_gain(linear_gain);
     Ok(())
 }
 pub fn set_soft_clip(enabled: bool) -> Result<()> {
-    AudioEngine::global().lock().unwrap().set_soft_clip(enabled);
+    engine()?.lock().unwrap().set_soft_clip(enabled);
     Ok(())
 }
 pub fn set_skip_silence(enabled: bool) -> Result<()> {
-    AudioEngine::global()
-        .lock()
-        .unwrap()
-        .set_skip_silence(enabled);
+    engine()?.lock().unwrap().set_skip_silence(enabled);
     Ok(())
 }
 pub fn set_gapless(enabled: bool) -> Result<()> {
-    AudioEngine::global().lock().unwrap().set_gapless(enabled);
+    engine()?.lock().unwrap().set_gapless(enabled);
     Ok(())
 }
 pub fn set_crossfade_secs(secs: f32) -> Result<()> {
-    AudioEngine::global()
-        .lock()
-        .unwrap()
-        .set_crossfade_secs(secs);
+    engine()?.lock().unwrap().set_crossfade_secs(secs);
     Ok(())
 }
 
 // EQ
 pub fn set_eq_enabled(enabled: bool) -> Result<()> {
-    AudioEngine::global()
-        .lock()
-        .unwrap()
-        .set_eq_enabled(enabled);
+    engine()?.lock().unwrap().set_eq_enabled(enabled);
     Ok(())
 }
 pub fn set_eq_gains(gains: Vec<f32>) -> Result<()> {
-    AudioEngine::global().lock().unwrap().set_eq_gains(gains);
+    engine()?.lock().unwrap().set_eq_gains(gains);
     Ok(())
 }
 pub fn set_eq_band(band: u32, gain_db: f32) -> Result<()> {
-    AudioEngine::global()
+    engine()?
         .lock()
         .unwrap()
         .set_eq_band(band as usize, gain_db);

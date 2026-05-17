@@ -599,6 +599,7 @@ class _PlaylistOptionRowState extends State<_PlaylistOptionRow> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(

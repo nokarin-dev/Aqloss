@@ -668,9 +668,7 @@ class _SideNavState extends ConsumerState<_SideNav>
     return AnimatedBuilder(
       animation: _widthAnim,
       builder: (context, child) {
-        final w =
-            60 +
-            (_expandedWidth - 60) * _widthAnim.value;
+        final w = 60 + (_expandedWidth - 60) * _widthAnim.value;
         return SizedBox(width: w, child: child);
       },
       child: Container(
@@ -947,6 +945,7 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
       preferBelow: false,
       waitDuration: const Duration(milliseconds: 300),
       child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(
@@ -993,6 +992,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Tooltip(
@@ -1090,6 +1090,7 @@ class _NavItemState extends State<_NavItem> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final item = MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -1381,6 +1382,7 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -1660,6 +1662,7 @@ class _PlaylistTrackTileState extends ConsumerState<_PlaylistTrackTile> {
     final cs = Theme.of(context).colorScheme;
 
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -1973,6 +1976,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
