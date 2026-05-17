@@ -50,6 +50,22 @@
     </screenshots>
 
     <releases>
+        <release version="0.2.1" date="2026-05-17">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.1</url>
+            <description>
+                <p>UI Adjusment, search fix, new theme, performance improvements, and more.</p>
+                <li>Aqloss logging</li>
+                <li>128-entry LRU cache for album art thumbnails</li>
+                <li>Grid / Detail view toggle in library</li>
+                <li>Islands themee</li>
+                <li>Now playing header on library and playlist</li>
+                <li>Mini player</li>
+                <li>Buffer underrun warning spam</li>
+                <li>Window not rounded on linux</li>
+                <li>Search doesn't work on library</li>
+                <li>And more.</li>
+            </description>
+        </release>
         <release version="0.2.0" date="2026-05-13">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.0</url>
             <description>

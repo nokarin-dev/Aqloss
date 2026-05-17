@@ -6,7 +6,11 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-## [Unreleased]
+No Changes Yet.
+
+---
+
+## [0.2.1] - 2026-05-17
 
 ### Added
 
@@ -18,16 +22,16 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 - Mini player
 
 ### Fixed
+
 - Buffer underrun warning spam
-- Window not rounded on linux 
+- Window not rounded on linux
+- Search doesn't work on library
 
 ### Changed
 
 - Library and playlist now displaying cover art
 - Images are resized to a maximum of 300×300 and recompressed to JPEG to reduce ram usage
 - remove material widgets from library and settings screen
-
----
 
 ## [0.2.0] - 2026-05-14
 
@@ -61,7 +65,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/frameextractor/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/nokarin-dev/frameextractor/compare/v0.2.1...HEAD
+[0.1.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.2.1
 [0.1.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.2.0
 [0.1.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.1.0
