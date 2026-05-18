@@ -11,6 +11,24 @@ pub mod resampler;
 
 use flutter_rust_bridge::frb;
 
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub unsafe extern "C" fn Java_xyz_nokarin_aqloss_MainActivity_initAudioContext(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    ctx: jni::objects::JObject,
+) {
+    let vm = env.get_java_vm().expect("initAudioContext: get_java_vm");
+    let ctx_global = env
+        .new_global_ref(ctx)
+        .expect("initAudioContext: new_global_ref");
+    ndk_context::initialize_android_context(
+        vm.get_java_vm_pointer().cast(),
+        ctx_global.as_raw().cast(),
+    );
+    std::mem::forget(ctx_global);
+}
+
 #[frb(dart_metadata = ("freezed"))]
 pub struct TrackInfo {
     pub path: String,

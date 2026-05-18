@@ -25,6 +25,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 - [Android] Status bar overlap
 - [Android] window_manager crash on Android
 - [Android] Spectrum negative padding
+- [Android] Using ndk context to open audio output for cpal
+- [Android] Overflow on grid item
 
 ---
 

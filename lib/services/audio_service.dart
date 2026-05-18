@@ -61,6 +61,7 @@ class AudioService {
         await Future.delayed(Duration(milliseconds: delays[attempt]));
       }
       try {
+        print('[aqloss] initEngine attempt ${attempt + 1} start');
         if (deviceId != null) {
           await backend
               .initEngineWithDevice(deviceId: deviceId, exclusive: exclusive)
@@ -68,18 +69,23 @@ class AudioService {
         } else {
           await backend.initEngine().timeout(const Duration(seconds: 8));
         }
+        print('[aqloss] initEngine attempt ${attempt + 1} SUCCESS');
         _engineReady = true;
         Logger.debugAudioService('engine ready (attempt ${attempt + 1})');
         break;
-      } catch (e) {
-        Logger.warnAudioService('init attempt ${attempt + 1} failed: $e');
+      } catch (e, st) {
+        print('[aqloss] initEngine attempt ${attempt + 1} FAILED: $e');
+        Logger.errorAudioService('init attempt ${attempt + 1} FAILED: $e\n$st');
         if (attempt == delays.length - 1) {
           try {
+            print('[aqloss] initEngine fallback start');
             await backend.initEngine().timeout(const Duration(seconds: 6));
+            print('[aqloss] initEngine fallback SUCCESS');
             _engineReady = true;
             Logger.debugAudioService('engine ready (fallback shared)');
-          } catch (e2) {
-            Logger.errorAudioService('engine init failed: $e2');
+          } catch (e2, st2) {
+            print('[aqloss] initEngine FATAL: $e2');
+            Logger.errorAudioService('engine init FATAL: $e2\n$st2');
             return;
           }
         }
@@ -95,7 +101,7 @@ class AudioService {
   // Playback
   static Future<void> loadTrack(String path) async {
     if (!_engineReady) {
-      for (int i = 0; i < 10; i++) {
+      for (int i = 0; i < 30; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         if (_engineReady) break;
       }
@@ -107,7 +113,7 @@ class AudioService {
 
   static Future<void> play() async {
     if (!_engineReady) {
-      for (int i = 0; i < 10; i++) {
+      for (int i = 0; i < 30; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         if (_engineReady) break;
       }

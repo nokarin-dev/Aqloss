@@ -104,16 +104,32 @@ pub fn update_playing(
 
     let find_artist = truncate(title, 27);
 
+    let base = "https://music.youtube.com/search?q=";
     let query = format!("{title} {artist}");
     let encoded: String = query
         .chars()
         .map(|c| match c {
             'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
             ' ' => "+".to_string(),
-            c => format!("%{:02X}", c as u32),
+            c => c
+                .to_string()
+                .as_bytes()
+                .iter()
+                .map(|b| format!("%{b:02X}"))
+                .collect(),
         })
         .collect();
-    let ytm_query = format!("https://music.youtube.com/search?q={encoded}");
+    let max_encoded = 512 - base.len();
+    let encoded = if encoded.len() > max_encoded {
+        let trimmed = &encoded[..max_encoded];
+        match trimmed.rfind('%') {
+            Some(i) if i + 3 > max_encoded => trimmed[..i].to_string(),
+            _ => trimmed.to_string(),
+        }
+    } else {
+        encoded
+    };
+    let ytm_query = format!("{base}{encoded}");
 
     let large_img = match album_art_url {
         Some(url) if !url.is_empty() && is_direct_image_url(url) => url,

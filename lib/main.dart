@@ -38,20 +38,23 @@ void main() async {
 
   runApp(const ProviderScope(child: AqlossApp()));
 
-  final delay = Platform.isAndroid
-      ? const Duration(milliseconds: 800)
-      : Duration.zero;
-
-  Future.delayed(delay, () async {
-    final (deviceId, exclusive, volume) = await _loadStartupPrefs();
-    final prefs = await SharedPreferences.getInstance();
-    final settings = await _loadSettingsState(prefs);
-    await AudioService.init(
-      deviceId: deviceId,
-      exclusive: exclusive,
-      volume: volume,
-      settings: settings,
-    );
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (Platform.isAndroid) {
+      await Future.delayed(const Duration(milliseconds: 800));
+    }
+    try {
+      final (deviceId, exclusive, volume) = await _loadStartupPrefs();
+      final prefs = await SharedPreferences.getInstance();
+      final settings = await _loadSettingsState(prefs);
+      await AudioService.init(
+        deviceId: deviceId,
+        exclusive: exclusive,
+        volume: volume,
+        settings: settings,
+      );
+    } catch (e, st) {
+      print('[aqloss] main init error: $e\n$st');
+    }
   });
 }
 

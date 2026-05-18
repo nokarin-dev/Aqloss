@@ -29,6 +29,7 @@ impl Level {
 // Internal state
 struct Logger {
     audio: Mutex<File>,
+    output: Mutex<File>,
     discord: Mutex<File>,
 }
 
@@ -78,6 +79,7 @@ pub fn init() {
 
     let logger = Logger {
         audio: Mutex::new(open_log(&dir, "audio.log")),
+        output: Mutex::new(open_log(&dir, "output.log")),
         discord: Mutex::new(open_log(&dir, "discord_rpc.log")),
     };
 
@@ -130,6 +132,7 @@ fn timestamp() -> String {
 // Core write
 enum Target {
     Audio,
+    Output,
     Discord,
 }
 
@@ -150,6 +153,7 @@ fn write(target: Target, level: Level, msg: &str) {
 
     let file = match target {
         Target::Audio => &logger.audio,
+        Target::Output => &logger.output,
         Target::Discord => &logger.discord,
     };
 
@@ -206,8 +210,31 @@ pub fn error_discord(msg: impl AsRef<str>) {
 #[macro_export]
 macro_rules! debug_discord { ($($arg:tt)*) => { $crate::logger::debug_discord(format!($($arg)*)) }; }
 #[macro_export]
-macro_rules! info_discord  { ($($arg:tt)*) => { $crate::logger::info_discord (format!($($arg)*)) }; }
+macro_rules! info_discord  { ($($arg:tt)*) => { $crate::logger::info_discord(format!($($arg)*)) }; }
 #[macro_export]
-macro_rules! warn_discord  { ($($arg:tt)*) => { $crate::logger::warn_discord (format!($($arg)*)) }; }
+macro_rules! warn_discord  { ($($arg:tt)*) => { $crate::logger::warn_discord(format!($($arg)*)) }; }
 #[macro_export]
 macro_rules! error_discord { ($($arg:tt)*) => { $crate::logger::error_discord(format!($($arg)*)) }; }
+
+// output
+pub fn debug_output(msg: impl AsRef<str>) {
+    write(Target::Output, Level::Debug, msg.as_ref());
+}
+pub fn info_output(msg: impl AsRef<str>) {
+    write(Target::Output, Level::Info, msg.as_ref());
+}
+pub fn warn_output(msg: impl AsRef<str>) {
+    write(Target::Output, Level::Warn, msg.as_ref());
+}
+pub fn error_output(msg: impl AsRef<str>) {
+    write(Target::Output, Level::Error, msg.as_ref());
+}
+
+#[macro_export]
+macro_rules! debug_output { ($($arg:tt)*) => { $crate::logger::debug_output(format!($($arg)*)) }; }
+#[macro_export]
+macro_rules! info_output  { ($($arg:tt)*) => { $crate::logger::info_output(format!($($arg)*)) }; }
+#[macro_export]
+macro_rules! warn_output  { ($($arg:tt)*) => { $crate::logger::warn_output(format!($($arg)*)) }; }
+#[macro_export]
+macro_rules! error_output { ($($arg:tt)*) => { $crate::logger::error_output(format!($($arg)*)) }; }
