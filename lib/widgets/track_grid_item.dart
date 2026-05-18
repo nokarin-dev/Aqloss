@@ -10,12 +10,14 @@ class TrackGridItem extends ConsumerStatefulWidget {
   final Track track;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onSecondaryTap;
 
   const TrackGridItem({
     super.key,
     required this.track,
     this.onTap,
     this.onLongPress,
+    this.onSecondaryTap,
   });
 
   @override
@@ -56,6 +58,7 @@ class _TrackGridItemState extends ConsumerState<TrackGridItem> {
     return GestureDetector(
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
+      onSecondaryTap: widget.onSecondaryTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 130),
         decoration: BoxDecoration(

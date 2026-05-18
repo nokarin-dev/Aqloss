@@ -11,6 +11,9 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 ### Added
 
 - find button discord RPC now links to YouTube Music search
+- [Android] Storage permissions handler
+- [Android] URI path resolution
+- [Android] Folder manager access on mobile
 
 ### Fixed
 
@@ -18,6 +21,10 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 - All button now should has pointer now
 - Discord button label overflow
 - Added helpers to prevent backend crash
+- [Android] Library scan empty
+- [Android] Status bar overlap
+- [Android] window_manager crash on Android
+- [Android] Spectrum negative padding
 
 ---
 

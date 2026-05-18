@@ -38,7 +38,11 @@ void main() async {
 
   runApp(const ProviderScope(child: AqlossApp()));
 
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
+  final delay = Platform.isAndroid
+      ? const Duration(milliseconds: 800)
+      : Duration.zero;
+
+  Future.delayed(delay, () async {
     final (deviceId, exclusive, volume) = await _loadStartupPrefs();
     final prefs = await SharedPreferences.getInstance();
     final settings = await _loadSettingsState(prefs);

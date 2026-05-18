@@ -175,9 +175,20 @@ impl AudioEngine {
             eq: Arc::new(Mutex::new(Equalizer::new(sr, ch))),
             decode_thread_died: Arc::new(AtomicBool::new(false)),
         };
-        ENGINE
-            .set(Arc::new(Mutex::new(engine)))
-            .map_err(|_| anyhow!("Already initialized"))
+        let arc = Arc::new(Mutex::new(engine));
+        if ENGINE.set(arc.clone()).is_err() {
+            if let Some(existing) = ENGINE.get() {
+                let mut e = existing.lock().unwrap();
+                let new_e = arc.lock().unwrap();
+                unsafe {
+                    let new_ptr = &*new_e as *const AudioEngine as *mut AudioEngine;
+                    let old_ptr = &mut *e as *mut AudioEngine;
+                    std::ptr::swap(old_ptr, new_ptr);
+                }
+                logger::info_audio("AudioEngine re-initialized in place");
+            }
+        }
+        Ok(())
     }
 
     // Accessors

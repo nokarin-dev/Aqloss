@@ -100,6 +100,9 @@ impl AudioOutput {
         let config = cpal::StreamConfig {
             channels: supported.channels(),
             sample_rate: supported.sample_rate(),
+            #[cfg(target_os = "android")]
+            buffer_size: cpal::BufferSize::Default,
+            #[cfg(not(target_os = "android"))]
             buffer_size: cpal::BufferSize::Fixed(CPAL_BUFFER_FRAMES as u32),
         };
 

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,9 @@ import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/settings_watcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/home_screen.dart';
+
+bool get _isDesktop =>
+    Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
 class AqlossApp extends ConsumerStatefulWidget {
   const AqlossApp({super.key});
@@ -19,19 +23,24 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    _checkMaximize();
+    if (_isDesktop) {
+      windowManager.addListener(this);
+      _checkMaximize();
+    }
   }
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
+    if (_isDesktop) windowManager.removeListener(this);
     super.dispose();
   }
 
   Future<void> _checkMaximize() async {
-    final fs = await windowManager.isMaximized();
-    if (mounted) setState(() => _isMaximize = fs);
+    if (!_isDesktop) return;
+    try {
+      final fs = await windowManager.isMaximized();
+      if (mounted) setState(() => _isMaximize = fs);
+    } catch (_) {}
   }
 
   @override
@@ -57,12 +66,10 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       builder: (context, child) {
-        return ClipRRect(
-          borderRadius: _isMaximize
-              ? BorderRadius.zero
-              : BorderRadius.circular(12.0),
-          child: child,
-        );
+        final radius = _isDesktop && !_isMaximize
+            ? BorderRadius.circular(12.0)
+            : BorderRadius.zero;
+        return ClipRRect(borderRadius: radius, child: child);
       },
       home: const SettingsWatcher(child: HomeScreen()),
     );

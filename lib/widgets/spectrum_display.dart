@@ -136,7 +136,10 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay> {
                 2.0,
                 8.0,
               );
-              final gap = totalWidth / widget.barCount - barWidth;
+              final gap = (totalWidth / widget.barCount - barWidth).clamp(
+                0.0,
+                double.infinity,
+              );
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: List.generate(widget.barCount, (i) {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:aqloss/util/android_path_helper.dart';
 import 'library_screen.dart';
 import 'player_screen.dart';
 import 'settings_screen.dart';
@@ -166,39 +167,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
       autofocus: true,
       onKeyEvent: _handleKey,
       child: Scaffold(
-        body: ColoredBox(
-          color: Theme.of(context).colorScheme.surface,
-          child: Column(
-            children: [
-              if (_isDesktop) _CustomTitleBar(isMaximized: _isMaximized),
-              Expanded(
-                child: isWide
-                    ? Row(
-                        children: [
-                          _SideNav(
-                            route: _route,
-                            collapsed: _sidebarCollapsed,
-                            onSelect: (r) => setState(() => _route = r),
-                            onToggleCollapse: _toggleSidebar,
-                          ),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Expanded(child: _buildScreen()),
-                                if (hasTrack && _route != 0)
-                                  MiniPlayerBar(
-                                    onTap: () => setState(() => _route = 0),
-                                  ),
-                              ],
+        body: SafeArea(
+          top: !_isDesktop,
+          bottom: false,
+          child: ColoredBox(
+            color: Theme.of(context).colorScheme.surface,
+            child: Column(
+              children: [
+                if (_isDesktop) _CustomTitleBar(isMaximized: _isMaximized),
+                Expanded(
+                  child: isWide
+                      ? Row(
+                          children: [
+                            _SideNav(
+                              route: _route,
+                              collapsed: _sidebarCollapsed,
+                              onSelect: (r) => setState(() => _route = r),
+                              onToggleCollapse: _toggleSidebar,
                             ),
-                          ),
-                        ],
-                      )
-                    : _buildScreen(),
-              ),
-            ],
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Expanded(child: _buildScreen()),
+                                  if (hasTrack && _route != 0)
+                                    MiniPlayerBar(
+                                      onTap: () => setState(() => _route = 0),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : _buildScreen(),
+                ),
+              ],
+            ),
           ),
         ),
+        // SafeArea
         bottomNavigationBar: isWide
             ? null
             : _MobileNavBar(
@@ -1174,11 +1180,28 @@ class _FolderManagerDialog extends ConsumerWidget {
   const _FolderManagerDialog();
 
   Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
+    if (Platform.isAndroid) {
+      final granted = await requestAndroidStoragePermission();
+      if (!granted) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Storage permission is required to scan music folders',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     final result = await FilePicker.getDirectoryPath(
       dialogTitle: 'Select music folder',
     );
     if (result != null) {
-      ref.read(libraryProvider.notifier).addFolder(result);
+      final path = resolveAndroidPath(result);
+      ref.read(libraryProvider.notifier).addFolder(path);
     }
   }
 
