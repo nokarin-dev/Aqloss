@@ -53,7 +53,7 @@ void main() async {
         settings: settings,
       );
     } catch (e, st) {
-      print('[aqloss] main init error: $e\n$st');
+      Logger.errorFrontend('[aqloss] main init error: $e\n$st');
     }
   });
 }

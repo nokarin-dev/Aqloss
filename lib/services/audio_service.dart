@@ -61,7 +61,7 @@ class AudioService {
         await Future.delayed(Duration(milliseconds: delays[attempt]));
       }
       try {
-        print('[aqloss] initEngine attempt ${attempt + 1} start');
+        Logger.debugAudioService('engine attempt ${attempt + 1} start');
         if (deviceId != null) {
           await backend
               .initEngineWithDevice(deviceId: deviceId, exclusive: exclusive)
@@ -69,22 +69,20 @@ class AudioService {
         } else {
           await backend.initEngine().timeout(const Duration(seconds: 8));
         }
-        print('[aqloss] initEngine attempt ${attempt + 1} SUCCESS');
+        Logger.debugAudioService('engine attempt ${attempt + 1} SUCCESS');
         _engineReady = true;
         Logger.debugAudioService('engine ready (attempt ${attempt + 1})');
         break;
       } catch (e, st) {
-        print('[aqloss] initEngine attempt ${attempt + 1} FAILED: $e');
         Logger.errorAudioService('init attempt ${attempt + 1} FAILED: $e\n$st');
         if (attempt == delays.length - 1) {
           try {
-            print('[aqloss] initEngine fallback start');
+            Logger.debugAudioService('initEngine fallback start');
             await backend.initEngine().timeout(const Duration(seconds: 6));
-            print('[aqloss] initEngine fallback SUCCESS');
+            Logger.debugAudioService('[aqloss] initEngine fallback SUCCESS');
             _engineReady = true;
             Logger.debugAudioService('engine ready (fallback shared)');
           } catch (e2, st2) {
-            print('[aqloss] initEngine FATAL: $e2');
             Logger.errorAudioService('engine init FATAL: $e2\n$st2');
             return;
           }
