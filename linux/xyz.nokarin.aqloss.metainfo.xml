@@ -40,12 +40,16 @@
 
     <screenshots>
         <screenshot type="default">
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9983f4250b97936e7fe6dca50a41ac7e270d9419/assets/preview/playing.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/60c72bc0900bc1cd415732399ffa5c90be5aa2f4/assets/preview/playing.png</image>
             <caption>Playing</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9983f4250b97936e7fe6dca50a41ac7e270d9419/assets/preview/library.png</image>
-            <caption>Library</caption>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/60c72bc0900bc1cd415732399ffa5c90be5aa2f4/assets/preview/library_detail.png</image>
+            <caption>Library - Detail View</caption>
+        </screenshot>
+        <screenshot>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/60c72bc0900bc1cd415732399ffa5c90be5aa2f4/assets/preview/library_grid.png</image>
+            <caption>Library - Grid View</caption>
         </screenshot>
     </screenshots>
 
@@ -60,6 +64,7 @@
                     <li>All button now should has pointer now</li>
                     <li>Discord button label overflow</li>
                     <li>Added helpers to prevent backend crash</li>
+                    <li>Added albums screen</li>
                 </ul>
             </description>
         </release>
