@@ -8,12 +8,25 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- find button discord RPC now links to YouTube Music search
+- [Android] Storage permissions handler
+- [Android] URI path resolution
+- [Android] Folder manager access on mobile
+
 ### Fixed
 
 - Call backend only on drag end to prevent seek throttle
 - All button now should has pointer now
 - Discord button label overflow
 - Added helpers to prevent backend crash
+- [Android] Library scan empty
+- [Android] Status bar overlap
+- [Android] window_manager crash on Android
+- [Android] Spectrum negative padding
+- [Android] Using ndk context to open audio output for cpal
+- [Android] Overflow on grid item
 
 ---
 

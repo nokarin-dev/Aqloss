@@ -10,12 +10,14 @@ class TrackGridItem extends ConsumerStatefulWidget {
   final Track track;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onSecondaryTap;
 
   const TrackGridItem({
     super.key,
     required this.track,
     this.onTap,
     this.onLongPress,
+    this.onSecondaryTap,
   });
 
   @override
@@ -56,6 +58,7 @@ class _TrackGridItemState extends ConsumerState<TrackGridItem> {
     return GestureDetector(
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
+      onSecondaryTap: widget.onSecondaryTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 130),
         decoration: BoxDecoration(
@@ -121,35 +124,39 @@ class _TrackGridItemState extends ConsumerState<TrackGridItem> {
                 ),
               ),
             ),
-            // Title + artist
-            Padding(
-              padding: const EdgeInsets.fromLTRB(7, 6, 7, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.track.displayTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isPlaying ? FontWeight.w500 : FontWeight.w400,
-                      color: isPlaying
-                          ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.80),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(7, 6, 7, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.track.displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isPlaying
+                            ? FontWeight.w500
+                            : FontWeight.w400,
+                        color: isPlaying
+                            ? cs.onSurface
+                            : cs.onSurface.withValues(alpha: 0.80),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.track.displayArtist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: cs.onSurface.withValues(alpha: 0.35),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.track.displayArtist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: cs.onSurface.withValues(alpha: 0.35),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

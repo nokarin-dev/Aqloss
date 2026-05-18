@@ -25,7 +25,7 @@ dependencies:
   json_annotation: ^4.9.0
 
   # File picking
-  file_picker: ^11.0.2
+  file_picker: ^12.0.0-beta.3
 
   # Audio focus / media keys (mobile)
   audio_service: ^0.18.13
@@ -38,6 +38,8 @@ dependencies:
   http: ^1.6.0
   crypto: ^3.0.7
   open_file: ^3.5.11
+  device_info_plus: ^13.1.0
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:

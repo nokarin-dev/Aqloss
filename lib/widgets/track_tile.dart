@@ -12,6 +12,7 @@ class TrackTile extends ConsumerWidget {
   final int? index;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onSecondaryTap;
 
   const TrackTile({
     super.key,
@@ -19,6 +20,7 @@ class TrackTile extends ConsumerWidget {
     this.index,
     this.onTap,
     this.onLongPress,
+    this.onSecondaryTap,
   });
 
   @override
@@ -83,6 +85,7 @@ class TrackTile extends ConsumerWidget {
           showBitDepth: showBitDepth,
           onTap: onTap,
           onLongPress: onLongPress,
+          onSecondaryTap: onSecondaryTap,
         ),
       ),
       child: _TileBody(
@@ -93,6 +96,7 @@ class TrackTile extends ConsumerWidget {
         showBitDepth: showBitDepth,
         onTap: onTap,
         onLongPress: onLongPress,
+        onSecondaryTap: onSecondaryTap,
       ),
     );
   }
@@ -106,6 +110,7 @@ class _TileBody extends StatefulWidget {
   final bool showBitDepth;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onSecondaryTap;
 
   const _TileBody({
     required this.track,
@@ -115,6 +120,7 @@ class _TileBody extends StatefulWidget {
     this.index,
     this.onTap,
     this.onLongPress,
+    this.onSecondaryTap,
   });
 
   @override
@@ -133,6 +139,7 @@ class _TileBodyState extends State<_TileBody> {
       child: GestureDetector(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
+        onSecondaryTap: widget.onSecondaryTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 110),

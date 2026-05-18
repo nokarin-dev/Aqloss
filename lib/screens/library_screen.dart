@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:aqloss/util/android_path_helper.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/now_playing_header.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
@@ -79,6 +82,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       .read(settingsProvider.notifier)
                       .setLibraryViewMode(LibraryViewMode.grid),
                 ),
+                if (!Platform.isWindows &&
+                    !Platform.isLinux &&
+                    !Platform.isMacOS) ...[
+                  const SizedBox(width: 2),
+                  _ViewModeButton(
+                    icon: Icons.folder_open_rounded,
+                    active: false,
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const _FolderManagerShim(),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -417,12 +433,14 @@ class _TrackList extends ConsumerWidget {
     final playerNotifier = ref.read(playerProvider.notifier);
     final playlists = ref.watch(playlistProvider);
     final playlistNotifier = ref.read(playlistProvider.notifier);
+    final isDesktop =
+        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
     if (viewMode == LibraryViewMode.grid) {
       return GridView.builder(
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 8,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: isDesktop ? 8 : 4,
           mainAxisSpacing: 8,
           crossAxisSpacing: 8,
           childAspectRatio: 0.78,
@@ -431,8 +449,14 @@ class _TrackList extends ConsumerWidget {
         itemBuilder: (ctx, i) => TrackGridItem(
           track: tracks[i],
           onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
-          onLongPress: () =>
-              _showOptions(ctx, tracks[i], playlists, playlistNotifier),
+          // mobile
+          onLongPress: isDesktop
+              ? null
+              : () => _showOptions(ctx, tracks[i], playlists, playlistNotifier),
+          // desktop
+          onSecondaryTap: isDesktop
+              ? () => _showOptions(ctx, tracks[i], playlists, playlistNotifier)
+              : null,
         ),
       );
     }
@@ -444,8 +468,14 @@ class _TrackList extends ConsumerWidget {
         track: tracks[i],
         index: i,
         onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
-        onLongPress: () =>
-            _showOptions(ctx, tracks[i], playlists, playlistNotifier),
+        // mobile
+        onLongPress: isDesktop
+            ? null
+            : () => _showOptions(ctx, tracks[i], playlists, playlistNotifier),
+        // desktop
+        onSecondaryTap: isDesktop
+            ? () => _showOptions(ctx, tracks[i], playlists, playlistNotifier)
+            : null,
       ),
     );
   }
@@ -678,5 +708,128 @@ class _ViewModeButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// Folder manager dialog for mobile
+class _FolderManagerShim extends ConsumerWidget {
+  const _FolderManagerShim();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final library = ref.watch(libraryProvider);
+    final folders = library.folders;
+    final isScanning = library.status == LibraryStatus.scanning;
+    final cs = Theme.of(context).colorScheme;
+
+    return Dialog(
+      backgroundColor: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460, minWidth: 300),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Music Folders',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => Navigator.pop(context),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (folders.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'No folders added yet.',
+                    style: TextStyle(
+                      color: cs.onSurface.withValues(alpha: 0.45),
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              else
+                ...folders.map((f) {
+                  final parts = f.replaceAll('\\', '/').split('/');
+                  final label = parts.length <= 2
+                      ? f
+                      : '…/${parts.sublist(parts.length - 2).join('/')}';
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      label,
+                      style: const TextStyle(fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(
+                        Icons.remove_circle_outline,
+                        size: 18,
+                        color: cs.onSurface.withValues(alpha: 0.4),
+                      ),
+                      onPressed: () =>
+                          ref.read(libraryProvider.notifier).removeFolder(f),
+                    ),
+                  );
+                }),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: isScanning
+                      ? null
+                      : () async {
+                          await _pickAndAdd(context, ref);
+                        },
+                  icon: isScanning
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_rounded, size: 18),
+                  label: Text(isScanning ? 'Scanning…' : 'Add Folder'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _pickAndAdd(BuildContext context, WidgetRef ref) async {
+  if (Platform.isAndroid) {
+    final granted = await requestAndroidStoragePermission();
+    if (!granted) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Storage permission required to scan folders'),
+          ),
+        );
+      }
+      return;
+    }
+  }
+  final result = await FilePicker.getDirectoryPath(
+    dialogTitle: 'Select music folder',
+  );
+  if (result != null && context.mounted) {
+    final path = resolveAndroidPath(result);
+    ref.read(libraryProvider.notifier).addFolder(path);
   }
 }

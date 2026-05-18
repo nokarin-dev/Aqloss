@@ -36,7 +36,9 @@ impl AudioOutput {
             if let Ok(exc) = wasapi_exclusive::ExclusiveStream::open_default() {
                 return Ok(Self::from_exclusive(exc));
             }
-            eprintln!("[aqloss] WASAPI exclusive not available on default device, using shared");
+            crate::logger::warn_output(
+                "[aqloss] WASAPI exclusive not available on default device, using shared",
+            );
         }
         Self::new_cpal_shared(None)
     }
@@ -78,11 +80,13 @@ impl AudioOutput {
                 });
                 match found {
                     Some(d) => {
-                        eprintln!("[aqloss] output device: {id}");
+                        crate::logger::info_output(format!("[aqloss] output device: {id}"));
                         d
                     }
                     None => {
-                        eprintln!("[aqloss] device '{id}' not found, using system default");
+                        crate::logger::warn_output(format!(
+                            "[aqloss] device '{id}' not found, using system default"
+                        ));
                         host.default_output_device()
                             .ok_or_else(|| anyhow!("No audio output device found"))?
                     }
@@ -93,13 +97,23 @@ impl AudioOutput {
                 .ok_or_else(|| anyhow!("No audio output device found"))?,
         };
 
-        let supported = device.default_output_config()?;
+        let supported = device.default_output_config().map_err(|e| {
+            crate::logger::error_output(format!("[aqloss] default_output_config failed: {e}"));
+            e
+        })?;
         let sample_rate: u32 = supported.sample_rate();
         let channels: u32 = supported.channels() as u32;
+
+        crate::logger::info_output(format!(
+            "[aqloss] opening stream: {sample_rate}Hz {channels}ch"
+        ));
 
         let config = cpal::StreamConfig {
             channels: supported.channels(),
             sample_rate: supported.sample_rate(),
+            #[cfg(target_os = "android")]
+            buffer_size: cpal::BufferSize::Default,
+            #[cfg(not(target_os = "android"))]
             buffer_size: cpal::BufferSize::Fixed(CPAL_BUFFER_FRAMES as u32),
         };
 
@@ -111,33 +125,41 @@ impl AudioOutput {
         let draining = Arc::new(AtomicBool::new(false));
         let draining_cb = draining.clone();
 
-        let stream = device.build_output_stream(
-            &config,
-            move |output: &mut [f32], _info| {
-                if draining_cb.load(Ordering::Relaxed) {
-                    let avail = cons.occupied_len();
-                    let mut tmp = vec![0f32; avail];
-                    cons.pop_slice(&mut tmp);
-                    output.fill(0.0);
-                } else {
-                    let n = cons.occupied_len().min(output.len());
-                    cons.pop_slice(&mut output[..n]);
-                    output[n..].fill(0.0);
-                }
-            },
-            |err| eprintln!("[cpal] stream error: {err}"),
-            None,
-        )?;
+        let stream = device
+            .build_output_stream(
+                &config,
+                move |output: &mut [f32], _info| {
+                    if draining_cb.load(Ordering::Relaxed) {
+                        let avail = cons.occupied_len();
+                        let mut tmp = vec![0f32; avail];
+                        cons.pop_slice(&mut tmp);
+                        output.fill(0.0);
+                    } else {
+                        let n = cons.occupied_len().min(output.len());
+                        cons.pop_slice(&mut output[..n]);
+                        output[n..].fill(0.0);
+                    }
+                },
+                |err| crate::logger::error_output(format!("[cpal] stream error: {err}")),
+                None,
+            )
+            .map_err(|e| {
+                crate::logger::error_output(format!("[aqloss] build_output_stream failed: {e}"));
+                anyhow::anyhow!(e)
+            })?;
 
-        stream.play()?;
+        stream.play().map_err(|e| {
+            crate::logger::error_output(format!("[aqloss] stream.play() failed: {e}"));
+            anyhow::anyhow!(e)
+        })?;
 
-        eprintln!(
+        crate::logger::info_output(format!(
             "[aqloss] shared-mode: {} @ {}Hz {}ch (buffer={} frames)",
             device_id.unwrap_or("default"),
             sample_rate,
             channels,
             CPAL_BUFFER_FRAMES
-        );
+        ));
 
         Ok(Self {
             _stream: AudioStream::Cpal(stream),
@@ -319,10 +341,10 @@ pub mod wasapi_exclusive {
                     {
                         chosen_sr = sr;
                         chosen_ch = ch;
-                        eprintln!(
+                        crate::logger::info_output(format!(
                             "[wasapi-exclusive] format: {}Hz {}ch f32 on device {}",
                             sr, ch, device_id
-                        );
+                        ));
                         break;
                     }
                 }
@@ -379,7 +401,10 @@ pub mod wasapi_exclusive {
         alive: Arc<AtomicBool>,
         draining: Arc<AtomicBool>,
     ) {
-        eprintln!("[wasapi-exclusive] audio thread started for {}", device_id);
+        crate::logger::info_output(format!(
+            "[wasapi-exclusive] audio thread started for {}",
+            device_id
+        ));
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED).ok();
 
@@ -387,7 +412,9 @@ pub mod wasapi_exclusive {
             let (audio_client, render_client, buffer_frames, event) = match result {
                 Ok(r) => r,
                 Err(e) => {
-                    eprintln!("[wasapi-exclusive] thread setup failed: {e}");
+                    crate::logger::error_output(format!(
+                        "[wasapi-exclusive] thread setup failed: {e}"
+                    ));
                     CoUninitialize();
                     return;
                 }
@@ -405,7 +432,7 @@ pub mod wasapi_exclusive {
                 let buf_ptr = match render_client.GetBuffer(buffer_frames as u32) {
                     Ok(p) => p,
                     Err(e) => {
-                        eprintln!("[wasapi-exclusive] GetBuffer: {e}");
+                        crate::logger::warn_output(format!("[wasapi-exclusive] GetBuffer: {e}"));
                         break;
                     }
                 };
@@ -460,10 +487,10 @@ pub mod wasapi_exclusive {
             Err(ref e) if e.code().0 as u32 == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED => {
                 let aligned_frames = audio_client.GetBufferSize()? as u64;
                 let aligned_dur = (aligned_frames * 10_000_000) / sample_rate as u64;
-                eprintln!(
+                crate::logger::info_output(format!(
                     "[wasapi-exclusive] alignment fix: {} frames",
                     aligned_frames
-                );
+                ));
                 let wide2 = to_wide(device_id);
                 let device2 = enumerator.GetDevice(PCWSTR::from_raw(wide2.as_ptr()))?;
                 let ac2: IAudioClient = device2.Activate(CLSCTX_ALL, None)?;
@@ -485,7 +512,9 @@ pub mod wasapi_exclusive {
         let render_client: IAudioRenderClient = audio_client.GetService()?;
         let buffer_frames = audio_client.GetBufferSize()? as usize;
         audio_client.Start()?;
-        eprintln!("[wasapi-exclusive] started, buffer_frames={buffer_frames}");
+        crate::logger::info_output(format!(
+            "[wasapi-exclusive] started, buffer_frames={buffer_frames}"
+        ));
 
         Ok((audio_client, render_client, buffer_frames, event))
     }

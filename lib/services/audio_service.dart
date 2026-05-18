@@ -54,31 +54,45 @@ class AudioService {
   }) async {
     _engineReady = false;
     if (volume != null) _cachedVolume = volume.clamp(0.0, 1.0);
-    try {
-      if (deviceId != null) {
-        await Future(
-          () => backend.initEngineWithDevice(
-            deviceId: deviceId,
-            exclusive: exclusive,
-          ),
-        ).timeout(const Duration(seconds: 8));
-      } else {
-        await Future(
-          () => backend.initEngine(),
-        ).timeout(const Duration(seconds: 8));
+
+    const delays = [0, 1000, 2000];
+    for (int attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt] > 0) {
+        await Future.delayed(Duration(milliseconds: delays[attempt]));
       }
-    } catch (e) {
-      Logger.warnAudioService('init error: $e - retrying shared');
       try {
-        await Future(
-          () => backend.initEngine(),
-        ).timeout(const Duration(seconds: 6));
-      } catch (e2) {
-        Logger.errorAudioService('shared init failed: $e2');
-        return;
+        print('[aqloss] initEngine attempt ${attempt + 1} start');
+        if (deviceId != null) {
+          await backend
+              .initEngineWithDevice(deviceId: deviceId, exclusive: exclusive)
+              .timeout(const Duration(seconds: 8));
+        } else {
+          await backend.initEngine().timeout(const Duration(seconds: 8));
+        }
+        print('[aqloss] initEngine attempt ${attempt + 1} SUCCESS');
+        _engineReady = true;
+        Logger.debugAudioService('engine ready (attempt ${attempt + 1})');
+        break;
+      } catch (e, st) {
+        print('[aqloss] initEngine attempt ${attempt + 1} FAILED: $e');
+        Logger.errorAudioService('init attempt ${attempt + 1} FAILED: $e\n$st');
+        if (attempt == delays.length - 1) {
+          try {
+            print('[aqloss] initEngine fallback start');
+            await backend.initEngine().timeout(const Duration(seconds: 6));
+            print('[aqloss] initEngine fallback SUCCESS');
+            _engineReady = true;
+            Logger.debugAudioService('engine ready (fallback shared)');
+          } catch (e2, st2) {
+            print('[aqloss] initEngine FATAL: $e2');
+            Logger.errorAudioService('engine init FATAL: $e2\n$st2');
+            return;
+          }
+        }
       }
     }
-    _engineReady = true;
+
+    if (!_engineReady) return;
     await _applyVolume();
     if (settings != null) await applyAllDsp(settings);
     _startWatchdog();
@@ -86,12 +100,24 @@ class AudioService {
 
   // Playback
   static Future<void> loadTrack(String path) async {
+    if (!_engineReady) {
+      for (int i = 0; i < 30; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (_engineReady) break;
+      }
+    }
     if (!_engineReady) throw Exception('AudioEngine not ready');
     await backend.loadTrack(path: path);
     await _applyVolume();
   }
 
   static Future<void> play() async {
+    if (!_engineReady) {
+      for (int i = 0; i < 30; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (_engineReady) break;
+      }
+    }
     if (!_engineReady) throw Exception('AudioEngine not ready');
     return backend.play();
   }

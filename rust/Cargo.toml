@@ -39,6 +39,10 @@ biquad = "0.6.0"
 image = "0.25.10"
 lru = "0.18.0"
 
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-context = "0.1"
+jni = { version = "0.21", default-features = false }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
     "Win32_Media_Audio",
