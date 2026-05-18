@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:aqloss/util/logger.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:http/http.dart' as http;
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
@@ -77,13 +80,18 @@ class LyricsState {
   bool get hasSynced => document != null;
 }
 
-enum LyricsSource { none, embedded, lrcFile, txtFile }
+enum LyricsSource { none, embedded, lrcFile, txtFile, lrclib }
 
 // Notifier
 class LyricsNotifier extends StateNotifier<LyricsState> {
   LyricsNotifier() : super(const LyricsState());
 
-  Future<void> loadForTrack(String trackPath) async {
+  Future<void> loadForTrack(
+    String trackPath, {
+    String? artist,
+    String? title,
+    int? duration,
+  }) async {
     if (state.trackPath == trackPath) return;
     state = LyricsState(isLoading: true, trackPath: trackPath);
 
@@ -152,6 +160,24 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
         }
       }
 
+      // lrclib fallback
+      if (artist != null && title != null) {
+        final lrclibResult = await _fetchFromLrclib(
+          artist: artist,
+          title: title,
+          duration: duration,
+        );
+        if (lrclibResult != null) {
+          state = LyricsState(
+            document: lrclibResult.document,
+            rawText: lrclibResult.rawText,
+            trackPath: trackPath,
+            source: LyricsSource.lrclib,
+          );
+          return;
+        }
+      }
+
       state = LyricsState(trackPath: trackPath);
     } catch (_) {
       state = LyricsState(trackPath: trackPath);
@@ -163,6 +189,54 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
   }
 }
 
+// lrclib result container
+class _LrclibResult {
+  final LrcDocument? document;
+  final String? rawText;
+  const _LrclibResult({this.document, this.rawText});
+}
+
+Future<_LrclibResult?> _fetchFromLrclib({
+  required String artist,
+  required String title,
+  int? duration,
+}) async {
+  try {
+    final uri = Uri.https('lrclib.net', '/api/get', {
+      'artist_name': artist,
+      'track_name': title,
+      if (duration != null) 'duration': duration.toString(),
+    });
+    Logger.infoFrontend("Searching for $title lyrics: $uri");
+
+    final res = await http
+        .get(
+          uri,
+          headers: {
+            'User-Agent': 'aqloss/1.0 (https://nokarin.xyz/projects/aqloss)',
+          },
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (res.statusCode != 200) return null;
+
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+
+    // Prefer synced LRC over plain text
+    final syncedLyrics = json['syncedLyrics'] as String?;
+    if (syncedLyrics != null && syncedLyrics.trim().isNotEmpty) {
+      final doc = LrcDocument.parse(syncedLyrics);
+      if (doc != null) return _LrclibResult(document: doc);
+    }
+
+    final plainLyrics = json['plainLyrics'] as String?;
+    if (plainLyrics != null && plainLyrics.trim().isNotEmpty) {
+      return _LrclibResult(rawText: plainLyrics.trim());
+    }
+  } catch (_) {}
+  return null;
+}
+
 final lyricsProvider = StateNotifierProvider<LyricsNotifier, LyricsState>((
   ref,
 ) {
@@ -170,7 +244,12 @@ final lyricsProvider = StateNotifierProvider<LyricsNotifier, LyricsState>((
   ref.listen<PlayerState>(playerProvider, (prev, next) {
     final path = next.currentTrack?.path;
     if (path != null && path != prev?.currentTrack?.path) {
-      notifier.loadForTrack(path);
+      notifier.loadForTrack(
+        path,
+        artist: next.currentTrack?.artist,
+        title: next.currentTrack?.title,
+        duration: next.currentTrack?.duration.inSeconds,
+      );
     } else if (path == null) {
       notifier.clear();
     }

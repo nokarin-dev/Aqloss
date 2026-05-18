@@ -10,7 +10,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
-- find button discord RPC now links to YouTube Music search
+- Find button discord RPC now links to YouTube Music search
+- Added irclib fallback for lyrics
 - [Android] Storage permissions handler
 - [Android] URI path resolution
 - [Android] Folder manager access on mobile

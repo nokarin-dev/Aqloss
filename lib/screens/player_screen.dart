@@ -35,17 +35,18 @@ class _WideLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
+    ref.watch(lyricsProvider);
     final settings = ref.watch(settingsProvider);
     final cs = Theme.of(context).colorScheme;
     final width = MediaQuery.of(context).size.width;
+    final showLyricsPanel = track != null;
 
     return Row(
       children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 320),
           curve: Curves.easeInOutCubic,
-          width: hasLyrics ? width * 0.28 : width * 0.44,
+          width: showLyricsPanel ? width * 0.28 : width * 0.44,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(28, 32, 16, 24),
             child: Column(
@@ -58,7 +59,7 @@ class _WideLayout extends ConsumerWidget {
                     showBackground: settings.showAlbumArtBackground,
                   ),
                 ),
-                if (hasLyrics) ...[
+                if (showLyricsPanel) ...[
                   const SizedBox(height: 14),
                   Expanded(
                     child: ClipRRect(

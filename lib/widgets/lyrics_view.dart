@@ -262,6 +262,7 @@ class _SourceBadge extends StatelessWidget {
       LyricsSource.embedded => (Icons.music_note, 'Embedded'),
       LyricsSource.lrcFile => (Icons.text_snippet_outlined, '.lrc file'),
       LyricsSource.txtFile => (Icons.text_fields, '.txt file'),
+      LyricsSource.lrclib => (Icons.cloud_outlined, 'lrclib'),
       LyricsSource.none => (Icons.close, ''),
     };
 

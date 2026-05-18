@@ -17,7 +17,8 @@ enum LogTarget {
   audioService('audio_service.log'),
   lastfm('lastfm.log'),
   deviceProdiver('device_provider.log'),
-  playerProvider('player_provider.log');
+  playerProvider('player_provider.log'),
+  frontend('frontend.log');
 
   final String fileName;
   const LogTarget(this.fileName);
@@ -56,11 +57,7 @@ class Logger {
 ──────────────────────────────────────────────────────\n""";
 
     for (var file in _files.values) {
-      await file.writeAsString(
-        startSession,
-        mode: FileMode.write,
-        flush: true,
-      );
+      await file.writeAsString(startSession, mode: FileMode.write, flush: true);
     }
 
     _isInitialized = true;
@@ -136,4 +133,14 @@ class Logger {
       _instance._log(LogTarget.playerProvider, LogLevel.warn, msg);
   static void errorPlayerProvider(String msg) =>
       _instance._log(LogTarget.playerProvider, LogLevel.error, msg);
+
+  // Frontend
+  static void debugFrontend(String msg) =>
+      _instance._log(LogTarget.frontend, LogLevel.debug, msg);
+  static void infoFrontend(String msg) =>
+      _instance._log(LogTarget.frontend, LogLevel.info, msg);
+  static void warnFrontend(String msg) =>
+      _instance._log(LogTarget.frontend, LogLevel.warn, msg);
+  static void errorFrontend(String msg) =>
+      _instance._log(LogTarget.frontend, LogLevel.error, msg);
 }
