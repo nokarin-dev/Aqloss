@@ -8,13 +8,34 @@ import 'package:http/http.dart' as http;
 class DiscordService {
   static bool _enabled = true;
   static Timer? _refreshTimer;
+  static Timer? _reconnectTimer;
   static final Map<String, String> _artCache = {};
   static final Map<String, String> _onlineArtCache = {};
   static String _lastFingerprint = '';
+  static bool _discordErrored = false;
+  static int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 5;
+  static PlayerState? _pendingState;
+  static double? _pendingPositionSecs;
+
   static bool get enabled => _enabled;
   static set enabled(bool v) {
     _enabled = v;
     if (!v) clear();
+  }
+
+  static String _sanitize(String s, {String fallback = '-'}) {
+    final trimmed = s.trim();
+    if (trimmed.length >= 2) return trimmed;
+    if (trimmed.isEmpty) return fallback;
+    return '$trimmed ';
+  }
+
+  static String _sanitizeAlbum(String? s) {
+    final trimmed = (s ?? '').trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.length >= 2) return trimmed;
+    return '$trimmed ';
   }
 
   static void update(PlayerState state, {double? positionSecs}) {
@@ -26,10 +47,17 @@ class DiscordService {
       return;
     }
 
-    final title = track.title ?? track.path.split(RegExp(r'[/\\]')).last;
-    final artist = track.artist ?? 'Unknown Artist';
-    final album = track.album ?? '';
+    final title = _sanitize(
+      track.title ?? track.path.split(RegExp(r'[/\\]')).last,
+    );
+    final artist = _sanitize(track.artist ?? 'Unknown Artist');
+    final album = _sanitizeAlbum(track.album);
     final durSec = track.duration.inMilliseconds / 1000.0;
+
+    _pendingState = state;
+    _pendingPositionSecs = positionSecs;
+
+    if (_discordErrored) return;
 
     switch (state.status) {
       case PlayerStatus.playing:
@@ -43,7 +71,7 @@ class DiscordService {
         _sendPlayingWithArt(track.path, title, artist, album, posSec, durSec);
 
         _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-          if (!_enabled) return;
+          if (!_enabled || _discordErrored) return;
           backend
               .getPosition()
               .then((pos) {
@@ -82,12 +110,18 @@ class DiscordService {
 
   static void clear() {
     _cancelRefresh();
+    _cancelReconnect();
     _lastFingerprint = '';
+    _pendingState = null;
+    _pendingPositionSecs = null;
+    _discordErrored = false;
+    _reconnectAttempts = 0;
     backend.discordClear().catchError((_) {});
   }
 
   static void dispose() {
     _cancelRefresh();
+    _cancelReconnect();
   }
 
   static void _cancelRefresh() {
@@ -95,15 +129,55 @@ class DiscordService {
     _refreshTimer = null;
   }
 
+  static void _cancelReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+  }
+
+  static void _onDiscordError(Object error) {
+    error.toString();
+    if (!_discordErrored) {
+      _discordErrored = true;
+      _reconnectAttempts = 0;
+      _cancelRefresh();
+      _lastFingerprint = '';
+      _scheduleReconnect();
+    }
+  }
+
+  static void _scheduleReconnect() {
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      _discordErrored = false;
+      _reconnectAttempts = 0;
+      return;
+    }
+
+    final delaySecs = 1 << (_reconnectAttempts + 1);
+    _reconnectTimer = Timer(Duration(seconds: delaySecs), () async {
+      _reconnectAttempts++;
+      try {
+        await backend.discordClear();
+        _discordErrored = false;
+        _reconnectAttempts = 0;
+
+        final pending = _pendingState;
+        final pendingPos = _pendingPositionSecs;
+        if (pending != null && _enabled) {
+          update(pending, positionSecs: pendingPos);
+        }
+      } catch (_) {
+        _scheduleReconnect();
+      }
+    });
+  }
+
   static Future<String> _resolveArtUrl(
     String filePath,
     String artist,
     String album,
   ) async {
-    // Check cache
     if (_artCache.containsKey(filePath)) return _artCache[filePath]!;
 
-    // Try to upload embedded art
     try {
       final artBytes = await backend.readAlbumArt(path: filePath);
       if (artBytes != null && artBytes.isNotEmpty) {
@@ -115,7 +189,6 @@ class DiscordService {
       }
     } catch (_) {}
 
-    // Fallback to online search
     final cacheKey = '${artist.toLowerCase()}||${album.toLowerCase()}';
     if (_onlineArtCache.containsKey(cacheKey)) {
       final url = _onlineArtCache[cacheKey]!;
@@ -129,7 +202,6 @@ class DiscordService {
     return onlineUrl;
   }
 
-  // Upload image to catbox
   static Future<String> _uploadImageBytes(Uint8List bytes) async {
     try {
       final request = http.MultipartRequest(
@@ -151,7 +223,6 @@ class DiscordService {
       }
     } catch (_) {}
 
-    // Fallback to 0x0.st
     try {
       final request = http.MultipartRequest(
         'POST',
@@ -203,7 +274,7 @@ class DiscordService {
             album: album,
             albumArtUrl: artUrl,
           )
-          .catchError((_) {});
+          .catchError(_onDiscordError);
     });
   }
 
@@ -224,7 +295,7 @@ class DiscordService {
           positionSecs: positionSecs,
           durationSecs: durationSecs,
         )
-        .catchError((_) {});
+        .catchError(_onDiscordError);
   }
 
   static Future<String> _fetchItunesArtUrl(String artist, String album) async {

@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aqloss/util/android_path_helper.dart';
+import 'album_screen.dart';
 import 'library_screen.dart';
 import 'player_screen.dart';
 import 'settings_screen.dart';
@@ -73,7 +74,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   Widget _buildScreen() {
     if (_route == 0) return const PlayerScreen();
     if (_route == 1) return const LibraryScreen();
-    if (_route == 2) return const SettingsScreen();
+    if (_route == 2) return const AlbumsScreen();
+    if (_route == 3) return const SettingsScreen();
 
     final playlists = ref.read(playlistProvider);
     final idx = _route - 10;
@@ -99,6 +101,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     }
     if (ctrl && event.logicalKey == LogicalKeyboardKey.digit3) {
       setState(() => _route = 2);
+      return KeyEventResult.handled;
+    }
+    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit4) {
+      setState(() => _route = 3);
       return KeyEventResult.handled;
     }
     if (ctrl && event.logicalKey == LogicalKeyboardKey.keyB) {
@@ -208,7 +214,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
         bottomNavigationBar: isWide
             ? null
             : _MobileNavBar(
-                selectedIndex: _route.clamp(0, 2),
+                selectedIndex: _route.clamp(0, 3),
                 onDestinationSelected: (i) => setState(() => _route = i),
                 hasTrack: hasTrack && _route != 0,
                 onMiniPlayerTap: () => setState(() => _route = 0),
@@ -264,11 +270,18 @@ class _MobileNavBar extends StatelessWidget {
                     onTap: () => onDestinationSelected(1),
                   ),
                   _NavTab(
+                    icon: Icons.album_outlined,
+                    activeIcon: Icons.album_rounded,
+                    label: 'Albums',
+                    isSelected: selectedIndex == 2,
+                    onTap: () => onDestinationSelected(2),
+                  ),
+                  _NavTab(
                     icon: Icons.tune_outlined,
                     activeIcon: Icons.tune_rounded,
                     label: 'Settings',
-                    isSelected: selectedIndex == 2,
-                    onTap: () => onDestinationSelected(2),
+                    isSelected: selectedIndex == 3,
+                    onTap: () => onDestinationSelected(3),
                   ),
                 ],
               ),
@@ -483,6 +496,16 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(1),
             ),
 
+            // Albums
+            _NavItem(
+              icon: Icons.album_outlined,
+              activeIcon: Icons.album_rounded,
+              label: 'Albums',
+              isActive: widget.route == 2,
+              collapsed: collapsed,
+              onTap: () => widget.onSelect(2),
+            ),
+
             if (!collapsed)
               _SectionLabel('LIBRARY')
             else
@@ -650,9 +673,9 @@ class _SideNavState extends ConsumerState<_SideNav>
               icon: Icons.settings_outlined,
               activeIcon: Icons.settings_rounded,
               label: 'Settings',
-              isActive: widget.route == 2,
+              isActive: widget.route == 3,
               collapsed: collapsed,
-              onTap: () => widget.onSelect(2),
+              onTap: () => widget.onSelect(3),
             ),
 
             const SizedBox(height: 6),
@@ -728,6 +751,16 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(1),
             ),
 
+            // Albums
+            _NavItem(
+              icon: Icons.album_outlined,
+              activeIcon: Icons.album_rounded,
+              label: 'Albums',
+              isActive: widget.route == 2,
+              collapsed: collapsed,
+              onTap: () => widget.onSelect(2),
+            ),
+
             if (!collapsed)
               _SectionLabel('LIBRARY')
             else
@@ -895,9 +928,9 @@ class _SideNavState extends ConsumerState<_SideNav>
               icon: Icons.settings_outlined,
               activeIcon: Icons.settings_rounded,
               label: 'Settings',
-              isActive: widget.route == 2,
+              isActive: widget.route == 3,
               collapsed: collapsed,
-              onTap: () => widget.onSelect(2),
+              onTap: () => widget.onSelect(3),
             ),
 
             const SizedBox(height: 6),

@@ -10,18 +10,21 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
-- Find button discord RPC now links to YouTube Music search
-- Added irclib fallback for lyrics
+- [Backend-DiscordRPC] Find button discord RPC now links to YouTube Music search
+- [Frontend-Lyrics] Irclib fallback for lyrics
+- [Frontend-Albums] Albums screen
 - [Android] Storage permissions handler
 - [Android] URI path resolution
 - [Android] Folder manager access on mobile
 
 ### Fixed
 
-- Call backend only on drag end to prevent seek throttle
-- All button now should has pointer now
-- Discord button label overflow
-- Added helpers to prevent backend crash
+- [Frontend] Call backend only on drag end to prevent seek throttle
+- [Frontend] All button now should has pointer now
+- [Backend-DiscordRPC] Discord button label overflow
+- [Backend-Audio] Added helpers to prevent backend crash
+- [Frontend-DiscordRPC] Validate activity fields and reconnect after error
+- [Frontend-DiscordRPC] Sanitize album field sent as large_text
 - [Android] Library scan empty
 - [Android] Status bar overlap
 - [Android] window_manager crash on Android
