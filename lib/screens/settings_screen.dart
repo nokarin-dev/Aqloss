@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/eq_panel.dart';
 import 'package:aqloss/widgets/lastfm_auth_row.dart';
@@ -32,6 +34,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final cs = Theme.of(context).colorScheme;
     final narrow = MediaQuery.of(context).size.width < 600;
     final hPad = narrow ? 20.0 : 32.0;
+    final isDesktop =
+        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
     return CustomScrollView(
       slivers: [
@@ -268,35 +272,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _gap(narrow),
 
               // Keyboard shortcuts
-              _SectionHeader(
-                icon: Icons.keyboard_outlined,
-                title: 'Keyboard Shortcuts',
-              ),
-              const SizedBox(height: 10),
-              _SettingsCard(
-                children: [
-                  _ShortcutRow(label: 'Play / Pause', shortcut: 'Space'),
-                  _Div(),
-                  _ShortcutRow(label: 'Previous track', shortcut: 'Ctrl ←'),
-                  _Div(),
-                  _ShortcutRow(label: 'Next track', shortcut: 'Ctrl →'),
-                  _Div(),
-                  _ShortcutRow(label: 'Volume up 5%', shortcut: 'Ctrl ↑'),
-                  _Div(),
-                  _ShortcutRow(label: 'Volume down 5%', shortcut: 'Ctrl ↓'),
-                  _Div(),
-                  _ShortcutRow(label: 'Toggle sidebar', shortcut: 'Ctrl B'),
-                  _Div(),
-                  _ShortcutRow(label: 'Now Playing', shortcut: 'Ctrl 1'),
-                  _Div(),
-                  _ShortcutRow(label: 'Library', shortcut: 'Ctrl 2'),
-                  _Div(),
-                  _ShortcutRow(label: 'Settings', shortcut: 'Ctrl 3'),
-                  _Div(),
-                  _ShortcutRow(label: 'New playlist', shortcut: 'Ctrl N'),
-                ],
-              ),
-              _gap(narrow),
+              if (isDesktop) _ShortcutContent(narrow: narrow),
 
               // About
               _SectionHeader(icon: Icons.info_outline_rounded, title: 'About'),
@@ -1134,6 +1110,50 @@ class _RangeSliderState extends State<_RangeSlider> {
       inactiveColor: widget.cs.onSurface.withValues(alpha: 0.10),
       thumbColor: widget.cs.onSurface.withValues(alpha: 0.80),
       onChanged: _snap,
+    );
+  }
+}
+
+class _ShortcutContent extends StatelessWidget {
+  final bool narrow;
+  const _ShortcutContent({required this.narrow});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _SectionHeader(
+          icon: Icons.keyboard_outlined,
+          title: 'Keyboard Shortcuts',
+        ),
+        const SizedBox(height: 10),
+        _SettingsCard(
+          children: [
+            _ShortcutRow(label: 'Play / Pause', shortcut: 'Space'),
+            _Div(),
+            _ShortcutRow(label: 'Previous track', shortcut: 'Ctrl ←'),
+            _Div(),
+            _ShortcutRow(label: 'Next track', shortcut: 'Ctrl →'),
+            _Div(),
+            _ShortcutRow(label: 'Volume up 5%', shortcut: 'Ctrl ↑'),
+            _Div(),
+            _ShortcutRow(label: 'Volume down 5%', shortcut: 'Ctrl ↓'),
+            _Div(),
+            _ShortcutRow(label: 'Toggle sidebar', shortcut: 'Ctrl B'),
+            _Div(),
+            _ShortcutRow(label: 'Now Playing', shortcut: 'Ctrl 1'),
+            _Div(),
+            _ShortcutRow(label: 'Library', shortcut: 'Ctrl 2'),
+            _Div(),
+            _ShortcutRow(label: 'Albums', shortcut: 'Ctrl 3'),
+            _Div(),
+            _ShortcutRow(label: 'Settings', shortcut: 'Ctrl 4'),
+            _Div(),
+            _ShortcutRow(label: 'New playlist', shortcut: 'Ctrl N'),
+          ],
+        ),
+        SizedBox(height: narrow ? 28 : 36),
+      ],
     );
   }
 }
