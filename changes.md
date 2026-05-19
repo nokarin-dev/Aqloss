@@ -6,7 +6,11 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-## [Unreleased]
+No Changes Yet.
+
+---
+
+## [0.2.2] - 2026-05-19
 
 ### Added
 
@@ -31,8 +35,6 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 - [Android] Spectrum negative padding
 - [Android] Using ndk context to open audio output for cpal
 - [Android] Overflow on grid item
-
----
 
 ## [0.2.1] - 2026-05-17
 
@@ -89,7 +91,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/frameextractor/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/nokarin-dev/frameextractor/compare/v0.2.2...HEAD
+[0.2.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.2.2
 [0.2.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.2.1
 [0.2.0]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.2.0
 [0.1.1]: https://github.com/nokarin-dev/frameextractor/releases/tag/v0.1.1
