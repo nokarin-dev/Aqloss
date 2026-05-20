@@ -54,7 +54,7 @@
     </screenshots>
 
     <releases>
-        <release version="0.2.2" date="2026-05-17">
+        <release version="0.2.2" date="2026-05-19">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.2</url>
             <description>
                 <p>Added helpers, fix discord button label overflow, cursor pointer, seek throttle, and more.</p>
