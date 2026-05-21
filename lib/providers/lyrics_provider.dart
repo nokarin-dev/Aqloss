@@ -82,6 +82,216 @@ class LyricsState {
 
 enum LyricsSource { none, embedded, lrcFile, txtFile, lrclib }
 
+// Artist / title normalisation
+List<String> _artistCandidates(String raw) {
+  final candidates = <String>{};
+
+  if (raw.contains(';')) {
+    final first = raw.split(';').first.trim();
+    candidates.add(_cleanSingleArtist(first));
+    candidates.add('Various Artists');
+    candidates.add('');
+    return candidates.where((s) => s.isNotEmpty).toList();
+  }
+
+  // Normal single-artist cleanup
+  candidates.add(_cleanSingleArtist(raw));
+
+  // Remove "feat." component
+  final noFeat = _removeFeat(raw);
+  if (noFeat != raw) candidates.add(_cleanSingleArtist(noFeat));
+
+  // Empty string
+  candidates.add('');
+
+  return candidates
+      .where((s) => s.isNotEmpty || candidates.length == 1)
+      .toList();
+}
+
+String _cleanSingleArtist(String s) {
+  var out = s;
+  // Remove (CV. ...) or (CV: ...) blocks
+  out = out.replaceAll(RegExp(r'\(CV[.:][^)]*\)', caseSensitive: false), '');
+  // Remove (voice: ...) blocks
+  out = out.replaceAll(RegExp(r'\(voice[^)]*\)', caseSensitive: false), '');
+  // Remove feat./ft./with/x collaborators
+  out = _removeFeat(out);
+  // Collapse whitespace
+  out = out.replaceAll(RegExp(r'\s+'), ' ').trim();
+  // Remove trailing punctuation
+  out = out.replaceAll(RegExp(r'[,;/&|]+$'), '').trim();
+  return out;
+}
+
+String _removeFeat(String s) {
+  return s
+      .replaceAll(
+        RegExp(r'\s+(feat\.|ft\.|with|×|x)\s.*', caseSensitive: false),
+        '',
+      )
+      .trim();
+}
+
+// Normalise track title
+List<String> _titleCandidates(String raw) {
+  final candidates = [raw];
+  // Strip common suffixes
+  final stripped = raw
+      .replaceAll(
+        RegExp(
+          r'\s*[\[(](?:TV\s*Size|Short\s*Ver\.?|Instrumental|Karaoke|Remix)[)\]].*$',
+          caseSensitive: false,
+        ),
+        '',
+      )
+      .trim();
+  if (stripped != raw && stripped.isNotEmpty) candidates.add(stripped);
+  return candidates;
+}
+
+// lrclib helpers
+class _LrclibResult {
+  final LrcDocument? document;
+  final String? rawText;
+  const _LrclibResult({this.document, this.rawText});
+}
+
+// /api/get endpoint
+Future<_LrclibResult?> _getExact({
+  required String artist,
+  required String title,
+  int? duration,
+}) async {
+  final params = <String, String>{
+    'track_name': title,
+    if (artist.isNotEmpty) 'artist_name': artist,
+    if (duration != null) 'duration': duration.toString(),
+  };
+  final uri = Uri.https('lrclib.net', '/api/get', params);
+  Logger.infoFrontend('lrclib get: $uri');
+  try {
+    final res = await http
+        .get(
+          uri,
+          headers: {
+            'User-Agent': 'aqloss/1.0 (https://nokarin.xyz/projects/aqloss)',
+          },
+        )
+        .timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) return null;
+    return _parseLrclibJson(res.body);
+  } catch (_) {
+    return null;
+  }
+}
+
+// /api/search endpoint
+Future<_LrclibResult?> _searchFuzzy({
+  required String artist,
+  required String title,
+}) async {
+  final params = <String, String>{
+    'q': artist.isNotEmpty ? '$artist $title' : title,
+  };
+  final uri = Uri.https('lrclib.net', '/api/search', params);
+  Logger.infoFrontend('lrclib search: $uri');
+  try {
+    final res = await http
+        .get(
+          uri,
+          headers: {
+            'User-Agent': 'aqloss/1.0 (https://nokarin.xyz/projects/aqloss)',
+          },
+        )
+        .timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) return null;
+    final list = jsonDecode(res.body) as List<dynamic>;
+    if (list.isEmpty) return null;
+
+    // Pick the first result whose track name matches closely
+    final titleNorm = _norm(title);
+    for (final item in list) {
+      final obj = item as Map<String, dynamic>;
+      final trackName = (obj['trackName'] as String? ?? '').trim();
+      if (_norm(trackName) == titleNorm ||
+          _norm(trackName).contains(titleNorm)) {
+        return _parseLrclibMap(obj);
+      }
+    }
+    // Accept first result as last resort
+    return _parseLrclibMap(list.first as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+}
+
+_LrclibResult? _parseLrclibJson(String body) {
+  try {
+    final json = jsonDecode(body) as Map<String, dynamic>;
+    return _parseLrclibMap(json);
+  } catch (_) {
+    return null;
+  }
+}
+
+_LrclibResult? _parseLrclibMap(Map<String, dynamic> json) {
+  final synced = json['syncedLyrics'] as String?;
+  if (synced != null && synced.trim().isNotEmpty) {
+    final doc = LrcDocument.parse(synced);
+    if (doc != null) return _LrclibResult(document: doc);
+  }
+  final plain = json['plainLyrics'] as String?;
+  if (plain != null && plain.trim().isNotEmpty) {
+    return _LrclibResult(rawText: plain.trim());
+  }
+  return null;
+}
+
+// Normalise string for fuzzy comparison
+String _norm(String s) => s
+    .toLowerCase()
+    .replaceAll(RegExp(r"[^\w\s]"), '')
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .trim();
+
+// Main entry point
+Future<_LrclibResult?> _fetchFromLrclib({
+  required String artist,
+  required String title,
+  int? duration,
+}) async {
+  final artists = _artistCandidates(artist);
+  final titles = _titleCandidates(title);
+
+  // strict /api/get
+  for (final t in titles) {
+    for (final a in artists) {
+      final result = await _getExact(artist: a, title: t, duration: duration);
+      if (result != null) {
+        Logger.infoFrontend('"$title" ok=true (artist="$a", title="$t")');
+        return result;
+      }
+    }
+  }
+
+  // fuzzy /api/search
+  for (final t in titles) {
+    for (final a in [artists.first, '']) {
+      final result = await _searchFuzzy(artist: a, title: t);
+      if (result != null) {
+        Logger.infoFrontend(
+          '"$title" ok=true via search (artist="$a", title="$t")',
+        );
+        return result;
+      }
+    }
+  }
+
+  Logger.infoFrontend('"$title" ok=false');
+  return null;
+}
+
 // Notifier
 class LyricsNotifier extends StateNotifier<LyricsState> {
   LyricsNotifier() : super(const LyricsState());
@@ -146,7 +356,7 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
         }
       }
 
-      // Plain .txt file
+      // Sidecar .txt file
       final txtFile = File('$base.txt');
       if (await txtFile.exists()) {
         final content = await txtFile.readAsString();
@@ -160,17 +370,17 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
         }
       }
 
-      // lrclib fallback
+      // lrclib
       if (artist != null && title != null) {
-        final lrclibResult = await _fetchFromLrclib(
+        final result = await _fetchFromLrclib(
           artist: artist,
           title: title,
           duration: duration,
         );
-        if (lrclibResult != null) {
+        if (result != null) {
           state = LyricsState(
-            document: lrclibResult.document,
-            rawText: lrclibResult.rawText,
+            document: result.document,
+            rawText: result.rawText,
             trackPath: trackPath,
             source: LyricsSource.lrclib,
           );
@@ -184,59 +394,10 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
     }
   }
 
-  void clear() {
-    state = const LyricsState();
-  }
+  void clear() => state = const LyricsState();
 }
 
-// lrclib result container
-class _LrclibResult {
-  final LrcDocument? document;
-  final String? rawText;
-  const _LrclibResult({this.document, this.rawText});
-}
-
-Future<_LrclibResult?> _fetchFromLrclib({
-  required String artist,
-  required String title,
-  int? duration,
-}) async {
-  try {
-    final uri = Uri.https('lrclib.net', '/api/get', {
-      'artist_name': artist,
-      'track_name': title,
-      if (duration != null) 'duration': duration.toString(),
-    });
-    Logger.infoFrontend("Searching for $title lyrics: $uri");
-
-    final res = await http
-        .get(
-          uri,
-          headers: {
-            'User-Agent': 'aqloss/1.0 (https://nokarin.xyz/projects/aqloss)',
-          },
-        )
-        .timeout(const Duration(seconds: 8));
-
-    if (res.statusCode != 200) return null;
-
-    final json = jsonDecode(res.body) as Map<String, dynamic>;
-
-    // Prefer synced LRC over plain text
-    final syncedLyrics = json['syncedLyrics'] as String?;
-    if (syncedLyrics != null && syncedLyrics.trim().isNotEmpty) {
-      final doc = LrcDocument.parse(syncedLyrics);
-      if (doc != null) return _LrclibResult(document: doc);
-    }
-
-    final plainLyrics = json['plainLyrics'] as String?;
-    if (plainLyrics != null && plainLyrics.trim().isNotEmpty) {
-      return _LrclibResult(rawText: plainLyrics.trim());
-    }
-  } catch (_) {}
-  return null;
-}
-
+// Provider
 final lyricsProvider = StateNotifierProvider<LyricsNotifier, LyricsState>((
   ref,
 ) {

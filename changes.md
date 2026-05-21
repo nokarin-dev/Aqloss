@@ -6,7 +6,19 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-No Changes Yet.
+## [Unreleased]
+
+### Added
+
+- [Frontend-UserInterface] Press scale animation to play button
+- [Frontend-Lyrics] Lrclib search & get API fallback
+
+### Changes
+
+- [Frontend-Theme] Adjust dark theme more darker dan cleaner
+- [Frontend-HomeScreen] Improve sidebar collaps animation
+- [Frontend-PlayerScreen] Player Screen now has slide in animation on change track
+- [Frontend-MiniPlayer] Adjust mini player bar UI
 
 ---
 
