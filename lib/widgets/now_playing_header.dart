@@ -84,11 +84,14 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
                       color: cs.surfaceContainerHighest.withValues(alpha: 0.62),
                     ),
                   ),
+                  // Overlay
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.50),
+                    ),
+                  ),
                 ] else
                   Container(color: cs.surfaceContainerHighest),
-
-                // Black overlay
-                DecoratedBox(decoration: BoxDecoration(color: Colors.black38)),
 
                 // Content
                 Padding(

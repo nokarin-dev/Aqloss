@@ -210,7 +210,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
             ),
           ),
         ),
-        // SafeArea
         bottomNavigationBar: isWide
             ? null
             : _MobileNavBar(
@@ -224,6 +223,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   }
 }
 
+// Mobile nav bar
 class _MobileNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
@@ -247,12 +247,14 @@ class _MobileNavBar extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest,
-            border: Border(top: BorderSide(color: cs.outline)),
+            border: Border(
+              top: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
+            ),
           ),
           child: SafeArea(
             top: false,
             child: SizedBox(
-              height: 52,
+              height: 54,
               child: Row(
                 children: [
                   _NavTab(
@@ -313,35 +315,45 @@ class _NavTab extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isIslands = ref.watch(settingsProvider).appStyle == AppStyle.islands;
     final activeColor = isIslands ? cs.primary : cs.onSurface;
-    final inactiveColor = cs.onSurface.withValues(alpha: 0.35);
+    final inactiveColor = cs.onSurface.withValues(alpha: 0.30);
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 22,
-              color: isSelected ? activeColor : inactiveColor,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? activeColor : inactiveColor,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOut,
+                child: Icon(
+                  isSelected ? activeIcon : icon,
+                  key: ValueKey(isSelected),
+                  size: 22,
+                  color: isSelected ? activeColor : inactiveColor,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isSelected ? activeColor : inactiveColor,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+// Side nav
 class _SideNav extends ConsumerStatefulWidget {
   final int route;
   final bool collapsed;
@@ -361,20 +373,20 @@ class _SideNav extends ConsumerStatefulWidget {
 
 class _SideNavState extends ConsumerState<_SideNav>
     with SingleTickerProviderStateMixin {
-  static const _collapsedWidth = 56.0;
-  static const _expandedWidth = 230.0;
+  static const _collapsedWidth = 58.0;
+  static const _expandedWidth = 232.0;
   late final AnimationController _ctrl;
-  late final Animation<double> _widthAnim;
+  late final Animation<double> _anim;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 240),
       value: widget.collapsed ? 0 : 1,
     );
-    _widthAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic);
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic);
   }
 
   @override
@@ -439,41 +451,40 @@ class _SideNavState extends ConsumerState<_SideNav>
 
     // Legacy sidebar
     return AnimatedBuilder(
-      animation: _widthAnim,
+      animation: _anim,
       builder: (context, child) {
         final w =
-            _collapsedWidth +
-            (_expandedWidth - _collapsedWidth) * _widthAnim.value;
+            _collapsedWidth + (_expandedWidth - _collapsedWidth) * _anim.value;
         return SizedBox(width: w, child: child);
       },
       child: Container(
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest,
-          border: Border(right: BorderSide(color: cs.outline)),
+          border: Border(
+            right: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
+          ),
         ),
-        padding: EdgeInsets.all(5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
             // Collapse toggle
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               child: _CollapseBtn(
                 collapsed: collapsed,
                 onTap: widget.onToggleCollapse,
               ),
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
 
             if (!collapsed)
               _SectionLabel('NAVIGATE')
             else
               const SizedBox(height: 2),
 
-            // Now playing
             _NavItem(
               icon: Icons.play_circle_outline_rounded,
               activeIcon: Icons.play_circle_rounded,
@@ -485,8 +496,6 @@ class _SideNavState extends ConsumerState<_SideNav>
                   : null,
               onTap: () => widget.onSelect(0),
             ),
-
-            // Library
             _NavItem(
               icon: Icons.library_music_outlined,
               activeIcon: Icons.library_music_rounded,
@@ -495,8 +504,6 @@ class _SideNavState extends ConsumerState<_SideNav>
               collapsed: collapsed,
               onTap: () => widget.onSelect(1),
             ),
-
-            // Albums
             _NavItem(
               icon: Icons.album_outlined,
               activeIcon: Icons.album_rounded,
@@ -506,12 +513,12 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(2),
             ),
 
+            const SizedBox(height: 4),
             if (!collapsed)
               _SectionLabel('LIBRARY')
             else
               const SizedBox(height: 2),
 
-            // Folders
             _NavItem(
               icon: Icons.folder_open_outlined,
               activeIcon: Icons.folder_open_rounded,
@@ -524,14 +531,12 @@ class _SideNavState extends ConsumerState<_SideNav>
                       height: 11,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.2,
-                        color: cs.onSurface.withValues(alpha: 0.22),
+                        color: cs.onSurface.withValues(alpha: 0.25),
                       ),
                     )
                   : null,
               onTap: _showFolderManager,
             ),
-
-            // Rescan
             _NavItem(
               icon: Icons.refresh_rounded,
               activeIcon: Icons.refresh_rounded,
@@ -545,24 +550,26 @@ class _SideNavState extends ConsumerState<_SideNav>
 
             if (!collapsed && library.totalTracks > 0)
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 3, 14, 1),
+                padding: const EdgeInsets.fromLTRB(16, 2, 14, 0),
                 child: Text(
                   '${library.totalTracks} tracks',
                   style: TextStyle(
-                    fontSize: 10,
-                    color: cs.onSurface.withValues(alpha: 0.22),
+                    fontSize: 9.5,
+                    color: cs.onSurface.withValues(alpha: 0.20),
                   ),
                 ),
               ),
 
-            // Section label
+            const SizedBox(height: 4),
+
+            // Playlists header
             if (!collapsed)
               Row(
                 children: [
                   _SectionLabel('PLAYLISTS'),
                   const Spacer(),
                   Padding(
-                    padding: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.only(right: 8),
                     child: _IconBtn(
                       icon: Icons.add_rounded,
                       tooltip: 'New playlist (Ctrl+N)',
@@ -582,16 +589,16 @@ class _SideNavState extends ConsumerState<_SideNav>
                     height: 30,
                     child: Center(
                       child: Container(
-                        width: 22,
-                        height: 22,
+                        width: 24,
+                        height: 24,
                         decoration: BoxDecoration(
-                          color: cs.onSurface.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(5),
+                          color: cs.onSurface.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Icon(
                           Icons.add_rounded,
                           size: 13,
-                          color: cs.onSurface.withValues(alpha: 0.36),
+                          color: cs.onSurface.withValues(alpha: 0.30),
                         ),
                       ),
                     ),
@@ -616,20 +623,20 @@ class _SideNavState extends ConsumerState<_SideNav>
                           builder: (ctx, candidates, rejected) {
                             final isOver = candidates.isNotEmpty;
                             return AnimatedContainer(
-                              duration: const Duration(milliseconds: 120),
+                              duration: const Duration(milliseconds: 130),
                               margin: EdgeInsets.symmetric(
-                                horizontal: collapsed ? 5 : 6,
+                                horizontal: collapsed ? 6 : 7,
                                 vertical: 1,
                               ),
                               decoration: isOver
                                   ? BoxDecoration(
                                       color: cs.onSurface.withValues(
-                                        alpha: 0.07,
+                                        alpha: 0.06,
                                       ),
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: cs.onSurface.withValues(
-                                          alpha: 0.16,
+                                          alpha: 0.14,
                                         ),
                                       ),
                                     )
@@ -665,10 +672,13 @@ class _SideNavState extends ConsumerState<_SideNav>
                     ),
             ),
 
-            Divider(color: cs.outline, height: 1),
-            const SizedBox(height: 2),
+            Container(
+              height: 1,
+              color: cs.onSurface.withValues(alpha: 0.06),
+              margin: const EdgeInsets.symmetric(horizontal: 7),
+            ),
+            const SizedBox(height: 4),
 
-            // Settings
             _NavItem(
               icon: Icons.settings_outlined,
               activeIcon: Icons.settings_rounded,
@@ -678,7 +688,7 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(3),
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -695,40 +705,40 @@ class _SideNavState extends ConsumerState<_SideNav>
     ColorScheme cs,
   ) {
     return AnimatedBuilder(
-      animation: _widthAnim,
+      animation: _anim,
       builder: (context, child) {
-        final w = 60 + (_expandedWidth - 60) * _widthAnim.value;
+        final w =
+            _collapsedWidth + (_expandedWidth - _collapsedWidth) * _anim.value;
         return SizedBox(width: w, child: child);
       },
       child: Container(
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest,
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
           borderRadius: BorderRadius.all(Radius.circular(5)),
         ),
         margin: EdgeInsets.all(5),
-        padding: EdgeInsets.all(5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
             // Collapse toggle
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               child: _CollapseBtn(
                 collapsed: collapsed,
                 onTap: widget.onToggleCollapse,
               ),
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
 
             if (!collapsed)
               _SectionLabel('NAVIGATE')
             else
               const SizedBox(height: 2),
 
-            // Now playing
             _NavItem(
               icon: Icons.play_circle_outline_rounded,
               activeIcon: Icons.play_circle_rounded,
@@ -740,8 +750,6 @@ class _SideNavState extends ConsumerState<_SideNav>
                   : null,
               onTap: () => widget.onSelect(0),
             ),
-
-            // Library
             _NavItem(
               icon: Icons.library_music_outlined,
               activeIcon: Icons.library_music_rounded,
@@ -750,8 +758,6 @@ class _SideNavState extends ConsumerState<_SideNav>
               collapsed: collapsed,
               onTap: () => widget.onSelect(1),
             ),
-
-            // Albums
             _NavItem(
               icon: Icons.album_outlined,
               activeIcon: Icons.album_rounded,
@@ -761,12 +767,12 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(2),
             ),
 
+            const SizedBox(height: 4),
             if (!collapsed)
               _SectionLabel('LIBRARY')
             else
               const SizedBox(height: 2),
 
-            // Folders
             _NavItem(
               icon: Icons.folder_open_outlined,
               activeIcon: Icons.folder_open_rounded,
@@ -779,14 +785,12 @@ class _SideNavState extends ConsumerState<_SideNav>
                       height: 11,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.2,
-                        color: cs.onSurface.withValues(alpha: 0.22),
+                        color: cs.onSurface.withValues(alpha: 0.25),
                       ),
                     )
                   : null,
               onTap: _showFolderManager,
             ),
-
-            // Rescan
             _NavItem(
               icon: Icons.refresh_rounded,
               activeIcon: Icons.refresh_rounded,
@@ -800,24 +804,26 @@ class _SideNavState extends ConsumerState<_SideNav>
 
             if (!collapsed && library.totalTracks > 0)
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 3, 14, 1),
+                padding: const EdgeInsets.fromLTRB(16, 2, 14, 0),
                 child: Text(
                   '${library.totalTracks} tracks',
                   style: TextStyle(
-                    fontSize: 10,
-                    color: cs.onSurface.withValues(alpha: 0.22),
+                    fontSize: 9.5,
+                    color: cs.onSurface.withValues(alpha: 0.20),
                   ),
                 ),
               ),
 
-            // Section label
+            const SizedBox(height: 4),
+
+            // Playlists header
             if (!collapsed)
               Row(
                 children: [
                   _SectionLabel('PLAYLISTS'),
                   const Spacer(),
                   Padding(
-                    padding: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.only(right: 8),
                     child: _IconBtn(
                       icon: Icons.add_rounded,
                       tooltip: 'New playlist (Ctrl+N)',
@@ -837,16 +843,16 @@ class _SideNavState extends ConsumerState<_SideNav>
                     height: 30,
                     child: Center(
                       child: Container(
-                        width: 22,
-                        height: 22,
+                        width: 24,
+                        height: 24,
                         decoration: BoxDecoration(
-                          color: cs.onSurface.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(5),
+                          color: cs.onSurface.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Icon(
                           Icons.add_rounded,
                           size: 13,
-                          color: cs.onSurface.withValues(alpha: 0.36),
+                          color: cs.onSurface.withValues(alpha: 0.30),
                         ),
                       ),
                     ),
@@ -871,20 +877,20 @@ class _SideNavState extends ConsumerState<_SideNav>
                           builder: (ctx, candidates, rejected) {
                             final isOver = candidates.isNotEmpty;
                             return AnimatedContainer(
-                              duration: const Duration(milliseconds: 120),
+                              duration: const Duration(milliseconds: 130),
                               margin: EdgeInsets.symmetric(
-                                horizontal: collapsed ? 5 : 6,
+                                horizontal: collapsed ? 6 : 7,
                                 vertical: 1,
                               ),
                               decoration: isOver
                                   ? BoxDecoration(
                                       color: cs.onSurface.withValues(
-                                        alpha: 0.07,
+                                        alpha: 0.06,
                                       ),
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: cs.onSurface.withValues(
-                                          alpha: 0.16,
+                                          alpha: 0.14,
                                         ),
                                       ),
                                     )
@@ -920,10 +926,13 @@ class _SideNavState extends ConsumerState<_SideNav>
                     ),
             ),
 
-            Divider(color: cs.outline, height: 1),
-            const SizedBox(height: 2),
+            Container(
+              height: 1,
+              color: cs.onSurface.withValues(alpha: 0.06),
+              margin: const EdgeInsets.symmetric(horizontal: 7),
+            ),
+            const SizedBox(height: 4),
 
-            // Settings
             _NavItem(
               icon: Icons.settings_outlined,
               activeIcon: Icons.settings_rounded,
@@ -933,7 +942,7 @@ class _SideNavState extends ConsumerState<_SideNav>
               onTap: () => widget.onSelect(3),
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -957,7 +966,7 @@ class _SideNavState extends ConsumerState<_SideNav>
   }
 }
 
-// Playlist icon
+// Playlist collapsed icon
 class _PlaylistCollapsedIcon extends StatefulWidget {
   final Playlist playlist;
   final bool isActive;
@@ -990,21 +999,21 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
         child: GestureDetector(
           onTap: widget.onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            height: 36,
+            duration: const Duration(milliseconds: 130),
+            height: 38,
             decoration: BoxDecoration(
               color: widget.isActive
-                  ? cs.onSurface.withValues(alpha: 0.10)
+                  ? cs.onSurface.withValues(alpha: 0.09)
                   : _hovered
-                  ? cs.onSurface.withValues(alpha: 0.05)
+                  ? cs.onSurface.withValues(alpha: 0.04)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
               child: PlaylistArtIcon(
                 playlist: widget.playlist,
                 size: 26,
-                radius: 5,
+                radius: 6,
               ),
             ),
           ),
@@ -1042,28 +1051,28 @@ class _CollapseBtnState extends State<_CollapseBtn> {
         child: GestureDetector(
           onTap: widget.onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: const Duration(milliseconds: 130),
             width: double.infinity,
             padding: EdgeInsets.symmetric(
-              horizontal: widget.collapsed ? 0 : 8,
-              vertical: 6,
+              horizontal: widget.collapsed ? 0 : 9,
+              vertical: 7,
             ),
             decoration: BoxDecoration(
               color: _hovered
-                  ? cs.onSurface.withValues(alpha: 0.05)
+                  ? cs.onSurface.withValues(alpha: 0.04)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: widget.collapsed
                 ? Center(
                     child: AnimatedRotation(
                       turns: 0,
-                      duration: const Duration(milliseconds: 200),
+                      duration: const Duration(milliseconds: 220),
                       curve: Curves.easeInOutCubic,
                       child: Icon(
                         Icons.chevron_right_rounded,
                         size: 16,
-                        color: cs.onSurface.withValues(alpha: 0.28),
+                        color: cs.onSurface.withValues(alpha: 0.25),
                       ),
                     ),
                   )
@@ -1071,22 +1080,22 @@ class _CollapseBtnState extends State<_CollapseBtn> {
                     children: [
                       AnimatedRotation(
                         turns: 0.5,
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 220),
                         curve: Curves.easeInOutCubic,
                         child: Icon(
                           Icons.chevron_right_rounded,
                           size: 16,
-                          color: cs.onSurface.withValues(alpha: 0.28),
+                          color: cs.onSurface.withValues(alpha: 0.25),
                         ),
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 8),
                       Text(
                         'AQLOSS',
                         style: TextStyle(
                           fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurface.withValues(alpha: 0.22),
-                          letterSpacing: 2.5,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface.withValues(alpha: 0.18),
+                          letterSpacing: 3.0,
                         ),
                       ),
                     ],
@@ -1135,11 +1144,11 @@ class _NavItemState extends State<_NavItem> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          duration: const Duration(milliseconds: 130),
+          margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
           padding: EdgeInsets.symmetric(
-            horizontal: widget.collapsed ? 0 : 8,
-            vertical: 6,
+            horizontal: widget.collapsed ? 0 : 9,
+            vertical: 7,
           ),
           decoration: BoxDecoration(
             color: widget.isActive
@@ -1147,40 +1156,40 @@ class _NavItemState extends State<_NavItem> {
                 : _hovered
                 ? cs.onSurface.withValues(alpha: 0.04)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: widget.collapsed
               ? Center(
                   child: Icon(
                     widget.isActive ? widget.activeIcon : widget.icon,
-                    size: 17,
+                    size: 18,
                     color: widget.isActive
                         ? cs.onSurface
-                        : cs.onSurface.withValues(alpha: 0.36),
+                        : cs.onSurface.withValues(alpha: 0.32),
                   ),
                 )
               : Row(
                   children: [
                     Icon(
                       widget.isActive ? widget.activeIcon : widget.icon,
-                      size: 15,
+                      size: 16,
                       color: widget.isActive
                           ? cs.onSurface
                           : widget.onTap == null
-                          ? cs.onSurface.withValues(alpha: 0.22)
-                          : cs.onSurface.withValues(alpha: 0.50),
+                          ? cs.onSurface.withValues(alpha: 0.18)
+                          : cs.onSurface.withValues(alpha: 0.45),
                     ),
-                    const SizedBox(width: 9),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         widget.label,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 12.5,
                           color: widget.isActive
                               ? cs.onSurface
                               : widget.onTap == null
-                              ? cs.onSurface.withValues(alpha: 0.22)
-                              : cs.onSurface.withValues(alpha: 0.58),
+                              ? cs.onSurface.withValues(alpha: 0.18)
+                              : cs.onSurface.withValues(alpha: 0.55),
                           fontWeight: widget.isActive
                               ? FontWeight.w500
                               : FontWeight.w400,
@@ -1253,11 +1262,11 @@ class _FolderManagerDialog extends ConsumerWidget {
 
     return Dialog(
       backgroundColor: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, minWidth: 300),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1279,28 +1288,39 @@ class _FolderManagerDialog extends ConsumerWidget {
                       height: 13,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.5,
-                        color: cs.onSurface.withValues(alpha: 0.36),
+                        color: cs.onSurface.withValues(alpha: 0.30),
                       ),
                     ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 17,
-                      color: cs.onSurface.withValues(alpha: 0.36),
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: cs.onSurface.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 14,
+                          color: cs.onSurface.withValues(alpha: 0.40),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               if (folders.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
                     'No folders added yet.',
                     style: TextStyle(
-                      color: cs.onSurface.withValues(alpha: 0.36),
+                      color: cs.onSurface.withValues(alpha: 0.32),
                       fontSize: 13,
                     ),
                   ),
@@ -1311,18 +1331,20 @@ class _FolderManagerDialog extends ConsumerWidget {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: folders.length,
-                    separatorBuilder: (_, _) =>
-                        Divider(color: cs.outline, height: 1),
+                    separatorBuilder: (_, _) => Container(
+                      height: 1,
+                      color: cs.onSurface.withValues(alpha: 0.06),
+                    ),
                     itemBuilder: (ctx, i) {
                       final folder = folders[i];
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
                         child: Row(
                           children: [
                             Icon(
                               Icons.folder_rounded,
                               size: 15,
-                              color: cs.onSurface.withValues(alpha: 0.28),
+                              color: cs.onSurface.withValues(alpha: 0.25),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -1333,9 +1355,9 @@ class _FolderManagerDialog extends ConsumerWidget {
                                     _shortPath(folder),
                                     style: TextStyle(
                                       color: cs.onSurface.withValues(
-                                        alpha: 0.70,
+                                        alpha: 0.68,
                                       ),
-                                      fontSize: 12,
+                                      fontSize: 12.5,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -1344,7 +1366,7 @@ class _FolderManagerDialog extends ConsumerWidget {
                                     folder,
                                     style: TextStyle(
                                       color: cs.onSurface.withValues(
-                                        alpha: 0.22,
+                                        alpha: 0.20,
                                       ),
                                       fontSize: 10,
                                     ),
@@ -1359,17 +1381,20 @@ class _FolderManagerDialog extends ConsumerWidget {
                               onTap: () => ref
                                   .read(libraryProvider.notifier)
                                   .removeFolder(folder),
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: cs.onSurface.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Icon(
-                                  Icons.remove_rounded,
-                                  size: 13,
-                                  color: cs.onSurface.withValues(alpha: 0.36),
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: BoxDecoration(
+                                    color: cs.onSurface.withValues(alpha: 0.04),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    Icons.remove_rounded,
+                                    size: 13,
+                                    color: cs.onSurface.withValues(alpha: 0.32),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1379,9 +1404,9 @@ class _FolderManagerDialog extends ConsumerWidget {
                     },
                   ),
                 ),
-              const SizedBox(height: 12),
-              Divider(color: cs.outline, height: 1),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              Container(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -1392,11 +1417,13 @@ class _FolderManagerDialog extends ConsumerWidget {
                     style: TextStyle(fontSize: 13),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: cs.onSurface.withValues(alpha: 0.54),
-                    side: BorderSide(color: cs.outline),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    foregroundColor: cs.onSurface.withValues(alpha: 0.55),
+                    side: BorderSide(
+                      color: cs.onSurface.withValues(alpha: 0.12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
@@ -1445,20 +1472,20 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: const Duration(milliseconds: 130),
           decoration: BoxDecoration(
             color: widget.isActive
                 ? cs.onSurface.withValues(alpha: 0.07)
                 : _hovered
                 ? cs.onSurface.withValues(alpha: 0.03)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           child: Row(
             children: [
-              PlaylistArtIcon(playlist: widget.playlist, size: 30, radius: 5),
-              const SizedBox(width: 7),
+              PlaylistArtIcon(playlist: widget.playlist, size: 30, radius: 6),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1470,7 +1497,7 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
                         fontSize: 12,
                         color: widget.isActive
                             ? cs.onSurface
-                            : cs.onSurface.withValues(alpha: 0.60),
+                            : cs.onSurface.withValues(alpha: 0.58),
                         fontWeight: widget.isActive
                             ? FontWeight.w500
                             : FontWeight.w400,
@@ -1481,8 +1508,8 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
                     Text(
                       '${widget.playlist.length} tracks',
                       style: TextStyle(
-                        fontSize: 9,
-                        color: cs.onSurface.withValues(alpha: 0.22),
+                        fontSize: 9.5,
+                        color: cs.onSurface.withValues(alpha: 0.20),
                       ),
                     ),
                   ],
@@ -1493,43 +1520,50 @@ class _PlaylistNavItemState extends State<_PlaylistNavItem> {
                   padding: EdgeInsets.zero,
                   icon: Icon(
                     Icons.more_horiz_rounded,
-                    size: 13,
-                    color: cs.onSurface.withValues(alpha: 0.36),
+                    size: 14,
+                    color: cs.onSurface.withValues(alpha: 0.30),
                   ),
                   color: Theme.of(context).cardColor,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: cs.onSurface.withValues(alpha: 0.08),
+                    ),
                   ),
+                  elevation: 8,
                   itemBuilder: (_) => [
                     if (widget.onPlay != null)
                       PopupMenuItem(
                         value: 'play',
-                        height: 34,
+                        height: 36,
                         child: Text(
                           'Play',
                           style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.70),
-                            fontSize: 12,
+                            color: cs.onSurface.withValues(alpha: 0.68),
+                            fontSize: 12.5,
                           ),
                         ),
                       ),
                     PopupMenuItem(
                       value: 'rename',
-                      height: 34,
+                      height: 36,
                       child: Text(
                         'Rename',
                         style: TextStyle(
-                          color: cs.onSurface.withValues(alpha: 0.70),
-                          fontSize: 12,
+                          color: cs.onSurface.withValues(alpha: 0.68),
+                          fontSize: 12.5,
                         ),
                       ),
                     ),
                     const PopupMenuItem(
                       value: 'delete',
-                      height: 34,
+                      height: 36,
                       child: Text(
                         'Delete',
-                        style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                        style: TextStyle(
+                          color: Color(0xFFFF6B6B),
+                          fontSize: 12.5,
+                        ),
                       ),
                     ),
                   ],
@@ -1571,9 +1605,9 @@ class _PlaylistDetailScreen extends ConsumerWidget {
           Padding(
             padding: EdgeInsets.fromLTRB(
               isMobile ? 16 : 24,
-              isMobile ? 16 : 24,
+              isMobile ? 16 : 22,
               isMobile ? 18 : 24,
-              8,
+              10,
             ),
             child: Row(
               children: [
@@ -1587,15 +1621,15 @@ class _PlaylistDetailScreen extends ConsumerWidget {
                           color: cs.onSurface,
                           fontSize: isMobile ? 18 : 20,
                           fontWeight: FontWeight.w300,
-                          letterSpacing: -0.3,
+                          letterSpacing: -0.4,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
                         '${current.length} tracks · ${current.durationLabel}',
                         style: TextStyle(
                           fontSize: 11,
-                          color: cs.onSurface.withValues(alpha: 0.36),
+                          color: cs.onSurface.withValues(alpha: 0.32),
                         ),
                       ),
                     ],
@@ -1607,24 +1641,28 @@ class _PlaylistDetailScreen extends ConsumerWidget {
                       current.tracks.first,
                       current.tracks,
                     ),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: cs.onSurface,
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                      child: Icon(
-                        Icons.play_arrow_rounded,
-                        color: cs.surface,
-                        size: 18,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 130),
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: cs.onSurface,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: cs.surface,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
               ],
             ),
           ),
-          Divider(color: cs.outline, height: 1),
+          Container(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
           const NowPlayingHeader(),
           Expanded(
             child: current.tracks.isEmpty
@@ -1634,23 +1672,23 @@ class _PlaylistDetailScreen extends ConsumerWidget {
                       children: [
                         Icon(
                           Icons.queue_music_rounded,
-                          size: 32,
-                          color: cs.onSurface.withValues(alpha: 0.10),
+                          size: 36,
+                          color: cs.onSurface.withValues(alpha: 0.08),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         Text(
                           'No tracks yet',
                           style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.36),
+                            color: cs.onSurface.withValues(alpha: 0.32),
                             fontSize: 13,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Drag tracks here or long-press in Library',
+                          'Drag tracks here from Library',
                           style: TextStyle(
                             fontSize: 11,
-                            color: cs.onSurface.withValues(alpha: 0.20),
+                            color: cs.onSurface.withValues(alpha: 0.18),
                           ),
                         ),
                       ],
@@ -1666,13 +1704,15 @@ class _PlaylistDetailScreen extends ConsumerWidget {
                         key: ValueKey('${current.id}_${t.path}_$i'),
                         direction: DismissDirection.endToStart,
                         background: Container(
-                          color: Colors.red.withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFFFF6B6B,
+                          ).withValues(alpha: 0.10),
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
                           child: const Icon(
                             Icons.delete_outline_rounded,
-                            color: Colors.redAccent,
-                            size: 17,
+                            color: Color(0xFFFF6B6B),
+                            size: 18,
                           ),
                         ),
                         onDismissed: (_) => notifier.removeTrack(current.id, i),
@@ -1729,22 +1769,25 @@ class _PlaylistTrackTileState extends ConsumerState<_PlaylistTrackTile> {
           color: _hovered
               ? cs.onSurface.withValues(alpha: 0.03)
               : Colors.transparent,
-          padding: const EdgeInsets.only(left: 16, right: 0, top: 6, bottom: 6),
+          padding: const EdgeInsets.only(left: 16, right: 0, top: 7, bottom: 7),
           child: Row(
             children: [
-              // Index / playing indicator
               SizedBox(
                 width: 32,
                 child: Center(
-                  child: Text(
-                    isPlaying ? '▶' : '${widget.index + 1}',
-                    style: TextStyle(
-                      fontSize: isPlaying ? 11 : 10,
-                      color: isPlaying
-                          ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.28),
-                    ),
-                  ),
+                  child: isPlaying
+                      ? Icon(
+                          Icons.equalizer_rounded,
+                          size: 14,
+                          color: cs.onSurface.withValues(alpha: 0.7),
+                        )
+                      : Text(
+                          '${widget.index + 1}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurface.withValues(alpha: 0.22),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1758,7 +1801,7 @@ class _PlaylistTrackTileState extends ConsumerState<_PlaylistTrackTile> {
                       style: TextStyle(
                         color: isPlaying
                             ? cs.onSurface
-                            : cs.onSurface.withValues(alpha: 0.70),
+                            : cs.onSurface.withValues(alpha: 0.68),
                         fontSize: 13,
                         fontWeight: isPlaying
                             ? FontWeight.w500
@@ -1771,7 +1814,7 @@ class _PlaylistTrackTileState extends ConsumerState<_PlaylistTrackTile> {
                     Text(
                       widget.track.displayArtist,
                       style: TextStyle(
-                        color: cs.onSurface.withValues(alpha: 0.30),
+                        color: cs.onSurface.withValues(alpha: 0.28),
                         fontSize: 11,
                       ),
                       maxLines: 1,
@@ -1784,7 +1827,7 @@ class _PlaylistTrackTileState extends ConsumerState<_PlaylistTrackTile> {
                 widget.track.durationLabel,
                 style: TextStyle(
                   fontSize: 11,
-                  color: cs.onSurface.withValues(alpha: 0.22),
+                  color: cs.onSurface.withValues(alpha: 0.20),
                 ),
               ),
               const SizedBox(width: 4),
@@ -1797,8 +1840,8 @@ class _PlaylistTrackTileState extends ConsumerState<_PlaylistTrackTile> {
                   ),
                   child: Icon(
                     Icons.drag_handle_rounded,
-                    size: 15,
-                    color: cs.onSurface.withValues(alpha: 0.22),
+                    size: 16,
+                    color: cs.onSurface.withValues(alpha: 0.18),
                   ),
                 ),
               ),
@@ -1828,7 +1871,7 @@ class _InputDialog extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         title,
         style: TextStyle(
@@ -1843,16 +1886,24 @@ class _InputDialog extends StatelessWidget {
         style: TextStyle(color: cs.onSurface, fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.28)),
+          hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.24)),
           filled: true,
-          fillColor: cs.onSurface.withValues(alpha: 0.05),
+          fillColor: cs.onSurface.withValues(alpha: 0.04),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: cs.onSurface.withValues(alpha: 0.08)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: cs.onSurface.withValues(alpha: 0.08)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: cs.onSurface.withValues(alpha: 0.22)),
           ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
+            horizontal: 13,
+            vertical: 11,
           ),
         ),
         onSubmitted: (v) => Navigator.pop(context, v),
@@ -1863,7 +1914,7 @@ class _InputDialog extends StatelessWidget {
           child: Text(
             'Cancel',
             style: TextStyle(
-              color: cs.onSurface.withValues(alpha: 0.36),
+              color: cs.onSurface.withValues(alpha: 0.32),
               fontSize: 13,
             ),
           ),
@@ -1873,8 +1924,9 @@ class _InputDialog extends StatelessWidget {
           child: Text(
             confirmLabel,
             style: TextStyle(
-              color: cs.onSurface.withValues(alpha: 0.70),
+              color: cs.onSurface.withValues(alpha: 0.68),
               fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -1891,14 +1943,14 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 3),
+      padding: const EdgeInsets.fromLTRB(16, 12, 14, 4),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w700,
-          color: cs.onSurface.withValues(alpha: 0.22),
-          letterSpacing: 1.4,
+          color: cs.onSurface.withValues(alpha: 0.18),
+          letterSpacing: 1.6,
         ),
       ),
     );
@@ -1922,17 +1974,20 @@ class _IconBtn extends StatelessWidget {
       message: tooltip,
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: cs.onSurface.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(
-            icon,
-            size: 13,
-            color: cs.onSurface.withValues(alpha: 0.36),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              icon,
+              size: 13,
+              color: cs.onSurface.withValues(alpha: 0.32),
+            ),
           ),
         ),
       ),
@@ -1951,8 +2006,8 @@ class _NowPlayingDot extends StatelessWidget {
       height: 5,
       decoration: BoxDecoration(
         color: status == PlayerStatus.playing
-            ? Colors.greenAccent.withValues(alpha: 0.8)
-            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.22),
+            ? const Color(0xFF4ADE80).withValues(alpha: 0.85)
+            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.20),
         shape: BoxShape.circle,
       ),
     );
@@ -1977,7 +2032,7 @@ class _CustomTitleBar extends StatelessWidget {
         }
       },
       child: Container(
-        height: 34,
+        height: 32,
         color: cs.surfaceContainerHighest,
         child: Row(
           children: [
@@ -2039,7 +2094,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
         onTap: widget.onTap,
         child: SizedBox(
           width: 36,
-          height: 34,
+          height: 32,
           child: Center(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 100),
@@ -2050,16 +2105,16 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
                 color: _hovered
                     ? widget.isClose
                           ? const Color(0xFFE81123)
-                          : cs.onSurface.withValues(alpha: 0.10)
+                          : cs.onSurface.withValues(alpha: 0.08)
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(5),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
                 widget.icon,
                 size: 12,
                 color: _hovered && widget.isClose
                     ? Colors.white
-                    : cs.onSurface.withValues(alpha: 0.50),
+                    : cs.onSurface.withValues(alpha: 0.42),
               ),
             ),
           ),

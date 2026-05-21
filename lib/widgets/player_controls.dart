@@ -30,7 +30,7 @@ class PlayerControls extends ConsumerWidget {
         // Seek bar
         CustomSlider(
           value: progress,
-          trackHeight: 2,
+          trackHeight: 2.5,
           thumbRadius: 5,
           activeColor: cs.onSurface,
           inactiveColor: cs.onSurface.withValues(alpha: 0.10),
@@ -51,10 +51,11 @@ class PlayerControls extends ConsumerWidget {
                 },
         ),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
 
+        // Time labels
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -62,7 +63,8 @@ class PlayerControls extends ConsumerWidget {
                 _fmt(position),
                 style: TextStyle(
                   fontSize: 10,
-                  color: cs.onSurface.withValues(alpha: 0.22),
+                  color: cs.onSurface.withValues(alpha: 0.30),
+                  letterSpacing: 0.3,
                 ),
               ),
               Text(
@@ -70,14 +72,16 @@ class PlayerControls extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 10,
                   color: cs.onSurface.withValues(alpha: 0.22),
+                  letterSpacing: 0.3,
                 ),
               ),
             ],
           ),
         ),
 
-        SizedBox(height: isMobile ? 14 : 18),
+        SizedBox(height: isMobile ? 16 : 20),
 
+        // Shuffle / bit-perfect / loop row
         Row(
           children: [
             _IconToggle(
@@ -93,19 +97,20 @@ class PlayerControls extends ConsumerWidget {
           ],
         ),
 
-        SizedBox(height: isMobile ? 12 : 14),
+        SizedBox(height: isMobile ? 14 : 16),
 
+        // Transport controls
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _TransportButton(
               icon: Icons.skip_previous_rounded,
-              size: isMobile ? 26 : 28,
+              size: isMobile ? 27 : 29,
               enabled: player.currentTrack != null,
               onTap: notifier.skipPrevious,
             ),
-            SizedBox(width: isMobile ? 20 : 24),
+            SizedBox(width: isMobile ? 22 : 26),
             _PlayButton(
               isPlaying: isPlaying,
               isLoading: isLoading,
@@ -118,25 +123,25 @@ class PlayerControls extends ConsumerWidget {
                   ? notifier.pause
                   : notifier.play,
             ),
-            SizedBox(width: isMobile ? 20 : 24),
+            SizedBox(width: isMobile ? 22 : 26),
             _TransportButton(
               icon: Icons.skip_next_rounded,
-              size: isMobile ? 26 : 28,
+              size: isMobile ? 27 : 29,
               enabled: player.currentTrack != null,
               onTap: notifier.skipNext,
             ),
           ],
         ),
 
-        SizedBox(height: isMobile ? 16 : 20),
+        SizedBox(height: isMobile ? 18 : 22),
 
         // Volume
         Row(
           children: [
             Icon(
-              Icons.volume_down_rounded,
-              size: 13,
-              color: cs.onSurface.withValues(alpha: 0.22),
+              Icons.volume_mute_rounded,
+              size: 14,
+              color: cs.onSurface.withValues(alpha: 0.20),
             ),
             Expanded(
               child: CustomSlider(
@@ -144,15 +149,15 @@ class PlayerControls extends ConsumerWidget {
                 trackHeight: 1.5,
                 thumbRadius: 4,
                 activeColor: cs.onSurface.withValues(alpha: 0.38),
-                inactiveColor: cs.onSurface.withValues(alpha: 0.10),
-                thumbColor: cs.onSurface.withValues(alpha: 0.58),
+                inactiveColor: cs.onSurface.withValues(alpha: 0.09),
+                thumbColor: cs.onSurface.withValues(alpha: 0.60),
                 onChanged: notifier.setVolume,
               ),
             ),
             Icon(
               Icons.volume_up_rounded,
-              size: 13,
-              color: cs.onSurface.withValues(alpha: 0.22),
+              size: 14,
+              color: cs.onSurface.withValues(alpha: 0.20),
             ),
           ],
         ),
@@ -184,51 +189,93 @@ class _PlayButton extends StatefulWidget {
   State<_PlayButton> createState() => _PlayButtonState();
 }
 
-class _PlayButtonState extends State<_PlayButton> {
+class _PlayButtonState extends State<_PlayButton>
+    with SingleTickerProviderStateMixin {
   bool _hovered = false;
+  late final AnimationController _scaleCtrl;
+  late final Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scaleAnim = Tween(
+      begin: 1.0,
+      end: 0.92,
+    ).animate(CurvedAnimation(parent: _scaleCtrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _scaleCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final sz = widget.isMobile ? 52.0 : 56.0;
+    final sz = widget.isMobile ? 54.0 : 58.0;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: sz,
-          height: sz,
-          decoration: BoxDecoration(
-            color: !widget.hasTrack
-                ? widget.cs.onSurface.withValues(alpha: 0.08)
-                : _hovered
-                ? widget.cs.onSurface.withValues(alpha: 0.88)
-                : widget.cs.onSurface,
-            shape: BoxShape.circle,
-          ),
-          child: widget.isLoading
-              ? Padding(
-                  padding: const EdgeInsets.all(17),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: widget.cs.surface,
+        onTapDown: (_) => _scaleCtrl.forward(),
+        onTapUp: (_) {
+          _scaleCtrl.reverse();
+          widget.onTap?.call();
+        },
+        onTapCancel: () => _scaleCtrl.reverse(),
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 130),
+            width: sz,
+            height: sz,
+            decoration: BoxDecoration(
+              color: !widget.hasTrack
+                  ? widget.cs.onSurface.withValues(alpha: 0.07)
+                  : _hovered
+                  ? widget.cs.onSurface.withValues(alpha: 0.86)
+                  : widget.cs.onSurface,
+              shape: BoxShape.circle,
+              boxShadow: widget.hasTrack
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: widget.isLoading
+                ? Padding(
+                    padding: const EdgeInsets.all(17),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: widget.cs.surface,
+                    ),
+                  )
+                : Icon(
+                    widget.isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: widget.hasTrack
+                        ? widget.cs.surface
+                        : widget.cs.onSurface.withValues(alpha: 0.20),
+                    size: widget.isMobile ? 27 : 30,
                   ),
-                )
-              : Icon(
-                  widget.isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  color: widget.hasTrack
-                      ? widget.cs.surface
-                      : widget.cs.onSurface.withValues(alpha: 0.22),
-                  size: widget.isMobile ? 26 : 28,
-                ),
+          ),
         ),
       ),
     );
   }
 }
 
+// Loop button
 class _LoopButton extends StatefulWidget {
   final LoopMode mode;
   final VoidCallback onTap;
@@ -249,39 +296,40 @@ class _LoopButtonState extends State<_LoopButton> {
       LoopMode.playlist => (Icons.repeat_rounded, 'All', true),
     };
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 110),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
           decoration: BoxDecoration(
             color: _hovered
-                ? cs.onSurface.withValues(alpha: 0.06)
+                ? cs.onSurface.withValues(alpha: 0.05)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
-                size: 17,
+                size: 18,
                 color: active
                     ? cs.onSurface
-                    : cs.onSurface.withValues(alpha: 0.22),
+                    : cs.onSurface.withValues(alpha: 0.20),
               ),
               if (label.isNotEmpty) ...[
-                const SizedBox(width: 3),
+                const SizedBox(width: 4),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 10,
                     color: active
-                        ? cs.onSurface.withValues(alpha: 0.70)
-                        : cs.onSurface.withValues(alpha: 0.22),
+                        ? cs.onSurface.withValues(alpha: 0.68)
+                        : cs.onSurface.withValues(alpha: 0.20),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -294,6 +342,7 @@ class _LoopButtonState extends State<_LoopButton> {
   }
 }
 
+// Icon toggle
 class _IconToggle extends StatefulWidget {
   final IconData icon;
   final bool active;
@@ -317,26 +366,27 @@ class _IconToggleState extends State<_IconToggle> {
     return Tooltip(
       message: widget.tooltip,
       child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 110),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
             decoration: BoxDecoration(
               color: _hovered
-                  ? cs.onSurface.withValues(alpha: 0.06)
+                  ? cs.onSurface.withValues(alpha: 0.05)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               widget.icon,
-              size: 17,
+              size: 18,
               color: widget.active
                   ? cs.onSurface
-                  : cs.onSurface.withValues(alpha: 0.22),
+                  : cs.onSurface.withValues(alpha: 0.20),
             ),
           ),
         ),
@@ -345,6 +395,7 @@ class _IconToggleState extends State<_IconToggle> {
   }
 }
 
+// Transport button
 class _TransportButton extends StatefulWidget {
   final IconData icon;
   final double size;
@@ -366,25 +417,26 @@ class _TransportButtonState extends State<_TransportButton> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.enabled ? widget.onTap : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 110),
-          padding: const EdgeInsets.all(8),
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
             color: _hovered && widget.enabled
-                ? cs.onSurface.withValues(alpha: 0.06)
+                ? cs.onSurface.withValues(alpha: 0.05)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
             widget.icon,
             size: widget.size,
             color: widget.enabled
-                ? cs.onSurface.withValues(alpha: _hovered ? 0.80 : 0.54)
-                : cs.onSurface.withValues(alpha: 0.12),
+                ? cs.onSurface.withValues(alpha: _hovered ? 0.82 : 0.52)
+                : cs.onSurface.withValues(alpha: 0.10),
           ),
         ),
       ),
@@ -392,6 +444,7 @@ class _TransportButtonState extends State<_TransportButton> {
   }
 }
 
+// Bit-perfect badge
 class _BitPerfectBadge extends StatelessWidget {
   final ColorScheme cs;
   const _BitPerfectBadge({required this.cs});
@@ -399,16 +452,16 @@ class _BitPerfectBadge extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
     message: 'WASAPI Exclusive – bit-perfect output',
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         border: Border.all(color: cs.onSurface.withValues(alpha: 0.10)),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         'BIT-PERFECT',
         style: TextStyle(
-          fontSize: 7,
-          color: cs.onSurface.withValues(alpha: 0.28),
+          fontSize: 7.5,
+          color: cs.onSurface.withValues(alpha: 0.25),
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
         ),

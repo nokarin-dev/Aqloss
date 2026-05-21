@@ -68,6 +68,7 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
   }
 }
 
+// Desktop bar
 class _DesktopBar extends ConsumerWidget {
   final Uint8List? artBytes;
   final PlayerState player;
@@ -95,398 +96,265 @@ class _DesktopBar extends ConsumerWidget {
     final isExclusive = backend.isExclusiveMode();
     final isIslands = ref.watch(settingsProvider).appStyle == AppStyle.islands;
 
+    final content = _DesktopBarContent(
+      artBytes: artBytes,
+      player: player,
+      track: track,
+      notifier: notifier,
+      isPlaying: isPlaying,
+      isLoading: isLoading,
+      isExclusive: isExclusive,
+      duration: duration,
+      progress: progress,
+      cs: cs,
+      onTap: onTap,
+    );
+
     if (isIslands) {
-      return _islandMiniPlayer(
-        context,
-        notifier,
-        track,
-        player,
-        isExclusive,
-        isPlaying,
-        isLoading,
-        cs,
-        duration,
-        progress,
+      return Container(
+        margin: const EdgeInsets.fromLTRB(7, 4, 7, 4),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+        ),
+        child: content,
       );
     }
 
     return Container(
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        border: Border(top: BorderSide(color: cs.outline)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
-        child: Row(
-          children: [
-            // Track info
-            GestureDetector(
-              onTap: onTap,
-              child: Row(
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    child: _ArtBox(
-                      key: ValueKey(track.path),
-                      artBytes: artBytes,
-                      cs: cs,
-                      size: 46,
-                      radius: 6,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 180,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          track.displayTitle,
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          track.displayArtist,
-                          style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.40),
-                            fontSize: 11,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            _InlineBadge(
-                              isExclusive
-                                  ? 'BIT-PERFECT'
-                                  : '${track.format} · ${_khz(track.sampleRate)}',
-                              cs,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Center controls + seek
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _MiniBtn(
-                        icon: Icons.shuffle_rounded,
-                        size: 15,
-                        active: player.shuffle,
-                        tooltip: 'Shuffle',
-                        onTap: notifier.toggleShuffle,
-                      ),
-                      _MiniBtn(
-                        icon: Icons.skip_previous_rounded,
-                        size: 20,
-                        tooltip: 'Previous',
-                        onTap: notifier.skipPrevious,
-                      ),
-                      _MiniPlayBtn(
-                        isPlaying: isPlaying,
-                        isLoading: isLoading,
-                        cs: cs,
-                        onTap: isPlaying ? notifier.pause : notifier.play,
-                      ),
-                      _MiniBtn(
-                        icon: Icons.skip_next_rounded,
-                        size: 20,
-                        tooltip: 'Next',
-                        onTap: notifier.skipNext,
-                      ),
-                      _MiniLoopBtn(
-                        mode: player.loopMode,
-                        onTap: notifier.cycleLoopMode,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(width: 20),
-                      Text(
-                        _fmt(player.position),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onSurface.withValues(alpha: 0.45),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: CustomSlider(
-                          value: progress,
-                          trackHeight: 3,
-                          showThumb: false,
-                          activeColor: cs.onSurface.withValues(alpha: 0.50),
-                          inactiveColor: cs.onSurface.withValues(alpha: 0.08),
-                          onChanged: (v) {
-                            if (duration.inMilliseconds > 0) {
-                              notifier.seekPreview(duration * v);
-                            }
-                          },
-                          onChangeEnd: (v) {
-                            if (duration.inMilliseconds > 0) {
-                              notifier.seekCommit(duration * v);
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        _fmt(duration),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onSurface.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Volume
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.volume_down_rounded,
-                  size: 20,
-                  color: cs.onSurface.withValues(alpha: 0.24),
-                ),
-                SizedBox(
-                  width: 140,
-                  child: CustomSlider(
-                    value: player.volume.clamp(0.0, 1.0),
-                    trackHeight: 1.5,
-                    thumbRadius: 4,
-                    activeColor: cs.onSurface.withValues(alpha: 0.44),
-                    inactiveColor: cs.onSurface.withValues(alpha: 0.10),
-                    thumbColor: cs.onSurface.withValues(alpha: 0.65),
-                    onChanged: notifier.setVolume,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        border: Border(
+          top: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
         ),
       ),
+      child: content,
     );
   }
+}
 
-  Widget _islandMiniPlayer(
-    BuildContext context,
-    PlayerNotifier notifier,
-    Track track,
-    PlayerState player,
-    bool isExclusive,
-    bool isPlaying,
-    bool isLoading,
-    ColorScheme cs,
-    Duration duration,
-    double progress,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.all(Radius.circular(10)),
-      ),
-      margin: EdgeInsets.all(5),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            // Track info
-            GestureDetector(
-              onTap: onTap,
-              child: Row(
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    child: _ArtBox(
-                      key: ValueKey(track.path),
-                      artBytes: artBytes,
-                      cs: cs,
-                      size: 46,
-                      radius: 6,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 180,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          track.displayTitle,
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          track.displayArtist,
-                          style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.40),
-                            fontSize: 11,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            _InlineBadge(
-                              isExclusive
-                                  ? 'BIT-PERFECT'
-                                  : '${track.format} · ${_khz(track.sampleRate)}',
-                              cs,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+class _DesktopBarContent extends StatelessWidget {
+  final Uint8List? artBytes;
+  final PlayerState player;
+  final Track track;
+  final PlayerNotifier notifier;
+  final bool isPlaying, isLoading, isExclusive;
+  final Duration duration;
+  final double progress;
+  final ColorScheme cs;
+  final VoidCallback onTap;
 
-            // Center controls + seek
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _MiniBtn(
-                        icon: Icons.shuffle_rounded,
-                        size: 15,
-                        active: player.shuffle,
-                        tooltip: 'Shuffle',
-                        onTap: notifier.toggleShuffle,
+  const _DesktopBarContent({
+    required this.artBytes,
+    required this.player,
+    required this.track,
+    required this.notifier,
+    required this.isPlaying,
+    required this.isLoading,
+    required this.isExclusive,
+    required this.duration,
+    required this.progress,
+    required this.cs,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 9, 16, 9),
+      child: Row(
+        children: [
+          // Track info
+          GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: SizedBox(
+                width: 210,
+                child: Row(
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      switchInCurve: Curves.easeOut,
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: ScaleTransition(
+                          scale: Tween(begin: 0.94, end: 1.0).animate(anim),
+                          child: child,
+                        ),
                       ),
-                      _MiniBtn(
-                        icon: Icons.skip_previous_rounded,
-                        size: 20,
-                        tooltip: 'Previous',
-                        onTap: notifier.skipPrevious,
-                      ),
-                      _MiniPlayBtn(
-                        isPlaying: isPlaying,
-                        isLoading: isLoading,
+                      child: _ArtBox(
+                        key: ValueKey(track.path),
+                        artBytes: artBytes,
                         cs: cs,
-                        onTap: isPlaying ? notifier.pause : notifier.play,
+                        size: 44,
+                        radius: 7,
                       ),
-                      _MiniBtn(
-                        icon: Icons.skip_next_rounded,
-                        size: 20,
-                        tooltip: 'Next',
-                        onTap: notifier.skipNext,
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            track.displayTitle,
+                            style: TextStyle(
+                              color: cs.onSurface,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            track.displayArtist,
+                            style: TextStyle(
+                              color: cs.onSurface.withValues(alpha: 0.38),
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          _InlineBadge(
+                            isExclusive
+                                ? 'BIT-PERFECT'
+                                : '${track.format} · ${_khz(track.sampleRate)}',
+                            cs,
+                          ),
+                        ],
                       ),
-                      _MiniLoopBtn(
-                        mode: player.loopMode,
-                        onTap: notifier.cycleLoopMode,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(width: 20),
-                      Text(
-                        _fmt(player.position),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onSurface.withValues(alpha: 0.45),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: CustomSlider(
-                          value: progress,
-                          trackHeight: 3,
-                          showThumb: false,
-                          activeColor: cs.onSurface.withValues(alpha: 0.50),
-                          inactiveColor: cs.onSurface.withValues(alpha: 0.08),
-                          onChanged: (v) {
-                            if (duration.inMilliseconds > 0) {
-                              notifier.seekPreview(duration * v);
-                            }
-                          },
-                          onChangeEnd: (v) {
-                            if (duration.inMilliseconds > 0) {
-                              notifier.seekCommit(duration * v);
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        _fmt(duration),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onSurface.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
+          ),
 
-            // Volume
-            Row(
+          // Center
+          Expanded(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.volume_down_rounded,
-                  size: 20,
-                  color: cs.onSurface.withValues(alpha: 0.24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _MiniBtn(
+                      icon: Icons.shuffle_rounded,
+                      size: 15,
+                      active: player.shuffle,
+                      tooltip: 'Shuffle',
+                      onTap: notifier.toggleShuffle,
+                    ),
+                    const SizedBox(width: 4),
+                    _MiniBtn(
+                      icon: Icons.skip_previous_rounded,
+                      size: 20,
+                      tooltip: 'Previous',
+                      onTap: notifier.skipPrevious,
+                    ),
+                    const SizedBox(width: 6),
+                    _MiniPlayBtn(
+                      isPlaying: isPlaying,
+                      isLoading: isLoading,
+                      cs: cs,
+                      onTap: isPlaying ? notifier.pause : notifier.play,
+                    ),
+                    const SizedBox(width: 6),
+                    _MiniBtn(
+                      icon: Icons.skip_next_rounded,
+                      size: 20,
+                      tooltip: 'Next',
+                      onTap: notifier.skipNext,
+                    ),
+                    const SizedBox(width: 4),
+                    _MiniLoopBtn(
+                      mode: player.loopMode,
+                      onTap: notifier.cycleLoopMode,
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 140,
-                  child: CustomSlider(
-                    value: player.volume.clamp(0.0, 1.0),
-                    trackHeight: 1.5,
-                    thumbRadius: 4,
-                    activeColor: cs.onSurface.withValues(alpha: 0.44),
-                    inactiveColor: cs.onSurface.withValues(alpha: 0.10),
-                    thumbColor: cs.onSurface.withValues(alpha: 0.65),
-                    onChanged: notifier.setVolume,
-                  ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    Text(
+                      _fmt(player.position),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: cs.onSurface.withValues(alpha: 0.38),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: CustomSlider(
+                        value: progress,
+                        trackHeight: 2,
+                        showThumb: false,
+                        activeColor: cs.onSurface.withValues(alpha: 0.45),
+                        inactiveColor: cs.onSurface.withValues(alpha: 0.08),
+                        onChanged: (v) {
+                          if (duration.inMilliseconds > 0) {
+                            notifier.seekPreview(duration * v);
+                          }
+                        },
+                        onChangeEnd: (v) {
+                          if (duration.inMilliseconds > 0) {
+                            notifier.seekCommit(duration * v);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      _fmt(duration),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: cs.onSurface.withValues(alpha: 0.22),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          // Volume
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.volume_down_rounded,
+                size: 15,
+                color: cs.onSurface.withValues(alpha: 0.20),
+              ),
+              SizedBox(
+                width: 110,
+                child: CustomSlider(
+                  value: player.volume.clamp(0.0, 1.0),
+                  trackHeight: 1.5,
+                  thumbRadius: 4,
+                  activeColor: cs.onSurface.withValues(alpha: 0.36),
+                  inactiveColor: cs.onSurface.withValues(alpha: 0.08),
+                  thumbColor: cs.onSurface.withValues(alpha: 0.58),
+                  onChanged: notifier.setVolume,
+                ),
+              ),
+              Icon(
+                Icons.volume_up_rounded,
+                size: 15,
+                color: cs.onSurface.withValues(alpha: 0.20),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -501,6 +369,7 @@ class _DesktopBar extends ConsumerWidget {
       '${(sr / 1000).toStringAsFixed(sr % 1000 == 0 ? 0 : 1)}kHz';
 }
 
+// Mobile bar
 class _MobileBar extends ConsumerWidget {
   final Uint8List? artBytes;
   final PlayerState player;
@@ -531,8 +400,7 @@ class _MobileBar extends ConsumerWidget {
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest,
           border: Border(
-            top: BorderSide(color: cs.outline),
-            bottom: BorderSide(color: cs.outline.withValues(alpha: 0.5)),
+            top: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
           ),
         ),
         child: Column(
@@ -543,8 +411,8 @@ class _MobileBar extends ConsumerWidget {
               value: progress,
               trackHeight: 1.5,
               showThumb: false,
-              activeColor: cs.onSurface.withValues(alpha: 0.36),
-              inactiveColor: cs.onSurface.withValues(alpha: 0.08),
+              activeColor: cs.onSurface.withValues(alpha: 0.32),
+              inactiveColor: cs.onSurface.withValues(alpha: 0.07),
               onChanged: (v) {
                 if (duration.inMilliseconds > 0) {
                   notifier.seekPreview(duration * v);
@@ -557,10 +425,10 @@ class _MobileBar extends ConsumerWidget {
               },
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 6, 8),
+              padding: const EdgeInsets.fromLTRB(13, 6, 8, 8),
               child: Row(
                 children: [
-                  _ArtBox(artBytes: artBytes, cs: cs, size: 36, radius: 5),
+                  _ArtBox(artBytes: artBytes, cs: cs, size: 36, radius: 6),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -580,7 +448,7 @@ class _MobileBar extends ConsumerWidget {
                         Text(
                           track.displayArtist,
                           style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.36),
+                            color: cs.onSurface.withValues(alpha: 0.34),
                             fontSize: 11,
                           ),
                           maxLines: 1,
@@ -618,7 +486,7 @@ class _MobileBar extends ConsumerWidget {
   }
 }
 
-// Shared helpers
+// Shared sub widgets
 class _ArtBox extends StatelessWidget {
   final Uint8List? artBytes;
   final ColorScheme cs;
@@ -630,12 +498,13 @@ class _ArtBox extends StatelessWidget {
     required this.size,
     required this.radius,
   });
+
   @override
   Widget build(BuildContext context) => Container(
     width: size,
     height: size,
     decoration: BoxDecoration(
-      color: cs.onSurface.withValues(alpha: 0.06),
+      color: cs.onSurface.withValues(alpha: 0.05),
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
     ),
@@ -646,7 +515,7 @@ class _ArtBox extends StatelessWidget {
             child: Icon(
               Icons.music_note_rounded,
               size: size * 0.35,
-              color: cs.onSurface.withValues(alpha: 0.22),
+              color: cs.onSurface.withValues(alpha: 0.18),
             ),
           ),
   );
@@ -656,11 +525,12 @@ class _InlineBadge extends StatelessWidget {
   final String text;
   final ColorScheme cs;
   const _InlineBadge(this.text, this.cs);
+
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
     decoration: BoxDecoration(
-      border: Border.all(color: cs.onSurface.withValues(alpha: 0.10)),
+      border: Border.all(color: cs.onSurface.withValues(alpha: 0.09)),
       borderRadius: BorderRadius.circular(3),
     ),
     child: Text(
@@ -668,7 +538,7 @@ class _InlineBadge extends StatelessWidget {
       style: TextStyle(
         fontSize: 8,
         letterSpacing: 0.3,
-        color: cs.onSurface.withValues(alpha: 0.28),
+        color: cs.onSurface.withValues(alpha: 0.26),
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -686,12 +556,36 @@ class _MiniPlayBtn extends StatefulWidget {
     required this.onTap,
     this.small = false,
   });
+
   @override
   State<_MiniPlayBtn> createState() => _MiniPlayBtnState();
 }
 
-class _MiniPlayBtnState extends State<_MiniPlayBtn> {
+class _MiniPlayBtnState extends State<_MiniPlayBtn>
+    with SingleTickerProviderStateMixin {
   bool _hovered = false;
+  late final AnimationController _pressCtrl;
+  late final Animation<double> _pressAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+    );
+    _pressAnim = Tween(
+      begin: 1.0,
+      end: 0.90,
+    ).animate(CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _pressCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final sz = widget.small ? 32.0 : 36.0;
@@ -700,33 +594,48 @@ class _MiniPlayBtnState extends State<_MiniPlayBtn> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: sz,
-          height: sz,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: _hovered
-                ? widget.cs.onSurface.withValues(alpha: 0.88)
-                : widget.cs.onSurface,
-            shape: BoxShape.circle,
-          ),
-          child: widget.isLoading
-              ? Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: widget.cs.surface,
-                  ),
-                )
-              : Icon(
-                  widget.isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  color: widget.cs.surface,
-                  size: widget.small ? 24 : 26,
+        onTapDown: (_) => _pressCtrl.forward(),
+        onTapUp: (_) {
+          _pressCtrl.reverse();
+          widget.onTap?.call();
+        },
+        onTapCancel: () => _pressCtrl.reverse(),
+        child: ScaleTransition(
+          scale: _pressAnim,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: sz,
+            height: sz,
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? widget.cs.onSurface.withValues(alpha: 0.88)
+                  : widget.cs.onSurface,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.30),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
+              ],
+            ),
+            child: widget.isLoading
+                ? Padding(
+                    padding: const EdgeInsets.all(9),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: widget.cs.surface,
+                    ),
+                  )
+                : Icon(
+                    widget.isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: widget.cs.surface,
+                    size: widget.small ? 20 : 22,
+                  ),
+          ),
         ),
       ),
     );
@@ -746,12 +655,14 @@ class _MiniBtn extends StatefulWidget {
     this.active = false,
     this.onTap,
   });
+
   @override
   State<_MiniBtn> createState() => _MiniBtnState();
 }
 
 class _MiniBtnState extends State<_MiniBtn> {
   bool _hovered = false;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -776,7 +687,7 @@ class _MiniBtnState extends State<_MiniBtn> {
             size: widget.size,
             color: widget.active
                 ? cs.onSurface
-                : cs.onSurface.withValues(alpha: _hovered ? 0.70 : 0.44),
+                : cs.onSurface.withValues(alpha: _hovered ? 0.68 : 0.42),
           ),
         ),
       ),
@@ -795,12 +706,14 @@ class _MiniLoopBtn extends StatefulWidget {
   final LoopMode mode;
   final VoidCallback onTap;
   const _MiniLoopBtn({required this.mode, required this.onTap});
+
   @override
   State<_MiniLoopBtn> createState() => _MiniLoopBtnState();
 }
 
 class _MiniLoopBtnState extends State<_MiniLoopBtn> {
   bool _hovered = false;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -844,7 +757,7 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
                   size: 15,
                   color: active
                       ? cs.onSurface
-                      : cs.onSurface.withValues(alpha: 0.44),
+                      : cs.onSurface.withValues(alpha: 0.40),
                 ),
                 if (label.isNotEmpty) ...[
                   const SizedBox(width: 2),
@@ -854,7 +767,7 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
                       fontSize: 9,
                       color: active
                           ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.44),
+                          : cs.onSurface.withValues(alpha: 0.40),
                       fontWeight: FontWeight.w700,
                     ),
                   ),

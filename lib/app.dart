@@ -7,8 +7,7 @@ import 'package:aqloss/widgets/settings_watcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/home_screen.dart';
 
-bool get _isDesktop =>
-    Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+bool get _isLinux => Platform.isLinux;
 
 class AqlossApp extends ConsumerStatefulWidget {
   const AqlossApp({super.key});
@@ -23,7 +22,7 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
   @override
   void initState() {
     super.initState();
-    if (_isDesktop) {
+    if (_isLinux) {
       windowManager.addListener(this);
       _checkMaximize();
     }
@@ -31,12 +30,12 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
 
   @override
   void dispose() {
-    if (_isDesktop) windowManager.removeListener(this);
+    if (_isLinux) windowManager.removeListener(this);
     super.dispose();
   }
 
   Future<void> _checkMaximize() async {
-    if (!_isDesktop) return;
+    if (!_isLinux) return;
     try {
       final fs = await windowManager.isMaximized();
       if (mounted) setState(() => _isMaximize = fs);
@@ -66,8 +65,8 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       builder: (context, child) {
-        final radius = _isDesktop && !_isMaximize
-            ? BorderRadius.circular(12.0)
+        final radius = _isLinux && !_isMaximize
+            ? BorderRadius.circular(14.0)
             : BorderRadius.zero;
         return ClipRRect(borderRadius: radius, child: child);
       },
@@ -77,11 +76,11 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
 }
 
 ThemeData _buildDarkTheme() {
-  const surface = Color(0xFF080808);
-  const surfaceVariant = Color(0xFF0E0E0E);
-  const card = Color(0xFF111111);
+  const surface = Color(0xFF060608);
+  const surfaceVariant = Color(0xFF0C0C10);
+  const card = Color(0xFF101014);
   const onSurface = Colors.white;
-  const border = Color(0x12FFFFFF);
+  const border = Color(0x10FFFFFF);
   const indicator = Color(0x14FFFFFF);
 
   return ThemeData(
@@ -93,7 +92,7 @@ ThemeData _buildDarkTheme() {
       onSecondary: surface,
       secondaryContainer: indicator,
       onSecondaryContainer: onSurface,
-      error: Color(0xFFCF6679),
+      error: Color(0xFFFF6B6B),
       onError: Colors.white,
       surface: surface,
       onSurface: onSurface,
@@ -187,7 +186,7 @@ ThemeData _buildDarkTheme() {
     dialogTheme: DialogThemeData(
       backgroundColor: card,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: card,
@@ -196,20 +195,20 @@ ThemeData _buildDarkTheme() {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: card,
       contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       behavior: SnackBarBehavior.floating,
     ),
     scrollbarTheme: ScrollbarThemeData(
-      thickness: WidgetStateProperty.all(3),
+      thickness: WidgetStateProperty.all(2.5),
       radius: const Radius.circular(99),
-      crossAxisMargin: 6,
-      mainAxisMargin: 6,
+      crossAxisMargin: 4,
+      mainAxisMargin: 4,
       thumbColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.dragged) ||
             states.contains(WidgetState.hovered)) {
-          return const Color(0x60FFFFFF);
+          return const Color(0x50FFFFFF);
         }
-        return const Color(0x28FFFFFF);
+        return const Color(0x20FFFFFF);
       }),
       trackColor: WidgetStateProperty.all(Colors.transparent),
       trackBorderColor: WidgetStateProperty.all(Colors.transparent),
@@ -219,11 +218,11 @@ ThemeData _buildDarkTheme() {
 }
 
 ThemeData _buildLightTheme() {
-  const surface = Color(0xFFF5F5F5);
-  const surfaceVariant = Color(0xFFECECEC);
+  const surface = Color(0xFFF2F2F4);
+  const surfaceVariant = Color(0xFFE8E8EC);
   const card = Colors.white;
   const onSurface = Colors.black;
-  const border = Color(0x12000000);
+  const border = Color(0x10000000);
   const indicator = Color(0x10000000);
 
   return ThemeData(
@@ -329,7 +328,7 @@ ThemeData _buildLightTheme() {
     dialogTheme: DialogThemeData(
       backgroundColor: card,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: card,
@@ -338,20 +337,20 @@ ThemeData _buildLightTheme() {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: card,
       contentTextStyle: const TextStyle(color: Colors.black, fontSize: 13),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       behavior: SnackBarBehavior.floating,
     ),
     scrollbarTheme: ScrollbarThemeData(
-      thickness: WidgetStateProperty.all(3),
+      thickness: WidgetStateProperty.all(2.5),
       radius: const Radius.circular(99),
-      crossAxisMargin: 6,
-      mainAxisMargin: 6,
+      crossAxisMargin: 4,
+      mainAxisMargin: 4,
       thumbColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.dragged) ||
             states.contains(WidgetState.hovered)) {
-          return const Color(0x60000000);
+          return const Color(0x50000000);
         }
-        return const Color(0x28000000);
+        return const Color(0x20000000);
       }),
       trackColor: WidgetStateProperty.all(Colors.transparent),
       trackBorderColor: WidgetStateProperty.all(Colors.transparent),
