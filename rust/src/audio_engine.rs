@@ -352,6 +352,7 @@ impl AudioEngine {
         if self.flags.alive.load(Ordering::SeqCst) {
             logger::debug_audio("play() - thread alive, resuming");
             self.flags.playing.store(true, Ordering::SeqCst);
+            self.output.stop_drain();
             return Ok(());
         }
         logger::info_audio("play() - starting decode thread");
@@ -363,14 +364,15 @@ impl AudioEngine {
         let arc = Self::global();
         thread::spawn(move || decode_loop(arc, flags, died_flag));
 
+        // Pre-fill
         let ring_cap = self.output.sample_rate as usize * self.output.channels as usize + 4096;
         let prefill_target = ring_cap / 4;
-        let deadline = std::time::Instant::now() + Duration::from_millis(500);
+        let deadline = std::time::Instant::now() + Duration::from_millis(300);
         while std::time::Instant::now() < deadline {
             if self.output.ring_vacant() <= ring_cap - prefill_target {
                 break;
             }
-            thread::sleep(Duration::from_millis(5));
+            thread::sleep(Duration::from_millis(4));
         }
         logger::debug_audio("pre-fill done, audio output active");
         Ok(())
@@ -379,6 +381,7 @@ impl AudioEngine {
     pub fn pause(&mut self) -> Result<()> {
         logger::info_audio("pause()");
         self.flags.playing.store(false, Ordering::SeqCst);
+        thread::sleep(Duration::from_millis(5));
         self.output.start_drain();
         Ok(())
     }

@@ -67,6 +67,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _positionTimer;
   bool _disposed = false;
   bool _handlingTrackEnd = false;
+  bool _playPauseBusy = false;
   SettingsState Function()? _readSettings;
 
   PlayerNotifier() : super(const PlayerState()) {
@@ -165,22 +166,34 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> play() async {
-    await AudioService.play();
-    if (!mounted) return;
-    double pos = state.position.inMilliseconds / 1000.0;
+    if (_playPauseBusy) return;
+    _playPauseBusy = true;
     try {
-      pos = (await backend.getPosition()).positionSecs;
-    } catch (_) {}
-    state = state.copyWith(status: PlayerStatus.playing);
-    DiscordService.update(state, positionSecs: pos);
-    _startTimer();
+      await AudioService.play();
+      if (!mounted) return;
+      double pos = state.position.inMilliseconds / 1000.0;
+      try {
+        pos = (await backend.getPosition()).positionSecs;
+      } catch (_) {}
+      state = state.copyWith(status: PlayerStatus.playing);
+      DiscordService.update(state, positionSecs: pos);
+      _startTimer();
+    } finally {
+      _playPauseBusy = false;
+    }
   }
 
   Future<void> pause() async {
-    await AudioService.pause();
-    state = state.copyWith(status: PlayerStatus.paused);
-    DiscordService.update(state);
-    _stopTimer();
+    if (_playPauseBusy) return;
+    _playPauseBusy = true;
+    try {
+      await AudioService.pause();
+      state = state.copyWith(status: PlayerStatus.paused);
+      DiscordService.update(state);
+      _stopTimer();
+    } finally {
+      _playPauseBusy = false;
+    }
   }
 
   Future<void> seek(Duration position) async {

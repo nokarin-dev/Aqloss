@@ -2,7 +2,7 @@ name: aqloss
 description: "Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 0.2.2+1
+version: 0.2.3+1
 
 environment:
   sdk: ^3.11.3
@@ -40,6 +40,8 @@ dependencies:
   open_file: ^3.5.11
   device_info_plus: ^13.1.0
   permission_handler: ^12.0.1
+  dbus: ^0.7.12
+  smtc_windows: ^1.1.0
 
 dev_dependencies:
   flutter_test:

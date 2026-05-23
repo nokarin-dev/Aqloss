@@ -7,10 +7,15 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io' show Platform;
 import 'app.dart';
 import 'services/audio_service.dart';
+import 'services/notifier/media_control_windows.dart';
 import 'providers/settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows) {
+    await MediaControlPlatform.initialize();
+  }
 
   if (!Platform.isAndroid && !Platform.isIOS) {
     await windowManager.ensureInitialized();
@@ -33,7 +38,6 @@ void main() async {
   }
 
   await AqlossCore.init();
-
   await Logger.init();
 
   runApp(const ProviderScope(child: AqlossApp()));

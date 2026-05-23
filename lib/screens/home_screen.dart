@@ -19,6 +19,7 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/mini_player_bar.dart';
 import 'package:aqloss/widgets/playlist_art_icon.dart';
 import 'package:aqloss/widgets/now_playing_header.dart';
+import 'package:aqloss/util/search_focus_tracker.dart';
 
 const _kSidebarCollapsed = 'aqloss_sidebar_collapsed';
 
@@ -42,6 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     super.initState();
     if (_isDesktop) windowManager.addListener(this);
     _loadSidebarPref();
+    HardwareKeyboard.instance.addHandler(_globalKeyHandler);
   }
 
   Future<void> _loadSidebarPref() async {
@@ -62,6 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_globalKeyHandler);
     if (_isDesktop) windowManager.removeListener(this);
     super.dispose();
   }
@@ -85,33 +88,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     return const PlayerScreen();
   }
 
-  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+  // Global key handler
+  bool _globalKeyHandler(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
     final ctrl =
         HardwareKeyboard.instance.isControlPressed ||
         HardwareKeyboard.instance.isMetaPressed;
 
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit1) {
-      setState(() => _route = 0);
-      return KeyEventResult.handled;
-    }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit2) {
-      setState(() => _route = 1);
-      return KeyEventResult.handled;
-    }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit3) {
-      setState(() => _route = 2);
-      return KeyEventResult.handled;
-    }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.digit4) {
-      setState(() => _route = 3);
-      return KeyEventResult.handled;
-    }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.keyB) {
-      _toggleSidebar();
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.space) {
+    if (!ctrl && event.logicalKey == LogicalKeyboardKey.space) {
+      if (SearchFocusTracker.instance.hasFocus) return false;
       final player = ref.read(playerProvider);
       if (player.currentTrack != null) {
         if (player.status == PlayerStatus.playing) {
@@ -119,32 +104,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
         } else {
           ref.read(playerProvider.notifier).play();
         }
-        return KeyEventResult.handled;
+        return true;
       }
+      return false;
     }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+
+    if (!ctrl) return false;
+
+    if (event.logicalKey == LogicalKeyboardKey.digit1) {
+      setState(() => _route = 0);
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.digit2) {
+      setState(() => _route = 1);
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.digit3) {
+      setState(() => _route = 2);
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.digit4) {
+      setState(() => _route = 3);
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyB) {
+      _toggleSidebar();
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
       ref.read(playerProvider.notifier).skipPrevious();
-      return KeyEventResult.handled;
+      return true;
     }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowRight) {
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
       ref.read(playerProvider.notifier).skipNext();
-      return KeyEventResult.handled;
+      return true;
     }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowUp) {
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       final vol = (ref.read(playerProvider).volume + 0.05).clamp(0.0, 1.0);
       ref.read(playerProvider.notifier).setVolume(vol);
-      return KeyEventResult.handled;
+      return true;
     }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.arrowDown) {
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       final vol = (ref.read(playerProvider).volume - 0.05).clamp(0.0, 1.0);
       ref.read(playerProvider.notifier).setVolume(vol);
-      return KeyEventResult.handled;
+      return true;
     }
-    if (ctrl && event.logicalKey == LogicalKeyboardKey.keyN) {
+    if (event.logicalKey == LogicalKeyboardKey.keyN) {
       _showCreatePlaylistDialog();
-      return KeyEventResult.handled;
+      return true;
     }
-    return KeyEventResult.ignored;
+    return false;
   }
 
   Future<void> _showCreatePlaylistDialog() async {
@@ -171,7 +180,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
 
     return Focus(
       autofocus: true,
-      onKeyEvent: _handleKey,
       child: Scaffold(
         body: SafeArea(
           top: !_isDesktop,

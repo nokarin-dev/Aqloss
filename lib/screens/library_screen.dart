@@ -8,6 +8,7 @@ import 'package:aqloss/widgets/q_sheet.dart';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/q_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
@@ -27,7 +28,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _focusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    SearchFocusTracker.instance.register(_focusNode);
+  }
+
+  @override
   void dispose() {
+    SearchFocusTracker.instance.unregister(_focusNode);
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();

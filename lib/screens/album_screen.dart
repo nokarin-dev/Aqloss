@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -76,7 +77,14 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   String _query = '';
 
   @override
+  void initState() {
+    super.initState();
+    SearchFocusTracker.instance.register(_focusNode);
+  }
+
+  @override
   void dispose() {
+    SearchFocusTracker.instance.unregister(_focusNode);
     _searchCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -294,6 +302,18 @@ class _AlbumCardState extends State<_AlbumCard>
     _loadArt();
   }
 
+  @override
+  void didUpdateWidget(_AlbumCard old) {
+    super.didUpdateWidget(old);
+    if (old.album.tracks.first.path != widget.album.tracks.first.path) {
+      setState(() {
+        _art = null;
+        _artLoaded = false;
+      });
+      _loadArt();
+    }
+  }
+
   Future<void> _loadArt() async {
     try {
       final bytes = await backend.readAlbumArtThumbnail(
@@ -351,7 +371,9 @@ class _AlbumCardState extends State<_AlbumCard>
                                   ? Image.memory(
                                       _art!,
                                       fit: BoxFit.cover,
-                                      key: const ValueKey('art'),
+                                      key: ValueKey(
+                                        widget.album.tracks.first.path,
+                                      ),
                                     )
                                   : _PlaceholderArt(
                                       key: const ValueKey('ph'),
@@ -857,7 +879,7 @@ class _DetailArt extends StatelessWidget {
                     ? Image.memory(
                         art!,
                         fit: BoxFit.cover,
-                        key: const ValueKey('art'),
+                        key: ValueKey(art.hashCode),
                       )
                     : Container(
                         key: const ValueKey('ph'),

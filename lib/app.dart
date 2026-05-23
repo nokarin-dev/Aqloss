@@ -65,9 +65,31 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       builder: (context, child) {
-        final radius = _isLinux && !_isMaximize
+        final isWindowedLinux = _isLinux && !_isMaximize;
+        final radius = isWindowedLinux
             ? BorderRadius.circular(14.0)
             : BorderRadius.zero;
+
+        if (isWindowedLinux) {
+          return Container(
+            padding: const EdgeInsets.all(14.0),
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 14.0,
+                    spreadRadius: 1.0,
+                  ),
+                ],
+              ),
+              child: ClipRRect(borderRadius: radius, child: child),
+            ),
+          );
+        }
+
         return ClipRRect(borderRadius: radius, child: child);
       },
       home: const SettingsWatcher(child: HomeScreen()),

@@ -8,13 +8,12 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         initAudioContext(applicationContext)
+        MediaControlsPlugin.register(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     private external fun initAudioContext(context: Any)
 
     companion object {
-        init {
-            System.loadLibrary("aqloss_rust_core")
-        }
+        init { System.loadLibrary("aqloss_rust_core") }
     }
 }
