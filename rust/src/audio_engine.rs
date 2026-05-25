@@ -314,6 +314,34 @@ impl AudioEngine {
         let dec = Decoder::open(path, gapless)?;
         let src_rate = dec.sample_rate();
         let src_ch = dec.channels();
+
+        if src_rate != self.output.sample_rate && !self.output.exclusive {
+            logger::debug_audio(format!(
+                "stream rate mismatch ({} → {}Hz), reopening output",
+                self.output.sample_rate, src_rate
+            ));
+            match AudioOutput::new_default_with_rate(Some(src_rate)) {
+                Ok(new_out) => {
+                    self.output = new_out;
+                    self.smooth_volume = self.volume;
+                    self.decode_thread_died.store(false, Ordering::SeqCst);
+                    self.eq
+                        .lock()
+                        .unwrap()
+                        .reset_sample_rate(self.output.sample_rate, self.output.channels as usize);
+                    logger::info_audio(format!(
+                        "output reopened at {}Hz (no resampling needed)",
+                        src_rate
+                    ));
+                }
+                Err(e) => {
+                    logger::warn_audio(format!(
+                        "could not reopen at {src_rate}Hz ({e}), keeping current stream"
+                    ));
+                }
+            }
+        }
+
         logger::debug_audio(format!(
             "decoder opened: {src_rate}Hz {src_ch}ch → output {}Hz {}ch",
             self.output.sample_rate, self.output.channels
@@ -364,7 +392,6 @@ impl AudioEngine {
         let arc = Self::global();
         thread::spawn(move || decode_loop(arc, flags, died_flag));
 
-        // Pre-fill
         let ring_cap = self.output.sample_rate as usize * self.output.channels as usize + 4096;
         let prefill_target = ring_cap / 4;
         let deadline = std::time::Instant::now() + Duration::from_millis(300);
@@ -381,7 +408,6 @@ impl AudioEngine {
     pub fn pause(&mut self) -> Result<()> {
         logger::info_audio("pause()");
         self.flags.playing.store(false, Ordering::SeqCst);
-        thread::sleep(Duration::from_millis(5));
         self.output.start_drain();
         Ok(())
     }
@@ -572,6 +598,9 @@ fn decode_loop(
         match decode_result {
             Ok(Some(raw)) => {
                 let mut e = engine_arc.lock().unwrap();
+                if !flags.playing.load(Ordering::Acquire) {
+                    continue;
+                }
                 if flags.seek_pending.load(Ordering::Acquire) {
                     continue;
                 }

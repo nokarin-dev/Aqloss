@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/widgets/now_playing_header.dart';
+import 'package:aqloss/widgets/shared/now_playing_header.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/widgets/shared/search_box.dart';
 
 // Helpers
 bool get _isDesktop =>
@@ -73,20 +73,11 @@ class AlbumsScreen extends ConsumerStatefulWidget {
 
 class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   final _searchCtrl = TextEditingController();
-  final _focusNode = FocusNode();
   String _query = '';
 
   @override
-  void initState() {
-    super.initState();
-    SearchFocusTracker.instance.register(_focusNode);
-  }
-
-  @override
   void dispose() {
-    SearchFocusTracker.instance.unregister(_focusNode);
     _searchCtrl.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
@@ -114,9 +105,8 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
         // Search
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-          child: _SearchBar(
+          child: SearchBox(
             controller: _searchCtrl,
-            focusNode: _focusNode,
             onChanged: (q) => setState(() => _query = q),
             onClear: () {
               _searchCtrl.clear();
@@ -177,73 +167,6 @@ PageRoute<void> _fadeRoute(Widget page) => PageRouteBuilder(
     child: child,
   ),
 );
-
-// Search bar
-class _SearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  const _SearchBar({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: focusNode.requestFocus,
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 10),
-            Icon(
-              Icons.search_rounded,
-              size: 15,
-              color: cs.onSurface.withValues(alpha: 0.28),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: EditableText(
-                controller: controller,
-                focusNode: focusNode,
-                onChanged: onChanged,
-                style: TextStyle(color: cs.onSurface, fontSize: 13),
-                cursorColor: cs.onSurface.withValues(alpha: 0.55),
-                backgroundCursorColor: Colors.transparent,
-                cursorWidth: 1.2,
-                cursorRadius: const Radius.circular(1),
-                selectionColor: cs.onSurface.withValues(alpha: 0.14),
-              ),
-            ),
-            if (controller.text.isNotEmpty)
-              GestureDetector(
-                onTap: onClear,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 13,
-                    color: cs.onSurface.withValues(alpha: 0.28),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // Album grid
 class _AlbumGrid extends StatelessWidget {

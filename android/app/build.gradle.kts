@@ -88,6 +88,7 @@ androidComponents {
 
 dependencies {
     implementation("androidx.documentfile:documentfile:1.1.0")
+    implementation("androidx.media:media:1.8.0")
 }
 
 flutter {

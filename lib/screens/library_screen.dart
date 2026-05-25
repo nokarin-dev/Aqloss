@@ -1,20 +1,19 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:aqloss/util/android_path_helper.dart';
 import 'package:aqloss/models/track.dart';
-import 'package:aqloss/widgets/now_playing_header.dart';
+import 'package:aqloss/widgets/shared/now_playing_header.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/q_sheet.dart';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/q_toast.dart';
 import 'package:flutter/material.dart';
-import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/track_tile.dart';
 import 'package:aqloss/widgets/track_grid_item.dart';
+import 'package:aqloss/widgets/shared/search_box.dart';
+import 'package:aqloss/widgets/sidebar/folder_manager_dialog.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -25,19 +24,10 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _searchController = TextEditingController();
-  final _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    SearchFocusTracker.instance.register(_focusNode);
-  }
 
   @override
   void dispose() {
-    SearchFocusTracker.instance.unregister(_focusNode);
     _searchController.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
@@ -60,9 +50,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: _SearchBox(
+                  child: SearchBox(
                     controller: _searchController,
-                    focusNode: _focusNode,
                     onChanged: (q) {
                       ref.read(libraryProvider.notifier).setQuery(q);
                       setState(() {});
@@ -99,7 +88,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     active: false,
                     onTap: () => showDialog<void>(
                       context: context,
-                      builder: (_) => const _FolderManagerShim(),
+                      builder: (_) => const FolderManagerDialog(),
                     ),
                   ),
                 ],
@@ -125,74 +114,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Search box
-class _SearchBox extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  const _SearchBox({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: focusNode.requestFocus,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        height: 36,
-        decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 10),
-            Icon(
-              Icons.search_rounded,
-              size: 16,
-              color: cs.onSurface.withValues(alpha: 0.28),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: EditableText(
-                controller: controller,
-                focusNode: focusNode,
-                onChanged: onChanged,
-                style: TextStyle(color: cs.onSurface, fontSize: 13),
-                cursorColor: cs.onSurface.withValues(alpha: 0.60),
-                backgroundCursorColor: Colors.transparent,
-                cursorWidth: 1.2,
-                cursorRadius: const Radius.circular(1),
-                selectionColor: cs.onSurface.withValues(alpha: 0.15),
-              ),
-            ),
-            if (controller.text.isNotEmpty)
-              GestureDetector(
-                onTap: onClear,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 14,
-                    color: cs.onSurface.withValues(alpha: 0.28),
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -716,128 +637,5 @@ class _ViewModeButton extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-// Folder manager dialog for mobile
-class _FolderManagerShim extends ConsumerWidget {
-  const _FolderManagerShim();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final library = ref.watch(libraryProvider);
-    final folders = library.folders;
-    final isScanning = library.status == LibraryStatus.scanning;
-    final cs = Theme.of(context).colorScheme;
-
-    return Dialog(
-      backgroundColor: Theme.of(context).cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460, minWidth: 300),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Music Folders',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (folders.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'No folders added yet.',
-                    style: TextStyle(
-                      color: cs.onSurface.withValues(alpha: 0.45),
-                      fontSize: 13,
-                    ),
-                  ),
-                )
-              else
-                ...folders.map((f) {
-                  final parts = f.replaceAll('\\', '/').split('/');
-                  final label = parts.length <= 2
-                      ? f
-                      : '…/${parts.sublist(parts.length - 2).join('/')}';
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      label,
-                      style: const TextStyle(fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        Icons.remove_circle_outline,
-                        size: 18,
-                        color: cs.onSurface.withValues(alpha: 0.4),
-                      ),
-                      onPressed: () =>
-                          ref.read(libraryProvider.notifier).removeFolder(f),
-                    ),
-                  );
-                }),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: isScanning
-                      ? null
-                      : () async {
-                          await _pickAndAdd(context, ref);
-                        },
-                  icon: isScanning
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.add_rounded, size: 18),
-                  label: Text(isScanning ? 'Scanning…' : 'Add Folder'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _pickAndAdd(BuildContext context, WidgetRef ref) async {
-  if (Platform.isAndroid) {
-    final granted = await requestAndroidStoragePermission();
-    if (!granted) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Storage permission required to scan folders'),
-          ),
-        );
-      }
-      return;
-    }
-  }
-  final result = await FilePicker.getDirectoryPath(
-    dialogTitle: 'Select music folder',
-  );
-  if (result != null && context.mounted) {
-    final path = resolveAndroidPath(result);
-    ref.read(libraryProvider.notifier).addFolder(path);
   }
 }

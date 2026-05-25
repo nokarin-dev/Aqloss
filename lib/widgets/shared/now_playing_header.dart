@@ -50,16 +50,13 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
   Widget build(BuildContext context) {
     final player = ref.watch(playerProvider);
     final track = player.currentTrack;
+    final cs = Theme.of(context).colorScheme;
 
     if (track?.path != _loadedPath) {
       Future.microtask(() => _loadArt(track?.path));
     }
 
     if (track == null) return const SizedBox.shrink();
-
-    final cs = Theme.of(context).colorScheme;
-    final isPlaying = player.status == PlayerStatus.playing;
-    final notifier = ref.read(playerProvider.notifier);
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
@@ -167,26 +164,6 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
-                        ),
-                      ),
-
-                      // Play/pause toggle
-                      GestureDetector(
-                        onTap: isPlaying ? notifier.pause : notifier.play,
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: cs.onSurface.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: cs.onSurface,
-                            size: 20,
-                          ),
                         ),
                       ),
                     ],

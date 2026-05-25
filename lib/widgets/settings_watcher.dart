@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
@@ -30,7 +29,6 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
 
   Future<void> _initMediaControls() async {
     if (_mediaInitialized) return;
-    if (!Platform.isLinux && !Platform.isWindows) return;
     _mediaInitialized = true;
 
     final notifier = ref.read(playerProvider.notifier);

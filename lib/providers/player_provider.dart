@@ -67,7 +67,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _positionTimer;
   bool _disposed = false;
   bool _handlingTrackEnd = false;
-  bool _playPauseBusy = false;
+  bool _playPauseBusy = false; // debounce guard
   SettingsState Function()? _readSettings;
 
   PlayerNotifier() : super(const PlayerState()) {

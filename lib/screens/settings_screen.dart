@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/eq_panel.dart';
 import 'package:aqloss/widgets/lastfm_auth_row.dart';
-import 'package:aqloss/widgets/custom_slider.dart';
+import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/widgets/custom_slider.dart';
+import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 class PlayerControls extends ConsumerWidget {

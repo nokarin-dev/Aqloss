@@ -4,7 +4,7 @@ import 'package:aqloss/models/track.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/widgets/custom_slider.dart';
+import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
 
@@ -112,10 +112,10 @@ class _DesktopBar extends ConsumerWidget {
 
     if (isIslands) {
       return Container(
-        margin: const EdgeInsets.fromLTRB(7, 4, 7, 4),
+        margin: const EdgeInsets.fromLTRB(0, 0, 5, 5),
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
         ),
         child: content,
@@ -162,7 +162,7 @@ class _DesktopBarContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 9, 16, 9),
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           // Track info

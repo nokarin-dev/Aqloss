@@ -31,16 +31,20 @@ const CPAL_BUFFER_FRAMES: usize = 4096;
 
 impl AudioOutput {
     pub fn new_default() -> Result<Self> {
+        Self::new_default_with_rate(None)
+    }
+
+    pub fn new_default_with_rate(hint_rate: Option<u32>) -> Result<Self> {
         #[cfg(target_os = "windows")]
         {
             if let Ok(exc) = wasapi_exclusive::ExclusiveStream::open_default() {
                 return Ok(Self::from_exclusive(exc));
             }
             crate::logger::warn_output(
-                "[aqloss] WASAPI exclusive not available on default device, using shared",
+                "WASAPI exclusive not available on default device, using shared",
             );
         }
-        Self::new_cpal_shared(None)
+        Self::new_cpal_shared(None, hint_rate)
     }
 
     pub fn new_with_device(device_id: &str, exclusive: bool) -> Result<Self> {
@@ -49,7 +53,7 @@ impl AudioOutput {
             let exc = wasapi_exclusive::ExclusiveStream::open_device(device_id)?;
             return Ok(Self::from_exclusive(exc));
         }
-        Self::new_cpal_shared(Some(device_id))
+        Self::new_cpal_shared(Some(device_id), None)
     }
 
     #[cfg(target_os = "windows")]
@@ -68,7 +72,7 @@ impl AudioOutput {
         }
     }
 
-    fn new_cpal_shared(device_id: Option<&str>) -> Result<Self> {
+    fn new_cpal_shared(device_id: Option<&str>, hint_rate: Option<u32>) -> Result<Self> {
         use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
         let host = cpal::default_host();
@@ -80,12 +84,12 @@ impl AudioOutput {
                 });
                 match found {
                     Some(d) => {
-                        crate::logger::info_output(format!("[aqloss] output device: {id}"));
+                        crate::logger::info_output(format!("output device: {id}"));
                         d
                     }
                     None => {
                         crate::logger::warn_output(format!(
-                            "[aqloss] device '{id}' not found, using system default"
+                            "device '{id}' not found, using system default"
                         ));
                         host.default_output_device()
                             .ok_or_else(|| anyhow!("No audio output device found"))?
@@ -97,20 +101,37 @@ impl AudioOutput {
                 .ok_or_else(|| anyhow!("No audio output device found"))?,
         };
 
-        let supported = device.default_output_config().map_err(|e| {
-            crate::logger::error_output(format!("[aqloss] default_output_config failed: {e}"));
+        let default_cfg = device.default_output_config().map_err(|e| {
+            crate::logger::error_output(format!("default_output_config failed: {e}"));
             e
         })?;
-        let sample_rate: u32 = supported.sample_rate();
-        let channels: u32 = supported.channels() as u32;
+        let default_ch = default_cfg.channels();
+        let default_rate = default_cfg.sample_rate();
 
-        crate::logger::info_output(format!(
-            "[aqloss] opening stream: {sample_rate}Hz {channels}ch"
-        ));
+        let (sample_rate, channels) = if let Some(hint) = hint_rate {
+            match probe_exact_rate(&device, default_ch, hint) {
+                true => {
+                    crate::logger::info_output(format!(
+                        "rate match: {hint}Hz (track native, no resampling)"
+                    ));
+                    (hint, default_ch as u32)
+                }
+                false => {
+                    crate::logger::debug_output(format!(
+                        "hint {hint}Hz not in device range, using default {default_rate}Hz"
+                    ));
+                    (default_rate, default_ch as u32)
+                }
+            }
+        } else {
+            (default_rate, default_ch as u32)
+        };
+
+        crate::logger::info_output(format!("opening stream: {sample_rate}Hz {channels}ch"));
 
         let config = cpal::StreamConfig {
-            channels: supported.channels(),
-            sample_rate: supported.sample_rate(),
+            channels: channels as u16,
+            sample_rate: sample_rate,
             #[cfg(target_os = "android")]
             buffer_size: cpal::BufferSize::Default,
             #[cfg(not(target_os = "android"))]
@@ -144,17 +165,17 @@ impl AudioOutput {
                 None,
             )
             .map_err(|e| {
-                crate::logger::error_output(format!("[aqloss] build_output_stream failed: {e}"));
+                crate::logger::error_output(format!("build_output_stream failed: {e}"));
                 anyhow::anyhow!(e)
             })?;
 
         stream.play().map_err(|e| {
-            crate::logger::error_output(format!("[aqloss] stream.play() failed: {e}"));
+            crate::logger::error_output(format!("stream.play() failed: {e}"));
             anyhow::anyhow!(e)
         })?;
 
         crate::logger::info_output(format!(
-            "[aqloss] shared-mode: {} @ {}Hz {}ch (buffer={} frames)",
+            "shared-mode: {} @ {}Hz {}ch (buffer={} frames)",
             device_id.unwrap_or("default"),
             sample_rate,
             channels,
@@ -182,6 +203,25 @@ impl AudioOutput {
     pub fn stop_drain(&self) {
         self.draining.store(false, Ordering::SeqCst);
     }
+}
+
+// Rate probe
+#[cfg(not(target_os = "windows"))]
+fn probe_exact_rate(device: &cpal::Device, channels: u16, rate: u32) -> bool {
+    use cpal::traits::DeviceTrait;
+    device
+        .supported_output_configs()
+        .ok()
+        .map(|cfgs| {
+            cfgs.filter(|c| c.channels() == channels)
+                .any(|c| rate >= c.min_sample_rate() && rate <= c.max_sample_rate())
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
+fn probe_exact_rate(_device: &cpal::Device, _channels: u16, _rate: u32) -> bool {
+    false
 }
 
 // WASAPI exclusive (Windows)
