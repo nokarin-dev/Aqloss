@@ -24,7 +24,7 @@ jobs:
     if: |
       inputs.target == 'both' ||
       inputs.target == 'macos'
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -113,7 +113,7 @@ jobs:
     if: |
       inputs.target == 'both' ||
       inputs.target == 'ios'
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
