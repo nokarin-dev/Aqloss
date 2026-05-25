@@ -10,7 +10,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
-- [Frontend|UserInterface] Press scale animation to play button
+- [Frontend|UI] Press scale animation to play button
 - [Frontend|Lyrics] Lrclib search & get API fallback
 - [Frontend|Notifier] Media player notifications
 - [Audio|Backend] Reopen output stream at native sample rate on load to avoid unnecessary resampling
@@ -29,7 +29,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 - [Frontend|PlayerScreen] Player screen now has slide-in animation on track change
 - [Frontend|MiniPlayer] Adjust mini player bar UI
 - [Backend|Audio] Stream no longer blindly probes for the highest supported rate
-- [Codebase] Major restructure of Flutter and Rust source
+- [Codebase] Major restructure of Flutter source
 
 ---
 
