@@ -13,7 +13,7 @@ Aqloss is a music player built around a Rust audio engine, with optional WASAPI 
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
 
-  s.platform = :ios, '14.0'
+  s.platform = :ios, '16.0'
   s.swift_version = '5.0'
 
   s.script_phase = {
