@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/eq_panel.dart';
@@ -24,6 +27,7 @@ enum _SettingsPage {
   display,
   lastfm,
   shortcuts,
+  updates,
   about,
 }
 
@@ -36,18 +40,20 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.display => 'Display',
     _SettingsPage.lastfm => 'Last.fm',
     _SettingsPage.shortcuts => 'Shortcuts',
+    _SettingsPage.updates => 'Updates',
     _SettingsPage.about => 'About',
   };
 
   String get subtitle => switch (this) {
     _SettingsPage.musicFolders =>
-      'Directories that Shiranami watches for audio files',
+      'Directories to watch for music files, and library scanning options',
     _SettingsPage.audioOutput => 'Device and output mode selection',
     _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
     _SettingsPage.dsp => 'Equalizer bands and soft-clip limiter',
     _SettingsPage.display => 'Theme, spectrum analyser, album art',
     _SettingsPage.lastfm => 'Scrobbling and account authentication',
     _SettingsPage.shortcuts => 'Global keyboard shortcuts',
+    _SettingsPage.updates => 'Check for new releases',
     _SettingsPage.about => 'Version info and logs',
   };
 
@@ -59,6 +65,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.display => Icons.palette_outlined,
     _SettingsPage.lastfm => Icons.podcasts_rounded,
     _SettingsPage.shortcuts => Icons.keyboard_outlined,
+    _SettingsPage.updates => Icons.system_update_alt_rounded,
     _SettingsPage.about => Icons.info_outline_rounded,
   };
 
@@ -66,7 +73,9 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.musicFolders || _SettingsPage.audioOutput => 'LIBRARY',
     _SettingsPage.playback || _SettingsPage.dsp => 'PLAYBACK',
     _SettingsPage.display || _SettingsPage.lastfm => 'APPEARANCE',
-    _SettingsPage.shortcuts || _SettingsPage.about => 'SYSTEM',
+    _SettingsPage.shortcuts ||
+    _SettingsPage.updates ||
+    _SettingsPage.about => 'SYSTEM',
   };
 }
 
@@ -95,6 +104,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isDesktop =
         Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
+    // On narrow screens fall back to single-column
     if (narrow) {
       return _NarrowSettings(
         page: _page,
@@ -335,13 +345,13 @@ class _SettingsContent extends StatelessWidget {
       _SettingsPage.display => const _DisplayPane(),
       _SettingsPage.lastfm => const _LastFmPane(),
       _SettingsPage.shortcuts => const _ShortcutsPane(),
+      _SettingsPage.updates => const _UpdatesPane(),
       _SettingsPage.about => const _AboutPane(),
     };
   }
 }
 
-// Narrow fallback (single-column) ─────────────────────────────────────────
-
+// Narrow fallback
 class _NarrowSettings extends StatelessWidget {
   final _SettingsPage page;
   final ValueChanged<_SettingsPage> onSelect;
@@ -734,7 +744,6 @@ class _AudioOutputPane extends ConsumerWidget {
   }
 }
 
-// Kept as-is from original, just moved here
 class _AudioDeviceSection extends ConsumerWidget {
   const _AudioDeviceSection();
 
@@ -834,8 +843,7 @@ class _AudioDeviceSection extends ConsumerWidget {
   );
 }
 
-// ─── Playback pane ────────────────────────────────────────────────────────────
-
+// Playback pane
 class _PlaybackPane extends ConsumerWidget {
   const _PlaybackPane();
 
@@ -1097,6 +1105,471 @@ class _ShortcutsPane extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+// Updates pane
+const _kCurrentVersion = '0.2.3';
+
+enum _UpdateStatus { idle, checking, upToDate, available, error }
+
+class _UpdatesPane extends StatefulWidget {
+  const _UpdatesPane();
+
+  @override
+  State<_UpdatesPane> createState() => _UpdatesPaneState();
+}
+
+class _UpdatesPaneState extends State<_UpdatesPane> {
+  _UpdateStatus _status = _UpdateStatus.idle;
+  String? _latestVersion;
+  String? _releaseNotes;
+  String? _releaseUrl;
+  String? _errorMsg;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdates());
+  }
+
+  Future<void> _checkForUpdates() async {
+    setState(() {
+      _status = _UpdateStatus.checking;
+      _latestVersion = null;
+      _releaseNotes = null;
+      _releaseUrl = null;
+      _errorMsg = null;
+    });
+
+    try {
+      final uri = Uri.parse(
+        'https://api.github.com/repos/nokarin-dev/aqloss/releases/latest',
+      );
+      final resp = await http
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+            },
+          )
+          .timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode == 404) {
+        setState(() => _status = _UpdateStatus.upToDate);
+        return;
+      }
+
+      if (resp.statusCode != 200) {
+        setState(() {
+          _status = _UpdateStatus.error;
+          _errorMsg = 'GitHub responded with ${resp.statusCode}';
+        });
+        return;
+      }
+
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final tag = (data['tag_name'] as String? ?? '').replaceFirst('v', '');
+      final rawNotes = data['body'] as String? ?? '';
+      final notes = _stripDownloadsSection(rawNotes);
+      final url = data['html_url'] as String? ?? '';
+
+      final isNewer = _isNewerVersion(tag, _kCurrentVersion);
+
+      setState(() {
+        _latestVersion = tag;
+        _releaseNotes = notes.trim().isEmpty ? null : notes.trim();
+        _releaseUrl = url;
+        _status = isNewer ? _UpdateStatus.available : _UpdateStatus.upToDate;
+      });
+    } catch (e) {
+      setState(() {
+        _status = _UpdateStatus.error;
+        _errorMsg = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  bool _isNewerVersion(String remote, String local) {
+    List<int> parse(String v) => v
+        .split('.')
+        .map((s) => int.tryParse(s.replaceAll(RegExp(r'[^\d]'), '')) ?? 0)
+        .toList();
+    final r = parse(remote);
+    final l = parse(local);
+    for (
+      int i = 0;
+      i < [r.length, l.length].reduce((a, b) => a > b ? a : b);
+      i++
+    ) {
+      final rv = i < r.length ? r[i] : 0;
+      final lv = i < l.length ? l[i] : 0;
+      if (rv > lv) return true;
+      if (rv < lv) return false;
+    }
+    return false;
+  }
+
+  String _stripDownloadsSection(String raw) {
+    final hrIndex = raw.indexOf('\n---');
+    final trimmed = hrIndex != -1 ? raw.substring(0, hrIndex) : raw;
+
+    final cleaned = trimmed
+        .split('\n')
+        .where((line) {
+          final t = line.trim();
+          if (t.startsWith('[![')) return false;
+          if (RegExp(r'^https?://').hasMatch(t)) return false;
+          return true;
+        })
+        .join('\n');
+
+    return cleaned.trim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return _Pane(
+      page: _SettingsPage.updates,
+      children: [
+        _SettingsCard(
+          children: [
+            // Current version row
+            _InfoRow(
+              icon: Icons.tag_rounded,
+              title: 'Installed version',
+              value: _kCurrentVersion,
+            ),
+            _Div(),
+            // Status row
+            _UpdateStatusRow(
+              status: _status,
+              latestVersion: _latestVersion,
+              onRecheck: _checkForUpdates,
+            ),
+          ],
+        ),
+
+        // Release notes card
+        if (_status == _UpdateStatus.available && _releaseNotes != null) ...[
+          const SizedBox(height: 16),
+          _ReleaseNotesCard(notes: _releaseNotes!),
+        ],
+
+        // Error detail
+        if (_status == _UpdateStatus.error && _errorMsg != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: cs.error.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cs.error.withValues(alpha: 0.12)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 14,
+                  color: cs.error.withValues(alpha: 0.55),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _errorMsg!,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: cs.error.withValues(alpha: 0.65),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Download button
+        if (_status == _UpdateStatus.available && _releaseUrl != null) ...[
+          const SizedBox(height: 14),
+          _DownloadButton(version: _latestVersion!, url: _releaseUrl!),
+        ],
+      ],
+    );
+  }
+}
+
+class _UpdateStatusRow extends StatelessWidget {
+  final _UpdateStatus status;
+  final String? latestVersion;
+  final VoidCallback onRecheck;
+
+  const _UpdateStatusRow({
+    required this.status,
+    required this.latestVersion,
+    required this.onRecheck,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    Widget leading;
+    String label;
+    Color labelColor;
+
+    switch (status) {
+      case _UpdateStatus.idle:
+        leading = Icon(
+          Icons.hourglass_empty_rounded,
+          size: 14,
+          color: cs.onSurface.withValues(alpha: 0.22),
+        );
+        label = 'Not checked yet';
+        labelColor = cs.onSurface.withValues(alpha: 0.36);
+
+      case _UpdateStatus.checking:
+        leading = QSpinner(
+          size: 13,
+          color: cs.onSurface.withValues(alpha: 0.38),
+          strokeWidth: 1.5,
+        );
+        label = 'Checking for updates…';
+        labelColor = cs.onSurface.withValues(alpha: 0.48);
+
+      case _UpdateStatus.upToDate:
+        leading = Container(
+          width: 7,
+          height: 7,
+          margin: const EdgeInsets.only(left: 3, right: 3),
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color(0xFF50FA7B),
+          ),
+        );
+        label = latestVersion != null
+            ? 'Up to date  ·  $latestVersion is the latest'
+            : 'You\'re on the latest version';
+        labelColor = cs.onSurface.withValues(alpha: 0.55);
+
+      case _UpdateStatus.available:
+        leading = Container(
+          width: 7,
+          height: 7,
+          margin: const EdgeInsets.only(left: 3, right: 3),
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color(0xFFFFB86C),
+          ),
+        );
+        label = 'v$latestVersion is available';
+        labelColor = const Color(0xFFFFB86C);
+
+      case _UpdateStatus.error:
+        leading = Icon(
+          Icons.wifi_off_rounded,
+          size: 14,
+          color: cs.onSurface.withValues(alpha: 0.30),
+        );
+        label = 'Could not check for updates';
+        labelColor = cs.onSurface.withValues(alpha: 0.40);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Row(
+        children: [
+          leading,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: labelColor),
+            ),
+          ),
+          if (status != _UpdateStatus.checking)
+            _HoverTextBtn(label: 'Check now', onTap: onRecheck),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReleaseNotesCard extends StatelessWidget {
+  final String notes;
+  const _ReleaseNotesCard({required this.notes});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    final lines = notes.split('\n').where((l) => l.trim().isNotEmpty).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.article_outlined,
+                size: 11,
+                color: cs.onSurface.withValues(alpha: 0.24),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'RELEASE NOTES',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                  color: cs.onSurface.withValues(alpha: 0.24),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 220),
+          decoration: BoxDecoration(
+            color: cs.onSurface.withValues(alpha: 0.025),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: lines.map((line) {
+                  final trimmed = line.trimLeft();
+                  final isBullet =
+                      trimmed.startsWith('- ') ||
+                      trimmed.startsWith('* ') ||
+                      trimmed.startsWith('• ');
+                  final isHeading =
+                      trimmed.startsWith('## ') || trimmed.startsWith('# ');
+                  final text = isBullet
+                      ? trimmed.substring(2)
+                      : isHeading
+                      ? trimmed.replaceFirst(RegExp(r'^#+\s*'), '')
+                      : trimmed;
+
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: isHeading ? 8 : 4,
+                      top: isHeading ? 4 : 0,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isBullet) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(top: 5, right: 8),
+                            child: Container(
+                              width: 3,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: cs.onSurface.withValues(alpha: 0.30),
+                              ),
+                            ),
+                          ),
+                        ],
+                        Expanded(
+                          child: Text(
+                            text,
+                            style: TextStyle(
+                              fontSize: isHeading ? 12 : 11.5,
+                              fontWeight: isHeading
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: isHeading
+                                  ? cs.onSurface.withValues(alpha: 0.72)
+                                  : cs.onSurface.withValues(alpha: 0.54),
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DownloadButton extends StatefulWidget {
+  final String version;
+  final String url;
+  const _DownloadButton({required this.version, required this.url});
+
+  @override
+  State<_DownloadButton> createState() => _DownloadButtonState();
+}
+
+class _DownloadButtonState extends State<_DownloadButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () {
+          if (Platform.isWindows) {
+            Process.run('cmd', ['/c', 'start', widget.url]);
+          } else if (Platform.isLinux) {
+            Process.run('xdg-open', [widget.url]);
+          } else if (Platform.isMacOS) {
+            Process.run('open', [widget.url]);
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 130),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? cs.onSurface.withValues(alpha: 0.12)
+                : cs.onSurface.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: cs.onSurface.withValues(alpha: 0.10)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 14,
+                color: cs.onSurface.withValues(alpha: 0.60),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'View release on GitHub  ·  v${widget.version}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: cs.onSurface.withValues(alpha: 0.70),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1809,7 +2282,6 @@ class _HoverTextBtnState extends State<_HoverTextBtn> {
   }
 }
 
-// Audio output pane
 class _ScanButton extends StatefulWidget {
   final bool isScanning;
   final VoidCallback? onTap;

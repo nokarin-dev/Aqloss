@@ -10,6 +10,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
+- [Frontend|UpdateChecker] Update checker in settings 
 - [Frontend|UI] Press scale animation to play button
 - [Frontend|Lyrics] Lrclib search & get API fallback
 - [Frontend|Notifier] Media player notifications
