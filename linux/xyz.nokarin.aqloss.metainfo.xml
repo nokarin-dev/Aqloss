@@ -60,7 +60,7 @@
                 <p>Added media notifications, fix spacebar shortcut, and more.</p>
                 <ul>
                     <li>Press scale animation to play button</li>
-                    <li>Lrclib search & get API fallback</li>
+                    <li>Lrclib search &amp; get API fallback</li>
                     <li>Reopen output stream at native sample rate on load to avoid unnecessary resampling</li>
                     <li>Added hardware capability check in probe_exact_rate before opening streams</li>
                     <li>Fixed Spacebar shortcut being swallowed when search field is focused (migrated to HardwareKeyboard)</li>
