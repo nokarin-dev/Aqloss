@@ -16,6 +16,8 @@ Aqloss is a music player built around a Rust audio engine, with optional WASAPI 
   s.platform = :ios, '16.0'
   s.swift_version = '5.0'
 
+  s.frameworks = 'CoreAudio', 'AudioToolbox', 'AVFoundation'
+
   s.script_phase = {
     :name => 'Build Rust library',
     :script => 'sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../rust aqloss_rust_core',
@@ -23,6 +25,7 @@ Aqloss is a music player built around a Rust audio engine, with optional WASAPI 
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     :output_files => ["${BUILT_PRODUCTS_DIR}/libaqloss_rust_core.a"],
   }
+
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
