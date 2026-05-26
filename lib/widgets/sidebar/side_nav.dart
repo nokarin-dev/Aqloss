@@ -8,7 +8,6 @@ import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/playlist_art_icon.dart';
 import 'package:aqloss/widgets/shared/input_dialog.dart';
-import 'package:aqloss/widgets/sidebar/folder_manager_dialog.dart';
 import 'package:aqloss/widgets/sidebar/playlist_nav_item.dart';
 
 class SideNav extends ConsumerStatefulWidget {
@@ -61,13 +60,6 @@ class _SideNavState extends ConsumerState<SideNav>
     super.dispose();
   }
 
-  Future<void> _showFolderManager() async {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => const FolderManagerDialog(),
-    );
-  }
-
   Future<void> _createPlaylist() async {
     final ctrl = TextEditingController();
     final name = await showDialog<String>(
@@ -106,7 +98,6 @@ class _SideNavState extends ConsumerState<SideNav>
     final library = ref.watch(libraryProvider);
     final player = ref.watch(playerProvider);
     final appStyle = ref.watch(settingsProvider).appStyle;
-    final isScanning = library.status == LibraryStatus.scanning;
 
     return AnimatedBuilder(
       animation: _anim,
@@ -119,13 +110,11 @@ class _SideNavState extends ConsumerState<SideNav>
         route: widget.route,
         collapsed: widget.collapsed,
         isIslands: appStyle == AppStyle.islands,
-        isScanning: isScanning,
         playlists: playlists,
         library: library,
         player: player,
         onSelect: widget.onSelect,
         onToggleCollapse: widget.onToggleCollapse,
-        onShowFolderManager: _showFolderManager,
         onCreatePlaylist: _createPlaylist,
         onRenamePlaylist: _renamePlaylist,
         onDeletePlaylist: (pl) =>
@@ -133,7 +122,6 @@ class _SideNavState extends ConsumerState<SideNav>
         onPlayPlaylist: (pl) => ref
             .read(playerProvider.notifier)
             .loadWithQueue(pl.tracks.first, pl.tracks),
-        onRescan: () => ref.read(libraryProvider.notifier).rescanAll(),
         onAddTracksToPlaylist: (pl, tracks) =>
             ref.read(playlistProvider.notifier).addTracks(pl.id, tracks),
       ),
@@ -141,42 +129,35 @@ class _SideNavState extends ConsumerState<SideNav>
   }
 }
 
-// ── Body (stateless, all data passed in) ──────────────────────────────────────
-
+// Body
 class _SideNavBody extends StatelessWidget {
   final int route;
   final bool collapsed;
   final bool isIslands;
-  final bool isScanning;
   final List<Playlist> playlists;
   final LibraryState library;
   final PlayerState player;
   final ValueChanged<int> onSelect;
   final VoidCallback onToggleCollapse;
-  final VoidCallback onShowFolderManager;
   final VoidCallback onCreatePlaylist;
   final ValueChanged<Playlist> onRenamePlaylist;
   final ValueChanged<Playlist> onDeletePlaylist;
   final ValueChanged<Playlist> onPlayPlaylist;
-  final VoidCallback onRescan;
   final void Function(Playlist, List<Track>) onAddTracksToPlaylist;
 
   const _SideNavBody({
     required this.route,
     required this.collapsed,
     required this.isIslands,
-    required this.isScanning,
     required this.playlists,
     required this.library,
     required this.player,
     required this.onSelect,
     required this.onToggleCollapse,
-    required this.onShowFolderManager,
     required this.onCreatePlaylist,
     required this.onRenamePlaylist,
     required this.onDeletePlaylist,
     required this.onPlayPlaylist,
-    required this.onRescan,
     required this.onAddTracksToPlaylist,
   });
 
@@ -247,36 +228,6 @@ class _SideNavBody extends StatelessWidget {
           isActive: route == 2,
           collapsed: collapsed,
           onTap: () => onSelect(2),
-        ),
-
-        const SizedBox(height: 4),
-        collapsed ? const SizedBox(height: 2) : _SectionLabel('LIBRARY'),
-
-        _NavItem(
-          icon: Icons.folder_open_outlined,
-          activeIcon: Icons.folder_open_rounded,
-          label: 'Folders',
-          isActive: false,
-          collapsed: collapsed,
-          trailing: isScanning
-              ? SizedBox(
-                  width: 11,
-                  height: 11,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.2,
-                    color: cs.onSurface.withValues(alpha: 0.25),
-                  ),
-                )
-              : null,
-          onTap: onShowFolderManager,
-        ),
-        _NavItem(
-          icon: Icons.refresh_rounded,
-          activeIcon: Icons.refresh_rounded,
-          label: 'Rescan',
-          isActive: false,
-          collapsed: collapsed,
-          onTap: isScanning ? null : onRescan,
         ),
 
         if (!collapsed && library.totalTracks > 0)

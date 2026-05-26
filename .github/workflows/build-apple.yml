@@ -60,7 +60,7 @@ jobs:
 
       # Build
       - name: Build macOS (release)
-        run: flutter build macos --release --dart-define=PORTABLE=false
+        run: flutter build macos --release
 
       #  Package as dmg
       - name: Create .dmg
@@ -90,7 +90,7 @@ jobs:
 
       # Portable zip
       - name: Build macOS (portable)
-        run: flutter build macos --release --dart-define=PORTABLE=true
+        run: flutter build macos --release
 
       - name: Package macOS portable
         run: |
@@ -156,7 +156,7 @@ jobs:
       # Build
       - name: Build iOS (release, no-codesign)
         run: |
-          flutter build ios --release --no-codesign --dart-define=PORTABLE=false
+          flutter build ios --release --no-codesign
           echo "✓ iOS build successful"
 
       # Package unsigned IPA

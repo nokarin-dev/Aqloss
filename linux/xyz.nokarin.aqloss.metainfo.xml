@@ -54,6 +54,20 @@
     </screenshots>
 
     <releases>
+        <release version="0.2.3" date="2026-05-19">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.3</url>
+            <description>
+                <p>Added media notifications, fix spacebar shortcut, and more.</p>
+                <ul>
+                    <li>Press scale animation to play button</li>
+                    <li>Lrclib search & get API fallback</li>
+                    <li>Reopen output stream at native sample rate on load to avoid unnecessary resampling</li>
+                    <li>Added hardware capability check in probe_exact_rate before opening streams</li>
+                    <li>Fixed Spacebar shortcut being swallowed when search field is focused (migrated to HardwareKeyboard)</li>
+                    <li>Added debounce guard (_playPauseBusy) to prevent backend freezes from play/pause spam</li>
+                </ul>
+            </description>
+        </release>
         <release version="0.2.2" date="2026-05-19">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.2</url>
             <description>

@@ -18,17 +18,19 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Fixed
 
-- [UI|Shortcuts] Fixed Spacebar shortcut being swallowed when search field is focused (migrated to HardwareKeyboard)
-- [Audio|Backend] Added debounce guard (_playPauseBusy) to prevent backend freezes from play/pause spam
+- [Frontend|Shortcuts] Fixed Spacebar shortcut being swallowed when search field is focused (migrated to HardwareKeyboard)
+- [Audio|Backend] Added debounce guard to prevent backend freezes from play/pause spam
 - [Audio|Backend] Fixed missing stop_drain() call in the play() resume path
 
 ### Changed
 
+- [Frontend|Settingss] Settings now uses a two-panel layout
 - [Frontend|Theme] Adjust dark theme to be darker and cleaner
 - [Frontend|HomeScreen] Improve sidebar collapse animation
 - [Frontend|PlayerScreen] Player screen now has slide-in animation on track change
 - [Frontend|MiniPlayer] Adjust mini player bar UI
 - [Backend|Audio] Stream no longer blindly probes for the highest supported rate
+- [Frontend] Music Folders moved into Settings
 - [Codebase] Major restructure of Flutter source
 
 ---
