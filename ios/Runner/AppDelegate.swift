@@ -3,20 +3,20 @@ import UIKit
 import MediaPlayer
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
   private var mediaControls: MediaControlsPlugin?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
+    GeneratedPluginRegistrant.register(with: self)
 
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    let messenger = engineBridge.binaryMessenger
-    mediaControls = MediaControlsPlugin(messenger: messenger)
+    if let controller = window?.rootViewController as? FlutterViewController {
+        mediaControls = MediaControlsPlugin(messenger: controller.binaryMessenger)
+    }
+
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
 
