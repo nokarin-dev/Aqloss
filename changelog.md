@@ -6,11 +6,15 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-## [Unreleased]
+No Changes Yet.
+
+---
+
+## [0.2.3] - 2026-05-26
 
 ### Added
 
-- [Frontend|UpdateChecker] Update checker in settings 
+- [Frontend|UpdateChecker] Update checker in settings
 - [Frontend|UI] Press scale animation to play button
 - [Frontend|Lyrics] Lrclib search & get API fallback
 - [Frontend|Notifier] Media player notifications

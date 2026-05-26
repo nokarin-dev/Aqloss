@@ -54,7 +54,7 @@
     </screenshots>
 
     <releases>
-        <release version="0.2.3" date="2026-05-19">
+        <release version="0.2.3" date="2026-05-26">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.3</url>
             <description>
                 <p>Added media notifications, fix spacebar shortcut, and more.</p>
