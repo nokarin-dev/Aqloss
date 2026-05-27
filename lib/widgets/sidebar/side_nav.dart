@@ -229,6 +229,14 @@ class _SideNavBody extends StatelessWidget {
           collapsed: collapsed,
           onTap: () => onSelect(2),
         ),
+        _NavItem(
+          icon: Icons.history_outlined,
+          activeIcon: Icons.history_rounded,
+          label: 'History',
+          isActive: route == 3,
+          collapsed: collapsed,
+          onTap: () => onSelect(3),
+        ),
 
         if (!collapsed && library.totalTracks > 0)
           Padding(
@@ -352,9 +360,9 @@ class _SideNavBody extends StatelessWidget {
           icon: Icons.settings_outlined,
           activeIcon: Icons.settings_rounded,
           label: 'Settings',
-          isActive: route == 3,
+          isActive: route == 4,
           collapsed: collapsed,
-          onTap: () => onSelect(3),
+          onTap: () => onSelect(4),
         ),
 
         const SizedBox(height: 8),
@@ -363,8 +371,7 @@ class _SideNavBody extends StatelessWidget {
   }
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
-
+// Sub-widgets
 class _CollapseBtn extends StatefulWidget {
   final bool collapsed;
   final VoidCallback onTap;

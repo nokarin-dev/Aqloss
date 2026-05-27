@@ -6,6 +6,8 @@ import 'package:aqloss/providers/lyrics_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/player_controls.dart';
+import 'package:aqloss/providers/history_provider.dart';
+import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/widgets/spectrum_display.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
@@ -306,12 +308,12 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
 }
 
 // Track info
-class _TrackInfo extends StatelessWidget {
+class _TrackInfo extends ConsumerWidget {
   final Track? track;
   const _TrackInfo({this.track});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final isWide = MediaQuery.of(context).size.width > 700;
     final artist = track?.artist;
@@ -347,15 +349,22 @@ class _TrackInfo extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
-          Text(
-            subtitle.isEmpty ? '—' : subtitle,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: cs.onSurface.withValues(alpha: 0.34),
-              fontWeight: FontWeight.w300,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subtitle.isEmpty ? '-' : subtitle,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: cs.onSurface.withValues(alpha: 0.34),
+                    fontWeight: FontWeight.w300,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (track != null) _PlayerLoveBtn(track: track!),
+            ],
           ),
         ],
       ),
@@ -415,6 +424,92 @@ class _Badge extends StatelessWidget {
           color: cs.onSurface.withValues(alpha: 0.25),
           letterSpacing: 0.5,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// Love button
+class _PlayerLoveBtn extends ConsumerStatefulWidget {
+  final Track track;
+  const _PlayerLoveBtn({required this.track});
+
+  @override
+  ConsumerState<_PlayerLoveBtn> createState() => _PlayerLoveBtnState();
+}
+
+class _PlayerLoveBtnState extends ConsumerState<_PlayerLoveBtn>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  late Animation<double> _scale;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.5,
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutBack));
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_busy) return;
+    _busy = true;
+    await _anim.forward();
+    await _anim.reverse();
+    final newLoved = await ref
+        .read(historyProvider.notifier)
+        .toggleLove(widget.track);
+    final settings = ref.read(settingsProvider);
+    if (settings.scrobbleReady) {
+      final creds = LastFmService.resolve(
+        userApiKey: settings.lastFmApiKey,
+        userApiSecret: settings.lastFmApiSecret,
+      );
+      LastFmService.setLoved(
+        sessionKey: settings.lastFmSessionKey!,
+        creds: creds,
+        artist: widget.track.displayArtist,
+        track: widget.track.displayTitle,
+        loved: newLoved,
+      );
+    }
+    _busy = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isLoved = ref.watch(historyProvider).isLoved(widget.track);
+    return ScaleTransition(
+      scale: _scale,
+      child: GestureDetector(
+        onTap: _toggle,
+        behavior: HitTestBehavior.opaque,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Icon(
+              isLoved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 18,
+              color: isLoved
+                  ? const Color(0xFFFF6B8A)
+                  : cs.onSurface.withValues(alpha: 0.28),
+            ),
+          ),
         ),
       ),
     );

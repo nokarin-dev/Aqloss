@@ -137,6 +137,40 @@ class LastFmService {
     }
   }
 
+  // Send track.love or track.unlove to Last.fm.
+  static Future<bool> setLoved({
+    required String sessionKey,
+    required LastFmCredentials creds,
+    required String artist,
+    required String track,
+    required bool loved,
+  }) async {
+    if (!creds.isValid) return false;
+    try {
+      final params = <String, String>{
+        'method': loved ? 'track.love' : 'track.unlove',
+        'artist': artist,
+        'track': track,
+        'sk': sessionKey,
+        'api_key': creds.apiKey,
+        'format': 'json',
+      };
+      params['api_sig'] = _sign(params, creds.apiSecret);
+      final resp = await http.post(Uri.parse(_kApiUrl), body: params);
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      if (body.containsKey('error')) {
+        Logger.debugLastfm(
+          '${loved ? 'love' : 'unlove'} error ${body['error']}: ${body['message']}',
+        );
+        return false;
+      }
+      return true;
+    } catch (e) {
+      Logger.debugLastfm('setLoved: $e');
+      return false;
+    }
+  }
+
   static String _sign(Map<String, String> params, String secret) {
     final keys =
         params.keys.where((k) => k != 'format' && k != 'callback').toList()

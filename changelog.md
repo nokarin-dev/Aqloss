@@ -6,7 +6,12 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-No Changes Yet.
+## [Unreleased]
+
+### Added
+
+- [Frontend] History Screen
+- [Frontend|Lastfm] Sync loved local track with lastfm
 
 ---
 

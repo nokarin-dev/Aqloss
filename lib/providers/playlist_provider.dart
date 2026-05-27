@@ -96,6 +96,11 @@ class PlaylistNotifier extends StateNotifier<List<Playlist>> {
   }
 
   Playlist? find(String id) => state.where((p) => p.id == id).firstOrNull;
+
+  Future<void> importPlaylist(Playlist playlist) async {
+    state = [...state, playlist];
+    await _save();
+  }
 }
 
 final playlistProvider =

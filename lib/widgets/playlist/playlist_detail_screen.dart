@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
+import 'package:aqloss/services/playlist_io_service.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final Playlist playlist;
@@ -59,6 +61,35 @@ class PlaylistDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                // Export button
+                _PlaylistHeaderBtn(
+                  icon: Icons.upload_rounded,
+                  tooltip: 'Export playlist',
+                  onTap: () async {
+                    final result = await PlaylistIOService.export(current);
+                    if (context.mounted) {
+                      if (result.success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              result.savedPath != null
+                                  ? 'Exported to ${result.savedPath}'
+                                  : 'Exported',
+                            ),
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      } else if (result.error != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Export failed: ${result.error}'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
                 if (current.tracks.isNotEmpty)
                   GestureDetector(
                     onTap: () => playerNotifier.loadWithQueue(
@@ -265,6 +296,23 @@ class _PlaylistTrackTileState extends ConsumerState<PlaylistTrackTile> {
                 ),
               ),
               const SizedBox(width: 4),
+              // Love button
+              Consumer(
+                builder: (context, ref, _) {
+                  final isLoved = ref
+                      .watch(historyProvider)
+                      .isLoved(widget.track);
+                  return AnimatedOpacity(
+                    duration: const Duration(milliseconds: 120),
+                    opacity: _hovered || isLoved ? 1.0 : 0.0,
+                    child: _PlaylistLoveBtn(
+                      track: widget.track,
+                      isLoved: isLoved,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 4),
               ReorderableDragStartListener(
                 index: widget.index,
                 child: Padding(
@@ -280,6 +328,131 @@ class _PlaylistTrackTileState extends ConsumerState<PlaylistTrackTile> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Love button
+class _PlaylistLoveBtn extends ConsumerStatefulWidget {
+  final Track track;
+  final bool isLoved;
+  const _PlaylistLoveBtn({required this.track, required this.isLoved});
+
+  @override
+  ConsumerState<_PlaylistLoveBtn> createState() => _PlaylistLoveBtnState();
+}
+
+class _PlaylistLoveBtnState extends ConsumerState<_PlaylistLoveBtn>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  late Animation<double> _scale;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 160),
+    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.45,
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutBack));
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_busy) return;
+    _busy = true;
+    await _anim.forward();
+    await _anim.reverse();
+    await ref.read(historyProvider.notifier).toggleLove(widget.track);
+    _busy = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ScaleTransition(
+      scale: _scale,
+      child: GestureDetector(
+        onTap: _toggle,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: Center(
+            child: Icon(
+              widget.isLoved
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              size: 13,
+              color: widget.isLoved
+                  ? const Color(0xFFFF6B8A)
+                  : cs.onSurface.withValues(alpha: 0.28),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Header icon button
+class _PlaylistHeaderBtn extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  const _PlaylistHeaderBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  State<_PlaylistHeaderBtn> createState() => _PlaylistHeaderBtnState();
+}
+
+class _PlaylistHeaderBtnState extends State<_PlaylistHeaderBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: widget.tooltip,
+      preferBelow: false,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? cs.onSurface.withValues(alpha: 0.07)
+                  : cs.onSurface.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 15,
+              color: cs.onSurface.withValues(alpha: 0.46),
+            ),
           ),
         ),
       ),

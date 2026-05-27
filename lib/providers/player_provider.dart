@@ -6,6 +6,7 @@ import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/util/logger.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,6 +70,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   bool _handlingTrackEnd = false;
   bool _playPauseBusy = false; // debounce guard
   SettingsState Function()? _readSettings;
+  HistoryNotifier? _historyNotifier;
 
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
@@ -96,6 +98,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _readSettings = r;
   }
 
+  void injectHistoryNotifier(HistoryNotifier n) {
+    _historyNotifier = n;
+  }
+
   @override
   bool get mounted => !_disposed;
 
@@ -108,9 +114,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> _saveVolume(double v) async =>
       (await SharedPreferences.getInstance()).setDouble(_kVolumeKey, v);
 
-  Future<void> loadWithQueue(Track track, List<Track> queue) async {
-    final idx = queue.indexWhere((t) => t.path == track.path);
-    state = state.copyWith(queue: queue, queueIndex: idx < 0 ? 0 : idx);
+  Future<void> loadWithQueue(
+    Track track,
+    List<Track> queue, {
+    int? atIndex,
+  }) async {
+    int idx;
+    if (atIndex != null && atIndex >= 0 && atIndex < queue.length) {
+      idx = atIndex;
+    } else {
+      idx = queue.indexWhere((t) => t.path == track.path);
+      if (idx < 0) idx = 0;
+    }
+    state = state.copyWith(queue: queue, queueIndex: idx);
     await _loadAndPlay(track);
   }
 
@@ -151,6 +167,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       state = state.copyWith(status: PlayerStatus.playing);
       DiscordService.update(state, positionSecs: 0.0);
       ScrobbleController.instance.onTrackStart(track);
+      _historyNotifier?.recordPlay(track);
       _startTimer();
     } catch (e) {
       if (mounted) state = state.copyWith(status: PlayerStatus.error);
@@ -405,5 +422,6 @@ final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
 ) {
   final n = PlayerNotifier();
   n.injectSettingsReader(() => ref.read(settingsProvider));
+  n.injectHistoryNotifier(ref.read(historyProvider.notifier));
   return n;
 });

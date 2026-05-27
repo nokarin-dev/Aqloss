@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
@@ -1011,6 +1012,20 @@ class _DetailTrackRowState extends State<_DetailTrackRow> {
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
+              const SizedBox(width: 6),
+              // Love button
+              Consumer(
+                builder: (context, ref, _) {
+                  final isLoved = ref
+                      .watch(historyProvider)
+                      .isLoved(widget.track);
+                  return AnimatedOpacity(
+                    duration: const Duration(milliseconds: 120),
+                    opacity: _hovered || isLoved ? 1.0 : 0.0,
+                    child: _AlbumLoveBtn(track: widget.track, isLoved: isLoved),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -1088,6 +1103,79 @@ class _PlayingBarsState extends State<_PlayingBars>
               ),
             );
           }),
+        ),
+      ),
+    );
+  }
+}
+
+// Love button
+class _AlbumLoveBtn extends ConsumerStatefulWidget {
+  final Track track;
+  final bool isLoved;
+  const _AlbumLoveBtn({required this.track, required this.isLoved});
+
+  @override
+  ConsumerState<_AlbumLoveBtn> createState() => _AlbumLoveBtnState();
+}
+
+class _AlbumLoveBtnState extends ConsumerState<_AlbumLoveBtn>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  late Animation<double> _scale;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 160),
+    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.45,
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutBack));
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_busy) return;
+    _busy = true;
+    await _anim.forward();
+    await _anim.reverse();
+    await ref.read(historyProvider.notifier).toggleLove(widget.track);
+    _busy = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scale,
+      child: GestureDetector(
+        onTap: _toggle,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: Center(
+            child: Icon(
+              widget.isLoved
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              size: 13,
+              color: widget.isLoved
+                  ? const Color(0xFFFF6B8A)
+                  : Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.28),
+            ),
+          ),
         ),
       ),
     );

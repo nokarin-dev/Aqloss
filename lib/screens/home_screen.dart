@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:aqloss/screens/history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,7 +76,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     if (_route == 0) return const PlayerScreen();
     if (_route == 1) return const LibraryScreen();
     if (_route == 2) return const AlbumsScreen();
-    if (_route == 3) return const SettingsScreen();
+    if (_route == 3) return const HistoryScreen();
+    if (_route == 4) return const SettingsScreen();
 
     final playlists = ref.read(playlistProvider);
     final idx = _route - 10;
@@ -122,6 +124,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     }
     if (event.logicalKey == LogicalKeyboardKey.digit4) {
       setState(() => _route = 3);
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.digit5) {
+      setState(() => _route = 4);
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.keyB) {
@@ -284,11 +290,18 @@ class _MobileNavBar extends StatelessWidget {
                     onTap: () => onDestinationSelected(2),
                   ),
                   _NavTab(
+                    icon: Icons.history_outlined,
+                    activeIcon: Icons.history_rounded,
+                    label: 'History',
+                    isSelected: selectedIndex == 3,
+                    onTap: () => onDestinationSelected(3),
+                  ),
+                  _NavTab(
                     icon: Icons.tune_outlined,
                     activeIcon: Icons.tune_rounded,
                     label: 'Settings',
-                    isSelected: selectedIndex == 3,
-                    onTap: () => onDestinationSelected(3),
+                    isSelected: selectedIndex == 4,
+                    onTap: () => onDestinationSelected(4),
                   ),
                 ],
               ),
