@@ -547,6 +547,7 @@ jobs:
   # macOS
   test-macos:
     name: macOS (dmg + portable)
+    needs: [analyze, rust-check]
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -636,6 +637,7 @@ jobs:
   # iOS
   test-ios:
     name: iOS
+    needs: [analyze, rust-check]
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
