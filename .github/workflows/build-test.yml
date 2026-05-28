@@ -546,7 +546,7 @@ jobs:
 
   # macOS
   test-macos:
-    name: macOS (dmg + portable)
+    name: Build Test - macOS (dmg + portable)
     needs: [analyze, rust-check]
     runs-on: macos-26
     steps:
@@ -636,7 +636,7 @@ jobs:
 
   # iOS
   test-ios:
-    name: iOS
+    name: Build Test - iOS
     needs: [analyze, rust-check]
     runs-on: macos-26
     steps:
