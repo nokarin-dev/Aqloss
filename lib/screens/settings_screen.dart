@@ -46,7 +46,7 @@ extension _SettingsPageX on _SettingsPage {
 
   String get subtitle => switch (this) {
     _SettingsPage.musicFolders =>
-      'Directories to watch for music files, and library scanning options',
+      'Directories that Shiranami watches for audio files',
     _SettingsPage.audioOutput => 'Device and output mode selection',
     _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
     _SettingsPage.dsp => 'Equalizer bands and soft-clip limiter',
@@ -365,7 +365,121 @@ class _NarrowSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingsContent(page: page, isDesktop: isDesktop);
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+          child: _NarrowSettingsNav(current: page, onSelect: onSelect),
+        ),
+        Container(
+          height: 1,
+          margin: const EdgeInsets.only(top: 10),
+          color: cs.onSurface.withValues(alpha: 0.05),
+        ),
+        Expanded(
+          child: _SettingsContent(page: page, isDesktop: isDesktop),
+        ),
+      ],
+    );
+  }
+}
+
+class _NarrowSettingsNav extends StatelessWidget {
+  final _SettingsPage current;
+  final ValueChanged<_SettingsPage> onSelect;
+
+  const _NarrowSettingsNav({required this.current, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final sections = <String, List<_SettingsPage>>{};
+    for (final p in _SettingsPage.values) {
+      sections.putIfAbsent(p.section, () => []).add(p);
+    }
+
+    return Row(
+      children: [
+        for (final entry in sections.entries) ...[
+          for (final p in entry.value)
+            _NarrowNavChip(
+              page: p,
+              active: current == p,
+              onTap: () => onSelect(p),
+            ),
+          if (entry.key != sections.keys.last)
+            Container(
+              width: 1,
+              height: 22,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              color: cs.onSurface.withValues(alpha: 0.09),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _NarrowNavChip extends StatelessWidget {
+  final _SettingsPage page;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _NarrowNavChip({
+    required this.page,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        margin: const EdgeInsets.only(right: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: active
+              ? cs.onSurface.withValues(alpha: 0.10)
+              : cs.onSurface.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active
+                ? cs.onSurface.withValues(alpha: 0.14)
+                : cs.onSurface.withValues(alpha: 0.06),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              page.icon,
+              size: 12,
+              color: active
+                  ? cs.onSurface.withValues(alpha: 0.80)
+                  : cs.onSurface.withValues(alpha: 0.32),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              page.label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: active ? FontWeight.w500 : FontWeight.w400,
+                color: active
+                    ? cs.onSurface.withValues(alpha: 0.86)
+                    : cs.onSurface.withValues(alpha: 0.40),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1719,7 +1833,6 @@ class _IconBtn26State extends State<_IconBtn26> {
 }
 
 // Row types
-
 class _ToggleRow extends StatefulWidget {
   final IconData icon;
   final String title, subtitle;
