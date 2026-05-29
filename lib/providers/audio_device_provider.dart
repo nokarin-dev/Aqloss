@@ -1,6 +1,7 @@
 import 'package:aqloss/util/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 
 class AudioDeviceEntry {
@@ -101,9 +102,11 @@ class AudioDeviceNotifier extends AsyncNotifier<AudioDeviceState> {
 
     try {
       final exclusive = mode == AudioOutputMode.exclusive;
-      await Future(
-        () => backend.reinitEngine(deviceId: deviceId, exclusive: exclusive),
-      ).timeout(const Duration(seconds: 8));
+      final ok = await AudioService.reinitToDevice(
+        deviceId: deviceId,
+        exclusive: exclusive,
+      );
+      if (!ok) throw Exception('reinitToDevice returned false');
 
       ref.read(settingsProvider.notifier).setAudioDevice(deviceId, mode);
 
@@ -118,6 +121,22 @@ class AudioDeviceNotifier extends AsyncNotifier<AudioDeviceState> {
       Logger.errorDeviceProvider('selectDevice error: $e');
       state = AsyncValue.data(current.copyWith(isSwitching: false));
       rethrow;
+    }
+  }
+
+  Future<void> refreshAfterDeviceChange(String? newDefaultId) async {
+    try {
+      await scan();
+      final s = state.value;
+      final savedId = ref.read(settingsProvider).selectedDeviceId;
+      if (savedId == null && newDefaultId != null && s != null) {
+        final found = s.devices.any((d) => d.id == newDefaultId);
+        if (found) {
+          state = AsyncValue.data(s.copyWith(selectedId: newDefaultId));
+        }
+      }
+    } catch (e) {
+      Logger.errorDeviceProvider('refreshAfterDeviceChange: $e');
     }
   }
 }

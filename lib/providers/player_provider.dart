@@ -4,8 +4,10 @@ import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/util/logger.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
@@ -68,12 +70,17 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _positionTimer;
   bool _disposed = false;
   bool _handlingTrackEnd = false;
-  bool _playPauseBusy = false; // debounce guard
+  bool _playPauseBusy = false;
   SettingsState Function()? _readSettings;
   HistoryNotifier? _historyNotifier;
 
+  // Guards against concurrent device-change reinit
+  bool _deviceReinitBusy = false;
+
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
+
+    // Freeze recovery
     AudioService.onFreezeDetected = () async {
       final track = state.currentTrack;
       if (track == null) return;
@@ -92,7 +99,68 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         if (mounted) state = state.copyWith(status: PlayerStatus.error);
       }
     };
+
+    // Audio device changed
+    AudioService.onDeviceChanged = (String? newDefaultDeviceId) async {
+      if (!mounted || _deviceReinitBusy) return;
+      _deviceReinitBusy = true;
+
+      final wasPlaying = state.status == PlayerStatus.playing;
+      final track = state.currentTrack;
+      final posSecs = state.position.inMilliseconds / 1000.0;
+
+      _stopTimer();
+      if (mounted) {
+        state = state.copyWith(status: PlayerStatus.paused);
+      }
+
+      Logger.warnPlayerProvider(
+        'device changed → $newDefaultDeviceId  wasPlaying=$wasPlaying',
+      );
+      _deviceNotifier?.refreshAfterDeviceChange(newDefaultDeviceId);
+
+      try {
+        final settings = _readSettings?.call();
+        final exclusive = settings?.outputMode == AudioOutputMode.exclusive;
+
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
+
+        final ok = await AudioService.reinitToDevice(
+          deviceId: newDefaultDeviceId,
+          exclusive: exclusive,
+        );
+
+        if (!mounted) return;
+        if (!ok) {
+          state = state.copyWith(status: PlayerStatus.error);
+          _deviceReinitBusy = false;
+          return;
+        }
+
+        if (wasPlaying && track != null) {
+          try {
+            state = state.copyWith(status: PlayerStatus.loading);
+            await AudioService.loadTrack(track.path);
+            if (!mounted) return;
+            if (posSecs > 0.5) await AudioService.seek(posSecs);
+            await AudioService.play();
+            if (mounted) {
+              state = state.copyWith(status: PlayerStatus.playing);
+              _startTimer();
+            }
+          } catch (e) {
+            Logger.errorPlayerProvider('device-change reload failed: $e');
+            if (mounted) state = state.copyWith(status: PlayerStatus.error);
+          }
+        }
+      } finally {
+        _deviceReinitBusy = false;
+      }
+    };
   }
+
+  AudioDeviceNotifier? _deviceNotifier;
 
   void injectSettingsReader(SettingsState Function() r) {
     _readSettings = r;
@@ -100,6 +168,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   void injectHistoryNotifier(HistoryNotifier n) {
     _historyNotifier = n;
+  }
+
+  void injectDeviceNotifier(AudioDeviceNotifier n) {
+    _deviceNotifier = n;
   }
 
   @override
@@ -186,7 +258,43 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (_playPauseBusy) return;
     _playPauseBusy = true;
     try {
-      await AudioService.play();
+      try {
+        await AudioService.play();
+      } catch (e) {
+        Logger.warnPlayerProvider('play() failed ($e) — attempting reinit');
+        if (!mounted) return;
+        final settings = _readSettings?.call();
+        final deviceId = settings?.selectedDeviceId;
+        final exclusive = settings?.outputMode == AudioOutputMode.exclusive;
+        final ok = await AudioService.reinitToDevice(
+          deviceId: deviceId,
+          exclusive: exclusive,
+        );
+        if (!ok || !mounted) {
+          state = state.copyWith(status: PlayerStatus.error);
+          return;
+        }
+        final track = state.currentTrack;
+        if (track != null) {
+          final posSecs = state.position.inMilliseconds / 1000.0;
+          state = state.copyWith(status: PlayerStatus.loading);
+          try {
+            await AudioService.loadTrack(track.path);
+            if (!mounted) return;
+            if (posSecs > 0.5) await AudioService.seek(posSecs);
+            await AudioService.play();
+          } catch (e2) {
+            Logger.errorPlayerProvider(
+              'play() reload after reinit failed: $e2',
+            );
+            if (mounted) state = state.copyWith(status: PlayerStatus.error);
+            return;
+          }
+        } else {
+          return;
+        }
+      }
+
       if (!mounted) return;
       double pos = state.position.inMilliseconds / 1000.0;
       try {
@@ -280,6 +388,54 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
     state = state.copyWith(queueIndex: idx);
     await _loadAndPlay(s.queue[idx]);
+  }
+
+  // Queue mutation
+  void addToQueueNext(Track track) {
+    final q = List<Track>.from(state.queue);
+    final idx = state.queueIndex;
+    final insertAt = (idx + 1).clamp(0, q.length);
+    q.insert(insertAt, track);
+    state = state.copyWith(queue: q);
+  }
+
+  void addToQueueLast(Track track) {
+    final q = List<Track>.from(state.queue)..add(track);
+    state = state.copyWith(queue: q);
+  }
+
+  void removeFromQueue(int index) {
+    final q = List<Track>.from(state.queue);
+    if (index < 0 || index >= q.length) return;
+    q.removeAt(index);
+    int newIdx = state.queueIndex;
+    if (index < newIdx) newIdx -= 1;
+    newIdx = newIdx.clamp(0, q.isEmpty ? 0 : q.length - 1);
+    state = state.copyWith(queue: q, queueIndex: newIdx);
+  }
+
+  // Reorder the queue
+  void reorderQueue(int oldIndex, int newIndex) {
+    final q = List<Track>.from(state.queue);
+    if (oldIndex < newIndex) newIndex -= 1;
+    final track = q.removeAt(oldIndex);
+    q.insert(newIndex, track);
+    int newCurrent = state.queueIndex;
+    if (oldIndex == state.queueIndex) {
+      newCurrent = newIndex;
+    } else if (oldIndex < state.queueIndex && newIndex >= state.queueIndex) {
+      newCurrent -= 1;
+    } else if (oldIndex > state.queueIndex && newIndex <= state.queueIndex) {
+      newCurrent += 1;
+    }
+    state = state.copyWith(queue: q, queueIndex: newCurrent);
+  }
+
+  // Jump to a specific index in the queue.
+  Future<void> jumpToQueue(int index) async {
+    if (index < 0 || index >= state.queue.length) return;
+    state = state.copyWith(queueIndex: index);
+    await _loadAndPlay(state.queue[index]);
   }
 
   void cycleLoopMode() {
@@ -423,5 +579,13 @@ final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
   final n = PlayerNotifier();
   n.injectSettingsReader(() => ref.read(settingsProvider));
   n.injectHistoryNotifier(ref.read(historyProvider.notifier));
+  Future.microtask(() {
+    if (ref.exists(audioDeviceProvider)) {
+      final devState = ref.read(audioDeviceProvider);
+      devState.whenData((_) {
+        n.injectDeviceNotifier(ref.read(audioDeviceProvider.notifier));
+      });
+    }
+  });
   return n;
 });

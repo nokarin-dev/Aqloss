@@ -8,11 +8,19 @@ class AudioService {
   // Volume cache
   static double _cachedVolume = 1.0;
   static bool _engineReady = false;
+  static bool get engineReady => _engineReady;
 
   // Freeze watchdog
   static Timer? _watchdog;
   static bool _recovering = false;
   static void Function()? onFreezeDetected;
+
+  // Device-change watchdog
+  static void Function(String? newDefaultDeviceId)? onDeviceChanged;
+  static Timer? _deviceWatchdog;
+  static bool _reinitingForDevice = false;
+  static List<String> _lastDeviceIds = [];
+  static String? _lastDefaultId;
 
   static void _startWatchdog() {
     _watchdog?.cancel();
@@ -43,6 +51,55 @@ class AudioService {
   static void stopWatchdog() {
     _watchdog?.cancel();
     _watchdog = null;
+    _deviceWatchdog?.cancel();
+    _deviceWatchdog = null;
+  }
+
+  static int _deviceChangePendingCount = 0;
+  static const int _kDeviceChangeDebounce = 2;
+
+  static void _startDeviceWatchdog() {
+    _deviceWatchdog?.cancel();
+    _deviceChangePendingCount = 0;
+    _deviceWatchdog = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_reinitingForDevice || _recovering) return;
+      try {
+        final devices = await Future(
+          () => backend.enumerateAudioDevices(),
+        ).timeout(const Duration(seconds: 3));
+
+        final ids = devices.map((d) => d.id).toList()..sort();
+        final defaultId = devices.where((d) => d.isDefault).firstOrNull?.id;
+
+        if (_lastDeviceIds.isEmpty) {
+          _lastDeviceIds = ids;
+          _lastDefaultId = defaultId;
+          _deviceChangePendingCount = 0;
+          return;
+        }
+
+        final idsChanged = ids.join(',') != _lastDeviceIds.join(',');
+        final defaultChanged = defaultId != _lastDefaultId;
+
+        if (idsChanged || defaultChanged) {
+          _deviceChangePendingCount++;
+          if (_deviceChangePendingCount >= _kDeviceChangeDebounce) {
+            Logger.debugAudioService(
+              'device change confirmed (${_deviceChangePendingCount}x) '
+              '— default: $_lastDefaultId → $defaultId',
+            );
+            _lastDeviceIds = ids;
+            _lastDefaultId = defaultId;
+            _deviceChangePendingCount = 0;
+            onDeviceChanged?.call(defaultId);
+          }
+        } else {
+          _deviceChangePendingCount = 0;
+        }
+      } catch (_) {
+        // Enumeration can fail briefly during transitions
+      }
+    });
   }
 
   // Init
@@ -94,12 +151,52 @@ class AudioService {
     await _applyVolume();
     if (settings != null) await applyAllDsp(settings);
     _startWatchdog();
+    _startDeviceWatchdog();
+  }
+
+  static Future<bool> reinitToDevice({
+    required String? deviceId,
+    required bool exclusive,
+  }) async {
+    if (_reinitingForDevice) return false;
+    _reinitingForDevice = true;
+    _engineReady = false;
+    Logger.debugAudioService('reinitToDevice: $deviceId exclusive=$exclusive');
+    try {
+      if (deviceId != null) {
+        await backend
+            .reinitEngine(deviceId: deviceId, exclusive: exclusive)
+            .timeout(const Duration(seconds: 8));
+      } else {
+        await backend.initEngine().timeout(const Duration(seconds: 8));
+      }
+      _engineReady = true;
+      await _applyVolume();
+      Logger.debugAudioService('reinitToDevice OK');
+      return true;
+    } catch (e) {
+      Logger.errorAudioService(
+        'reinitToDevice failed: $e — trying system default',
+      );
+      try {
+        await backend.initEngine().timeout(const Duration(seconds: 6));
+        _engineReady = true;
+        await _applyVolume();
+        Logger.debugAudioService('reinitToDevice fallback OK');
+        return true;
+      } catch (e2) {
+        Logger.errorAudioService('reinitToDevice fallback also failed: $e2');
+        return false;
+      }
+    } finally {
+      _reinitingForDevice = false;
+    }
   }
 
   // Playback
   static Future<void> loadTrack(String path) async {
     if (!_engineReady) {
-      for (int i = 0; i < 30; i++) {
+      for (int i = 0; i < 10; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         if (_engineReady) break;
       }
@@ -111,7 +208,7 @@ class AudioService {
 
   static Future<void> play() async {
     if (!_engineReady) {
-      for (int i = 0; i < 30; i++) {
+      for (int i = 0; i < 10; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         if (_engineReady) break;
       }

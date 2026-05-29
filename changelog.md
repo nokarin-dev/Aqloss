@@ -10,8 +10,29 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
-- [Frontend] History Screen
-- [Frontend|Lastfm] Sync loved local track with lastfm
+- [Frontend] History screen
+- [Frontend] Loved tracks
+- [Frontend] Queue panel
+- [Frontend] Global search overlay
+- [Frontend|Playlist] Export playlist to `.aqp` file
+- [Frontend|Playlist] Import `.aqp` playlist
+- [Frontend|LastFm] Sync loved tracks to Last.fm
+- [Frontend|Settings] Mobile nav
+- [Backend|Audio] Device change watchdog
+
+### Fixed
+
+- [Frontend|History] Playing from history now uses history order as queue, not library order
+- [Frontend|History] Duplicate tracks in history no longer require extra skips (explicit atIndex passed to loadWithQueue)
+- [Frontend|Playlist] Rename dialog spacebar no longer triggers play/pause (FocusNode registered with SearchFocusTracker)
+- [Frontend|Settings] Mobile settings screen was stuck on Music Folders with no way to navigate
+- [Backend|Audio] `_engineReady = false` was set too eagerly on reinit, causing all backend calls (audio, Discord RPC, scrobble) to block or fail during normal playback
+- [Backend|Audio] `play()` wait loop shortened from 15s to 5s - failures surface quickly instead of silently stalling
+- [Backend|Audio] `play()` now only calls `reinitToDevice` when `backend.play()` actually throws, not as an upfront check
+
+### Changed
+
+- [Frontend|Playlist] `selectDevice` now goes through `AudioService.reinitToDevice` so `_engineReady` is managed in one place
 
 ---
 
