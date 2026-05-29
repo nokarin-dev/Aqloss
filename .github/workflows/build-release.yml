@@ -510,10 +510,166 @@ jobs:
             Aqloss-android-arm32.apk
             Aqloss-android-x86_64.apk
 
+    # macOS
+  build-macos:
+    name: macOS (dmg + portable)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26.1
+        run: sudo xcode-select -s /Applications/Xcode_26.1.app
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CARGO_HOME }}/registry
+            ${{ env.CARGO_HOME }}/git
+            rust/target
+          key: macos-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: macos-cargo-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Get version
+        run: |
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      # Build
+      - name: Build macOS (release)
+        run: flutter build macos --release
+
+      #  Package as dmg
+      - name: Create .dmg
+        run: |
+          APP="build/macos/Build/Products/Release/Aqloss.app"
+          DMG="Aqloss-macos.dmg"
+
+          if command -v create-dmg &> /dev/null; then
+            create-dmg \
+              --volname "Aqloss" \
+              --window-pos 200 120 \
+              --window-size 1280 720 \
+              --icon-size 100 \
+              --icon "Aqloss.app" 185 185 \
+              --hide-extension "Aqloss.app" \
+              --app-drop-link 480 185 \
+              "$DMG" "$APP" || true
+          fi
+
+          # Fallback if create-dmg failed or is not installed
+          if [ ! -f "$DMG" ]; then
+            hdiutil create -volname "Aqloss" -srcfolder "$APP" \
+              -ov -format UDZO "$DMG"
+          fi
+
+          echo "✓ DMG: $(du -h $DMG | cut -f1)"
+
+      # Portable zip
+      - name: Build macOS (portable)
+        run: flutter build macos --release
+
+      - name: Package macOS portable
+        run: |
+          APP="build/macos/Build/Products/Release/Aqloss.app"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "Aqloss-macos-portable.zip"
+          echo "✓ Portable zip: $(du -h Aqloss-macos-portable.zip | cut -f1)"
+
+      - name: Verify artifacts
+        run: |
+          ls -lh Aqloss-macos.dmg Aqloss-macos-portable.zip
+          echo "✓ macOS artifacts OK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-builds
+          path: |
+            Aqloss-macos.dmg
+            Aqloss-macos-portable.zip
+
+  # iOS
+  build-ios:
+    name: iOS
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26.1
+        run: sudo xcode-select -s /Applications/Xcode_26.1.app
+
+      - name: Download iOS Platform Target
+        run: xcodebuild -downloadPlatform iOS
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.x"
+          channel: stable
+          cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CARGO_HOME }}/registry
+            ${{ env.CARGO_HOME }}/git
+            rust/target
+          key: ios-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: ios-cargo-
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Get version
+        run: |
+          echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      # Build
+      - name: Build iOS (release, no-codesign)
+        run: |
+          flutter build ios --release --no-codesign
+          echo "✓ iOS build successful"
+
+      # Package unsigned IPA
+      - name: Package unsigned .ipa
+        run: |
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ -d "$APP_PATH" ]; then
+            mkdir -p Payload
+            cp -r "$APP_PATH" Payload/
+            zip -qr "Aqloss-ios-unsigned.ipa" Payload/
+            mv "Aqloss-ios-unsigned.ipa" "Aqloss-ios.ipa"
+            echo "✓ IPA packaged: $(du -h Aqloss-ios.ipa | cut -f1)"
+          else
+            echo "⚠ Runner.app not found - listing build/ios:"
+            find build/ios -name "*.app" | head -10
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: Aqloss-ios.ipa
+
   # GitHub Release
   release:
     name: Create Release
-    needs: [build-windows, build-linux, build-linux-rpm, build-android]
+    needs: [build-windows, build-linux, build-linux-rpm, build-android, build-macos, build-ios]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -574,6 +730,15 @@ jobs:
             [![Android-ARM64](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-arm64.apk?style=for-the-badge&logo=android&logoColor=white&label=ARM64&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm64.apk)
             [![Android-ARM32](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-arm32.apk?style=for-the-badge&logo=android&logoColor=white&label=ARM32&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm32.apk)
             [![Android-x86_64](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-x86_64.apk?style=for-the-badge&logo=android&logoColor=white&label=x86_64&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-x86_64.apk)
+
+            > [!CAUTION]
+            > iOS and MacOS releases are not been tested yet. Please report a bug if you encounter any issue with them
+            ### MacOS
+            [![MacOS-Installer](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-macos-installer.dmg?style=for-the-badge&logo=apple&logoColor=white&label=Installer&color=000000)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-macos-installer.dmg)
+            [![MacOS-Portable](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-macos-portable.zip?style=for-the-badge&logo=apple&logoColor=white&label=Portable&color=000000)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-macos-portable.zip)
+
+            ### iOS
+            [![iOS](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-ios.ipa?style=for-the-badge&logo=apple&logoColor=white&label=iOS&color=000000)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-ios.ipa)
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
@@ -586,5 +751,8 @@ jobs:
             dist/Aqloss-android-arm64.apk
             dist/Aqloss-android-arm32.apk
             dist/Aqloss-android-x86_64.apk
+            dist/Aqloss-macos.dmg
+            dist/Aqloss-macos-portable.zip
+            dist/Aqloss-ios.ipa
           fail_on_unmatched_files: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}

@@ -209,4 +209,4 @@ jobs:
             dist/Aqloss-macos-portable.zip
             dist/Aqloss-ios.ipa
           fail_on_unmatched_files: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
