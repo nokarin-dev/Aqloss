@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 const _kFormatKey = 'aqloss-playlist';
 const _kFormatVer = 1;
-const _kExtension = 'aqloss';
+const _kExtension = 'aqp';
 
 class PlaylistExportResult {
   final bool success;
@@ -110,7 +110,7 @@ class PlaylistIOService {
       // Validate format
       if (envelope['format'] != _kFormatKey) {
         return const PlaylistImportResult.fail(
-          'Not a valid .aqloss playlist file.',
+          'Not a valid .aqp playlist file.',
         );
       }
 

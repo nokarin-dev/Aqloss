@@ -5,6 +5,8 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
+import 'package:aqloss/widgets/queue_panel.dart';
+import 'package:aqloss/services/playlist_io_service.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/playlist_art_icon.dart';
 import 'package:aqloss/widgets/shared/input_dialog.dart';
@@ -58,6 +60,28 @@ class _SideNavState extends ConsumerState<SideNav>
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _importPlaylist() async {
+    final result = await PlaylistIOService.import();
+    if (!mounted) return;
+    if (result.success && result.playlist != null) {
+      await ref
+          .read(playlistProvider.notifier)
+          .importPlaylist(result.playlist!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Imported \'${result.playlist!.name}\''),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } else if (result.error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Import failed: ${result.error}')));
+    }
   }
 
   Future<void> _createPlaylist() async {
@@ -116,6 +140,7 @@ class _SideNavState extends ConsumerState<SideNav>
         onSelect: widget.onSelect,
         onToggleCollapse: widget.onToggleCollapse,
         onCreatePlaylist: _createPlaylist,
+        onImportPlaylist: _importPlaylist,
         onRenamePlaylist: _renamePlaylist,
         onDeletePlaylist: (pl) =>
             ref.read(playlistProvider.notifier).delete(pl.id),
@@ -140,6 +165,7 @@ class _SideNavBody extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onToggleCollapse;
   final VoidCallback onCreatePlaylist;
+  final VoidCallback onImportPlaylist;
   final ValueChanged<Playlist> onRenamePlaylist;
   final ValueChanged<Playlist> onDeletePlaylist;
   final ValueChanged<Playlist> onPlayPlaylist;
@@ -155,6 +181,7 @@ class _SideNavBody extends StatelessWidget {
     required this.onSelect,
     required this.onToggleCollapse,
     required this.onCreatePlaylist,
+    required this.onImportPlaylist,
     required this.onRenamePlaylist,
     required this.onDeletePlaylist,
     required this.onPlayPlaylist,
@@ -237,6 +264,7 @@ class _SideNavBody extends StatelessWidget {
           collapsed: collapsed,
           onTap: () => onSelect(3),
         ),
+        _QueueToggleItem(collapsed: collapsed),
 
         if (!collapsed && library.totalTracks > 0)
           Padding(
@@ -258,6 +286,14 @@ class _SideNavBody extends StatelessWidget {
             children: [
               _SectionLabel('PLAYLISTS'),
               const Spacer(),
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: _IconBtn(
+                  icon: Icons.upload_file_rounded,
+                  tooltip: 'Import playlist (.aqp)',
+                  onTap: onImportPlaylist,
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: _IconBtn(
@@ -695,6 +731,40 @@ class _IconBtn extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Queue panel toggle
+class _QueueToggleItem extends ConsumerWidget {
+  final bool collapsed;
+  const _QueueToggleItem({required this.collapsed});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final open = ref.watch(queuePanelOpenProvider);
+    final cs = Theme.of(context).colorScheme;
+
+    return _NavItem(
+      icon: Icons.queue_music_outlined,
+      activeIcon: Icons.queue_music_rounded,
+      label: 'Queue',
+      isActive: open,
+      collapsed: collapsed,
+      trailing: open
+          ? Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: cs.onSurface.withValues(alpha: 0.50),
+              ),
+            )
+          : null,
+      onTap: () {
+        final notifier = ref.read(queuePanelOpenProvider.notifier);
+        notifier.state = !notifier.state;
+      },
     );
   }
 }

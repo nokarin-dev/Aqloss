@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:aqloss/util/search_focus_tracker.dart';
 
-class InputDialog extends StatelessWidget {
+class InputDialog extends StatefulWidget {
   final String title;
   final String hint;
   final String confirmLabel;
@@ -15,13 +16,33 @@ class InputDialog extends StatelessWidget {
   });
 
   @override
+  State<InputDialog> createState() => _InputDialogState();
+}
+
+class _InputDialogState extends State<InputDialog> {
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    SearchFocusTracker.instance.register(_focusNode);
+  }
+
+  @override
+  void dispose() {
+    SearchFocusTracker.instance.unregister(_focusNode);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        title,
+        widget.title,
         style: TextStyle(
           color: cs.onSurface,
           fontWeight: FontWeight.w400,
@@ -29,11 +50,12 @@ class InputDialog extends StatelessWidget {
         ),
       ),
       content: TextField(
-        controller: controller,
+        controller: widget.controller,
+        focusNode: _focusNode,
         autofocus: true,
         style: TextStyle(color: cs.onSurface, fontSize: 14),
         decoration: InputDecoration(
-          hintText: hint,
+          hintText: widget.hint,
           hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.24)),
           filled: true,
           fillColor: cs.onSurface.withValues(alpha: 0.04),
@@ -54,7 +76,7 @@ class InputDialog extends StatelessWidget {
             vertical: 11,
           ),
         ),
-        onSubmitted: (v) => Navigator.pop(context, v),
+        onSubmitted: (_) => Navigator.pop(context, widget.controller.text),
       ),
       actions: [
         TextButton(
@@ -68,9 +90,9 @@ class InputDialog extends StatelessWidget {
           ),
         ),
         TextButton(
-          onPressed: () => Navigator.pop(context, controller.text),
+          onPressed: () => Navigator.pop(context, widget.controller.text),
           child: Text(
-            confirmLabel,
+            widget.confirmLabel,
             style: TextStyle(
               color: cs.onSurface.withValues(alpha: 0.68),
               fontSize: 13,

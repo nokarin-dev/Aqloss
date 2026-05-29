@@ -1,5 +1,4 @@
 import 'dart:io' show Platform;
-import 'package:aqloss/screens/history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +17,9 @@ import 'album_screen.dart';
 import 'library_screen.dart';
 import 'player_screen.dart';
 import 'settings_screen.dart';
+import 'history_screen.dart';
+import 'package:aqloss/widgets/queue_panel.dart';
+import 'package:aqloss/widgets/global_search.dart';
 
 const _kSidebarCollapsed = 'aqloss_sidebar_collapsed';
 
@@ -156,6 +158,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
       _showCreatePlaylistDialog();
       return true;
     }
+    if (event.logicalKey == LogicalKeyboardKey.keyQ) {
+      final notifier = ref.read(queuePanelOpenProvider.notifier);
+      notifier.state = !notifier.state;
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyF ||
+        event.logicalKey == LogicalKeyboardKey.keyK) {
+      globalSearchKey.currentState?.show();
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (globalSearchKey.currentState?.isOpen == true) {
+        globalSearchKey.currentState?.hide();
+        return true;
+      }
+    }
     return false;
   }
 
@@ -194,26 +212,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
                 if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
                 Expanded(
                   child: isWide
-                      ? Row(
-                          children: [
-                            SideNav(
-                              route: _route,
-                              collapsed: _sidebarCollapsed,
-                              onSelect: (r) => setState(() => _route = r),
-                              onToggleCollapse: _toggleSidebar,
-                            ),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Expanded(child: _buildScreen()),
-                                  if (hasTrack && _route != 0)
-                                    MiniPlayerBar(
-                                      onTap: () => setState(() => _route = 0),
-                                    ),
-                                ],
+                      ? GlobalSearchOverlay(
+                          key: globalSearchKey,
+                          child: Row(
+                            children: [
+                              SideNav(
+                                route: _route,
+                                collapsed: _sidebarCollapsed,
+                                onSelect: (r) => setState(() => _route = r),
+                                onToggleCollapse: _toggleSidebar,
                               ),
-                            ),
-                          ],
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Expanded(child: _buildScreen()),
+                                    if (hasTrack && _route != 0)
+                                      MiniPlayerBar(
+                                        onTap: () => setState(() => _route = 0),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const QueuePanel(),
+                            ],
+                          ),
                         )
                       : _buildScreen(),
                 ),
@@ -224,7 +246,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
         bottomNavigationBar: isWide
             ? null
             : _MobileNavBar(
-                selectedIndex: _route.clamp(0, 3),
+                selectedIndex: _route.clamp(0, 4),
                 onDestinationSelected: (i) => setState(() => _route = i),
                 hasTrack: hasTrack && _route != 0,
                 onMiniPlayerTap: () => setState(() => _route = 0),
