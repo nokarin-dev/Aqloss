@@ -59,6 +59,28 @@ class HistoryState {
 
   List<String> get lovedPathList => List.unmodifiable(lovedPaths.toList());
 
+  // Play count for a track path
+  int playCount(String path) =>
+      entries.where((e) => e.track.path == path).length;
+
+  // Top N tracks by play count
+  List<MapEntry<String, int>> topTracks({int limit = 10}) {
+    final counts = <String, int>{};
+    for (final e in entries) {
+      counts[e.track.path] = (counts[e.track.path] ?? 0) + 1;
+    }
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(limit).toList();
+  }
+
+  // Total unique tracks played
+  int get uniqueTracksPlayed => entries.map((e) => e.track.path).toSet().length;
+
+  // Total listening time from history
+  Duration get totalListeningTime =>
+      entries.fold(Duration.zero, (sum, e) => sum + e.track.duration);
+
   HistoryState copyWith({
     List<HistoryEntry>? entries,
     Set<String>? lovedPaths,

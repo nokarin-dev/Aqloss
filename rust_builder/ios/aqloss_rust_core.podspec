@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'aqloss_rust_core'
-  s.version          = '0.2.3'
+  s.version          = '0.3.0'
   s.summary          = 'Audio, uncompromised.'
   s.description      = <<-DESC
 Aqloss is a music player built around a Rust audio engine, with optional WASAPI Exclusive mode on Windows for bit-perfect output to compatible hardware.

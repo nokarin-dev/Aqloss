@@ -18,6 +18,7 @@ import 'library_screen.dart';
 import 'player_screen.dart';
 import 'settings_screen.dart';
 import 'history_screen.dart';
+import 'artists_screen.dart';
 import 'package:aqloss/widgets/queue_panel.dart';
 import 'package:aqloss/widgets/global_search.dart';
 
@@ -78,8 +79,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     if (_route == 0) return const PlayerScreen();
     if (_route == 1) return const LibraryScreen();
     if (_route == 2) return const AlbumsScreen();
-    if (_route == 3) return const HistoryScreen();
-    if (_route == 4) return const SettingsScreen();
+    if (_route == 3) return const SettingsScreen();
+    if (_route == 4) return const HistoryScreen();
+    if (_route == 5) return const ArtistsScreen();
 
     final playlists = ref.read(playlistProvider);
     final idx = _route - 10;
@@ -126,10 +128,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     }
     if (event.logicalKey == LogicalKeyboardKey.digit4) {
       setState(() => _route = 3);
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.digit5) {
-      setState(() => _route = 4);
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.keyB) {
@@ -246,7 +244,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
         bottomNavigationBar: isWide
             ? null
             : _MobileNavBar(
-                selectedIndex: _route.clamp(0, 4),
+                selectedIndex: _route.clamp(0, 3),
                 onDestinationSelected: (i) => setState(() => _route = i),
                 hasTrack: hasTrack && _route != 0,
                 onMiniPlayerTap: () => setState(() => _route = 0),
@@ -312,18 +310,11 @@ class _MobileNavBar extends StatelessWidget {
                     onTap: () => onDestinationSelected(2),
                   ),
                   _NavTab(
-                    icon: Icons.history_outlined,
-                    activeIcon: Icons.history_rounded,
-                    label: 'History',
-                    isSelected: selectedIndex == 3,
-                    onTap: () => onDestinationSelected(3),
-                  ),
-                  _NavTab(
                     icon: Icons.tune_outlined,
                     activeIcon: Icons.tune_rounded,
                     label: 'Settings',
-                    isSelected: selectedIndex == 4,
-                    onTap: () => onDestinationSelected(4),
+                    isSelected: selectedIndex == 3,
+                    onTap: () => onDestinationSelected(3),
                   ),
                 ],
               ),

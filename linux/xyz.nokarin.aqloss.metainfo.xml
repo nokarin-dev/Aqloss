@@ -54,6 +54,21 @@
     </screenshots>
 
     <releases>
+        <release version="0.3.0" date="2026-05-30">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.3.0</url>
+            <description>
+                <p>Added new features and improvements.</p>
+                <ul>
+                    <li>Added history screen</li>
+                    <li>Added artist screen</li>
+                    <li>Added queue panel</li>
+                    <li>Added global search overlay</li>
+                    <li>Added export &amp; import playlist</li>
+                    <li>Fix settings navbar disappear on mobile</li>
+                    <li>And more.</li>
+                </ul>
+            </description>
+        </release>
         <release version="0.2.3" date="2026-05-26">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.2.3</url>
             <description>

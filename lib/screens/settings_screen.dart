@@ -1224,7 +1224,7 @@ class _ShortcutsPane extends StatelessWidget {
 }
 
 // Updates pane
-const _kCurrentVersion = '0.2.3';
+const _kCurrentVersion = '0.3.0';
 
 enum _UpdateStatus { idle, checking, upToDate, available, error }
 
@@ -1737,7 +1737,7 @@ class _AboutPane extends StatelessWidget {
             const _InfoRow(
               icon: Icons.music_note_rounded,
               title: 'Aqloss',
-              value: 'Version 0.2.3',
+              value: 'Version 0.3.0',
             ),
             _Div(),
             const _InfoRow(

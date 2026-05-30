@@ -11,14 +11,18 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 ### Added
 
 - [Frontend] History screen
+- [Frontend] Artists screen
+- [Frontend] Artist detail
 - [Frontend] Loved tracks
 - [Frontend] Queue panel
 - [Frontend] Global search overlay
+- [Frontend] Play count badge on track tiles
+- [Frontend] Play count on artist detail track rows
 - [Frontend|Playlist] Export playlist to `.aqp` file
 - [Frontend|Playlist] Import `.aqp` playlist
 - [Frontend|LastFm] Sync loved tracks to Last.fm
 - [Frontend|Settings] Mobile nav
-- [Backend|Audio] Device change watchdog
+- [Frontend|Audio] Device change watchdog
 
 ### Fixed
 

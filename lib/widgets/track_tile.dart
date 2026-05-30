@@ -210,12 +210,40 @@ class _TileBodyState extends State<_TileBody> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.track.durationLabel,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurface.withValues(alpha: 0.24),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Play count badge
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final count = ref
+                              .watch(historyProvider)
+                              .playCount(widget.track.path);
+                          if (count == 0) return const SizedBox.shrink();
+                          return AnimatedOpacity(
+                            duration: const Duration(milliseconds: 140),
+                            opacity: _hovered ? 1.0 : 0.45,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 5),
+                              child: Text(
+                                '${count}x',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: cs.onSurface.withValues(alpha: 0.36),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      Text(
+                        widget.track.durationLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurface.withValues(alpha: 0.24),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 3),
                   Text(

@@ -257,14 +257,21 @@ class _SideNavBody extends StatelessWidget {
           onTap: () => onSelect(2),
         ),
         _NavItem(
-          icon: Icons.history_outlined,
+          icon: Icons.person_outline_rounded,
+          activeIcon: Icons.person_rounded,
+          label: 'Artists',
+          isActive: route == 5,
+          collapsed: collapsed,
+          onTap: () => onSelect(5),
+        ),
+        _NavItem(
+          icon: Icons.history_rounded,
           activeIcon: Icons.history_rounded,
           label: 'History',
-          isActive: route == 3,
+          isActive: route == 4,
           collapsed: collapsed,
-          onTap: () => onSelect(3),
+          onTap: () => onSelect(4),
         ),
-        _QueueToggleItem(collapsed: collapsed),
 
         if (!collapsed && library.totalTracks > 0)
           Padding(
@@ -290,7 +297,7 @@ class _SideNavBody extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 4),
                 child: _IconBtn(
                   icon: Icons.upload_file_rounded,
-                  tooltip: 'Import playlist (.aqp)',
+                  tooltip: 'Import playlist (.aqloss)',
                   onTap: onImportPlaylist,
                 ),
               ),
@@ -396,10 +403,12 @@ class _SideNavBody extends StatelessWidget {
           icon: Icons.settings_outlined,
           activeIcon: Icons.settings_rounded,
           label: 'Settings',
-          isActive: route == 4,
+          isActive: route == 3,
           collapsed: collapsed,
-          onTap: () => onSelect(4),
+          onTap: () => onSelect(3),
         ),
+        const SizedBox(height: 4),
+        _QueueToggleItem(collapsed: collapsed),
 
         const SizedBox(height: 8),
       ],
