@@ -297,7 +297,7 @@ class _SideNavBody extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 4),
                 child: _IconBtn(
                   icon: Icons.upload_file_rounded,
-                  tooltip: 'Import playlist (.aqloss)',
+                  tooltip: 'Import playlist (.aqp)',
                   onTap: onImportPlaylist,
                 ),
               ),

@@ -6,7 +6,11 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-## [Unreleased]
+No Changes Yet.
+
+---
+
+## [0.3.0] - 2026-05-30
 
 ### Added
 
@@ -159,7 +163,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.0...v0.2.1
