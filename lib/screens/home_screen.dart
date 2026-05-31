@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,7 @@ import 'player_screen.dart';
 import 'settings_screen.dart';
 import 'history_screen.dart';
 import 'artists_screen.dart';
+import 'package:aqloss/widgets/mini_player_window.dart';
 import 'package:aqloss/widgets/queue_panel.dart';
 import 'package:aqloss/widgets/global_search.dart';
 
@@ -94,85 +96,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   // Global key handler
   bool _globalKeyHandler(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
-    final ctrl =
-        HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.isMetaPressed;
+    if (SearchFocusTracker.instance.hasFocus) return false;
 
-    if (!ctrl && event.logicalKey == LogicalKeyboardKey.space) {
-      if (SearchFocusTracker.instance.hasFocus) return false;
-      final player = ref.read(playerProvider);
-      if (player.currentTrack != null) {
-        if (player.status == PlayerStatus.playing) {
-          ref.read(playerProvider.notifier).pause();
-        } else {
-          ref.read(playerProvider.notifier).play();
-        }
+    final settings = ref.read(settingsProvider);
+    final pressed = _keyEventToString(event);
+    if (pressed == null) return false;
+
+    final action = ShortcutAction.values.firstWhereOrNull(
+      (a) => settings.binding(a) == pressed,
+    );
+    if (action == null) {
+      if (event.logicalKey == LogicalKeyboardKey.escape &&
+          globalSearchKey.currentState?.isOpen == true) {
+        globalSearchKey.currentState?.hide();
         return true;
       }
       return false;
     }
 
-    if (!ctrl) return false;
-
-    if (event.logicalKey == LogicalKeyboardKey.digit1) {
-      setState(() => _route = 0);
-      return true;
+    switch (action) {
+      case ShortcutAction.playPause:
+        final player = ref.read(playerProvider);
+        if (player.currentTrack == null) return false;
+        if (player.status == PlayerStatus.playing) {
+          ref.read(playerProvider.notifier).pause();
+        } else {
+          ref.read(playerProvider.notifier).play();
+        }
+      case ShortcutAction.skipNext:
+        ref.read(playerProvider.notifier).skipNext();
+      case ShortcutAction.skipPrevious:
+        ref.read(playerProvider.notifier).skipPrevious();
+      case ShortcutAction.volumeUp:
+        final vol = (ref.read(playerProvider).volume + 0.05).clamp(0.0, 1.0);
+        ref.read(playerProvider.notifier).setVolume(vol);
+      case ShortcutAction.volumeDown:
+        final vol = (ref.read(playerProvider).volume - 0.05).clamp(0.0, 1.0);
+        ref.read(playerProvider.notifier).setVolume(vol);
+      case ShortcutAction.toggleSidebar:
+        _toggleSidebar();
+      case ShortcutAction.toggleQueue:
+        final n = ref.read(queuePanelOpenProvider.notifier);
+        n.state = !n.state;
+      case ShortcutAction.search:
+        globalSearchKey.currentState?.show();
+      case ShortcutAction.miniPlayer:
+        MiniPlayerWindow.toggle(context);
+      case ShortcutAction.navPlayer:
+        setState(() => _route = 0);
+      case ShortcutAction.navLibrary:
+        setState(() => _route = 1);
+      case ShortcutAction.navAlbums:
+        setState(() => _route = 2);
+      case ShortcutAction.navArtists:
+        setState(() => _route = 5);
+      case ShortcutAction.navHistory:
+        setState(() => _route = 4);
+      case ShortcutAction.navSettings:
+        setState(() => _route = 3);
+      case ShortcutAction.newPlaylist:
+        _showCreatePlaylistDialog();
     }
-    if (event.logicalKey == LogicalKeyboardKey.digit2) {
-      setState(() => _route = 1);
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.digit3) {
-      setState(() => _route = 2);
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.digit4) {
-      setState(() => _route = 3);
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.keyB) {
-      _toggleSidebar();
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      ref.read(playerProvider.notifier).skipPrevious();
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      ref.read(playerProvider.notifier).skipNext();
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      final vol = (ref.read(playerProvider).volume + 0.05).clamp(0.0, 1.0);
-      ref.read(playerProvider.notifier).setVolume(vol);
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      final vol = (ref.read(playerProvider).volume - 0.05).clamp(0.0, 1.0);
-      ref.read(playerProvider.notifier).setVolume(vol);
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.keyN) {
-      _showCreatePlaylistDialog();
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.keyQ) {
-      final notifier = ref.read(queuePanelOpenProvider.notifier);
-      notifier.state = !notifier.state;
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.keyF ||
-        event.logicalKey == LogicalKeyboardKey.keyK) {
-      globalSearchKey.currentState?.show();
-      return true;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
-      if (globalSearchKey.currentState?.isOpen == true) {
-        globalSearchKey.currentState?.hide();
-        return true;
-      }
-    }
-    return false;
+    return true;
   }
 
   Future<void> _showCreatePlaylistDialog() async {
@@ -189,6 +174,86 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     if (name != null && name.isNotEmpty) {
       ref.read(playlistProvider.notifier).create(name);
     }
+  }
+
+  // Convert a KeyDownEvent to a canonical string
+  static String? _keyEventToString(KeyEvent event) {
+    final ctrl =
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+    final shift = HardwareKeyboard.instance.isShiftPressed;
+    final key = event.logicalKey;
+
+    // Modifier-only keys
+    if (key == LogicalKeyboardKey.control ||
+        key == LogicalKeyboardKey.controlLeft ||
+        key == LogicalKeyboardKey.controlRight ||
+        key == LogicalKeyboardKey.meta ||
+        key == LogicalKeyboardKey.shift ||
+        key == LogicalKeyboardKey.alt) {
+      return null;
+    }
+
+    final keyName = _logicalKeyName(key);
+    if (keyName == null) return null;
+
+    final parts = <String>[if (ctrl) 'Ctrl', if (shift) 'Shift', keyName];
+    return parts.join('+');
+  }
+
+  static String? _logicalKeyName(LogicalKeyboardKey key) {
+    final names = <LogicalKeyboardKey, String>{
+      LogicalKeyboardKey.space: 'Space',
+      LogicalKeyboardKey.arrowLeft: 'ArrowLeft',
+      LogicalKeyboardKey.arrowRight: 'ArrowRight',
+      LogicalKeyboardKey.arrowUp: 'ArrowUp',
+      LogicalKeyboardKey.arrowDown: 'ArrowDown',
+      LogicalKeyboardKey.digit1: '1',
+      LogicalKeyboardKey.digit2: '2',
+      LogicalKeyboardKey.digit3: '3',
+      LogicalKeyboardKey.digit4: '4',
+      LogicalKeyboardKey.digit5: '5',
+      LogicalKeyboardKey.digit6: '6',
+      LogicalKeyboardKey.keyA: 'A',
+      LogicalKeyboardKey.keyB: 'B',
+      LogicalKeyboardKey.keyC: 'C',
+      LogicalKeyboardKey.keyD: 'D',
+      LogicalKeyboardKey.keyE: 'E',
+      LogicalKeyboardKey.keyF: 'F',
+      LogicalKeyboardKey.keyG: 'G',
+      LogicalKeyboardKey.keyH: 'H',
+      LogicalKeyboardKey.keyI: 'I',
+      LogicalKeyboardKey.keyJ: 'J',
+      LogicalKeyboardKey.keyK: 'K',
+      LogicalKeyboardKey.keyL: 'L',
+      LogicalKeyboardKey.keyM: 'M',
+      LogicalKeyboardKey.keyN: 'N',
+      LogicalKeyboardKey.keyO: 'O',
+      LogicalKeyboardKey.keyP: 'P',
+      LogicalKeyboardKey.keyQ: 'Q',
+      LogicalKeyboardKey.keyR: 'R',
+      LogicalKeyboardKey.keyS: 'S',
+      LogicalKeyboardKey.keyT: 'T',
+      LogicalKeyboardKey.keyU: 'U',
+      LogicalKeyboardKey.keyV: 'V',
+      LogicalKeyboardKey.keyW: 'W',
+      LogicalKeyboardKey.keyX: 'X',
+      LogicalKeyboardKey.keyY: 'Y',
+      LogicalKeyboardKey.keyZ: 'Z',
+      LogicalKeyboardKey.f1: 'F1',
+      LogicalKeyboardKey.f2: 'F2',
+      LogicalKeyboardKey.f3: 'F3',
+      LogicalKeyboardKey.f4: 'F4',
+      LogicalKeyboardKey.f5: 'F5',
+      LogicalKeyboardKey.f6: 'F6',
+      LogicalKeyboardKey.f7: 'F7',
+      LogicalKeyboardKey.f8: 'F8',
+      LogicalKeyboardKey.f9: 'F9',
+      LogicalKeyboardKey.f10: 'F10',
+      LogicalKeyboardKey.f11: 'F11',
+      LogicalKeyboardKey.f12: 'F12',
+    };
+    return names[key];
   }
 
   @override

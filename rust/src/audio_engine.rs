@@ -3,6 +3,7 @@ use crate::{
     PlaybackPosition,
 };
 use anyhow::{anyhow, Result};
+use realfft::RealFftPlanner;
 use ringbuf::traits::Producer;
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -12,6 +13,14 @@ use std::thread;
 use std::time::Duration;
 
 static ENGINE: OnceLock<Arc<Mutex<AudioEngine>>> = OnceLock::new();
+static FFT_PLAN: OnceLock<Arc<dyn realfft::RealToComplex<f32>>> = OnceLock::new();
+
+fn fft_plan() -> &'static Arc<dyn realfft::RealToComplex<f32>> {
+    FFT_PLAN.get_or_init(|| {
+        let mut p = RealFftPlanner::<f32>::new();
+        p.plan_fft_forward(FFT_SIZE)
+    })
+}
 
 #[derive(Clone)]
 pub struct DspConfig {
@@ -50,7 +59,8 @@ impl PlayFlags {
     }
 }
 
-const SPECTRUM_BUF: usize = 4096;
+const SPECTRUM_BUF: usize = 131072;
+const FFT_SIZE: usize = 4096;
 const VOL_RAMP: f32 = 0.003;
 const SILENCE_THR: f32 = 0.0002;
 const SILENCE_MIN: usize = 512;
@@ -256,32 +266,94 @@ impl AudioEngine {
         if n == 0 {
             return vec![];
         }
+
         let buf = self.spectrum_buf.lock().unwrap();
         let ch = self.output.channels as usize;
-        let frames = buf.len() / ch;
-        let mono: Vec<f32> = (0..frames)
-            .map(|f| {
-                let base = f * ch;
-                buf[base..base + ch].iter().sum::<f32>() / ch as f32
-            })
-            .collect();
-        let rms = (mono.iter().map(|s| s * s).sum::<f32>() / mono.len() as f32).sqrt();
-        if rms < 1e-6 {
+        let sample_rate = self.output.sample_rate as f32;
+
+        let total_frames = buf.len() / ch;
+        if total_frames < FFT_SIZE {
             return vec![0.0; n];
         }
+
+        let ring_occupied_samples = self.output.ring_occupied_samples();
+        let cpal_latency_samples = 4096 * ch;
+        let latency_samples = ring_occupied_samples + cpal_latency_samples;
+        let latency_frames = latency_samples / ch;
+
+        let write_sample = self.spectrum_pos.load(Ordering::Relaxed) as usize;
+        let write_frame = write_sample / ch;
+
+        let lookback = latency_frames + FFT_SIZE;
+        let start_frame = if lookback <= write_frame + total_frames {
+            (write_frame + total_frames - lookback) % total_frames
+        } else {
+            // Not enough history yet - return silence
+            return vec![0.0; n];
+        };
+
+        let mut mono = vec![0.0f32; FFT_SIZE];
+        for i in 0..FFT_SIZE {
+            let frame_idx = (start_frame + i) % total_frames;
+            let base = frame_idx * ch;
+            mono[i] = buf[base..base + ch].iter().sum::<f32>() / ch as f32;
+        }
+
+        // Gate on signal energy
+        let rms = (mono.iter().map(|s| s * s).sum::<f32>() / FFT_SIZE as f32).sqrt();
+        if rms < 5e-6 {
+            return vec![0.0; n];
+        }
+
+        // Hann window
+        let scale = 2.0 / FFT_SIZE as f32;
+        for (i, s) in mono.iter_mut().enumerate() {
+            let w = 0.5 * (1.0 - (std::f32::consts::TAU * i as f32 / FFT_SIZE as f32).cos());
+            *s *= w * scale;
+        }
+
+        let fft = fft_plan();
+        let mut spectrum = fft.make_output_vec();
+        fft.process(&mut mono, &mut spectrum).ok();
+
+        let num_bins = spectrum.len();
+        let bin_hz = sample_rate / FFT_SIZE as f32;
+
+        // Precompute magnitudes in dB
+        let mag_db: Vec<f32> = spectrum
+            .iter()
+            .map(|c| {
+                let mag = (c.re * c.re + c.im * c.im).sqrt();
+                20.0 * (mag + 1e-9).log10()
+            })
+            .collect();
+
+        let hz_to_mel = |hz: f32| 2595.0 * (1.0 + hz / 700.0).log10();
+        let mel_to_hz = |mel: f32| 700.0 * (10.0_f32.powf(mel / 2595.0) - 1.0);
+
+        let mel_min = hz_to_mel(20.0);
+        let mel_max = hz_to_mel((sample_rate / 2.0).min(20000.0));
+
+        const DB_FLOOR: f32 = -80.0;
+        const DB_CEIL: f32 = -6.0;
+
         (0..n)
             .map(|i| {
-                let t0 = (i as f32 / n as f32).powf(1.8);
-                let t1 = ((i + 1) as f32 / n as f32).powf(1.8);
-                let start = (t0 * frames as f32) as usize;
-                let end = ((t1 * frames as f32) as usize).min(frames);
-                if start >= end {
-                    return 0.0;
-                }
-                let band_rms = (mono[start..end].iter().map(|s| s * s).sum::<f32>()
-                    / (end - start) as f32)
-                    .sqrt();
-                (band_rms / (rms * 2.0 + 1e-9)).clamp(0.0, 1.0)
+                let mel0 = mel_min + (i as f32 / n as f32) * (mel_max - mel_min);
+                let mel1 = mel_min + ((i + 1) as f32 / n as f32) * (mel_max - mel_min);
+                let hz0 = mel_to_hz(mel0).max(20.0);
+                let hz1 = mel_to_hz(mel1).min(sample_rate / 2.0);
+
+                let b0 = ((hz0 / bin_hz) as usize).clamp(1, num_bins - 1);
+                let b1 = ((hz1 / bin_hz) as usize).clamp(b0 + 1, num_bins);
+
+                // Peak magnitude across band bins
+                let peak_db = mag_db[b0..b1]
+                    .iter()
+                    .cloned()
+                    .fold(f32::NEG_INFINITY, f32::max);
+
+                ((peak_db - DB_FLOOR) / (DB_CEIL - DB_FLOOR)).clamp(0.0, 1.0)
             })
             .collect()
     }

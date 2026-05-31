@@ -1,5 +1,65 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+enum ShortcutAction {
+  playPause,
+  skipNext,
+  skipPrevious,
+  volumeUp,
+  volumeDown,
+  toggleSidebar,
+  toggleQueue,
+  search,
+  miniPlayer,
+  navPlayer,
+  navLibrary,
+  navAlbums,
+  navArtists,
+  navHistory,
+  navSettings,
+  newPlaylist,
+}
+
+extension ShortcutActionX on ShortcutAction {
+  String get label => const {
+    ShortcutAction.playPause: 'Play / Pause',
+    ShortcutAction.skipNext: 'Next track',
+    ShortcutAction.skipPrevious: 'Previous track',
+    ShortcutAction.volumeUp: 'Volume up 5%',
+    ShortcutAction.volumeDown: 'Volume down 5%',
+    ShortcutAction.toggleSidebar: 'Toggle sidebar',
+    ShortcutAction.toggleQueue: 'Toggle queue panel',
+    ShortcutAction.search: 'Open search',
+    ShortcutAction.miniPlayer: 'Toggle mini player',
+    ShortcutAction.navPlayer: 'Go to Now Playing',
+    ShortcutAction.navLibrary: 'Go to Library',
+    ShortcutAction.navAlbums: 'Go to Albums',
+    ShortcutAction.navArtists: 'Go to Artists',
+    ShortcutAction.navHistory: 'Go to History',
+    ShortcutAction.navSettings: 'Go to Settings',
+    ShortcutAction.newPlaylist: 'New playlist',
+  }[this]!;
+
+  String get defaultKey => const {
+    ShortcutAction.playPause: 'Space',
+    ShortcutAction.skipNext: 'Ctrl+ArrowRight',
+    ShortcutAction.skipPrevious: 'Ctrl+ArrowLeft',
+    ShortcutAction.volumeUp: 'Ctrl+ArrowUp',
+    ShortcutAction.volumeDown: 'Ctrl+ArrowDown',
+    ShortcutAction.toggleSidebar: 'Ctrl+B',
+    ShortcutAction.toggleQueue: 'Ctrl+Q',
+    ShortcutAction.search: 'Ctrl+F',
+    ShortcutAction.miniPlayer: 'Ctrl+M',
+    ShortcutAction.navPlayer: 'Ctrl+1',
+    ShortcutAction.navLibrary: 'Ctrl+2',
+    ShortcutAction.navAlbums: 'Ctrl+3',
+    ShortcutAction.navArtists: 'Ctrl+4',
+    ShortcutAction.navHistory: 'Ctrl+5',
+    ShortcutAction.navSettings: 'Ctrl+6',
+    ShortcutAction.newPlaylist: 'Ctrl+N',
+  }[this]!;
+}
 
 enum AudioOutputMode { system, exclusive }
 
@@ -18,6 +78,7 @@ enum StopAfterMode { off, track, album }
 const _kOutputMode = 'aqloss_output_mode';
 const _kSelectedDeviceId = 'aqloss_selected_device_id';
 const _kReplayGain = 'aqloss_replay_gain';
+const _kShortcuts = 'aqloss_shortcuts';
 const _kReplayGainPreamp = 'aqloss_replay_gain_preamp';
 const _kGapless = 'aqloss_gapless';
 const _kCrossfade = 'aqloss_crossfade';
@@ -56,6 +117,7 @@ class SettingsState {
   final AppStyle appStyle;
   final LibraryViewMode libraryViewMode;
   final bool showBitDepthInLibrary;
+  final Map<ShortcutAction, String> shortcuts;
   final bool showAlbumArtBackground;
   final bool spectrumEnabled;
   final int spectrumStyle;
@@ -83,6 +145,7 @@ class SettingsState {
     this.appStyle = AppStyle.legacy,
     this.libraryViewMode = LibraryViewMode.detail,
     this.showBitDepthInLibrary = true,
+    this.shortcuts = const {},
     this.showAlbumArtBackground = true,
     this.spectrumEnabled = true,
     this.spectrumStyle = 0,
@@ -96,6 +159,8 @@ class SettingsState {
 
   bool get replayGainEnabled => replayGainMode != ReplayGainMode.off;
   bool get crossfadeEnabled => crossfade != CrossfadeMode.off;
+  String binding(ShortcutAction a) => shortcuts[a] ?? a.defaultKey;
+
   bool get scrobbleReady => scrobbleLastFm && lastFmSessionKey != null;
 
   // True if build-time key was injected via --dart-define
@@ -139,6 +204,7 @@ class SettingsState {
     AppStyle? appStyle,
     LibraryViewMode? libraryViewMode,
     bool? showBitDepthInLibrary,
+    Map<ShortcutAction, String>? shortcuts,
     bool? showAlbumArtBackground,
     bool? spectrumEnabled,
     int? spectrumStyle,
@@ -168,6 +234,7 @@ class SettingsState {
     appStyle: appStyle ?? this.appStyle,
     libraryViewMode: libraryViewMode ?? this.libraryViewMode,
     showBitDepthInLibrary: showBitDepthInLibrary ?? this.showBitDepthInLibrary,
+    shortcuts: shortcuts ?? this.shortcuts,
     showAlbumArtBackground:
         showAlbumArtBackground ?? this.showAlbumArtBackground,
     spectrumEnabled: spectrumEnabled ?? this.spectrumEnabled,
@@ -216,6 +283,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       libraryViewMode: LibraryViewMode
           .values[(p.getInt(_kLibraryViewMode) ?? 0).clamp(0, 1)],
       showBitDepthInLibrary: p.getBool(_kShowBitDepth) ?? true,
+      shortcuts: _loadShortcuts(p),
       showAlbumArtBackground: p.getBool(_kShowAlbumArtBg) ?? true,
       spectrumEnabled: p.getBool(_kSpectrumEnabled) ?? true,
       spectrumStyle: (p.getInt(_kSpectrumStyle) ?? 0).clamp(0, 2),
@@ -251,6 +319,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setInt(_kAppStyle, state.appStyle.index),
       p.setInt(_kLibraryViewMode, state.libraryViewMode.index),
       p.setBool(_kShowBitDepth, state.showBitDepthInLibrary),
+      _saveShortcuts(p, state.shortcuts),
       p.setBool(_kShowAlbumArtBg, state.showAlbumArtBackground),
       p.setBool(_kSpectrumEnabled, state.spectrumEnabled),
       p.setInt(_kSpectrumStyle, state.spectrumStyle),
@@ -307,6 +376,53 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void toggleSkipSilence() {
     state = state.copyWith(skipSilence: !state.skipSilence);
     _save();
+  }
+
+  void setShortcut(ShortcutAction action, String key) {
+    final updated = Map<ShortcutAction, String>.from(state.shortcuts);
+    updated[action] = key;
+    state = state.copyWith(shortcuts: updated);
+    _save();
+  }
+
+  void resetShortcut(ShortcutAction action) {
+    final updated = Map<ShortcutAction, String>.from(state.shortcuts)
+      ..remove(action);
+    state = state.copyWith(shortcuts: updated);
+    _save();
+  }
+
+  void resetAllShortcuts() {
+    state = state.copyWith(shortcuts: const {});
+    _save();
+  }
+
+  static Map<ShortcutAction, String> _loadShortcuts(SharedPreferences p) {
+    final raw = p.getString(_kShortcuts);
+    if (raw == null) return {};
+    try {
+      final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final result = <ShortcutAction, String>{};
+      for (final entry in map.entries) {
+        final idx = int.tryParse(entry.key);
+        if (idx != null && idx < ShortcutAction.values.length) {
+          result[ShortcutAction.values[idx]] = entry.value as String;
+        }
+      }
+      return result;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> _saveShortcuts(
+    SharedPreferences p,
+    Map<ShortcutAction, String> shortcuts,
+  ) async {
+    final raw = jsonEncode({
+      for (final e in shortcuts.entries) '${e.key.index}': e.value,
+    });
+    await p.setString(_kShortcuts, raw);
   }
 
   void setStopAfter(StopAfterMode m) {

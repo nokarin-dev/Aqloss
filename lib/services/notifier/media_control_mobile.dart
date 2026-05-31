@@ -14,7 +14,6 @@ class MediaControlPlatform {
     if (_listening) return;
     _listening = true;
 
-    // Receive button presses from native side
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onPlay':
@@ -30,8 +29,11 @@ class MediaControlPlatform {
           onPrevious();
           break;
         case 'onSeek':
-          final ms = call.arguments as int;
-          onSeek(Duration(milliseconds: ms));
+          final ms = call.arguments as int?;
+          if (ms != null) onSeek(Duration(milliseconds: ms));
+          break;
+        case 'onStop':
+          onPause();
           break;
       }
     });

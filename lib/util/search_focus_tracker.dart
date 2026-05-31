@@ -5,14 +5,12 @@ class SearchFocusTracker {
   static final instance = SearchFocusTracker._();
 
   final _nodes = <FocusNode>{};
+  bool _capturingShortcut = false;
 
-  void register(FocusNode node) {
-    _nodes.add(node);
-  }
+  void register(FocusNode node) => _nodes.add(node);
+  void unregister(FocusNode node) => _nodes.remove(node);
 
-  void unregister(FocusNode node) {
-    _nodes.remove(node);
-  }
+  void setCapturingShortcut(bool v) => _capturingShortcut = v;
 
-  bool get hasFocus => _nodes.any((n) => n.hasFocus);
+  bool get hasFocus => _capturingShortcut || _nodes.any((n) => n.hasFocus);
 }

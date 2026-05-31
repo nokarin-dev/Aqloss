@@ -196,6 +196,11 @@ impl AudioOutput {
         self.producer.lock().unwrap().vacant_len()
     }
 
+    pub fn ring_occupied_samples(&self) -> usize {
+        let p = self.producer.lock().unwrap(); 
+        p.capacity().get() - p.vacant_len()
+    }
+
     pub fn start_drain(&self) {
         self.draining.store(true, Ordering::SeqCst);
     }

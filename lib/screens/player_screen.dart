@@ -89,8 +89,8 @@ class _WideLayout extends ConsumerWidget {
                 // Spectrum
                 if (settings.spectrumEnabled) ...[
                   SpectrumDisplay(
-                    height: 38,
-                    barCount: 32,
+                    height: 72,
+                    barCount: 48,
                     color: cs.onSurface.withValues(alpha: 0.09),
                   ),
                   const SizedBox(height: 20),
@@ -144,8 +144,8 @@ class _NarrowLayout extends ConsumerWidget {
                   const SizedBox(height: 8),
                   if (settings.spectrumEnabled) ...[
                     SpectrumDisplay(
-                      height: 18,
-                      barCount: 26,
+                      height: 36,
+                      barCount: 36,
                       color: cs.onSurface.withValues(alpha: 0.09),
                     ),
                     const SizedBox(height: 10),

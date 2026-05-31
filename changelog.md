@@ -6,7 +6,15 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-No Changes Yet.
+## [Unreleased]
+
+### Changes
+
+- Improve visualizer with realfft
+
+### Fixed
+
+- Sync visualizer to playback position
 
 ---
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:aqloss/widgets/q_spinner.dart';
@@ -9,6 +10,7 @@ import 'package:aqloss/widgets/lastfm_auth_row.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
@@ -1185,40 +1187,339 @@ class _LastFmPane extends ConsumerWidget {
 }
 
 // Shortcuts pane
-class _ShortcutsPane extends StatelessWidget {
+class _ShortcutsPane extends ConsumerStatefulWidget {
   const _ShortcutsPane();
+  @override
+  ConsumerState<_ShortcutsPane> createState() => _ShortcutsPaneState();
+}
+
+class _ShortcutsPaneState extends ConsumerState<_ShortcutsPane> {
+  ShortcutAction? _capturing;
+
+  void _startCapture(ShortcutAction action) {
+    setState(() => _capturing = action);
+    SearchFocusTracker.instance.setCapturingShortcut(true);
+  }
+
+  void _cancelCapture() {
+    setState(() => _capturing = null);
+    SearchFocusTracker.instance.setCapturingShortcut(false);
+  }
+
+  void _onKeyCaptured(ShortcutAction action, String key) {
+    ref.read(settingsProvider.notifier).setShortcut(action, key);
+    setState(() => _capturing = null);
+    SearchFocusTracker.instance.setCapturingShortcut(false);
+  }
+
+  // Group actions for display
+  static const _groups = <String, List<ShortcutAction>>{
+    'PLAYBACK': [
+      ShortcutAction.playPause,
+      ShortcutAction.skipNext,
+      ShortcutAction.skipPrevious,
+      ShortcutAction.volumeUp,
+      ShortcutAction.volumeDown,
+    ],
+    'APP': [
+      ShortcutAction.toggleSidebar,
+      ShortcutAction.toggleQueue,
+      ShortcutAction.search,
+      ShortcutAction.miniPlayer,
+      ShortcutAction.newPlaylist,
+    ],
+    'NAVIGATE': [
+      ShortcutAction.navPlayer,
+      ShortcutAction.navLibrary,
+      ShortcutAction.navAlbums,
+      ShortcutAction.navArtists,
+      ShortcutAction.navHistory,
+      ShortcutAction.navSettings,
+    ],
+  };
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(settingsProvider);
+    final cs = Theme.of(context).colorScheme;
+
     return _Pane(
       page: _SettingsPage.shortcuts,
       children: [
-        _SettingsCard(
-          children: [
-            _ShortcutRow(label: 'Play / Pause', shortcut: 'Space'),
-            _Div(),
-            _ShortcutRow(label: 'Previous track', shortcut: 'Ctrl ←'),
-            _Div(),
-            _ShortcutRow(label: 'Next track', shortcut: 'Ctrl →'),
-            _Div(),
-            _ShortcutRow(label: 'Volume up 5%', shortcut: 'Ctrl ↑'),
-            _Div(),
-            _ShortcutRow(label: 'Volume down 5%', shortcut: 'Ctrl ↓'),
-            _Div(),
-            _ShortcutRow(label: 'Toggle sidebar', shortcut: 'Ctrl B'),
-            _Div(),
-            _ShortcutRow(label: 'Now Playing', shortcut: 'Ctrl 1'),
-            _Div(),
-            _ShortcutRow(label: 'Library', shortcut: 'Ctrl 2'),
-            _Div(),
-            _ShortcutRow(label: 'Albums', shortcut: 'Ctrl 3'),
-            _Div(),
-            _ShortcutRow(label: 'Settings', shortcut: 'Ctrl 4'),
-            _Div(),
-            _ShortcutRow(label: 'New playlist', shortcut: 'Ctrl N'),
-          ],
+        for (final entry in _groups.entries) ...[
+          if (entry.key != _groups.keys.first) const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              entry.key,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4,
+                color: cs.onSurface.withValues(alpha: 0.24),
+              ),
+            ),
+          ),
+          _SettingsCard(
+            children: [
+              for (int i = 0; i < entry.value.length; i++) ...[
+                if (i > 0) _Div(),
+                _ShortcutBindingRow(
+                  action: entry.value[i],
+                  bound: s.binding(entry.value[i]),
+                  isDefault: !s.shortcuts.containsKey(entry.value[i]),
+                  capturing: _capturing == entry.value[i],
+                  onCapture: () => _startCapture(entry.value[i]),
+                  onCancel: _cancelCapture,
+                  onCaptured: (key) => _onKeyCaptured(entry.value[i], key),
+                  onReset: () {
+                    ref
+                        .read(settingsProvider.notifier)
+                        .resetShortcut(entry.value[i]);
+                    if (_capturing == entry.value[i]) _cancelCapture();
+                  },
+                ),
+              ],
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        _ActionButton(
+          icon: Icons.refresh_rounded,
+          label: 'Reset all to defaults',
+          onTap: () {
+            ref.read(settingsProvider.notifier).resetAllShortcuts();
+            _cancelCapture();
+          },
         ),
       ],
+    );
+  }
+}
+
+class _ShortcutBindingRow extends StatelessWidget {
+  final ShortcutAction action;
+  final String bound;
+  final bool isDefault;
+  final bool capturing;
+  final VoidCallback onCapture;
+  final VoidCallback onCancel;
+  final void Function(String) onCaptured;
+  final VoidCallback onReset;
+
+  const _ShortcutBindingRow({
+    required this.action,
+    required this.bound,
+    required this.isDefault,
+    required this.capturing,
+    required this.onCapture,
+    required this.onCancel,
+    required this.onCaptured,
+    required this.onReset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              action.label,
+              style: TextStyle(
+                fontSize: 13,
+                color: cs.onSurface.withValues(alpha: 0.72),
+              ),
+            ),
+          ),
+          if (capturing)
+            _CaptureInput(onCaptured: onCaptured, onCancel: onCancel)
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: onCapture,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 110),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cs.onSurface.withValues(
+                          alpha: isDefault ? 0.04 : 0.08,
+                        ),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(
+                          color: cs.onSurface.withValues(
+                            alpha: isDefault ? 0.08 : 0.16,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        _prettyKey(bound),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface.withValues(
+                            alpha: isDefault ? 0.42 : 0.72,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (!isDefault) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: onReset,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Icon(
+                        Icons.restore_rounded,
+                        size: 13,
+                        color: cs.onSurface.withValues(alpha: 0.28),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _prettyKey(String key) {
+    const remap = {
+      'ArrowLeft': '←',
+      'ArrowRight': '→',
+      'ArrowUp': '↑',
+      'ArrowDown': '↓',
+      'Space': '␣',
+    };
+    final parts = key.split('+');
+    return parts.map((p) => remap[p] ?? p).join(' ');
+  }
+}
+
+// Inline capture widget
+class _CaptureInput extends StatefulWidget {
+  final void Function(String) onCaptured;
+  final VoidCallback onCancel;
+  const _CaptureInput({required this.onCaptured, required this.onCancel});
+
+  @override
+  State<_CaptureInput> createState() => _CaptureInputState();
+}
+
+class _CaptureInputState extends State<_CaptureInput> {
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  String? _eventToKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return null;
+    final ctrl =
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+    final shift = HardwareKeyboard.instance.isShiftPressed;
+    final key = event.logicalKey;
+
+    if (key == LogicalKeyboardKey.escape) {
+      widget.onCancel();
+      return null;
+    }
+    if (key == LogicalKeyboardKey.control ||
+        key == LogicalKeyboardKey.controlLeft ||
+        key == LogicalKeyboardKey.controlRight ||
+        key == LogicalKeyboardKey.meta ||
+        key == LogicalKeyboardKey.shift ||
+        key == LogicalKeyboardKey.alt) {
+      return null;
+    }
+
+    final names = <LogicalKeyboardKey, String>{
+      LogicalKeyboardKey.space: 'Space',
+      LogicalKeyboardKey.arrowLeft: 'ArrowLeft',
+      LogicalKeyboardKey.arrowRight: 'ArrowRight',
+      LogicalKeyboardKey.arrowUp: 'ArrowUp',
+      LogicalKeyboardKey.arrowDown: 'ArrowDown',
+    };
+    final special = names[key];
+    final char = key.keyLabel.isNotEmpty ? key.keyLabel.toUpperCase() : null;
+    final name = special ?? char;
+    if (name == null) return null;
+
+    final parts = <String>[if (ctrl) 'Ctrl', if (shift) 'Shift', name];
+    return parts.join('+');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return KeyboardListener(
+      focusNode: _focus,
+      onKeyEvent: (e) {
+        final key = _eventToKey(e);
+        if (key != null) widget.onCaptured(key);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: cs.onSurface.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: cs.onSurface.withValues(alpha: 0.20)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 8,
+              height: 8,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.2,
+                color: cs.onSurface.withValues(alpha: 0.40),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              'Press a key…',
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurface.withValues(alpha: 0.46),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: widget.onCancel,
+              child: Icon(
+                Icons.close_rounded,
+                size: 12,
+                color: cs.onSurface.withValues(alpha: 0.30),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1286,17 +1587,16 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
       final tag = (data['tag_name'] as String? ?? '').replaceFirst('v', '');
-      final rawNotes = data['body'] as String? ?? '';
-      final notes = _stripDownloadsSection(rawNotes);
+      final notes = _stripDownloads(data['body'] as String? ?? '');
       final url = data['html_url'] as String? ?? '';
-
-      final isNewer = _isNewerVersion(tag, _kCurrentVersion);
 
       setState(() {
         _latestVersion = tag;
         _releaseNotes = notes.trim().isEmpty ? null : notes.trim();
         _releaseUrl = url;
-        _status = isNewer ? _UpdateStatus.available : _UpdateStatus.upToDate;
+        _status = _isNewer(tag, _kCurrentVersion)
+            ? _UpdateStatus.available
+            : _UpdateStatus.upToDate;
       });
     } catch (e) {
       setState(() {
@@ -1306,18 +1606,14 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
     }
   }
 
-  bool _isNewerVersion(String remote, String local) {
+  bool _isNewer(String remote, String local) {
     List<int> parse(String v) => v
         .split('.')
         .map((s) => int.tryParse(s.replaceAll(RegExp(r'[^\d]'), '')) ?? 0)
         .toList();
-    final r = parse(remote);
-    final l = parse(local);
-    for (
-      int i = 0;
-      i < [r.length, l.length].reduce((a, b) => a > b ? a : b);
-      i++
-    ) {
+    final r = parse(remote), l = parse(local);
+    final len = r.length > l.length ? r.length : l.length;
+    for (int i = 0; i < len; i++) {
       final rv = i < r.length ? r[i] : 0;
       final lv = i < l.length ? l[i] : 0;
       if (rv > lv) return true;
@@ -1326,11 +1622,10 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
     return false;
   }
 
-  String _stripDownloadsSection(String raw) {
-    final hrIndex = raw.indexOf('\n---');
-    final trimmed = hrIndex != -1 ? raw.substring(0, hrIndex) : raw;
-
-    final cleaned = trimmed
+  String _stripDownloads(String raw) {
+    final hrIdx = raw.indexOf('\n---');
+    final trimmed = hrIdx != -1 ? raw.substring(0, hrIdx) : raw;
+    return trimmed
         .split('\n')
         .where((line) {
           final t = line.trim();
@@ -1338,28 +1633,24 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
           if (RegExp(r'^https?://').hasMatch(t)) return false;
           return true;
         })
-        .join('\n');
-
-    return cleaned.trim();
+        .join('\n')
+        .trim();
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return _Pane(
       page: _SettingsPage.updates,
       children: [
         _SettingsCard(
           children: [
-            // Current version row
-            _InfoRow(
+            const _InfoRow(
               icon: Icons.tag_rounded,
               title: 'Installed version',
               value: _kCurrentVersion,
             ),
             _Div(),
-            // Status row
             _UpdateStatusRow(
               status: _status,
               latestVersion: _latestVersion,
@@ -1367,14 +1658,10 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
             ),
           ],
         ),
-
-        // Release notes card
         if (_status == _UpdateStatus.available && _releaseNotes != null) ...[
           const SizedBox(height: 16),
           _ReleaseNotesCard(notes: _releaseNotes!),
         ],
-
-        // Error detail
         if (_status == _UpdateStatus.error && _errorMsg != null) ...[
           const SizedBox(height: 12),
           Container(
@@ -1406,8 +1693,6 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
             ),
           ),
         ],
-
-        // Download button
         if (_status == _UpdateStatus.available && _releaseUrl != null) ...[
           const SizedBox(height: 14),
           _DownloadButton(version: _latestVersion!, url: _releaseUrl!),
@@ -1421,7 +1706,6 @@ class _UpdateStatusRow extends StatelessWidget {
   final _UpdateStatus status;
   final String? latestVersion;
   final VoidCallback onRecheck;
-
   const _UpdateStatusRow({
     required this.status,
     required this.latestVersion,
@@ -1431,7 +1715,6 @@ class _UpdateStatusRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     Widget leading;
     String label;
     Color labelColor;
@@ -1445,7 +1728,6 @@ class _UpdateStatusRow extends StatelessWidget {
         );
         label = 'Not checked yet';
         labelColor = cs.onSurface.withValues(alpha: 0.36);
-
       case _UpdateStatus.checking:
         leading = QSpinner(
           size: 13,
@@ -1454,12 +1736,11 @@ class _UpdateStatusRow extends StatelessWidget {
         );
         label = 'Checking for updates…';
         labelColor = cs.onSurface.withValues(alpha: 0.48);
-
       case _UpdateStatus.upToDate:
         leading = Container(
           width: 7,
           height: 7,
-          margin: const EdgeInsets.only(left: 3, right: 3),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: Color(0xFF50FA7B),
@@ -1467,14 +1748,13 @@ class _UpdateStatusRow extends StatelessWidget {
         );
         label = latestVersion != null
             ? 'Up to date  ·  $latestVersion is the latest'
-            : 'You\'re on the latest version';
+            : "You're on the latest version";
         labelColor = cs.onSurface.withValues(alpha: 0.55);
-
       case _UpdateStatus.available:
         leading = Container(
           width: 7,
           height: 7,
-          margin: const EdgeInsets.only(left: 3, right: 3),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: Color(0xFFFFB86C),
@@ -1482,7 +1762,6 @@ class _UpdateStatusRow extends StatelessWidget {
         );
         label = 'v$latestVersion is available';
         labelColor = const Color(0xFFFFB86C);
-
       case _UpdateStatus.error:
         leading = Icon(
           Icons.wifi_off_rounded,
@@ -1520,7 +1799,6 @@ class _ReleaseNotesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     final lines = notes.split('\n').where((l) => l.trim().isNotEmpty).toList();
 
     return Column(
@@ -1562,19 +1840,14 @@ class _ReleaseNotesCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: lines.map((line) {
-                  final trimmed = line.trimLeft();
-                  final isBullet =
-                      trimmed.startsWith('- ') ||
-                      trimmed.startsWith('* ') ||
-                      trimmed.startsWith('• ');
-                  final isHeading =
-                      trimmed.startsWith('## ') || trimmed.startsWith('# ');
+                  final t = line.trimLeft();
+                  final isBullet = t.startsWith('- ') || t.startsWith('* ');
+                  final isHeading = t.startsWith('## ') || t.startsWith('# ');
                   final text = isBullet
-                      ? trimmed.substring(2)
+                      ? t.substring(2)
                       : isHeading
-                      ? trimmed.replaceFirst(RegExp(r'^#+\s*'), '')
-                      : trimmed;
-
+                      ? t.replaceFirst(RegExp(r'^#+\s*'), '')
+                      : t;
                   return Padding(
                     padding: EdgeInsets.only(
                       bottom: isHeading ? 8 : 4,
@@ -1583,7 +1856,7 @@ class _ReleaseNotesCard extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isBullet) ...[
+                        if (isBullet)
                           Padding(
                             padding: const EdgeInsets.only(top: 5, right: 8),
                             child: Container(
@@ -1595,7 +1868,6 @@ class _ReleaseNotesCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                        ],
                         Expanded(
                           child: Text(
                             text,
@@ -1625,8 +1897,7 @@ class _ReleaseNotesCard extends StatelessWidget {
 }
 
 class _DownloadButton extends StatefulWidget {
-  final String version;
-  final String url;
+  final String version, url;
   const _DownloadButton({required this.version, required this.url});
 
   @override
@@ -2160,32 +2431,6 @@ class _RangeSliderState extends State<_RangeSlider> {
   }
 }
 
-class _ShortcutRow extends StatelessWidget {
-  final String label, shortcut;
-  const _ShortcutRow({required this.label, required this.shortcut});
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: cs.onSurface.withValues(alpha: 0.60),
-              ),
-            ),
-          ),
-          _KbdChip(shortcut, cs),
-        ],
-      ),
-    );
-  }
-}
-
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String title, value;
@@ -2326,31 +2571,6 @@ class _MiniSwitch extends StatelessWidget {
       ),
     );
   }
-}
-
-class _KbdChip extends StatelessWidget {
-  final String label;
-  final ColorScheme cs;
-  const _KbdChip(this.label, this.cs);
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: cs.onSurface.withValues(alpha: 0.05),
-      borderRadius: BorderRadius.circular(4),
-      border: Border.all(color: cs.onSurface.withValues(alpha: 0.09)),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w600,
-        fontFamily: 'monospace',
-        color: cs.onSurface.withValues(alpha: 0.48),
-        letterSpacing: 0.2,
-      ),
-    ),
-  );
 }
 
 class _HoverTextBtn extends StatefulWidget {

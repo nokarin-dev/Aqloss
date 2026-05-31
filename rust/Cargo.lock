@@ -121,6 +121,7 @@ dependencies = [
  "log",
  "lru",
  "ndk-context",
+ "realfft",
  "ringbuf",
  "rubato",
  "symphonia",
