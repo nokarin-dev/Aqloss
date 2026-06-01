@@ -194,52 +194,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
       return null;
     }
 
-    final keyName = _logicalKeyName(key);
+    final keyName = ctrl
+        ? (_physicalKeyName(event.physicalKey) ?? _logicalKeyName(key))
+        : _logicalKeyName(key);
     if (keyName == null) return null;
 
     final parts = <String>[if (ctrl) 'Ctrl', if (shift) 'Shift', keyName];
     return parts.join('+');
   }
 
+  // Physical key resolution
+  static String? _physicalKeyName(PhysicalKeyboardKey physical) {
+    final label = physical.debugName;
+    if (label == null) return null;
+    // Letter keys
+    if (label.startsWith('Key ')) return label.substring(4).toUpperCase();
+    // Digit keys
+    if (label.startsWith('Digit ')) return label.substring(6);
+    // Named keys
+    const named = <String, String>{
+      'Space': 'Space',
+      'Arrow Left': 'ArrowLeft',
+      'Arrow Right': 'ArrowRight',
+      'Arrow Up': 'ArrowUp',
+      'Arrow Down': 'ArrowDown',
+      'Enter': 'Enter',
+      'Numpad Enter': 'Enter',
+      'Tab': 'Tab',
+      'Backspace': 'Backspace',
+      'Delete': 'Delete',
+      'Home': 'Home',
+      'End': 'End',
+      'Page Up': 'PageUp',
+      'Page Down': 'PageDown',
+      'F1': 'F1',
+      'F2': 'F2',
+      'F3': 'F3',
+      'F4': 'F4',
+      'F5': 'F5',
+      'F6': 'F6',
+      'F7': 'F7',
+      'F8': 'F8',
+      'F9': 'F9',
+      'F10': 'F10',
+      'F11': 'F11',
+      'F12': 'F12',
+    };
+    return named[label];
+  }
+
   static String? _logicalKeyName(LogicalKeyboardKey key) {
-    final names = <LogicalKeyboardKey, String>{
+    final named = <LogicalKeyboardKey, String>{
       LogicalKeyboardKey.space: 'Space',
       LogicalKeyboardKey.arrowLeft: 'ArrowLeft',
       LogicalKeyboardKey.arrowRight: 'ArrowRight',
       LogicalKeyboardKey.arrowUp: 'ArrowUp',
       LogicalKeyboardKey.arrowDown: 'ArrowDown',
-      LogicalKeyboardKey.digit1: '1',
-      LogicalKeyboardKey.digit2: '2',
-      LogicalKeyboardKey.digit3: '3',
-      LogicalKeyboardKey.digit4: '4',
-      LogicalKeyboardKey.digit5: '5',
-      LogicalKeyboardKey.digit6: '6',
-      LogicalKeyboardKey.keyA: 'A',
-      LogicalKeyboardKey.keyB: 'B',
-      LogicalKeyboardKey.keyC: 'C',
-      LogicalKeyboardKey.keyD: 'D',
-      LogicalKeyboardKey.keyE: 'E',
-      LogicalKeyboardKey.keyF: 'F',
-      LogicalKeyboardKey.keyG: 'G',
-      LogicalKeyboardKey.keyH: 'H',
-      LogicalKeyboardKey.keyI: 'I',
-      LogicalKeyboardKey.keyJ: 'J',
-      LogicalKeyboardKey.keyK: 'K',
-      LogicalKeyboardKey.keyL: 'L',
-      LogicalKeyboardKey.keyM: 'M',
-      LogicalKeyboardKey.keyN: 'N',
-      LogicalKeyboardKey.keyO: 'O',
-      LogicalKeyboardKey.keyP: 'P',
-      LogicalKeyboardKey.keyQ: 'Q',
-      LogicalKeyboardKey.keyR: 'R',
-      LogicalKeyboardKey.keyS: 'S',
-      LogicalKeyboardKey.keyT: 'T',
-      LogicalKeyboardKey.keyU: 'U',
-      LogicalKeyboardKey.keyV: 'V',
-      LogicalKeyboardKey.keyW: 'W',
-      LogicalKeyboardKey.keyX: 'X',
-      LogicalKeyboardKey.keyY: 'Y',
-      LogicalKeyboardKey.keyZ: 'Z',
+      LogicalKeyboardKey.enter: 'Enter',
+      LogicalKeyboardKey.tab: 'Tab',
+      LogicalKeyboardKey.backspace: 'Backspace',
+      LogicalKeyboardKey.delete: 'Delete',
+      LogicalKeyboardKey.home: 'Home',
+      LogicalKeyboardKey.end: 'End',
+      LogicalKeyboardKey.pageUp: 'PageUp',
+      LogicalKeyboardKey.pageDown: 'PageDown',
       LogicalKeyboardKey.f1: 'F1',
       LogicalKeyboardKey.f2: 'F2',
       LogicalKeyboardKey.f3: 'F3',
@@ -253,7 +271,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
       LogicalKeyboardKey.f11: 'F11',
       LogicalKeyboardKey.f12: 'F12',
     };
-    return names[key];
+    if (named.containsKey(key)) return named[key];
+    final label = key.keyLabel;
+    if (label.isNotEmpty) return label.toUpperCase();
+    return null;
   }
 
   @override
@@ -262,58 +283,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
 
-    return Focus(
-      autofocus: true,
-      child: Scaffold(
-        body: SafeArea(
-          top: !_isDesktop,
-          bottom: false,
-          child: ColoredBox(
-            color: Theme.of(context).colorScheme.surface,
-            child: Column(
-              children: [
-                if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
-                Expanded(
-                  child: isWide
-                      ? GlobalSearchOverlay(
-                          key: globalSearchKey,
-                          child: Row(
-                            children: [
-                              SideNav(
-                                route: _route,
-                                collapsed: _sidebarCollapsed,
-                                onSelect: (r) => setState(() => _route = r),
-                                onToggleCollapse: _toggleSidebar,
-                              ),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Expanded(child: _buildScreen()),
-                                    if (hasTrack && _route != 0)
-                                      MiniPlayerBar(
-                                        onTap: () => setState(() => _route = 0),
-                                      ),
-                                  ],
+    return MiniPlayerOverlay(
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          body: SafeArea(
+            top: !_isDesktop,
+            bottom: false,
+            child: ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: Column(
+                children: [
+                  if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
+                  Expanded(
+                    child: isWide
+                        ? GlobalSearchOverlay(
+                            key: globalSearchKey,
+                            child: Row(
+                              children: [
+                                SideNav(
+                                  route: _route,
+                                  collapsed: _sidebarCollapsed,
+                                  onSelect: (r) => setState(() => _route = r),
+                                  onToggleCollapse: _toggleSidebar,
                                 ),
-                              ),
-                              const QueuePanel(),
-                            ],
-                          ),
-                        )
-                      : _buildScreen(),
-                ),
-              ],
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      Expanded(child: _buildScreen()),
+                                      if (hasTrack && _route != 0)
+                                        MiniPlayerBar(
+                                          onTap: () =>
+                                              setState(() => _route = 0),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const QueuePanel(),
+                              ],
+                            ),
+                          )
+                        : _buildScreen(),
+                  ),
+                ],
+              ),
             ),
           ),
+          bottomNavigationBar: isWide
+              ? null
+              : _MobileNavBar(
+                  selectedIndex: _route.clamp(0, 3),
+                  onDestinationSelected: (i) => setState(() => _route = i),
+                  hasTrack: hasTrack && _route != 0,
+                  onMiniPlayerTap: () => setState(() => _route = 0),
+                ),
         ),
-        bottomNavigationBar: isWide
-            ? null
-            : _MobileNavBar(
-                selectedIndex: _route.clamp(0, 3),
-                onDestinationSelected: (i) => setState(() => _route = i),
-                hasTrack: hasTrack && _route != 0,
-                onMiniPlayerTap: () => setState(() => _route = 0),
-              ),
       ),
     );
   }

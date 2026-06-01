@@ -1144,7 +1144,7 @@ class _DisplayPane extends ConsumerWidget {
                 icon: Icons.auto_graph_rounded,
                 title: 'Spectrum style',
                 subtitle: 'Visual style of the analyser.',
-                options: const ['Bars', 'Wave', 'Dots'],
+                options: const ['Bars', 'Wave', 'Dots', 'Classic'],
                 selected: s.spectrumStyle,
                 onChanged: n.setSpectrumStyle,
               ),
@@ -1455,20 +1455,84 @@ class _CaptureInputState extends State<_CaptureInput> {
       return null;
     }
 
-    final names = <LogicalKeyboardKey, String>{
+    final namedLogical = <LogicalKeyboardKey, String>{
       LogicalKeyboardKey.space: 'Space',
       LogicalKeyboardKey.arrowLeft: 'ArrowLeft',
       LogicalKeyboardKey.arrowRight: 'ArrowRight',
       LogicalKeyboardKey.arrowUp: 'ArrowUp',
       LogicalKeyboardKey.arrowDown: 'ArrowDown',
+      LogicalKeyboardKey.enter: 'Enter',
+      LogicalKeyboardKey.tab: 'Tab',
+      LogicalKeyboardKey.backspace: 'Backspace',
+      LogicalKeyboardKey.delete: 'Delete',
+      LogicalKeyboardKey.home: 'Home',
+      LogicalKeyboardKey.end: 'End',
+      LogicalKeyboardKey.pageUp: 'PageUp',
+      LogicalKeyboardKey.pageDown: 'PageDown',
+      LogicalKeyboardKey.f1: 'F1',
+      LogicalKeyboardKey.f2: 'F2',
+      LogicalKeyboardKey.f3: 'F3',
+      LogicalKeyboardKey.f4: 'F4',
+      LogicalKeyboardKey.f5: 'F5',
+      LogicalKeyboardKey.f6: 'F6',
+      LogicalKeyboardKey.f7: 'F7',
+      LogicalKeyboardKey.f8: 'F8',
+      LogicalKeyboardKey.f9: 'F9',
+      LogicalKeyboardKey.f10: 'F10',
+      LogicalKeyboardKey.f11: 'F11',
+      LogicalKeyboardKey.f12: 'F12',
     };
-    final special = names[key];
-    final char = key.keyLabel.isNotEmpty ? key.keyLabel.toUpperCase() : null;
-    final name = special ?? char;
-    if (name == null) return null;
 
-    final parts = <String>[if (ctrl) 'Ctrl', if (shift) 'Shift', name];
+    String? keyName;
+    if (ctrl) {
+      keyName = _resolvePhysical(event.physicalKey);
+    }
+    keyName ??= namedLogical.containsKey(key)
+        ? namedLogical[key]!
+        : (key.keyLabel.isNotEmpty ? key.keyLabel.toUpperCase() : null);
+    if (keyName == null) return null;
+
+    final parts = <String>[if (ctrl) 'Ctrl', if (shift) 'Shift', keyName];
     return parts.join('+');
+  }
+
+  static String? _resolvePhysical(PhysicalKeyboardKey physical) {
+    final label = physical.debugName;
+    if (label == null) return null;
+    // Letter keys
+    if (label.startsWith('Key ')) return label.substring(4).toUpperCase();
+    // Digit keys
+    if (label.startsWith('Digit ')) return label.substring(6);
+    // Named keys
+    const named = <String, String>{
+      'Space': 'Space',
+      'Arrow Left': 'ArrowLeft',
+      'Arrow Right': 'ArrowRight',
+      'Arrow Up': 'ArrowUp',
+      'Arrow Down': 'ArrowDown',
+      'Enter': 'Enter',
+      'Numpad Enter': 'Enter',
+      'Tab': 'Tab',
+      'Backspace': 'Backspace',
+      'Delete': 'Delete',
+      'Home': 'Home',
+      'End': 'End',
+      'Page Up': 'PageUp',
+      'Page Down': 'PageDown',
+      'F1': 'F1',
+      'F2': 'F2',
+      'F3': 'F3',
+      'F4': 'F4',
+      'F5': 'F5',
+      'F6': 'F6',
+      'F7': 'F7',
+      'F8': 'F8',
+      'F9': 'F9',
+      'F10': 'F10',
+      'F11': 'F11',
+      'F12': 'F12',
+    };
+    return named[label];
   }
 
   @override

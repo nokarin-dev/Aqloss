@@ -8,13 +8,19 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
-### Changes
+### Added
 
-- Improve visualizer with realfft
+- Classic style for visualizer
+- Custom shortcut
 
 ### Fixed
 
 - Sync visualizer to playback position
+
+### Changes
+
+- Improve visualizer with realfft
+- Rework wave & dots visualizer
 
 ---
 

@@ -286,7 +286,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       shortcuts: _loadShortcuts(p),
       showAlbumArtBackground: p.getBool(_kShowAlbumArtBg) ?? true,
       spectrumEnabled: p.getBool(_kSpectrumEnabled) ?? true,
-      spectrumStyle: (p.getInt(_kSpectrumStyle) ?? 0).clamp(0, 2),
+      spectrumStyle: (p.getInt(_kSpectrumStyle) ?? 0).clamp(0, 3),
       scrobbleLastFm: p.getBool(_kScrobble) ?? false,
       lastFmUsername: p.getString(_kLastFmUser),
       lastFmApiKey: p.getString(_kLastFmApiKey),
@@ -473,7 +473,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   void setSpectrumStyle(int s) {
-    state = state.copyWith(spectrumStyle: s.clamp(0, 2));
+    state = state.copyWith(spectrumStyle: s.clamp(0, 3));
     _save();
   }
 
