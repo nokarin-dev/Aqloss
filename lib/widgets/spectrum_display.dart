@@ -100,8 +100,10 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
             if (!mounted || raw.isEmpty) return;
             _lastRaw = raw.map((v) => v.toDouble().clamp(0.0, 1.0)).toList();
           })
-          .catchError((_) => _fetchInFlight = false);
-    } 
+          .catchError((_) {
+            _fetchInFlight = false;
+          });
+    }
 
     if (_lastRaw.isEmpty) return;
 
