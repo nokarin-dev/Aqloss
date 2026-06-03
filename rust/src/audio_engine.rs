@@ -80,6 +80,8 @@ pub struct AudioEngine {
     dsp: Arc<Mutex<DspConfig>>,
     eq: Arc<Mutex<Equalizer>>,
     pub decode_thread_died: Arc<AtomicBool>,
+    prev_output: Mutex<Vec<f32>>,
+    dynamic_ceil: Mutex<f32>,
 }
 
 unsafe impl Send for AudioEngine {}
@@ -184,6 +186,8 @@ impl AudioEngine {
             dsp: Arc::new(Mutex::new(DspConfig::default())),
             eq: Arc::new(Mutex::new(Equalizer::new(sr, ch))),
             decode_thread_died: Arc::new(AtomicBool::new(false)),
+            prev_output: Mutex::new(Vec::new()),
+            dynamic_ceil: Mutex::new(-12.0),
         };
         let arc = Arc::new(Mutex::new(engine));
         if ENGINE.set(arc.clone()).is_err() {
@@ -288,7 +292,6 @@ impl AudioEngine {
         let start_frame = if lookback <= write_frame + total_frames {
             (write_frame + total_frames - lookback) % total_frames
         } else {
-            // Not enough history yet - return silence
             return vec![0.0; n];
         };
 
@@ -302,6 +305,13 @@ impl AudioEngine {
         // Gate on signal energy
         let rms = (mono.iter().map(|s| s * s).sum::<f32>() / FFT_SIZE as f32).sqrt();
         if rms < 5e-6 {
+            if let Ok(mut prev_out) = self.prev_output.lock() {
+                if prev_out.len() == n {
+                    prev_out.fill(0.0);
+                } else {
+                    *prev_out = vec![0.0; n];
+                }
+            }
             return vec![0.0; n];
         }
 
@@ -328,34 +338,75 @@ impl AudioEngine {
             })
             .collect();
 
+        // Dynamic Autogain
+        let frame_max_db = mag_db.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        let mut db_ceil = *self.dynamic_ceil.lock().unwrap();
+
+        if frame_max_db > db_ceil {
+            db_ceil = db_ceil * 0.3 + frame_max_db * 0.7;
+        } else {
+            db_ceil = db_ceil * 0.995 + (-12.0 * 0.005);
+        }
+        db_ceil = db_ceil.clamp(-42.0, -6.0);
+        *self.dynamic_ceil.lock().unwrap() = db_ceil;
+
         let hz_to_mel = |hz: f32| 2595.0 * (1.0 + hz / 700.0).log10();
         let mel_to_hz = |mel: f32| 700.0 * (10.0_f32.powf(mel / 2595.0) - 1.0);
 
+        let nyquist = sample_rate / 2.0;
+        let display_max_hz = nyquist.min(20000.0);
         let mel_min = hz_to_mel(20.0);
-        let mel_max = hz_to_mel((sample_rate / 2.0).min(20000.0));
+        let mel_max = hz_to_mel(display_max_hz);
 
-        const DB_FLOOR: f32 = -80.0;
-        const DB_CEIL: f32 = -6.0;
+        const DB_FLOOR: f32 = -75.0;
 
-        (0..n)
+        // Prepare for temporal smoothing
+        let mut prev_out = self.prev_output.lock().unwrap();
+        if prev_out.len() != n {
+            *prev_out = vec![0.0; n];
+        }
+
+        let current_frame_bars: Vec<f32> = (0..n)
             .map(|i| {
-                let mel0 = mel_min + (i as f32 / n as f32) * (mel_max - mel_min);
-                let mel1 = mel_min + ((i + 1) as f32 / n as f32) * (mel_max - mel_min);
-                let hz0 = mel_to_hz(mel0).max(20.0);
-                let hz1 = mel_to_hz(mel1).min(sample_rate / 2.0);
+                let t0 = i as f32 / n as f32;
+                let t1 = (i + 1) as f32 / n as f32;
+                let hz0 = mel_to_hz(mel_min + t0 * (mel_max - mel_min)).max(20.0);
+                let hz1 = mel_to_hz(mel_min + t1 * (mel_max - mel_min)).min(display_max_hz);
+
+                if hz1 <= hz0 {
+                    return 0.0;
+                }
 
                 let b0 = ((hz0 / bin_hz) as usize).clamp(1, num_bins - 1);
                 let b1 = ((hz1 / bin_hz) as usize).clamp(b0 + 1, num_bins);
 
-                // Peak magnitude across band bins
-                let peak_db = mag_db[b0..b1]
-                    .iter()
-                    .cloned()
-                    .fold(f32::NEG_INFINITY, f32::max);
+                // Energy averaging
+                let sum_db: f32 = mag_db[b0..b1].iter().cloned().sum();
+                let count = (b1 - b0) as f32;
+                let energy_db = if count > 0.0 {
+                    sum_db / count
+                } else {
+                    DB_FLOOR
+                };
 
-                ((peak_db - DB_FLOOR) / (DB_CEIL - DB_FLOOR)).clamp(0.0, 1.0)
+                ((energy_db - DB_FLOOR) / (db_ceil - DB_FLOOR)).clamp(0.0, 1.0)
             })
-            .collect()
+            .collect();
+
+        // Temporal Smoothing
+        let decay_factor = 0.82;
+        for i in 0..n {
+            let current_val = current_frame_bars[i];
+            let prev_val = prev_out[i];
+
+            if current_val > prev_val {
+                prev_out[i] = current_val;
+            } else {
+                prev_out[i] = prev_val * decay_factor + current_val * (1.0 - decay_factor);
+            }
+        }
+
+        prev_out.clone()
     }
 
     // Playback
@@ -513,6 +564,11 @@ impl AudioEngine {
             rs.reset();
         }
         self.spectrum_buf.lock().unwrap().fill(0.0);
+
+        if let Ok(mut prev_out) = self.prev_output.lock() {
+            prev_out.fill(0.0);
+        }
+
         self.smooth_volume = self.volume;
         self.flags.seek_pending.store(false, Ordering::SeqCst);
         if was_playing {
