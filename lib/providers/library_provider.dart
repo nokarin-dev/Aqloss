@@ -1,8 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/track.dart';
-import '../models/audio_format.dart';
+
+import 'package:aqloss/models/audio_format.dart';
+import 'package:aqloss/models/track.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 enum LibraryStatus { idle, scanning, done, error }
@@ -81,6 +86,7 @@ class LibraryState {
       tracks.fold(Duration.zero, (sum, t) => sum + t.duration);
 }
 
+// Filter
 List<Track> _computeFiltered(_FilterParams p) {
   var result = p.tracks.toList();
 
@@ -172,19 +178,138 @@ class _FilterParams {
   );
 }
 
-const _kFoldersKey = 'aqloss_music_folders';
+// Mtime snapshot
+Map<String, int> _collectDirMtimes(List<String> roots) {
+  final snapshot = <String, int>{};
+  for (final root in roots) {
+    final dir = Directory(root);
+    if (!dir.existsSync()) continue;
+    try {
+      for (final entity in dir.listSync(recursive: true, followLinks: false)) {
+        if (entity is Directory) {
+          try {
+            final ms = entity.statSync().modified.millisecondsSinceEpoch;
+            snapshot[entity.path] = ms;
+          } catch (_) {}
+        }
+      }
+      // Root itself
+      final ms = dir.statSync().modified.millisecondsSinceEpoch;
+      snapshot[root] = ms;
+    } catch (_) {}
+  }
+  return snapshot;
+}
 
+// Persistence helpers
+const _kFoldersKey = 'aqloss_music_folders';
+const _kCacheFile = 'aqloss_library_cache.json';
+const _kMtimeFile = 'aqloss_library_mtimes.json';
+
+Future<File> _appFile(String name) async {
+  final dir = await getApplicationSupportDirectory();
+  return File('${dir.path}/$name');
+}
+
+Future<List<Track>> _loadCache() async {
+  try {
+    final file = await _appFile(_kCacheFile);
+    if (!await file.exists()) return [];
+    final list = jsonDecode(await file.readAsString()) as List<dynamic>;
+    return list
+        .map((e) {
+          try {
+            return Track.fromJson(e as Map<String, dynamic>);
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<Track>()
+        .toList();
+  } catch (_) {
+    return [];
+  }
+}
+
+Future<void> _writeCache(List<Track> tracks) async {
+  try {
+    final file = await _appFile(_kCacheFile);
+    await file.writeAsString(
+      jsonEncode(tracks.map((t) => t.toJson()).toList()),
+    );
+  } catch (_) {}
+}
+
+Future<Map<String, int>> _loadMtimeSnapshot() async {
+  try {
+    final file = await _appFile(_kMtimeFile);
+    if (!await file.exists()) return {};
+    final raw = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    return raw.map((k, v) => MapEntry(k, (v as num).toInt()));
+  } catch (_) {
+    return {};
+  }
+}
+
+Future<void> _writeMtimeSnapshot(Map<String, int> snapshot) async {
+  try {
+    final file = await _appFile(_kMtimeFile);
+    await file.writeAsString(jsonEncode(snapshot));
+  } catch (_) {}
+}
+
+Future<void> _deletePersistedState() async {
+  for (final name in [_kCacheFile, _kMtimeFile]) {
+    try {
+      final file = await _appFile(name);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+}
+
+// Notifier
 class LibraryNotifier extends StateNotifier<LibraryState> {
   LibraryNotifier() : super(const LibraryState()) {
-    _restoreFolders();
+    _init();
   }
 
-  Future<void> _restoreFolders() async {
+  Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList(_kFoldersKey) ?? [];
     if (saved.isEmpty) return;
-    state = state.copyWith(folders: saved, status: LibraryStatus.scanning);
-    await _scanAll(saved);
+
+    final cached = await _loadCache();
+    if (cached.isNotEmpty) {
+      final filtered = await _rebuildFiltered(cached, state);
+      if (mounted) {
+        state = state.copyWith(
+          folders: saved,
+          tracks: cached,
+          cachedFiltered: filtered,
+          status: LibraryStatus.done,
+        );
+      }
+    } else {
+      if (mounted) {
+        state = state.copyWith(folders: saved, status: LibraryStatus.scanning);
+      }
+    }
+
+    final changed = await _foldersChanged(saved);
+    if (!changed && cached.isNotEmpty) return;
+
+    _scanAll(saved, background: cached.isNotEmpty);
+  }
+
+  Future<bool> _foldersChanged(List<String> folders) async {
+    final stored = await _loadMtimeSnapshot();
+    if (stored.isEmpty) return true;
+    final current = await compute(_collectDirMtimes, folders);
+    if (current.length != stored.length) return true;
+    for (final entry in current.entries) {
+      if (stored[entry.key] != entry.value) return true;
+    }
+    return false;
   }
 
   Future<void> _saveFolders(List<String> folders) async {
@@ -205,6 +330,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     state = state.copyWith(folders: updated, status: LibraryStatus.scanning);
     await _saveFolders(updated);
     if (updated.isEmpty) {
+      await _deletePersistedState();
       state = state.copyWith(
         tracks: [],
         cachedFiltered: [],
@@ -221,7 +347,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     await _scanAll(state.folders);
   }
 
-  Future<void> _scanAll(List<String> folders) async {
+  Future<void> _scanAll(List<String> folders, {bool background = false}) async {
     try {
       final results = await Future.wait(
         folders.map((f) => backend.scanDirectory(path: f)),
@@ -255,21 +381,27 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         } catch (_) {}
       }
 
+      final snapshot = await compute(_collectDirMtimes, folders);
+      await Future.wait([_writeCache(tracks), _writeMtimeSnapshot(snapshot)]);
+
       final filtered = await _rebuildFiltered(tracks, state);
-      state = state.copyWith(
-        tracks: tracks,
-        cachedFiltered: filtered,
-        status: LibraryStatus.done,
-      );
+      if (mounted) {
+        state = state.copyWith(
+          tracks: tracks,
+          cachedFiltered: filtered,
+          status: LibraryStatus.done,
+        );
+      }
     } catch (e) {
-      state = state.copyWith(
-        status: LibraryStatus.error,
-        errorMessage: e.toString(),
-      );
+      if (mounted && !background) {
+        state = state.copyWith(
+          status: LibraryStatus.error,
+          errorMessage: e.toString(),
+        );
+      }
     }
   }
 
-  // Re-run filter+sort off the main thread, then update the cache.
   Future<void> _applyFilter() async {
     final filtered = await _rebuildFiltered(state.tracks, state);
     if (mounted) state = state.copyWith(cachedFiltered: filtered);
@@ -279,14 +411,10 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     List<Track> tracks,
     LibraryState s,
   ) {
-    final params = _FilterParams(
-      tracks,
-      s.filter,
-      s.query,
-      s.sortField,
-      s.sortOrder,
+    return compute(
+      _computeFiltered,
+      _FilterParams(tracks, s.filter, s.query, s.sortField, s.sortOrder),
     );
-    return compute(_computeFiltered, params);
   }
 
   void setQuery(String query) {
@@ -320,6 +448,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   void clearAll() {
     _saveFolders([]);
+    _deletePersistedState();
     state = const LibraryState();
   }
 }
