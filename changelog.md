@@ -18,6 +18,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 - [Backend|Visualizer] Sync visualizer to playback position
 - [Frontend|Search] Art stuck on previous track when global search changes
+- [Frontend|Library] Cache library and automatic rescan on startup if something changed on disk
 
 ### Changes
 

@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/playlist.dart';
-import '../models/track.dart';
+import 'package:aqloss/models/playlist.dart';
+import 'package:aqloss/models/track.dart';
 
 const _kPlaylistsKey = 'aqloss_playlists';
 
