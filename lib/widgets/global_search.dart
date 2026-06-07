@@ -12,8 +12,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 sealed class SearchResult {}
 
 class TrackResult extends SearchResult {
-  final Track track;
-  TrackResult(this.track);
+  final List<Track> tracks;
+  final String? coverPath;
+  TrackResult({this.coverPath, required this.tracks});
 }
 
 class AlbumResult extends SearchResult {
@@ -119,16 +120,21 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
     final results = <SearchResult>[];
 
     // Tracks
-    final matchTracks = tracks
+    final tracksMap = <String, List<Track>>{};
+    for (final t in tracks) {
+      if (t.album == null) continue;
+      tracksMap.putIfAbsent(t.album!, () => []).add(t);
+    }
+    final matchTracks = tracksMap.entries
         .where(
           (t) =>
-              t.displayTitle.toLowerCase().contains(q) ||
-              t.displayArtist.toLowerCase().contains(q),
+              t.value.first.displayTitle.toLowerCase().contains(q) ||
+              t.value.first.displayArtist.toLowerCase().contains(q),
         )
         .take(6)
         .toList();
     for (final t in matchTracks) {
-      results.add(TrackResult(t));
+      results.add(TrackResult(coverPath: t.value.first.path, tracks: t.value));
     }
 
     // Albums
@@ -415,7 +421,10 @@ class _ResultTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return switch (result) {
-      TrackResult(track: final t) => _TrackTile(track: t, onClose: onClose),
+      TrackResult() => _TrackTile(
+        result: result as TrackResult,
+        onClose: onClose,
+      ),
       AlbumResult() => _AlbumTile(
         result: result as AlbumResult,
         onClose: onClose,
@@ -433,9 +442,9 @@ class _ResultTile extends ConsumerWidget {
 }
 
 class _TrackTile extends ConsumerWidget {
-  final Track track;
+  final TrackResult result;
   final VoidCallback onClose;
-  const _TrackTile({required this.track, required this.onClose});
+  const _TrackTile({required this.result, required this.onClose});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -443,19 +452,21 @@ class _TrackTile extends ConsumerWidget {
     return _HoverRow(
       onTap: () {
         final library = ref.read(libraryProvider);
-        ref.read(playerProvider.notifier).loadWithQueue(track, library.tracks);
+        ref
+            .read(playerProvider.notifier)
+            .loadWithQueue(result.tracks.first, library.tracks);
         onClose();
       },
       child: Row(
         children: [
-          _SmallArt(path: track.path),
+          _SmallArt(path: result.coverPath),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  track.displayTitle,
+                  result.tracks.first.displayTitle,
                   style: TextStyle(
                     fontSize: 12.5,
                     color: cs.onSurface.withValues(alpha: 0.82),
@@ -464,7 +475,7 @@ class _TrackTile extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  track.displayArtist,
+                  result.tracks.first.displayArtist,
                   style: TextStyle(
                     fontSize: 11,
                     color: cs.onSurface.withValues(alpha: 0.36),
@@ -475,11 +486,11 @@ class _TrackTile extends ConsumerWidget {
               ],
             ),
           ),
-          if (track.album != null)
+          if (result.tracks.first.album != null)
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: Text(
-                track.album!,
+                result.tracks.first.album!,
                 style: TextStyle(
                   fontSize: 10.5,
                   color: cs.onSurface.withValues(alpha: 0.22),
@@ -713,20 +724,31 @@ class _SmallArt extends StatefulWidget {
 
 class _SmallArtState extends State<_SmallArt> {
   Uint8List? _art;
-  bool _tried = false;
+  String? _loadedPath;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _load(widget.path);
   }
 
-  Future<void> _load() async {
-    if (_tried || widget.path == null) return;
-    _tried = true;
+  @override
+  void didUpdateWidget(_SmallArt old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) {
+      _art = null;
+      _load(widget.path);
+    }
+  }
+
+  Future<void> _load(String? path) async {
+    if (path == null) return;
+    _loadedPath = path;
     try {
-      final bytes = await backend.readAlbumArtThumbnail(path: widget.path!);
-      if (mounted && bytes != null) setState(() => _art = bytes);
+      final bytes = await backend.readAlbumArtThumbnail(path: path);
+      if (mounted && _loadedPath == path) {
+        setState(() => _art = bytes);
+      }
     } catch (_) {}
   }
 
