@@ -10,12 +10,14 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
+- [Frontend|Miniplayer] Mini player window
 - [Frontend|Visualizer] Classic style for visualizer
-- [Frontend|Settings ] Custom shortcut
+- [Frontend|Settings] Custom shortcut
 
 ### Fixed
 
 - [Backend|Visualizer] Sync visualizer to playback position
+- [Frontend|Search] Art stuck on previous track when global search changes
 
 ### Changes
 
