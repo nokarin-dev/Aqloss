@@ -212,7 +212,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await _loadAndPlay(track);
   }
 
-  Future<void> _loadAndPlay(Track track) async {
+  Future<void> _loadAndPlay(Track track, {bool stopFirst = true}) async {
     _stopTimer();
     _handlingTrackEnd = false;
     ScrobbleController.instance.onTrackStop();
@@ -222,6 +222,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       position: Duration.zero,
     );
     try {
+      if (stopFirst) await AudioService.stop();
       await AudioService.loadTrack(track.path);
       if (!mounted) return;
       final s = _readSettings?.call();
@@ -367,7 +368,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       return;
     }
     state = state.copyWith(queueIndex: idx);
-    await _loadAndPlay(s.queue[idx]);
+    await _loadAndPlay(s.queue[idx], stopFirst: !_handlingTrackEnd);
   }
 
   Future<void> skipPrevious() async {
@@ -417,25 +418,28 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   // Reorder the queue
   void reorderQueue(int oldIndex, int newIndex) {
     final q = List<Track>.from(state.queue);
+    final cur = state.queueIndex;
     if (oldIndex < newIndex) newIndex -= 1;
     final track = q.removeAt(oldIndex);
     q.insert(newIndex, track);
-    int newCurrent = state.queueIndex;
-    if (oldIndex == state.queueIndex) {
+
+    int newCurrent = cur;
+    if (oldIndex == cur) {
       newCurrent = newIndex;
-    } else if (oldIndex < state.queueIndex && newIndex >= state.queueIndex) {
-      newCurrent -= 1;
-    } else if (oldIndex > state.queueIndex && newIndex <= state.queueIndex) {
-      newCurrent += 1;
+    } else if (oldIndex < cur && newIndex >= cur) {
+      newCurrent = cur - 1;
+    } else if (oldIndex > cur && newIndex < cur) {
+      newCurrent = cur + 1;
     }
+
     state = state.copyWith(queue: q, queueIndex: newCurrent);
   }
 
-  // Jump to a specific index in the queue.
   Future<void> jumpToQueue(int index) async {
     if (index < 0 || index >= state.queue.length) return;
+    final track = state.queue[index];
     state = state.copyWith(queueIndex: index);
-    await _loadAndPlay(state.queue[index]);
+    await _loadAndPlay(track);
   }
 
   void cycleLoopMode() {
@@ -537,7 +541,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
             : album.first;
         final qIdx = s.queue.indexWhere((t) => t.path == next.path);
         state = state.copyWith(queueIndex: qIdx >= 0 ? qIdx : 0);
-        await _loadAndPlay(next);
+        await _loadAndPlay(next, stopFirst: false);
       case LoopMode.playlist:
         await skipNext();
       case LoopMode.off:

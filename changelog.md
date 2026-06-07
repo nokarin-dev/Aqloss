@@ -10,17 +10,17 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
-- Classic style for visualizer
-- Custom shortcut
+- [Frontend|Visualizer] Classic style for visualizer
+- [Frontend|Settings ] Custom shortcut
 
 ### Fixed
 
-- Sync visualizer to playback position
+- [Backend|Visualizer] Sync visualizer to playback position
 
 ### Changes
 
-- Improve visualizer with realfft
-- Rework wave & dots visualizer
+- [Backend|Visualizer] Improve visualizer with realfft
+- [Frontend|Visualizer] Rework wave & dots visualizer
 
 ---
 

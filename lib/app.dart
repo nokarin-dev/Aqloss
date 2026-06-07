@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/settings_watcher.dart';
+import 'package:aqloss/widgets/mini_player_window.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/home_screen.dart';
 
@@ -92,7 +93,9 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
 
         return ClipRRect(borderRadius: radius, child: child);
       },
-      home: const SettingsWatcher(child: HomeScreen()),
+      home: const MiniPlayerOverlay(
+        child: SettingsWatcher(child: HomeScreen()),
+      ),
     );
   }
 }

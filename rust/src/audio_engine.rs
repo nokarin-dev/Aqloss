@@ -358,7 +358,7 @@ impl AudioEngine {
         let mel_min = hz_to_mel(20.0);
         let mel_max = hz_to_mel(display_max_hz);
 
-        const DB_FLOOR: f32 = -75.0;
+        const DB_FLOOR: f32 = -80.0;
 
         // Prepare for temporal smoothing
         let mut prev_out = self.prev_output.lock().unwrap();

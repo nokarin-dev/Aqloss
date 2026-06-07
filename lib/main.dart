@@ -1,41 +1,56 @@
+import 'dart:io' show Platform;
+
 import 'package:aqloss/src/rust/frb_generated.dart';
 import 'package:aqloss/util/logger.dart';
+import 'package:aqloss/widgets/mini_player_window.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
-import 'dart:io' show Platform;
+
 import 'app.dart';
+import 'providers/settings_provider.dart';
 import 'services/audio_service.dart';
 import 'services/notifier/media_control_windows.dart';
-import 'providers/settings_provider.dart';
 
-void main() async {
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  if (!Platform.isAndroid && !Platform.isIOS) {
+    await windowManager.ensureInitialized();
+  }
+
+  final windowController = await WindowController.fromCurrentEngine();
+  final argument = windowController.arguments;
+
+  if (argument == 'mini_player') {
+    runApp(const ProviderScope(child: MiniPlayerStandalone()));
+    return;
+  }
+
+  // Main window
   if (Platform.isWindows) {
     await MediaControlPlatform.initialize();
   }
 
-  if (!Platform.isAndroid && !Platform.isIOS) {
-    await windowManager.ensureInitialized();
-    await windowManager.waitUntilReadyToShow(
-      WindowOptions(
-        size: const Size(1280, 720),
-        minimumSize: const Size(1280, 720),
-        center: true,
-        titleBarStyle: TitleBarStyle.hidden,
-        windowButtonVisibility: Platform.isMacOS ? false : null,
-        skipTaskbar: false,
-        title: 'Aqloss',
-        backgroundColor: Platform.isLinux ? Colors.transparent : null,
-      ),
-      () async {
-        await windowManager.show();
-        await windowManager.focus();
-      },
-    );
-  }
+  // Main window
+  await windowManager.waitUntilReadyToShow(
+    WindowOptions(
+      size: const Size(1280, 720),
+      minimumSize: const Size(1280, 720),
+      center: true,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: Platform.isMacOS ? false : null,
+      skipTaskbar: false,
+      title: 'Aqloss',
+      backgroundColor: Platform.isLinux ? Colors.transparent : null,
+    ),
+    () async {
+      await windowManager.show();
+      await windowManager.focus();
+    },
+  );
 
   await AqlossCore.init();
   await Logger.init();

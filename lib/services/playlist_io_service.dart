@@ -51,6 +51,7 @@ class PlaylistIOService {
       String? savePath;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         savePath = await FilePicker.saveFile(
+          bytes: utf8.encode(json),
           dialogTitle: 'Export playlist',
           fileName: fileName,
           type: FileType.custom,

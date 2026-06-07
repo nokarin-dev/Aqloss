@@ -123,7 +123,7 @@ class _QueueList extends StatelessWidget {
         final isPast = i < curIdx;
 
         return _QueueTile(
-          key: ValueKey('q_${track.path}_$i'),
+          key: ValueKey('q_${i}_${track.path}'),
           track: track,
           index: i,
           isCurrent: isCur,
