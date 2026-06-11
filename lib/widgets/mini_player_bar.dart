@@ -1,12 +1,14 @@
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 import 'package:aqloss/models/track.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/accent_provider.dart';
+import 'package:aqloss/widgets/q_toast.dart';
 
 class MiniPlayerBar extends ConsumerStatefulWidget {
   final VoidCallback onTap;
@@ -62,9 +64,11 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
 
     final isDesktop =
         Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-    return isDesktop
+    final bar = isDesktop
         ? _DesktopBar(artBytes: _artBytes, player: player, onTap: widget.onTap)
         : _MobileBar(artBytes: _artBytes, player: player, onTap: widget.onTap);
+
+    return _DragToQueueTarget(child: bar);
   }
 }
 
@@ -107,6 +111,7 @@ class _DesktopBar extends ConsumerWidget {
       duration: duration,
       progress: progress,
       cs: cs,
+      accent: ref.watch(accentColorProvider),
       onTap: onTap,
     );
 
@@ -143,6 +148,7 @@ class _DesktopBarContent extends StatelessWidget {
   final Duration duration;
   final double progress;
   final ColorScheme cs;
+  final Color? accent;
   final VoidCallback onTap;
 
   const _DesktopBarContent({
@@ -157,6 +163,7 @@ class _DesktopBarContent extends StatelessWidget {
     required this.progress,
     required this.cs,
     required this.onTap,
+    this.accent,
   });
 
   @override
@@ -296,7 +303,8 @@ class _DesktopBarContent extends StatelessWidget {
                         value: progress,
                         trackHeight: 2,
                         showThumb: false,
-                        activeColor: cs.onSurface.withValues(alpha: 0.45),
+                        activeColor:
+                            accent ?? cs.onSurface.withValues(alpha: 0.45),
                         inactiveColor: cs.onSurface.withValues(alpha: 0.08),
                         onChanged: (v) {
                           if (duration.inMilliseconds > 0) {
@@ -326,10 +334,27 @@ class _DesktopBarContent extends StatelessWidget {
             ),
           ),
 
-          // Volume
+          // Share + Volume
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Tooltip(
+                message: 'Copy now playing',
+                preferBelow: false,
+                waitDuration: const Duration(milliseconds: 500),
+                child: _MiniBtn(
+                  icon: Icons.ios_share_rounded,
+                  size: 15,
+                  tooltip: '',
+                  onTap: () {
+                    final t = track;
+                    final text = '${t.displayArtist} — ${t.displayTitle}';
+                    Clipboard.setData(ClipboardData(text: text));
+                    QToast.show(context, 'Copied to clipboard');
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
               Icon(
                 Icons.volume_down_rounded,
                 size: 15,
@@ -411,7 +436,9 @@ class _MobileBar extends ConsumerWidget {
               value: progress,
               trackHeight: 1.5,
               showThumb: false,
-              activeColor: cs.onSurface.withValues(alpha: 0.32),
+              activeColor:
+                  ref.watch(accentColorProvider) ??
+                  cs.onSurface.withValues(alpha: 0.32),
               inactiveColor: cs.onSurface.withValues(alpha: 0.07),
               onChanged: (v) {
                 if (duration.inMilliseconds > 0) {
@@ -638,6 +665,114 @@ class _MiniPlayBtnState extends State<_MiniPlayBtn>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DragToQueueTarget extends ConsumerStatefulWidget {
+  final Widget child;
+  const _DragToQueueTarget({required this.child});
+
+  @override
+  ConsumerState<_DragToQueueTarget> createState() => _DragToQueueTargetState();
+}
+
+class _DragToQueueTargetState extends ConsumerState<_DragToQueueTarget> {
+  bool _over = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final notifier = ref.read(playerProvider.notifier);
+
+    return DragTarget<List<Track>>(
+      onWillAcceptWithDetails: (_) {
+        setState(() => _over = true);
+        return true;
+      },
+      onLeave: (_) => setState(() => _over = false),
+      onAcceptWithDetails: (details) {
+        setState(() => _over = false);
+        for (final track in details.data) {
+          notifier.addToQueueLast(track);
+        }
+        final count = details.data.length;
+        final label = count == 1
+            ? '"${details.data.first.displayTitle}" added to queue'
+            : '$count tracks added to queue';
+        QToast.show(context, label);
+      },
+      builder: (ctx, candidates, _) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 130),
+          decoration: _over
+              ? BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: cs.onSurface.withValues(alpha: 0.22),
+                      width: 1.5,
+                    ),
+                  ),
+                  color: cs.onSurface.withValues(alpha: 0.04),
+                )
+              : const BoxDecoration(),
+          child: Stack(
+            children: [
+              widget.child,
+              if (_over)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 120),
+                      opacity: _over ? 1.0 : 0.0,
+                      child: Container(
+                        alignment: Alignment.center,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.surface.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: cs.onSurface.withValues(alpha: 0.12),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.queue_music_rounded,
+                                size: 14,
+                                color: cs.onSurface.withValues(alpha: 0.70),
+                              ),
+                              const SizedBox(width: 7),
+                              Text(
+                                'Add to queue',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: cs.onSurface.withValues(alpha: 0.70),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

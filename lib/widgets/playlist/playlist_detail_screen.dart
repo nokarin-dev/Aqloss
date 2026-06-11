@@ -8,21 +8,67 @@ import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
 import 'package:aqloss/services/playlist_io_service.dart';
 
-class PlaylistDetailScreen extends ConsumerWidget {
+class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
   const PlaylistDetailScreen({super.key, required this.playlist});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlaylistDetailScreen> createState() =>
+      _PlaylistDetailScreenState();
+}
+
+class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
+  final _scroll = ScrollController();
+  static const _kItemH = 52.0;
+  String? _lastScrolledPath;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToPlaying([]));
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _scrollToPlaying(List<Track> tracks) {
+    if (!_scroll.hasClients || tracks.isEmpty) return;
+    final path = ref.read(playerProvider).currentTrack?.path;
+    if (path == null || path == _lastScrolledPath) return;
+    final idx = tracks.indexWhere((t) => t.path == path);
+    if (idx < 0) return;
+    _lastScrolledPath = path;
+    final viewportH = _scroll.position.viewportDimension;
+    final centered = idx * _kItemH - viewportH / 2 + _kItemH / 2;
+    final target = centered.clamp(0.0, _scroll.position.maxScrollExtent);
+    _scroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final playlists = ref.watch(playlistProvider);
     final current = playlists.firstWhere(
-      (p) => p.id == playlist.id,
-      orElse: () => playlist,
+      (p) => p.id == widget.playlist.id,
+      orElse: () => widget.playlist,
     );
     final notifier = ref.read(playlistProvider.notifier);
     final playerNotifier = ref.read(playerProvider.notifier);
     final cs = Theme.of(context).colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 700;
+
+    final currentPath = ref.watch(playerProvider).currentTrack?.path;
+    if (currentPath != null && currentPath != _lastScrolledPath) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollToPlaying(current.tracks),
+      );
+    }
 
     return Scaffold(
       body: Column(
@@ -122,6 +168,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
             child: current.tracks.isEmpty
                 ? _EmptyPlaylist(cs: cs)
                 : ReorderableListView.builder(
+                    scrollController: _scroll,
                     onReorder: (old, newIdx) =>
                         notifier.reorderTrack(current.id, old, newIdx),
                     itemCount: current.tracks.length,

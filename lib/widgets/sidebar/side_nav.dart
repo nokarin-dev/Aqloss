@@ -8,7 +8,7 @@ import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/queue_panel.dart';
 import 'package:aqloss/services/playlist_io_service.dart';
 import 'package:aqloss/providers/settings_provider.dart';
-import 'package:aqloss/widgets/playlist_art_icon.dart';
+import 'package:aqloss/widgets/playlist/playlist_art_icon.dart';
 import 'package:aqloss/widgets/shared/input_dialog.dart';
 import 'package:aqloss/widgets/sidebar/playlist_nav_item.dart';
 

@@ -309,7 +309,7 @@ class _SortPill extends StatelessWidget {
 }
 
 // Track list
-class _TrackList extends ConsumerWidget {
+class _TrackList extends ConsumerStatefulWidget {
   final LibraryState library;
   final bool isScanning;
   final LibraryViewMode viewMode;
@@ -320,10 +320,74 @@ class _TrackList extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TrackList> createState() => _TrackListState();
+}
+
+class _TrackListState extends ConsumerState<_TrackList> {
+  final _scroll = ScrollController();
+  static const _kItemH = 56.0;
+  String? _lastScrolledPath;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToPlaying());
+  }
+
+  @override
+  void didUpdateWidget(_TrackList old) {
+    super.didUpdateWidget(old);
+    final currentPath = ref.read(playerProvider).currentTrack?.path;
+    if (currentPath != null && currentPath != _lastScrolledPath) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToPlaying());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _scrollToPlaying() {
+    if (!_scroll.hasClients) return;
+    final path = ref.read(playerProvider).currentTrack?.path;
+    if (path == null) return;
+    final tracks = widget.library.filteredTracks;
+    final idx = tracks.indexWhere((t) => t.path == path);
+    if (idx < 0) return;
+    _lastScrolledPath = path;
+    final viewportH = _scroll.position.viewportDimension;
+    final centered = idx * _kItemH - viewportH / 2 + _kItemH / 2;
+    final target = centered.clamp(0.0, _scroll.position.maxScrollExtent);
+    _scroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _showOptions(
+    BuildContext ctx,
+    Track track,
+    List playlists,
+    PlaylistNotifier playlistNotifier,
+  ) {
+    showQSheet(
+      context: ctx,
+      builder: (_) => _TrackOptions(
+        track: track,
+        playlists: playlists,
+        notifier: playlistNotifier,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    if (isScanning) {
+    if (widget.isScanning) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -342,11 +406,12 @@ class _TrackList extends ConsumerWidget {
       );
     }
 
-    if (library.status == LibraryStatus.idle || library.tracks.isEmpty) {
+    if (widget.library.status == LibraryStatus.idle ||
+        widget.library.tracks.isEmpty) {
       return _Empty();
     }
 
-    final tracks = library.filteredTracks;
+    final tracks = widget.library.filteredTracks;
     if (tracks.isEmpty) {
       return Center(
         child: Text(
@@ -365,7 +430,7 @@ class _TrackList extends ConsumerWidget {
     final isDesktop =
         Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
-    if (viewMode == LibraryViewMode.grid) {
+    if (widget.viewMode == LibraryViewMode.grid) {
       return GridView.builder(
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -391,6 +456,8 @@ class _TrackList extends ConsumerWidget {
     }
 
     return ListView.builder(
+      controller: _scroll,
+      itemExtent: _kItemH,
       itemCount: tracks.length,
       itemBuilder: (ctx, i) => TrackTile(
         key: ValueKey(tracks[i].path),
@@ -405,22 +472,6 @@ class _TrackList extends ConsumerWidget {
         onSecondaryTap: isDesktop
             ? () => _showOptions(ctx, tracks[i], playlists, playlistNotifier)
             : null,
-      ),
-    );
-  }
-
-  void _showOptions(
-    BuildContext ctx,
-    Track track,
-    List playlists,
-    PlaylistNotifier playlistNotifier,
-  ) {
-    showQSheet(
-      context: ctx,
-      builder: (_) => _TrackOptions(
-        track: track,
-        playlists: playlists,
-        notifier: playlistNotifier,
       ),
     );
   }

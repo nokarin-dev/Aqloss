@@ -1,0 +1,190 @@
+[
+    {
+        "title": "v0.3.1",
+        "subtitle": "Customisable shortcuts, mini player mode, share now playing, and more UI improvements.",
+        "status": "done",
+        "items": [
+            {
+                "title": "Customisable shortcuts",
+                "description": "Users can remap all global shortcuts in the settings.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Share now playing",
+                "description": "Copy 'artist - title' to the clipboard or share as text with a single click",
+                "status": "done",
+                "category": "Frontend · Integration"
+            },
+            {
+                "title": "Mini player mode",
+                "description": "The small always-on-top window only displays controls and a cover when working in another app.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Accent colour",
+                "description": "Choose a custom accent color or automatically select one based on the dominant color of the album art.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Drag to queue improvement",
+                "description": "Drag the track to the mini player bar to add it to the queue immediately, without opening the queue panel.",
+                "status": "done",
+                "category": "Frontend · UI"
+            }
+        ]
+    },
+    {
+        "title": "Backlog",
+        "subtitle": "No timeline yet",
+        "status": "planned",
+        "items": [
+            {
+                "title": "Parametric EQ",
+                "description": "Replace the 10-band graphic EQ with a parametric EQ - more control per band, Q factor, shelf filters.",
+                "status": "planned",
+                "category": "Audio · DSP"
+            },
+            {
+                "title": "Crossfeed",
+                "description": "Binaural crossfeed filter for headphone listening - reduces fatigue on hard-panned recordings.",
+                "status": "planned",
+                "category": "Audio · DSP"
+            },
+            {
+                "title": "Stereo widening",
+                "description": "Mid/side processing for adjusting stereo width without clipping.",
+                "status": "planned",
+                "category": "Audio · DSP"
+            },
+            {
+                "title": "ReplayGain scanner",
+                "description": "Built-in scanner to compute and write ReplayGain tags to files, not just read them.",
+                "status": "planned",
+                "category": "Audio · Backend"
+            },
+            {
+                "title": "Waveform seeker",
+                "description": "A visual waveform of the audio file displayed as a seek bar, rather than a standard progress bar.",
+                "status": "planned",
+                "category": "Player · Playback"
+            },
+            {
+                "title": "A-B loop",
+                "description": "Set points A and B for a specific repeat section within a track.",
+                "status": "planned",
+                "category": "Player · Playback"
+            },
+            {
+                "title": "Sleep timer",
+                "description": "Automatically stop playback after a specified time.",
+                "status": "planned",
+                "category": "Player · Playback"
+            },
+            {
+                "title": "Playback speed",
+                "description": "Adjust the playback speed of audio files.",
+                "status": "planned",
+                "category": "Player · Playback"
+            },
+            {
+                "title": "Restore position",
+                "description": "Remember the last position of each track when the app is closed and reopened.",
+                "status": "planned",
+                "category": "Player · Playback"
+            },
+            {
+                "title": "Tag editor",
+                "description": "Edit ID3/Vorbis metadata (title, artist, album, year, genre, cover) directly from the UI.",
+                "status": "planned",
+                "category": "Library · Organization"
+            },
+            {
+                "title": "Smart filter bar",
+                "description": "Filter the library by genre, year, format, and bit depth without going into the settings.",
+                "status": "planned",
+                "category": "Library · Organization"
+            },
+            {
+                "title": "Cover art fallback",
+                "description": "Fetch the cover from MusicBrainz or the Cover Art Archive if the file doesn't have a cover.",
+                "status": "planned",
+                "category": "Library · Organization"
+            },
+            {
+                "title": "Multi column sort",
+                "description": "Sort by album, artist, and track number all at once, not just by a single field.",
+                "status": "planned",
+                "category": "Library · Organization"
+            },
+            {
+                "title": "EQ presets",
+                "description": "Save/load EQ settings as named presets. Includes several default presets (Rock, Classical, Vocal).",
+                "status": "planned",
+                "category": "Audio · DSP"
+            },
+            {
+                "title": "Stereo width",
+                "description": "Mid/side balance control to widen or narrow the stereo image.",
+                "status": "planned",
+                "category": "Audio · DSP"
+            },
+            {
+                "title": "Loudness normalisation",
+                "description": "EBU R128 / LUFS-based loudness normalization as an alternative to ReplayGain.",
+                "status": "planned",
+                "category": "Audio · DSP"
+            },
+            {
+                "title": "MusicBrainz lookup",
+                "description": "Automatic metadata enrichment via MusicBrainz: genre, year, ISRC, label.",
+                "status": "planned",
+                "category": "Frontend · Integration"
+            },
+            {
+                "title": "Track info modal",
+                "description": "Track details: all tags, codec information, file path, ReplayGain values, play count.",
+                "status": "planned",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Notification toast",
+                "description": "A notification when a folder has finished scanning, a scrobble has failed, or an update is available.",
+                "status": "planned",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "System tray",
+                "description": "Minimize to the system tray, a small control panel pops up from the tray icon without opening the full app.",
+                "status": "planned",
+                "category": "System · Platform"
+            },
+            {
+                "title": "Settings backup",
+                "description": "Export or import all settings and playlists as a single JSON file.",
+                "status": "planned",
+                "category": "System · Platform"
+            },
+            {
+                "title": "Missing file detection",
+                "description": "Detect tracks in the library whose files have been moved or deleted, then offer to remove or relocate them.",
+                "status": "planned",
+                "category": "System · Platform"
+            },
+            {
+                "title": "Android improvements",
+                "description": "Improved notification controls, lock screen art, and scoped storage handling in Android 13 and later.",
+                "status": "planned",
+                "category": "System · Platform"
+            },
+            {
+                "title": "Plugin system",
+                "description": "A minimal plugin API for DSP effects and metadata providers. Distant future.",
+                "status": "planned",
+                "category": "Architecture"
+            }
+        ]
+    }
+]

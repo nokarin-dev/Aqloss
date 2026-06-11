@@ -288,12 +288,10 @@ impl AudioEngine {
         let write_sample = self.spectrum_pos.load(Ordering::Relaxed) as usize;
         let write_frame = write_sample / ch;
 
-        let lookback = latency_frames + FFT_SIZE;
-        let start_frame = if lookback <= write_frame + total_frames {
-            (write_frame + total_frames - lookback) % total_frames
-        } else {
-            return vec![0.0; n];
-        };
+        let ideal_lookback = latency_frames + FFT_SIZE;
+        let lookback = ideal_lookback.min(total_frames - 1);
+
+        let start_frame = (write_frame + total_frames - lookback) % total_frames;
 
         let mut mono = vec![0.0f32; FFT_SIZE];
         for i in 0..FFT_SIZE {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
@@ -32,9 +33,9 @@ class PlayerControls extends ConsumerWidget {
           value: progress,
           trackHeight: 2.5,
           thumbRadius: 5,
-          activeColor: cs.onSurface,
+          activeColor: ref.accentOrSurface(context),
           inactiveColor: cs.onSurface.withValues(alpha: 0.10),
-          thumbColor: cs.onSurface,
+          thumbColor: ref.accentOrSurface(context),
           onChanged: player.currentTrack == null
               ? null
               : (v) {
@@ -117,6 +118,7 @@ class PlayerControls extends ConsumerWidget {
               hasTrack: player.currentTrack != null,
               isMobile: isMobile,
               cs: cs,
+              accentColor: ref.watch(accentColorProvider),
               onTap: player.currentTrack == null
                   ? null
                   : isPlaying
@@ -176,6 +178,7 @@ class PlayerControls extends ConsumerWidget {
 class _PlayButton extends StatefulWidget {
   final bool isPlaying, isLoading, hasTrack, isMobile;
   final ColorScheme cs;
+  final Color? accentColor;
   final VoidCallback? onTap;
   const _PlayButton({
     required this.isPlaying,
@@ -183,6 +186,7 @@ class _PlayButton extends StatefulWidget {
     required this.hasTrack,
     required this.isMobile,
     required this.cs,
+    this.accentColor,
     this.onTap,
   });
   @override
@@ -238,14 +242,18 @@ class _PlayButtonState extends State<_PlayButton>
               color: !widget.hasTrack
                   ? widget.cs.onSurface.withValues(alpha: 0.07)
                   : _hovered
-                  ? widget.cs.onSurface.withValues(alpha: 0.86)
-                  : widget.cs.onSurface,
+                  ? (widget.accentColor ?? widget.cs.onSurface).withValues(
+                      alpha: 0.86,
+                    )
+                  : (widget.accentColor ?? widget.cs.onSurface),
               shape: BoxShape.circle,
               boxShadow: widget.hasTrack
                   ? [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 16,
+                        color: (widget.accentColor ?? Colors.black).withValues(
+                          alpha: 0.38,
+                        ),
+                        blurRadius: 18,
                         offset: const Offset(0, 6),
                       ),
                     ]

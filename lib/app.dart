@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/widgets/settings_watcher.dart';
 import 'package:aqloss/widgets/mini_player_window.dart';
 import 'package:window_manager/window_manager.dart';
@@ -58,13 +59,18 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
       ThemeMode.system => theme.ThemeMode.system,
     };
 
+    Color? accent;
+    if (settings.accentMode != AccentMode.off) {
+      accent = ref.watch(accentColorProvider);
+    }
+
     return MaterialApp(
       color: Colors.transparent,
       title: 'Aqloss',
       debugShowCheckedModeBanner: false,
       themeMode: materialThemeMode,
-      theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
+      theme: _buildLightTheme(accent: accent),
+      darkTheme: _buildDarkTheme(accent: accent),
       builder: (context, child) {
         final isWindowedLinux = _isLinux && !_isMaximize;
         final radius = isWindowedLinux
@@ -100,21 +106,23 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
   }
 }
 
-ThemeData _buildDarkTheme() {
+ThemeData _buildDarkTheme({Color? accent}) {
   const surface = Color(0xFF060608);
   const surfaceVariant = Color(0xFF0C0C10);
   const card = Color(0xFF101014);
   const onSurface = Colors.white;
   const border = Color(0x10FFFFFF);
   const indicator = Color(0x14FFFFFF);
+  final primary = accent ?? onSurface;
+  final onPrimary = accent != null ? Colors.white : surface;
 
   return ThemeData(
-    colorScheme: const ColorScheme(
+    colorScheme: ColorScheme(
       brightness: Brightness.dark,
-      primary: onSurface,
-      onPrimary: surface,
-      secondary: onSurface,
-      onSecondary: surface,
+      primary: primary,
+      onPrimary: onPrimary,
+      secondary: primary,
+      onSecondary: onPrimary,
       secondaryContainer: indicator,
       onSecondaryContainer: onSurface,
       error: Color(0xFFFF6B6B),
@@ -242,21 +250,23 @@ ThemeData _buildDarkTheme() {
   );
 }
 
-ThemeData _buildLightTheme() {
+ThemeData _buildLightTheme({Color? accent}) {
   const surface = Color(0xFFF2F2F4);
   const surfaceVariant = Color(0xFFE8E8EC);
   const card = Colors.white;
   const onSurface = Colors.black;
   const border = Color(0x10000000);
   const indicator = Color(0x10000000);
+  final primary = accent ?? onSurface;
+  final onPrimary = accent != null ? Colors.white : surface;
 
   return ThemeData(
-    colorScheme: const ColorScheme(
+    colorScheme: ColorScheme(
       brightness: Brightness.light,
-      primary: onSurface,
-      onPrimary: surface,
-      secondary: onSurface,
-      onSecondary: surface,
+      primary: primary,
+      onPrimary: onPrimary,
+      secondary: primary,
+      onSecondary: onPrimary,
       secondaryContainer: indicator,
       onSecondaryContainer: onSurface,
       error: Color(0xFFB00020),

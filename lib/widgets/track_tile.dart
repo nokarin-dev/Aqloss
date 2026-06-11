@@ -6,6 +6,7 @@ import 'package:aqloss/models/audio_format.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 class TrackTile extends ConsumerWidget {
@@ -103,7 +104,7 @@ class TrackTile extends ConsumerWidget {
   }
 }
 
-class _TileBody extends StatefulWidget {
+class _TileBody extends ConsumerStatefulWidget {
   final Track track;
   final bool isPlaying;
   final AudioFormat format;
@@ -125,15 +126,16 @@ class _TileBody extends StatefulWidget {
   });
 
   @override
-  State<_TileBody> createState() => _TileBodyState();
+  ConsumerState<_TileBody> createState() => _TileBodyState();
 }
 
-class _TileBodyState extends State<_TileBody> {
+class _TileBodyState extends ConsumerState<_TileBody> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final accent = ref.watch(accentColorProvider);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -170,7 +172,7 @@ class _TileBodyState extends State<_TileBody> {
                             ? FontWeight.w500
                             : FontWeight.w400,
                         color: widget.isPlaying
-                            ? cs.onSurface
+                            ? (accent ?? cs.onSurface)
                             : cs.onSurface.withValues(alpha: 0.72),
                         fontSize: 13,
                       ),
@@ -334,7 +336,9 @@ class _ArtThumbState extends ConsumerState<_ArtThumb> {
                   ? Icon(
                       Icons.equalizer_rounded,
                       size: 14,
-                      color: cs.onSurface.withValues(alpha: 0.54),
+                      color:
+                          ref.watch(accentColorProvider) ??
+                          cs.onSurface.withValues(alpha: 0.54),
                     )
                   : _artBytes != null
                   ? Image.memory(_artBytes!, fit: BoxFit.cover)

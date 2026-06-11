@@ -97,7 +97,7 @@ class _QueuePanelContent extends ConsumerWidget {
 }
 
 // Queue list
-class _QueueList extends StatelessWidget {
+class _QueueList extends StatefulWidget {
   final List<Track> queue;
   final int curIdx;
   final PlayerNotifier notifier;
@@ -109,18 +109,59 @@ class _QueueList extends StatelessWidget {
   });
 
   @override
+  State<_QueueList> createState() => _QueueListState();
+}
+
+class _QueueListState extends State<_QueueList> {
+  final _scroll = ScrollController();
+  static const _kItemH = 52.0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent());
+  }
+
+  @override
+  void didUpdateWidget(_QueueList old) {
+    super.didUpdateWidget(old);
+    if (old.curIdx != widget.curIdx) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _scrollToCurrent() {
+    if (!_scroll.hasClients || widget.curIdx < 0) return;
+    final viewportH = _scroll.position.viewportDimension;
+    final centered = widget.curIdx * _kItemH - viewportH / 2 + _kItemH / 2;
+    final target = centered.clamp(0.0, _scroll.position.maxScrollExtent);
+    _scroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ReorderableListView.builder(
+      scrollController: _scroll,
       padding: const EdgeInsets.only(bottom: 24),
-      itemCount: queue.length,
+      itemCount: widget.queue.length,
       proxyDecorator: (child, index, animation) =>
           Material(color: Colors.transparent, child: child),
       onReorder: (oldIndex, newIndex) =>
-          notifier.reorderQueue(oldIndex, newIndex),
+          widget.notifier.reorderQueue(oldIndex, newIndex),
       itemBuilder: (context, i) {
-        final track = queue[i];
-        final isCur = i == curIdx;
-        final isPast = i < curIdx;
+        final track = widget.queue[i];
+        final isCur = i == widget.curIdx;
+        final isPast = i < widget.curIdx;
 
         return _QueueTile(
           key: ValueKey('q_${i}_${track.path}'),
@@ -128,8 +169,8 @@ class _QueueList extends StatelessWidget {
           index: i,
           isCurrent: isCur,
           isPast: isPast,
-          onTap: () => notifier.jumpToQueue(i),
-          onRemove: () => notifier.removeFromQueue(i),
+          onTap: () => widget.notifier.jumpToQueue(i),
+          onRemove: () => widget.notifier.removeFromQueue(i),
         );
       },
     );

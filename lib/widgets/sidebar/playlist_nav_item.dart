@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:aqloss/models/playlist.dart';
-import 'package:aqloss/widgets/playlist_art_icon.dart';
+import 'package:aqloss/widgets/playlist/playlist_art_icon.dart';
 
 class PlaylistNavItem extends StatefulWidget {
   final Playlist playlist;

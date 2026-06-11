@@ -8,24 +8,31 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
+No Changes Yet.
+
+---
+
+## [0.3.1] - 2026-06-11
+
 ### Added
 
-- [Frontend|Miniplayer] Mini player window
 - [Frontend|Visualizer] Classic style for visualizer
-- [Frontend|Settings] Custom shortcut
+- [Frontend|Integration] Share now playing
+- [Frontend|UI] Mini player window
+- [Frontend|UI] Customisable shortcuts
+- [Frontend|UI] Accent color
 
 ### Fixed
 
-- [Backend|Visualizer] Sync visualizer to playback position
 - [Frontend|Search] Art stuck on previous track when global search changes
 - [Frontend|Library] Cache library and automatic rescan on startup if something changed on disk
+- [Backend|Visualizer] Sync visualizer to playback position
 
 ### Changes
 
-- [Backend|Visualizer] Improve visualizer with realfft
 - [Frontend|Visualizer] Rework wave & dots visualizer
-
----
+- [Frontend|UI] Drag to queue improvement
+- [Backend|Visualizer] Improve visualizer with realfft
 
 ## [0.3.0] - 2026-05-30
 
@@ -180,7 +187,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.1...v0.2.2

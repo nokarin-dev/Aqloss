@@ -1151,9 +1151,178 @@ class _DisplayPane extends ConsumerWidget {
             ],
           ],
         ),
+        const SizedBox(height: 12),
+        const _AccentColorCard(),
       ],
     );
   }
+}
+
+// Accent color card
+class _AccentColorCard extends ConsumerWidget {
+  const _AccentColorCard();
+
+  static const _swatches = [
+    Color(0xFFFF453A),
+    Color(0xFFFF9F0A),
+    Color(0xFFFFD60A),
+    Color(0xFF30D158),
+    Color(0xFF64D2FF),
+    Color(0xFF0A84FF),
+    Color(0xFF5E5CE6),
+    Color(0xFFBF5AF2),
+    Color(0xFFFF375F),
+    Color(0xFFFF6961),
+    Color(0xFF34C759),
+    Color(0xFF00C7BE),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(settingsProvider);
+    final n = ref.read(settingsProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
+
+    return _SettingsCard(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.color_lens_outlined,
+                    size: 16,
+                    color: cs.onSurface.withValues(alpha: 0.40),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Accent colour',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: cs.onSurface.withValues(alpha: 0.88),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Tints interactive elements. Auto picks from album art.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurface.withValues(alpha: 0.36),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Mode toggle
+                  _AccentModeChip(
+                    label: 'Off',
+                    selected: s.accentMode == AccentMode.off,
+                    onTap: () => n.setAccentMode(AccentMode.off),
+                    cs: cs,
+                  ),
+                  const SizedBox(width: 4),
+                  _AccentModeChip(
+                    label: 'Auto',
+                    selected: s.accentMode == AccentMode.auto,
+                    onTap: () => n.setAccentMode(AccentMode.auto),
+                    cs: cs,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _swatches.map((color) {
+                  final isSelected =
+                      s.accentMode == AccentMode.custom &&
+                      s.accentColor == color.toARGB32();
+                  return GestureDetector(
+                    onTap: () => n.setAccentColor(color.toARGB32()),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 130),
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? cs.onSurface.withValues(alpha: 0.90)
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.40),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: isSelected
+                          ? Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AccentModeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final ColorScheme cs;
+  const _AccentModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.cs,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 110),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: selected
+            ? cs.onSurface.withValues(alpha: 0.10)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: cs.onSurface.withValues(alpha: selected ? 0.16 : 0.08),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          color: cs.onSurface.withValues(alpha: selected ? 0.88 : 0.38),
+        ),
+      ),
+    ),
+  );
 }
 
 // Last.fm pane

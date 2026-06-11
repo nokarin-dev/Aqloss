@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/services/lastfm_service.dart';
@@ -20,6 +21,9 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   SettingsState? _prev;
   PlayerState? _prevPlayer;
   bool _mediaInitialized = false;
+  AccentMode? _prevAccentMode;
+  int? _prevAccentColor;
+  String? _prevAccentPath;
 
   @override
   void initState() {
@@ -55,6 +59,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _apply(s);
       _applyMediaControls(player);
+      _applyAccent(s, player);
     });
 
     return widget.child;
@@ -72,6 +77,49 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     if (trackChanged || statusChanged || positionChanged) {
       MediaControlService.update(player);
     }
+  }
+
+  void _applyAccent(SettingsState s, PlayerState player) {
+    final mode = s.accentMode;
+    final custom = s.accentColor;
+    final path = player.currentTrack?.path;
+
+    if (mode == AccentMode.off) {
+      if (_prevAccentMode != AccentMode.off) {
+        ref.read(accentColorProvider.notifier).state = null;
+      }
+      _prevAccentMode = mode;
+      _prevAccentColor = null;
+      _prevAccentPath = null;
+      return;
+    }
+
+    if (mode == AccentMode.custom) {
+      if (_prevAccentMode != AccentMode.custom || _prevAccentColor != custom) {
+        ref.read(accentColorProvider.notifier).state = custom != null
+            ? Color(custom)
+            : null;
+      }
+      _prevAccentMode = mode;
+      _prevAccentColor = custom;
+      _prevAccentPath = null;
+      return;
+    }
+
+    final modeChanged = _prevAccentMode != AccentMode.auto;
+    final pathChanged = path != _prevAccentPath;
+    if (!modeChanged && !pathChanged) return;
+
+    _prevAccentMode = mode;
+    _prevAccentPath = path;
+
+    resolveAccentColor(mode: mode, customArgb: custom, trackPath: path).then((
+      color,
+    ) {
+      if (mounted) {
+        ref.read(accentColorProvider.notifier).state = color;
+      }
+    });
   }
 
   Future<void> _apply(SettingsState s) async {

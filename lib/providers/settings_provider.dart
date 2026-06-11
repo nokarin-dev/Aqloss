@@ -67,6 +67,8 @@ enum ThemeMode { dark, light, system }
 
 enum AppStyle { legacy, islands }
 
+enum AccentMode { off, auto, custom }
+
 enum LibraryViewMode { detail, grid }
 
 enum ReplayGainMode { off, track, album, auto }
@@ -99,6 +101,8 @@ const _kSkipSilence = 'aqloss_skip_silence';
 const _kShowAlbumArtBg = 'aqloss_album_art_bg';
 const _kSpectrumEnabled = 'aqloss_spectrum';
 const _kSpectrumStyle = 'aqloss_spectrum_style';
+const _kAccentMode = 'aqloss_accent_mode';
+const _kAccentColor = 'aqloss_accent_color';
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -126,6 +130,8 @@ class SettingsState {
   final String? lastFmApiKey;
   final String? lastFmApiSecret;
   final String? lastFmSessionKey;
+  final AccentMode accentMode;
+  final int? accentColor;
   final bool loaded;
 
   const SettingsState({
@@ -154,6 +160,8 @@ class SettingsState {
     this.lastFmApiKey,
     this.lastFmApiSecret,
     this.lastFmSessionKey,
+    this.accentMode = AccentMode.off,
+    this.accentColor,
     this.loaded = false,
   });
 
@@ -214,6 +222,9 @@ class SettingsState {
     String? lastFmApiSecret,
     String? lastFmSessionKey,
     bool clearSession = false,
+    AccentMode? accentMode,
+    int? accentColor,
+    bool clearAccentColor = false,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -246,6 +257,8 @@ class SettingsState {
     lastFmSessionKey: clearSession
         ? null
         : (lastFmSessionKey ?? this.lastFmSessionKey),
+    accentMode: accentMode ?? this.accentMode,
+    accentColor: clearAccentColor ? null : (accentColor ?? this.accentColor),
     loaded: loaded ?? this.loaded,
   );
 }
@@ -292,6 +305,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       lastFmApiKey: p.getString(_kLastFmApiKey),
       lastFmApiSecret: p.getString(_kLastFmApiSecret),
       lastFmSessionKey: p.getString(_kLastFmSession),
+      accentMode: AccentMode.values[(p.getInt(_kAccentMode) ?? 0).clamp(0, 2)],
+      accentColor: p.getInt(_kAccentColor),
       loaded: true,
     );
   }
@@ -336,6 +351,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       state.lastFmSessionKey != null
           ? p.setString(_kLastFmSession, state.lastFmSessionKey!)
           : p.remove(_kLastFmSession),
+      p.setInt(_kAccentMode, state.accentMode.index),
+      state.accentColor != null
+          ? p.setInt(_kAccentColor, state.accentColor!)
+          : p.remove(_kAccentColor),
     ]);
   }
 
@@ -504,6 +523,21 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void clearLastFmSession() {
     state = state.copyWith(clearSession: true);
+    _save();
+  }
+
+  void setAccentMode(AccentMode m) {
+    state = state.copyWith(accentMode: m);
+    _save();
+  }
+
+  void setAccentColor(int argb) {
+    state = state.copyWith(accentColor: argb, accentMode: AccentMode.custom);
+    _save();
+  }
+
+  void clearAccentColor() {
+    state = state.copyWith(clearAccentColor: true, accentMode: AccentMode.off);
     _save();
   }
 
