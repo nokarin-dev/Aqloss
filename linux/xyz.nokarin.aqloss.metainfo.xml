@@ -54,6 +54,21 @@
     </screenshots>
 
     <releases>
+        <release version="0.3.1" date="2026-06-11">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.3.1</url>
+            <description>
+                <p>Customisable shortcuts, mini player mode, share now playing, and more UI improvements.</p>
+                <ul>
+                    <li>Added classic style for visualizer</li>
+                    <li>Added share now playing</li>
+                    <li>Added mini player window</li>
+                    <li>Shortcuts can now be customised</li>
+                    <li>Added accent color</li>
+                    <li>Fix art stuck on previous track when global search changes</li>
+                    <li>And more.</li>
+                </ul>
+            </description>
+        </release>
         <release version="0.3.0" date="2026-05-30">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.3.0</url>
             <description>
