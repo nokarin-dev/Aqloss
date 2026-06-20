@@ -1758,7 +1758,7 @@ class _CaptureInputState extends State<_CaptureInput> {
 }
 
 // Updates pane
-const _kCurrentVersion = '0.3.1';
+const _kCurrentVersion = '0.3.2';
 
 enum _UpdateStatus { idle, checking, upToDate, available, error }
 
@@ -2241,7 +2241,7 @@ class _AboutPane extends StatelessWidget {
             const _InfoRow(
               icon: Icons.music_note_rounded,
               title: 'Aqloss',
-              value: 'Version 0.3.1',
+              value: 'Version 0.3.2',
             ),
             _Div(),
             const _InfoRow(

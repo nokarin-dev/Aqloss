@@ -143,7 +143,27 @@ pub fn get_eq_gains() -> Vec<f32> {
         .unwrap_or_else(|| vec![0.0; 10])
 }
 
-// Spectrum
+// Stereo enhance
+pub fn set_stereo_width(width: f32) -> Result<()> {
+    engine()?.lock().unwrap().set_stereo_width(width);
+    Ok(())
+}
+pub fn set_haas_ms(ms: f32) -> Result<()> {
+    engine()?.lock().unwrap().set_haas_ms(ms);
+    Ok(())
+}
+#[frb(sync)]
+pub fn get_stereo_width() -> f32 {
+    AudioEngine::global_opt()
+        .map(|a| a.lock().unwrap().get_stereo_width())
+        .unwrap_or(1.0)
+}
+#[frb(sync)]
+pub fn get_haas_ms() -> f32 {
+    AudioEngine::global_opt()
+        .map(|a| a.lock().unwrap().get_haas_ms())
+        .unwrap_or(0.0)
+}
 pub fn get_spectrum_data(bucket_count: u32) -> Vec<f32> {
     AudioEngine::global_opt()
         .map(|a| a.lock().unwrap().get_spectrum_data(bucket_count as usize))

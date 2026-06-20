@@ -66,7 +66,7 @@ class AqlossCore
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 549963506;
+  int get rustContentHash => 1995867952;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -102,9 +102,13 @@ abstract class AqlossCoreApi extends BaseApi {
 
   Future<Float32List> crateApiGetEqGains();
 
+  double crateApiGetHaasMs();
+
   Future<PlaybackPosition> crateApiGetPosition();
 
   Future<Float32List> crateApiGetSpectrumData({required int bucketCount});
+
+  double crateApiGetStereoWidth();
 
   Future<void> crateApiInitEngine();
 
@@ -154,6 +158,8 @@ abstract class AqlossCoreApi extends BaseApi {
 
   Future<void> crateApiSetGapless({required bool enabled});
 
+  Future<void> crateApiSetHaasMs({required double ms});
+
   Future<void> crateApiSetLogPath({required String path});
 
   Future<void> crateApiSetReplayGain({required double linearGain});
@@ -161,6 +167,8 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<void> crateApiSetSkipSilence({required bool enabled});
 
   Future<void> crateApiSetSoftClip({required bool enabled});
+
+  Future<void> crateApiSetStereoWidth({required double width});
 
   Future<void> crateApiSetVolume({required double volume});
 
@@ -385,6 +393,28 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "get_eq_gains", argNames: []);
 
   @override
+  double crateApiGetHaasMs() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_f_32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiGetHaasMsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetHaasMsConstMeta =>
+      const TaskConstMeta(debugName: "get_haas_ms", argNames: []);
+
+  @override
   Future<PlaybackPosition> crateApiGetPosition() {
     return handler.executeNormal(
       NormalTask(
@@ -393,7 +423,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -421,7 +451,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -442,6 +472,28 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
   );
 
   @override
+  double crateApiGetStereoWidth() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_f_32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiGetStereoWidthConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetStereoWidthConstMeta =>
+      const TaskConstMeta(debugName: "get_stereo_width", argNames: []);
+
+  @override
   Future<void> crateApiInitEngine() {
     return handler.executeNormal(
       NormalTask(
@@ -450,7 +502,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 11,
             port: port_,
           );
         },
@@ -482,7 +534,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 12,
             port: port_,
           );
         },
@@ -509,7 +561,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -531,7 +583,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -553,7 +605,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -579,7 +631,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -606,7 +658,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -633,7 +685,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -661,7 +713,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -689,7 +741,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 20,
             port: port_,
           );
         },
@@ -720,7 +772,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 21,
             port: port_,
           );
         },
@@ -750,7 +802,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 22,
             port: port_,
           );
         },
@@ -777,7 +829,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 23,
             port: port_,
           );
         },
@@ -809,7 +861,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 24,
             port: port_,
           );
         },
@@ -839,7 +891,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 25,
             port: port_,
           );
         },
@@ -867,7 +919,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 26,
             port: port_,
           );
         },
@@ -895,7 +947,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 27,
             port: port_,
           );
         },
@@ -924,7 +976,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 28,
             port: port_,
           );
         },
@@ -954,7 +1006,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 29,
             port: port_,
           );
         },
@@ -982,7 +1034,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1010,7 +1062,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1029,6 +1081,34 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "set_gapless", argNames: ["enabled"]);
 
   @override
+  Future<void> crateApiSetHaasMs({required double ms}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_f_32(ms, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetHaasMsConstMeta,
+        argValues: [ms],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetHaasMsConstMeta =>
+      const TaskConstMeta(debugName: "set_haas_ms", argNames: ["ms"]);
+
+  @override
   Future<void> crateApiSetLogPath({required String path}) {
     return handler.executeNormal(
       NormalTask(
@@ -1038,7 +1118,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1066,7 +1146,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1096,7 +1176,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1124,7 +1204,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1143,6 +1223,34 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "set_soft_clip", argNames: ["enabled"]);
 
   @override
+  Future<void> crateApiSetStereoWidth({required double width}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_f_32(width, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 37,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetStereoWidthConstMeta,
+        argValues: [width],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetStereoWidthConstMeta =>
+      const TaskConstMeta(debugName: "set_stereo_width", argNames: ["width"]);
+
+  @override
   Future<void> crateApiSetVolume({required double volume}) {
     return handler.executeNormal(
       NormalTask(
@@ -1152,7 +1260,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1179,7 +1287,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 39,
             port: port_,
           );
         },

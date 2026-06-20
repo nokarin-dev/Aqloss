@@ -8,6 +8,7 @@ pub mod logger;
 pub mod metadata;
 pub mod output;
 pub mod resampler;
+pub mod stereo_enhance;
 
 use flutter_rust_bridge::frb;
 

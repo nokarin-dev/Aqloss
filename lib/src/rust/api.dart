@@ -84,6 +84,16 @@ Future<void> setEqBand({required int band, required double gainDb}) =>
 Future<Float32List> getEqGains() =>
     AqlossCore.instance.api.crateApiGetEqGains();
 
+Future<void> setStereoWidth({required double width}) =>
+    AqlossCore.instance.api.crateApiSetStereoWidth(width: width);
+
+Future<void> setHaasMs({required double ms}) =>
+    AqlossCore.instance.api.crateApiSetHaasMs(ms: ms);
+
+double getStereoWidth() => AqlossCore.instance.api.crateApiGetStereoWidth();
+
+double getHaasMs() => AqlossCore.instance.api.crateApiGetHaasMs();
+
 Future<Float32List> getSpectrumData({required int bucketCount}) =>
     AqlossCore.instance.api.crateApiGetSpectrumData(bucketCount: bucketCount);
 

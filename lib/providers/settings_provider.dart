@@ -103,6 +103,9 @@ const _kSpectrumEnabled = 'aqloss_spectrum';
 const _kSpectrumStyle = 'aqloss_spectrum_style';
 const _kAccentMode = 'aqloss_accent_mode';
 const _kAccentColor = 'aqloss_accent_color';
+const _kStereoWidth = 'aqloss_stereo_width';
+const _kHaasMs = 'aqloss_haas_ms';
+const _kDiscordRpc = 'aqloss_discord_rpc';
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -132,6 +135,9 @@ class SettingsState {
   final String? lastFmSessionKey;
   final AccentMode accentMode;
   final int? accentColor;
+  final double stereoWidth;
+  final double haasMs;
+  final bool discordRpc;
   final bool loaded;
 
   const SettingsState({
@@ -162,6 +168,9 @@ class SettingsState {
     this.lastFmSessionKey,
     this.accentMode = AccentMode.off,
     this.accentColor,
+    this.stereoWidth = 1.0,
+    this.haasMs = 0.0,
+    this.discordRpc = true,
     this.loaded = false,
   });
 
@@ -225,6 +234,9 @@ class SettingsState {
     AccentMode? accentMode,
     int? accentColor,
     bool clearAccentColor = false,
+    double? stereoWidth,
+    double? haasMs,
+    bool? discordRpc,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -259,6 +271,9 @@ class SettingsState {
         : (lastFmSessionKey ?? this.lastFmSessionKey),
     accentMode: accentMode ?? this.accentMode,
     accentColor: clearAccentColor ? null : (accentColor ?? this.accentColor),
+    stereoWidth: stereoWidth ?? this.stereoWidth,
+    haasMs: haasMs ?? this.haasMs,
+    discordRpc: discordRpc ?? this.discordRpc,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -307,6 +322,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       lastFmSessionKey: p.getString(_kLastFmSession),
       accentMode: AccentMode.values[(p.getInt(_kAccentMode) ?? 0).clamp(0, 2)],
       accentColor: p.getInt(_kAccentColor),
+      stereoWidth: (p.getDouble(_kStereoWidth) ?? 1.0).clamp(0.0, 2.0),
+      haasMs: (p.getDouble(_kHaasMs) ?? 0.0).clamp(0.0, 25.0),
+      discordRpc: p.getBool(_kDiscordRpc) ?? true,
       loaded: true,
     );
   }
@@ -355,6 +373,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       state.accentColor != null
           ? p.setInt(_kAccentColor, state.accentColor!)
           : p.remove(_kAccentColor),
+      p.setDouble(_kStereoWidth, state.stereoWidth),
+      p.setDouble(_kHaasMs, state.haasMs),
+      p.setBool(_kDiscordRpc, state.discordRpc),
     ]);
   }
 
@@ -551,6 +572,21 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void resetEq() {
     state = state.copyWith(eqGains: List.filled(10, 0.0));
+    _save();
+  }
+
+  void setStereoWidth(double v) {
+    state = state.copyWith(stereoWidth: v.clamp(0.0, 2.0));
+    _save();
+  }
+
+  void setHaasMs(double v) {
+    state = state.copyWith(haasMs: v.clamp(0.0, 25.0));
+    _save();
+  }
+
+  void toggleDiscordRpc() {
+    state = state.copyWith(discordRpc: !state.discordRpc);
     _save();
   }
 }

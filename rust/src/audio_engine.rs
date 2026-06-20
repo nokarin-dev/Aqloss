@@ -1,6 +1,6 @@
 use crate::{
     decoder::Decoder, eq::Equalizer, logger, output::AudioOutput, resampler::Resampler,
-    PlaybackPosition,
+    stereo_enhance::StereoEnhancer, PlaybackPosition,
 };
 use anyhow::{anyhow, Result};
 use realfft::RealFftPlanner;
@@ -29,6 +29,8 @@ pub struct DspConfig {
     pub skip_silence: bool,
     pub gapless: bool,
     pub crossfade_secs: f32,
+    pub stereo_width: f32,
+    pub haas_ms: f32,
 }
 
 impl Default for DspConfig {
@@ -39,6 +41,8 @@ impl Default for DspConfig {
             skip_silence: false,
             gapless: true,
             crossfade_secs: 0.0,
+            stereo_width: 1.0,
+            haas_ms: 0.0,
         }
     }
 }
@@ -79,6 +83,7 @@ pub struct AudioEngine {
     spectrum_pos: Arc<AtomicU64>,
     dsp: Arc<Mutex<DspConfig>>,
     eq: Arc<Mutex<Equalizer>>,
+    stereo_enhance: Arc<Mutex<StereoEnhancer>>,
     pub decode_thread_died: Arc<AtomicBool>,
     prev_output: Mutex<Vec<f32>>,
     dynamic_ceil: Mutex<f32>,
@@ -127,6 +132,10 @@ impl AudioEngine {
             let mut eq = e.eq.lock().unwrap();
             eq.reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
         }
+        e.stereo_enhance
+            .lock()
+            .unwrap()
+            .reset_sample_rate(new_out.sample_rate);
         e.output = new_out;
         e.smooth_volume = e.volume;
         e.decode_thread_died.store(false, Ordering::SeqCst);
@@ -156,6 +165,10 @@ impl AudioEngine {
             let mut eq = e.eq.lock().unwrap();
             eq.reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
         }
+        e.stereo_enhance
+            .lock()
+            .unwrap()
+            .reset_sample_rate(new_out.sample_rate);
         e.output = new_out;
         e.smooth_volume = e.volume;
         e.flags = PlayFlags::new();
@@ -185,6 +198,7 @@ impl AudioEngine {
             spectrum_pos: Arc::new(AtomicU64::new(0)),
             dsp: Arc::new(Mutex::new(DspConfig::default())),
             eq: Arc::new(Mutex::new(Equalizer::new(sr, ch))),
+            stereo_enhance: Arc::new(Mutex::new(StereoEnhancer::new(sr))),
             decode_thread_died: Arc::new(AtomicBool::new(false)),
             prev_output: Mutex::new(Vec::new()),
             dynamic_ceil: Mutex::new(-12.0),
@@ -264,6 +278,26 @@ impl AudioEngine {
     }
     pub fn get_eq_gains(&self) -> Vec<f32> {
         self.eq.lock().unwrap().gains_db().to_vec()
+    }
+
+    // Stereo enhance setters
+    pub fn set_stereo_width(&mut self, width: f32) {
+        let v = width.clamp(0.0, 2.0);
+        logger::debug_audio(format!("set_stereo_width {v:.2}"));
+        self.dsp.lock().unwrap().stereo_width = v;
+        self.stereo_enhance.lock().unwrap().set_width(v);
+    }
+    pub fn set_haas_ms(&mut self, ms: f32) {
+        let v = ms.clamp(0.0, 25.0);
+        logger::debug_audio(format!("set_haas_ms {v:.1}ms"));
+        self.dsp.lock().unwrap().haas_ms = v;
+        self.stereo_enhance.lock().unwrap().set_haas_ms(v);
+    }
+    pub fn get_stereo_width(&self) -> f32 {
+        self.stereo_enhance.lock().unwrap().width
+    }
+    pub fn get_haas_ms(&self) -> f32 {
+        self.stereo_enhance.lock().unwrap().haas_ms
     }
 
     pub fn get_spectrum_data(&self, n: usize) -> Vec<f32> {
@@ -643,7 +677,7 @@ fn decode_loop(
 ) {
     logger::info_audio("decode_loop: started");
 
-    let (out_ch, out_sr, is_exclusive, spec_buf, spec_pos, dec_arc, dsp_arc, eq_arc) = {
+    let (out_ch, out_sr, is_exclusive, spec_buf, spec_pos, dec_arc, dsp_arc, eq_arc, se_arc) = {
         let e = engine_arc.lock().unwrap();
         let dec = match e.decoder.as_ref() {
             Some(d) => d.clone(),
@@ -664,6 +698,7 @@ fn decode_loop(
             dec,
             e.dsp.clone(),
             e.eq.clone(),
+            e.stereo_enhance.clone(),
         )
     };
 
@@ -806,6 +841,12 @@ fn decode_loop(
                 // EQ
                 eq_arc.lock().unwrap().process_interleaved(&mut converted);
 
+                // Stereo enhance
+                se_arc
+                    .lock()
+                    .unwrap()
+                    .process(&mut converted, out_ch as usize);
+
                 // Volume & ReplayGain & soft-clip
                 let mut smooth = e.smooth_volume;
                 {
@@ -850,6 +891,10 @@ fn decode_loop(
                     if !raw_tail.is_empty() {
                         let mut converted = adapt_channels(&raw_tail, dec_ch, out_ch);
                         eq_arc.lock().unwrap().process_interleaved(&mut converted);
+                        se_arc
+                            .lock()
+                            .unwrap()
+                            .process(&mut converted, out_ch as usize);
                         let mut prod = e.output.producer.lock().unwrap();
                         if is_exclusive {
                             prod.push_slice(&converted);
@@ -911,6 +956,7 @@ fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
     let dst = dst as usize;
     match (src, dst) {
         (1, d) => {
+            // mono → any
             let frames = input.len();
             let mut out = Vec::with_capacity(frames * d);
             for &s in input {
@@ -925,6 +971,7 @@ fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
             .map(|c| (c[0] + c[1]) * std::f32::consts::FRAC_1_SQRT_2)
             .collect(),
         (2, d) => {
+            // stereo → any
             let frames = input.len() / 2;
             let mut out = vec![0f32; frames * d];
             for (f, chunk) in input.chunks_exact(2).enumerate() {
@@ -935,15 +982,19 @@ fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
             }
             out
         }
-        (s, 2) if s > 2 => input
-            .chunks_exact(s)
-            .flat_map(|frame| {
-                let l = frame.iter().step_by(2).sum::<f32>() / (s as f32 / 2.0);
-                let r = frame.iter().skip(1).step_by(2).sum::<f32>() / (s as f32 / 2.0);
-                [l, r]
-            })
-            .collect(),
+        (s, 2) if s > 2 => {
+            // surround → stereo
+            input
+                .chunks_exact(s)
+                .flat_map(|frame| {
+                    let l = frame.iter().step_by(2).sum::<f32>() / (s as f32 / 2.0);
+                    let r = frame.iter().skip(1).step_by(2).sum::<f32>() / (s as f32 / 2.0);
+                    [l, r]
+                })
+                .collect()
+        }
         (s, d) if s > 2 && d > 2 => {
+            // surround → surround
             let frames = input.len() / s;
             let mut out = vec![0f32; frames * d];
             for f in 0..frames {

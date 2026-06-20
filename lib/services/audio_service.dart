@@ -247,6 +247,8 @@ class AudioService {
           .catchError((_) {}),
       backend.setEqEnabled(enabled: s.eqEnabled).catchError((_) {}),
       backend.setEqGains(gains: s.eqGains).catchError((_) {}),
+      backend.setStereoWidth(width: s.stereoWidth).catchError((_) {}),
+      backend.setHaasMs(ms: s.haasMs).catchError((_) {}),
       if (!s.replayGainEnabled)
         backend.setReplayGain(linearGain: 1.0).catchError((_) {}),
     ]);
