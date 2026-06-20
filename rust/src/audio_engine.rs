@@ -468,6 +468,13 @@ impl AudioEngine {
             self.output.sample_rate, self.output.channels
         ));
 
+        if src_ch != self.output.channels {
+            logger::warn_audio(format!(
+                "channel mismatch: decoder {}ch → output {}ch, adapt_channels will upmix",
+                src_ch, self.output.channels
+            ));
+        }
+
         self.dec_sample_rate = src_rate;
         self.dec_channels = src_ch;
         self.resampler = if src_rate != self.output.sample_rate {
@@ -900,22 +907,50 @@ fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
     if src == dst || input.is_empty() {
         return input.to_vec();
     }
+    let src = src as usize;
+    let dst = dst as usize;
     match (src, dst) {
-        (1, 2) => input.iter().flat_map(|&s| [s, s]).collect(),
+        (1, d) => {
+            let frames = input.len();
+            let mut out = Vec::with_capacity(frames * d);
+            for &s in input {
+                for _ in 0..d {
+                    out.push(s);
+                }
+            }
+            out
+        }
         (2, 1) => input
             .chunks_exact(2)
             .map(|c| (c[0] + c[1]) * std::f32::consts::FRAC_1_SQRT_2)
             .collect(),
-        (sc, 2) if sc > 2 => {
-            let ch = sc as usize;
-            input
-                .chunks_exact(ch)
-                .flat_map(|frame| {
-                    let l = frame.iter().step_by(2).sum::<f32>() / (ch as f32 / 2.0);
-                    let r = frame.iter().skip(1).step_by(2).sum::<f32>() / (ch as f32 / 2.0);
-                    [l, r]
-                })
-                .collect()
+        (2, d) => {
+            let frames = input.len() / 2;
+            let mut out = vec![0f32; frames * d];
+            for (f, chunk) in input.chunks_exact(2).enumerate() {
+                out[f * d] = chunk[0];
+                if d > 1 {
+                    out[f * d + 1] = chunk[1];
+                }
+            }
+            out
+        }
+        (s, 2) if s > 2 => input
+            .chunks_exact(s)
+            .flat_map(|frame| {
+                let l = frame.iter().step_by(2).sum::<f32>() / (s as f32 / 2.0);
+                let r = frame.iter().skip(1).step_by(2).sum::<f32>() / (s as f32 / 2.0);
+                [l, r]
+            })
+            .collect(),
+        (s, d) if s > 2 && d > 2 => {
+            let frames = input.len() / s;
+            let mut out = vec![0f32; frames * d];
+            for f in 0..frames {
+                let copy = s.min(d);
+                out[f * d..f * d + copy].copy_from_slice(&input[f * s..f * s + copy]);
+            }
+            out
         }
         _ => input.to_vec(),
     }

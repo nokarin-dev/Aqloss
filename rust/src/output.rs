@@ -197,7 +197,7 @@ impl AudioOutput {
     }
 
     pub fn ring_occupied_samples(&self) -> usize {
-        let p = self.producer.lock().unwrap(); 
+        let p = self.producer.lock().unwrap();
         p.capacity().get() - p.vacant_len()
     }
 
@@ -225,8 +225,57 @@ fn probe_exact_rate(device: &cpal::Device, channels: u16, rate: u32) -> bool {
 }
 
 #[cfg(target_os = "windows")]
-fn probe_exact_rate(_device: &cpal::Device, _channels: u16, _rate: u32) -> bool {
-    false
+fn probe_exact_rate(_device: &cpal::Device, _channels: u16, rate: u32) -> bool {
+    use windows::{
+        Win32::Media::Audio::{
+            eConsole, eRender, IAudioClient, IMMDeviceEnumerator, MMDeviceEnumerator,
+            AUDCLNT_SHAREMODE_SHARED, WAVEFORMATEX,
+        },
+        Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_ALL,
+            COINIT_MULTITHREADED,
+        },
+    };
+
+    const WAVE_FORMAT_IEEE_FLOAT: u16 = 3;
+
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED).ok();
+
+        let result = (|| -> Option<bool> {
+            let enumerator: IMMDeviceEnumerator =
+                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
+            let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole).ok()?;
+            let client: IAudioClient = device.Activate(CLSCTX_ALL, None).ok()?;
+
+            for &ch in &[2u16, 1u16] {
+                let block_align = ch * 4;
+                let fmt = WAVEFORMATEX {
+                    wFormatTag: WAVE_FORMAT_IEEE_FLOAT,
+                    nChannels: ch,
+                    nSamplesPerSec: rate,
+                    nAvgBytesPerSec: rate * block_align as u32,
+                    nBlockAlign: block_align,
+                    wBitsPerSample: 32,
+                    cbSize: 0,
+                };
+                let mut closest: *mut WAVEFORMATEX = std::ptr::null_mut();
+                let hr =
+                    client.IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, &fmt, Some(&mut closest));
+                if !closest.is_null() {
+                    CoTaskMemFree(Some(closest as *const _));
+                }
+                if hr.is_ok() {
+                    return Some(true);
+                }
+            }
+            Some(false)
+        })()
+        .unwrap_or(false);
+
+        CoUninitialize();
+        result
+    }
 }
 
 // WASAPI exclusive (Windows)
