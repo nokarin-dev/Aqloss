@@ -12,6 +12,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'providers/settings_provider.dart';
 import 'services/audio_service.dart';
+import 'services/discord_service.dart';
 import 'services/notifier/media_control_windows.dart';
 
 void main(List<String> args) async {
@@ -71,6 +72,7 @@ void main(List<String> args) async {
         volume: volume,
         settings: settings,
       );
+      DiscordService.enabled = settings.discordRpc;
     } catch (e, st) {
       Logger.errorFrontend('[aqloss] main init error: $e\n$st');
     }
@@ -103,5 +105,16 @@ Future<SettingsState> _loadSettingsState(SharedPreferences p) async {
       -12,
       12,
     ),
+    gaplessPlayback: p.getBool('aqloss_gapless') ?? true,
+    eqEnabled: p.getBool('aqloss_eq_enabled') ?? false,
+    eqGains: () {
+      final raw = p.getStringList('aqloss_eq_gains');
+      return raw != null
+          ? raw.map((s) => double.tryParse(s) ?? 0.0).take(10).toList()
+          : List<double>.filled(10, 0.0);
+    }(),
+    stereoWidth: (p.getDouble('aqloss_stereo_width') ?? 1.0).clamp(0.0, 2.0),
+    haasMs: (p.getDouble('aqloss_haas_ms') ?? 0.0).clamp(0.0, 25.0),
+    discordRpc: p.getBool('aqloss_discord_rpc') ?? true,
   );
 }

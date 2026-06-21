@@ -237,6 +237,24 @@ class AudioService {
     await _applyVolume();
   }
 
+  static Future<void> setStereoWidth(double width) async {
+    if (!_engineReady) return;
+    try {
+      await backend.setStereoWidth(width: width);
+    } catch (e) {
+      Logger.debugAudioService('setStereoWidth: $e');
+    }
+  }
+
+  static Future<void> setHaasMs(double ms) async {
+    if (!_engineReady) return;
+    try {
+      await backend.setHaasMs(ms: ms);
+    } catch (e) {
+      Logger.debugAudioService('setHaasMs: $e');
+    }
+  }
+
   static Future<void> applyAllDsp(SettingsState s) async {
     await Future.wait([
       backend.setSoftClip(enabled: s.notchFilter).catchError((_) {}),

@@ -20,8 +20,33 @@ class DiscordService {
 
   static bool get enabled => _enabled;
   static set enabled(bool v) {
+    if (_enabled == v) return;
     _enabled = v;
-    if (!v) clear();
+    if (!v) {
+      _clearPresence();
+    } else {
+      final pending = _pendingState;
+      if (pending != null) {
+        _lastFingerprint = '';
+        backend
+            .getPosition()
+            .then((pos) {
+              update(pending, positionSecs: pos.positionSecs);
+            })
+            .catchError((_) {
+              update(pending);
+            });
+      }
+    }
+  }
+
+  static void _clearPresence() {
+    _cancelRefresh();
+    _cancelReconnect();
+    _lastFingerprint = '';
+    _discordErrored = false;
+    _reconnectAttempts = 0;
+    backend.discordClear().catchError((_) {});
   }
 
   static String _sanitize(String s, {String fallback = '-'}) {
@@ -109,14 +134,9 @@ class DiscordService {
   }
 
   static void clear() {
-    _cancelRefresh();
-    _cancelReconnect();
-    _lastFingerprint = '';
+    _clearPresence();
     _pendingState = null;
     _pendingPositionSecs = null;
-    _discordErrored = false;
-    _reconnectAttempts = 0;
-    backend.discordClear().catchError((_) {});
   }
 
   static void dispose() {

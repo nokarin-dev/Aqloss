@@ -40,15 +40,15 @@
 
     <screenshots>
         <screenshot type="default">
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/60c72bc0900bc1cd415732399ffa5c90be5aa2f4/assets/preview/playing.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/8e2538586e9fe5bc8adb452fae025ae119f9dec1/assets/preview/playing.png</image>
             <caption>Playing</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/60c72bc0900bc1cd415732399ffa5c90be5aa2f4/assets/preview/library_detail.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/8e2538586e9fe5bc8adb452fae025ae119f9dec1/assets/preview/library_detail.png</image>
             <caption>Library - Detail View</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/60c72bc0900bc1cd415732399ffa5c90be5aa2f4/assets/preview/library_grid.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/8e2538586e9fe5bc8adb452fae025ae119f9dec1/assets/preview/library_grid.png</image>
             <caption>Library - Grid View</caption>
         </screenshot>
     </screenshots>

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:aqloss/services/audio_service.dart';
+import 'package:aqloss/services/discord_service.dart';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/eq_panel.dart';
 import 'package:aqloss/widgets/lastfm_auth_row.dart';
@@ -29,6 +31,7 @@ enum _SettingsPage {
   display,
   lastfm,
   shortcuts,
+  integrations,
   updates,
   about,
 }
@@ -42,6 +45,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.display => 'Display',
     _SettingsPage.lastfm => 'Last.fm',
     _SettingsPage.shortcuts => 'Shortcuts',
+    _SettingsPage.integrations => 'Integrations',
     _SettingsPage.updates => 'Updates',
     _SettingsPage.about => 'About',
   };
@@ -51,10 +55,11 @@ extension _SettingsPageX on _SettingsPage {
       'Directories that Shiranami watches for audio files',
     _SettingsPage.audioOutput => 'Device and output mode selection',
     _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
-    _SettingsPage.dsp => 'Equalizer bands and soft-clip limiter',
+    _SettingsPage.dsp => 'Equalizer, soft-clip, stereo width and depth',
     _SettingsPage.display => 'Theme, spectrum analyser, album art',
     _SettingsPage.lastfm => 'Scrobbling and account authentication',
     _SettingsPage.shortcuts => 'Global keyboard shortcuts',
+    _SettingsPage.integrations => 'Discord Rich Presence and other services',
     _SettingsPage.updates => 'Check for new releases',
     _SettingsPage.about => 'Version info and logs',
   };
@@ -67,6 +72,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.display => Icons.palette_outlined,
     _SettingsPage.lastfm => Icons.podcasts_rounded,
     _SettingsPage.shortcuts => Icons.keyboard_outlined,
+    _SettingsPage.integrations => Icons.extension_outlined,
     _SettingsPage.updates => Icons.system_update_alt_rounded,
     _SettingsPage.about => Icons.info_outline_rounded,
   };
@@ -76,6 +82,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.playback || _SettingsPage.dsp => 'PLAYBACK',
     _SettingsPage.display || _SettingsPage.lastfm => 'APPEARANCE',
     _SettingsPage.shortcuts ||
+    _SettingsPage.integrations ||
     _SettingsPage.updates ||
     _SettingsPage.about => 'SYSTEM',
   };
@@ -347,6 +354,7 @@ class _SettingsContent extends StatelessWidget {
       _SettingsPage.display => const _DisplayPane(),
       _SettingsPage.lastfm => const _LastFmPane(),
       _SettingsPage.shortcuts => const _ShortcutsPane(),
+      _SettingsPage.integrations => const _IntegrationsPane(),
       _SettingsPage.updates => const _UpdatesPane(),
       _SettingsPage.about => const _AboutPane(),
     };
@@ -1074,6 +1082,45 @@ class _DspPane extends ConsumerWidget {
                   'Prevents digital clipping above 0 dBFS. Recommended with ReplayGain pre-amp or EQ boosts.',
               value: s.notchFilter,
               onChanged: (_) => n.toggleNotchFilter(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _SettingsCard(
+          children: [
+            _LiveSliderRow(
+              icon: Icons.spatial_audio_off_rounded,
+              title: 'Stereo Width',
+              subtitle:
+                  'M/S expansion. Below 1.0 narrows the image; above 1.0 pushes instruments further apart. 1.0 = off.',
+              value: s.stereoWidth,
+              min: 0.0,
+              max: 2.0,
+              divisions: 40,
+              label: (v) {
+                if ((v - 1.0).abs() < 0.025) return 'Off';
+                return v.toStringAsFixed(2);
+              },
+              onCommit: (v) {
+                n.setStereoWidth(v);
+                AudioService.setStereoWidth(v);
+              },
+            ),
+            _Div(),
+            _LiveSliderRow(
+              icon: Icons.spatial_audio_rounded,
+              title: 'Haas Delay',
+              subtitle:
+                  'Micro-delay on the right channel (0–25 ms) to create depth and front-back separation.',
+              value: s.haasMs,
+              min: 0.0,
+              max: 25.0,
+              divisions: 50,
+              label: (v) => v < 0.5 ? 'Off' : '${v.toStringAsFixed(0)} ms',
+              onCommit: (v) {
+                n.setHaasMs(v);
+                AudioService.setHaasMs(v);
+              },
             ),
           ],
         ),
@@ -2192,6 +2239,65 @@ class _DownloadButtonState extends State<_DownloadButton> {
   }
 }
 
+// Integrations pane
+class _IntegrationsPane extends ConsumerWidget {
+  const _IntegrationsPane();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(settingsProvider);
+    final n = ref.read(settingsProvider.notifier);
+
+    if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
+      return _Pane(
+        page: _SettingsPage.integrations,
+        children: [
+          _SettingsCard(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                child: Text(
+                  'No integrations available on this platform.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.36),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return _Pane(
+      page: _SettingsPage.integrations,
+      children: [
+        _SettingsCard(
+          children: [
+            _ToggleRow(
+              icon: Icons.videogame_asset_outlined,
+              title: 'Discord Rich Presence',
+              subtitle:
+                  'Shows the current track in your Discord status. Requires Discord to be running.',
+              value: s.discordRpc,
+              onChanged: (_) {
+                n.toggleDiscordRpc();
+                DiscordService.enabled = !s.discordRpc;
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 // About pane
 class _AboutPane extends StatelessWidget {
   const _AboutPane();
@@ -2533,6 +2639,7 @@ class _SliderRow extends StatelessWidget {
   final int divisions;
   final String Function(double) label;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChangeEnd;
 
   const _SliderRow({
     required this.icon,
@@ -2544,7 +2651,7 @@ class _SliderRow extends StatelessWidget {
     required this.divisions,
     required this.label,
     required this.onChanged,
-  });
+  }) : onChangeEnd = null;
 
   @override
   Widget build(BuildContext context) {
@@ -2613,7 +2720,139 @@ class _SliderRow extends StatelessWidget {
               max: max,
               divisions: divisions,
               onChanged: onChanged,
+              onChangeEnd: onChangeEnd,
               cs: cs,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveSliderRow extends StatefulWidget {
+  final IconData icon;
+  final String title, subtitle;
+  final double value, min, max;
+  final int divisions;
+  final String Function(double) label;
+  final ValueChanged<double> onCommit;
+
+  const _LiveSliderRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.label,
+    required this.onCommit,
+  });
+
+  @override
+  State<_LiveSliderRow> createState() => _LiveSliderRowState();
+}
+
+class _LiveSliderRowState extends State<_LiveSliderRow> {
+  double? _dragValue;
+
+  double get _display => _dragValue ?? widget.value;
+
+  void _onDrag(double normalised) {
+    final raw = widget.min + normalised * (widget.max - widget.min);
+    setState(() => _dragValue = raw.clamp(widget.min, widget.max));
+  }
+
+  void _onCommit(double normalised) {
+    final range = widget.max - widget.min;
+    final step = range / widget.divisions;
+    final raw = widget.min + normalised * range;
+    final snapped = (raw / step).round() * step;
+    final v = snapped.clamp(widget.min, widget.max);
+    setState(() => _dragValue = null);
+    widget.onCommit(v);
+  }
+
+  @override
+  void didUpdateWidget(_LiveSliderRow old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) _dragValue = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final normalised = ((_display - widget.min) / (widget.max - widget.min))
+        .clamp(0.0, 1.0);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(
+                  widget.icon,
+                  size: 16,
+                  color: cs.onSurface.withValues(alpha: 0.34),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          widget.title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: cs.onSurface.withValues(alpha: 0.80),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          widget.label(_display),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: cs.onSurface.withValues(alpha: 0.58),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurface.withValues(alpha: 0.28),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 28),
+            child: CustomSlider(
+              value: normalised,
+              trackHeight: 2,
+              thumbRadius: 6,
+              activeColor: cs.onSurface.withValues(alpha: 0.58),
+              inactiveColor: cs.onSurface.withValues(alpha: 0.10),
+              thumbColor: cs.onSurface.withValues(alpha: 0.80),
+              onChanged: _onDrag,
+              onChangeEnd: _onCommit,
             ),
           ),
         ],
@@ -2626,6 +2865,7 @@ class _RangeSlider extends StatefulWidget {
   final double value, min, max;
   final int divisions;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChangeEnd;
   final ColorScheme cs;
   const _RangeSlider({
     required this.value,
@@ -2634,24 +2874,44 @@ class _RangeSlider extends StatefulWidget {
     required this.divisions,
     required this.onChanged,
     required this.cs,
+    this.onChangeEnd,
   });
   @override
   State<_RangeSlider> createState() => _RangeSliderState();
 }
 
 class _RangeSliderState extends State<_RangeSlider> {
-  void _snap(double normalised) {
+  double? _localValue;
+
+  double get _displayValue => _localValue ?? widget.value;
+
+  void _onDragChanged(double normalised) {
+    final range = widget.max - widget.min;
+    final raw = widget.min + normalised * range;
+    setState(() => _localValue = raw.clamp(widget.min, widget.max));
+  }
+
+  void _onDragEnd(double normalised) {
     final range = widget.max - widget.min;
     final step = range / widget.divisions;
     final raw = widget.min + normalised * range;
     final snapped = (raw / step).round() * step;
-    widget.onChanged(snapped.clamp(widget.min, widget.max));
+    final v = snapped.clamp(widget.min, widget.max);
+    setState(() => _localValue = null);
+    if (widget.onChangeEnd != null) {
+      widget.onChangeEnd!(v);
+    } else {
+      widget.onChanged(v);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final normalised = ((widget.value - widget.min) / (widget.max - widget.min))
-        .clamp(0.0, 1.0);
+    final normalised =
+        ((_displayValue - widget.min) / (widget.max - widget.min)).clamp(
+          0.0,
+          1.0,
+        );
     return CustomSlider(
       value: normalised,
       trackHeight: 2,
@@ -2659,7 +2919,8 @@ class _RangeSliderState extends State<_RangeSlider> {
       activeColor: widget.cs.onSurface.withValues(alpha: 0.58),
       inactiveColor: widget.cs.onSurface.withValues(alpha: 0.10),
       thumbColor: widget.cs.onSurface.withValues(alpha: 0.80),
-      onChanged: _snap,
+      onChanged: _onDragChanged,
+      onChangeEnd: _onDragEnd,
     );
   }
 }

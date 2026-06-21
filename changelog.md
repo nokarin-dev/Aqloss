@@ -8,7 +8,25 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
-No Changes Yet.
+### Added
+
+- [Backend|Audio] Stereo enhance module, M/S width expansion, Haas micro-delay (0–25 ms), and high-shelf Side air boost for wider soundstage
+- [Backend|Audio] `adapt_channels` now handles stereo→N-channel upmix (previously fell through to as-is, causing fast-forward on 8ch devices)
+- [Frontend|Settings] Stereo Width and Haas Delay sliders in DSP pane with live apply
+- [Frontend|Settings] Integrations page with Discord Rich Presence toggle
+- [Frontend|Settings] Discord RPC enabled state now persisted across restarts
+
+### Fixed
+
+- [Backend|Audio] Fast-forward bug on devices with more than 2 output channels, `adapt_channels(2, N)` was returning raw stereo bytes consumed as N-ch, making tracks play N/2× too fast
+- [Backend|Audio] `probe_exact_rate` on Windows was hardcoded to `false`, preventing output from reopening at the track's native sample rate; now probes via `IAudioClient::IsFormatSupported`
+- [Frontend|Settings] Discord RPC setting is now applied at startup before first track plays, not only after visiting settings
+
+### Changed
+
+- [Backend|Audio] `adapt_channels` rewritten to cover all channel combinations: mono→N, stereo→N, surround→stereo, surround→surround
+- [Frontend|Settings] DSP page subtitle updated to reflect new controls
+- [Backend|Audio] Channel mismatch between decoder and output now logs a warning instead of silently producing wrong audio
 
 ---
 
@@ -188,6 +206,7 @@ No Changes Yet.
 ---
 
 [Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...HEAD
+[0.3.2]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.2...v0.2.3
