@@ -1,38 +1,14 @@
 [
     {
-        "title": "v0.3.1",
-        "subtitle": "Customisable shortcuts, mini player mode, share now playing, and more UI improvements.",
-        "status": "done",
+        "title": "v0.4.0",
+        "subtitle": "Plugins system.",
+        "status": "in-progress",
         "items": [
             {
-                "title": "Customisable shortcuts",
-                "description": "Users can remap all global shortcuts in the settings.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Share now playing",
-                "description": "Copy 'artist - title' to the clipboard or share as text with a single click",
-                "status": "done",
-                "category": "Frontend · Integration"
-            },
-            {
-                "title": "Mini player mode",
-                "description": "The small always-on-top window only displays controls and a cover when working in another app.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Accent colour",
-                "description": "Choose a custom accent color or automatically select one based on the dominant color of the album art.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Drag to queue improvement",
-                "description": "Drag the track to the mini player bar to add it to the queue immediately, without opening the queue panel.",
-                "status": "done",
-                "category": "Frontend · UI"
+                "title": "Plugin system",
+                "description": "A minimal plugin API for DSP effects and metadata providers. Distant future.",
+                "status": "in-progress",
+                "category": "Architecture"
             }
         ]
     },
@@ -178,12 +154,6 @@
                 "description": "Improved notification controls, lock screen art, and scoped storage handling in Android 13 and later.",
                 "status": "planned",
                 "category": "System · Platform"
-            },
-            {
-                "title": "Plugin system",
-                "description": "A minimal plugin API for DSP effects and metadata providers. Distant future.",
-                "status": "planned",
-                "category": "Architecture"
             }
         ]
     }
