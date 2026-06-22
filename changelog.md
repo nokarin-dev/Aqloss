@@ -8,6 +8,14 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
+No Changes Yet.
+
+---
+
+## [0.3.2] - 2026-06-22
+
+Added stereo enhance module, Discord Rich Presence toggle, and various audio playback fixes.
+
 ### Added
 
 - [Backend|Audio] Stereo enhance module, M/S width expansion, Haas micro-delay (0–25 ms), and high-shelf Side air boost for wider soundstage
@@ -28,9 +36,9 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 - [Frontend|Settings] DSP page subtitle updated to reflect new controls
 - [Backend|Audio] Channel mismatch between decoder and output now logs a warning instead of silently producing wrong audio
 
----
-
 ## [0.3.1] - 2026-06-11
+
+Customisable shortcuts, mini player mode, share now playing, and more UI improvements.
 
 ### Added
 
@@ -53,6 +61,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 - [Backend|Visualizer] Improve visualizer with realfft
 
 ## [0.3.0] - 2026-05-30
+
+History, artists, loved tracks, and a big batch of audio backend fixes and improvements. Also playlist import/export and Last.fm sync.
 
 ### Added
 
@@ -88,6 +98,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [0.2.3] - 2026-05-26
 
+Update checker, media notifications, and a bunch of audio backend fixes. Also a big Flutter source restructure that was long overdue.
+
 ### Added
 
 - [Frontend|UpdateChecker] Update checker in settings
@@ -118,6 +130,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [0.2.2] - 2026-05-19
 
+Albums screen lands, Discord RPC gets a YouTube Music deep-link, and Android gets proper storage handling. Lots of small fixes across the board.
+
 ### Added
 
 - [Backend|DiscordRPC] Find button discord RPC now links to YouTube Music search
@@ -146,30 +160,34 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [0.2.1] - 2026-05-17
 
+Mini player, Islands theme, grid/detail toggle, LRU cache for album art. Library and playlist got a visual overhaul.
+
 ### Added
 
-- Aqloss logging
-- 128-entry LRU cache for album art thumbnails
-- Islands theme
-- Grid / Detail view toggle in library
-- Now playing header on library and playlist
-- Mini player
+- [General] Aqloss logging
+- [Frontend|Performance] 128-entry LRU cache for album art thumbnails
+- [Frontend|Theme] Islands theme
+- [Frontend|Library] Grid / Detail view toggle in library
+- [Frontend|UI] Now playing header on library and playlist
+- [Frontend|UI] Mini player
 
 ### Fixed
 
-- Buffer underrun warning spam
-- Window not rounded on Linux
-- Search doesn't work on library
+- [Backend|Audio] Buffer underrun warning spam
+- [Frontend|Linux] Window not rounded on linux
+- [Frontend|Library] Search doesn't work on library
 
 ### Changed
 
-- Library and playlist now display cover art
-- Images are resized to a maximum of 300×300 and recompressed to JPEG to reduce RAM usage
-- Removed Material widgets from library and settings screen
+- [Frontend|Library] Library and playlist now displaying cover art
+- [Frontend|UI] remove material widgets from library and settings screen
+- [Backend|Performance] Images are resized to a maximum of 300×300 and recompressed to JPEG to reduce ram usage
 
 ---
 
 ## [0.2.0] - 2026-05-14
+
+Hotfix: AOT library not found at startup.
 
 ### Fixed
 
@@ -179,33 +197,35 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [0.1.1] - 2026-05-13
 
+Desktop polish: mini player bar, right-click context menu, file info dialog. Plus a handful of playlist and drag-and-drop fixes.
+
 ### Added
 
-- Desktop mini player bar
-- Right-click context menu in Library (desktop)
-- File info dialog
+- [Frontend|Desktop] Desktop mini player bar
+- [Frontend|Desktop] Right-click context menu in Library (desktop)
+- [Frontend|UI] File info dialog
 
 ### Fixed
 
-- Audio output device selection not respected
-- Playlist reorder moves item one position too far when dragging down
-- Dragging a track from the library to a playlist sidebar item did nothing
-- Lyrics text stays white in light mode
+- [Backend|Audio] Audio output device selection not respected
+- [Frontend|Playlist] Playlist reorder moves item one position too far when dragging down
+- [Frontend|Library] Dragging a track from the library to a playlist sidebar item did nothing
+- [Frontend|Theme] Lyrics text stays white in light mode
 
 ### Changed
 
-- `MiniPlayerBar` now detects the platform and renders a full desktop bar (`_DesktopBar`) or the existing compact bar (`_MobileBar`) accordingly
-- Desktop mini player is now shown on all non-player screens instead of only on mobile
+- [Frontend|Miniplayer] MiniPlayerBar now detects the platform and renders a full desktop bar (\_DesktopBar) or the existing compact bar (\_MobileBar) accordingly.
+- [Frontend|Desktop] Desktop mini player is now shown on all non-player screens instead of only on mobile.
 
 ---
 
 ## [0.1.0] - 2026-05-07
 
-### Initial release
+Initial public
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.2...HEAD
 [0.3.2]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.3...v0.3.0
