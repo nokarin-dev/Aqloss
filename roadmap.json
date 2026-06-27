@@ -5,10 +5,29 @@
         "status": "in-progress",
         "items": [
             {
-                "title": "Plugin system",
-                "description": "A minimal plugin API for DSP effects and metadata providers. Distant future.",
+                "title": "Fix Half-Screen Snapping",
+                "description": "Reduced minimum window size constraint from 1280x720 to 800x600, allowing the app to properly scale down when snapped into half-screen layouts on 1080p and lower resolution monitors.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Plugin System Core",
+                "description": "Implement the core plugin registry and context bridge to allow safe communication between Aqloss and third-party plugins.",
                 "status": "in-progress",
                 "category": "Architecture"
+            },
+            {
+                "title": "Extension Format (.aqx)",
+                "description": "Support for custom .aqx (Aqloss Extension) archive format with manifest.json validation and extraction.",
+                "status": "in-progress",
+                "category": "File System"
+            },
+            {
+                "title": "Plugin Manager UI",
+                
+                "description": "A dedicated page in Settings to install, enable, disable, and uninstall plugins dynamically.",
+                "status": "done",
+                "category": "Frontend"
             }
         ]
     },
