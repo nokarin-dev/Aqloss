@@ -83,7 +83,6 @@ class PlaylistIOService {
         dialogTitle: 'Import playlist',
         type: FileType.custom,
         allowedExtensions: [_kExtension],
-        withData: true,
       );
 
       final file = result?.files.firstOrNull;
@@ -91,15 +90,8 @@ class PlaylistIOService {
         return const PlaylistImportResult.fail(null);
       }
 
-      final bytes = file.bytes;
-      final String raw;
-      if (bytes != null) {
-        raw = utf8.decode(bytes);
-      } else if (file.path != null) {
-        raw = await File(file.path!).readAsString();
-      } else {
-        return const PlaylistImportResult.fail('Could not read file.');
-      }
+      final bytes = await file.readAsBytes();
+      final String raw = utf8.decode(bytes);
 
       final Map<String, dynamic> envelope;
       try {
@@ -120,6 +112,48 @@ class PlaylistIOService {
         return PlaylistImportResult.fail(
           'This file was created with a newer version of Aqloss (v$version). '
           'Please update the app to import it.',
+        );
+      }
+
+      final playlistJson = envelope['playlist'] as Map<String, dynamic>?;
+      if (playlistJson == null) {
+        return const PlaylistImportResult.fail('Playlist data missing.');
+      }
+
+      final imported = Playlist.fromJson({
+        ...playlistJson,
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+
+      return PlaylistImportResult.ok(imported);
+    } catch (e) {
+      return PlaylistImportResult.fail(e.toString());
+    }
+  }
+
+  // Import from a known path
+  static Future<PlaylistImportResult> importFromPath(String path) async {
+    try {
+      final raw = await File(path).readAsString();
+
+      final Map<String, dynamic> envelope;
+      try {
+        envelope = jsonDecode(raw) as Map<String, dynamic>;
+      } catch (_) {
+        return const PlaylistImportResult.fail('File is not valid JSON.');
+      }
+
+      if (envelope['format'] != _kFormatKey) {
+        return const PlaylistImportResult.fail(
+          'Not a valid .aqp playlist file.',
+        );
+      }
+
+      final version = envelope['version'] as int? ?? 0;
+      if (version > _kFormatVer) {
+        return PlaylistImportResult.fail(
+          'This file was created with a newer version of Aqloss (v$version).',
         );
       }
 

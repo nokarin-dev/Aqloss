@@ -348,7 +348,7 @@ class _DesktopBarContent extends StatelessWidget {
                   tooltip: '',
                   onTap: () {
                     final t = track;
-                    final text = '${t.displayArtist} — ${t.displayTitle}';
+                    final text = '${t.displayArtist} - ${t.displayTitle}';
                     Clipboard.setData(ClipboardData(text: text));
                     QToast.show(context, 'Copied to clipboard');
                   },

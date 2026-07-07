@@ -77,7 +77,7 @@ class MediaControlService {
 
     final isPlaying = state.status == PlayerStatus.playing;
 
-    // Load art when track changes — capture path before await to avoid race
+    // Load art when track changes - capture path before await to avoid race
     Uint8List? art;
     if (track.path != _lastArtPath) {
       final pathSnapshot = track.path;

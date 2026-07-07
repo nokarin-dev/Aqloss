@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'package:aqloss/plugins/plugin_api.dart';
+import 'package:aqloss/plugins/plugin_registry.dart';
+import 'package:aqloss/services/file_open_service.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,12 +21,14 @@ class AqlossApp extends ConsumerStatefulWidget {
   ConsumerState<AqlossApp> createState() => _AqlossAppState();
 }
 
-class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
+class _AqlossAppState extends ConsumerState<AqlossApp>
+    with WindowListener, WidgetsBindingObserver {
   bool _isMaximize = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (_isLinux) {
       windowManager.addListener(this);
       _checkMaximize();
@@ -32,8 +37,16 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_isLinux) windowManager.removeListener(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      PluginRegistry.instance.dispatchAppForeground(const AppForegroundEvent());
+    }
   }
 
   Future<void> _checkMaximize() async {
@@ -51,8 +64,14 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
   void onWindowUnmaximize() => setState(() => _isMaximize = false);
 
   @override
+  void onWindowFocus() {
+    PluginRegistry.instance.dispatchAppForeground(const AppForegroundEvent());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    final navKey = FileOpenService.instance.navigatorKey;
     final materialThemeMode = switch (settings.themeMode) {
       ThemeMode.dark => theme.ThemeMode.dark,
       ThemeMode.light => theme.ThemeMode.light,
@@ -71,6 +90,7 @@ class _AqlossAppState extends ConsumerState<AqlossApp> with WindowListener {
       themeMode: materialThemeMode,
       theme: _buildLightTheme(accent: accent),
       darkTheme: _buildDarkTheme(accent: accent),
+      navigatorKey: navKey,
       builder: (context, child) {
         final isWindowedLinux = _isLinux && !_isMaximize;
         final radius = isWindowedLinux

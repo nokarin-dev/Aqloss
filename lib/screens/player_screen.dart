@@ -318,7 +318,7 @@ class _TrackInfo extends ConsumerWidget {
     final isWide = MediaQuery.of(context).size.width > 700;
     final artist = track?.artist;
     final album = track?.album;
-    final subtitle = [?artist, ?album].join(' — ');
+    final subtitle = [?artist, ?album].join(' - ');
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 240),

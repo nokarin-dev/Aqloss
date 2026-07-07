@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/providers/history_provider.dart';
+import 'package:aqloss/plugins/plugin_api.dart';
+import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -216,6 +218,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _stopTimer();
     _handlingTrackEnd = false;
     ScrobbleController.instance.onTrackStop();
+    PluginRegistry.instance.dispatchTrackStop(
+      TrackStopEvent(state.currentTrack),
+    );
     state = state.copyWith(
       status: PlayerStatus.loading,
       currentTrack: track,
@@ -240,6 +245,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       state = state.copyWith(status: PlayerStatus.playing);
       DiscordService.update(state, positionSecs: 0.0);
       ScrobbleController.instance.onTrackStart(track);
+      PluginRegistry.instance.dispatchTrackStart(TrackStartEvent(track));
       _historyNotifier?.recordPlay(track);
       _startTimer();
     } catch (e) {
@@ -262,7 +268,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       try {
         await AudioService.play();
       } catch (e) {
-        Logger.warnPlayerProvider('play() failed ($e) — attempting reinit');
+        Logger.warnPlayerProvider('play() failed ($e) - attempting reinit');
         if (!mounted) return;
         final settings = _readSettings?.call();
         final deviceId = settings?.selectedDeviceId;
@@ -303,6 +309,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       } catch (_) {}
       state = state.copyWith(status: PlayerStatus.playing);
       DiscordService.update(state, positionSecs: pos);
+      PluginRegistry.instance.dispatchPlayPause(
+        PlayPauseEvent(isPlaying: true, position: state.position),
+      );
       _startTimer();
     } finally {
       _playPauseBusy = false;
@@ -316,6 +325,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       await AudioService.pause();
       state = state.copyWith(status: PlayerStatus.paused);
       DiscordService.update(state);
+      PluginRegistry.instance.dispatchPlayPause(
+        PlayPauseEvent(isPlaying: false, position: state.position),
+      );
       _stopTimer();
     } finally {
       _playPauseBusy = false;
@@ -479,11 +491,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           : (state.currentTrack?.duration ?? Duration.zero);
 
       ScrobbleController.instance.onPositionUpdate(newPos);
+      PluginRegistry.instance.dispatchPositionUpdate(
+        PositionUpdateEvent(position: newPos, duration: effDur),
+      );
 
       if (pos.durationSecs > 0 && pos.positionSecs >= pos.durationSecs - 0.1) {
         if (_handlingTrackEnd) return;
         _handlingTrackEnd = true;
         _stopTimer();
+        final completed = state.currentTrack;
+        if (completed != null) {
+          PluginRegistry.instance.dispatchTrackComplete(
+            TrackCompleteEvent(completed),
+          );
+        }
         await _onTrackEnd();
         _handlingTrackEnd = false;
         return;
@@ -501,6 +522,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final s = state;
     final stopAfter = _readSettings?.call().stopAfter ?? StopAfterMode.off;
     ScrobbleController.instance.onTrackStop();
+    PluginRegistry.instance.dispatchTrackStop(TrackStopEvent(s.currentTrack));
 
     if (stopAfter == StopAfterMode.track) {
       state = state.copyWith(

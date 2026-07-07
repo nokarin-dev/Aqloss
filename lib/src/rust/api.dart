@@ -148,6 +148,95 @@ Future<void> discordUpdatePaused({
 
 Future<void> discordClear() => AqlossCore.instance.api.crateApiDiscordClear();
 
+bool pluginIsEnabled({required String id}) =>
+    AqlossCore.instance.api.crateApiPluginIsEnabled(id: id);
+
+List<String> pluginLoadedIds() =>
+    AqlossCore.instance.api.crateApiPluginLoadedIds();
+
+String? pluginManifestJson({required String id}) =>
+    AqlossCore.instance.api.crateApiPluginManifestJson(id: id);
+
+Future<String> pluginLoad({required String dirPath}) =>
+    AqlossCore.instance.api.crateApiPluginLoad(dirPath: dirPath);
+
+Future<void> pluginUnload({required String id}) =>
+    AqlossCore.instance.api.crateApiPluginUnload(id: id);
+
+Future<void> pluginSetEnabled({required String id, required bool enabled}) =>
+    AqlossCore.instance.api.crateApiPluginSetEnabled(id: id, enabled: enabled);
+
+Future<void> pluginDispatchTrackStart({
+  required String title,
+  required String artist,
+  String? album,
+  required double durationSecs,
+  required String path,
+}) => AqlossCore.instance.api.crateApiPluginDispatchTrackStart(
+  title: title,
+  artist: artist,
+  album: album,
+  durationSecs: durationSecs,
+  path: path,
+);
+
+Future<void> pluginDispatchTrackStop({String? title, String? artist}) =>
+    AqlossCore.instance.api.crateApiPluginDispatchTrackStop(
+      title: title,
+      artist: artist,
+    );
+
+Future<void> pluginDispatchPlayPause({
+  required bool isPlaying,
+  required double positionSecs,
+}) => AqlossCore.instance.api.crateApiPluginDispatchPlayPause(
+  isPlaying: isPlaying,
+  positionSecs: positionSecs,
+);
+
+Future<void> pluginDispatchPositionUpdate({
+  required double positionSecs,
+  required double durationSecs,
+  required double progress,
+}) => AqlossCore.instance.api.crateApiPluginDispatchPositionUpdate(
+  positionSecs: positionSecs,
+  durationSecs: durationSecs,
+  progress: progress,
+);
+
+Future<void> pluginDispatchTrackComplete({
+  required String title,
+  required String artist,
+  required double durationSecs,
+  required String path,
+}) => AqlossCore.instance.api.crateApiPluginDispatchTrackComplete(
+  title: title,
+  artist: artist,
+  durationSecs: durationSecs,
+  path: path,
+);
+
+Future<void> pluginDispatchLibraryScanStart() =>
+    AqlossCore.instance.api.crateApiPluginDispatchLibraryScanStart();
+
+Future<void> pluginDispatchLibraryScanComplete({required int total}) =>
+    AqlossCore.instance.api.crateApiPluginDispatchLibraryScanComplete(
+      total: total,
+    );
+
+Future<void> pluginDispatchTrackLoved({
+  required String title,
+  required String artist,
+  required bool loved,
+}) => AqlossCore.instance.api.crateApiPluginDispatchTrackLoved(
+  title: title,
+  artist: artist,
+  loved: loved,
+);
+
+Future<void> pluginDispatchAppForeground() =>
+    AqlossCore.instance.api.crateApiPluginDispatchAppForeground();
+
 class AudioDeviceInfo {
   final String id;
   final String name;

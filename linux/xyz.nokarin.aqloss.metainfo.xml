@@ -33,6 +33,11 @@
         <category>Audio</category>
     </categories>
 
+    <mimetypes>
+        <mimetype>application/x-aqloss-playlist</mimetype>
+        <mimetype>application/x-aqloss-plugin</mimetype>
+    </mimetypes>
+
     <branding>
         <color type="primary" scheme_preference="light">#8ed0e6</color>
         <color type="primary" scheme_preference="dark">#296275</color>
@@ -54,6 +59,17 @@
     </screenshots>
 
     <releases>
+        <release version="0.4.0" date="2026-06-24">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.4.0</url>
+            <description>
+                <p>Plugin system, file type associations, and playlist import via .aqp.</p>
+                <ul>
+                    <li>Added plugin system</li>
+                    <li>Added .aqp and .aqx file type registration on all platforms</li>
+                    <li>Added Plugins settings page with enable/disable and uninstall</li>
+                </ul>
+            </description>
+        </release>
         <release version="0.3.2" date="2026-06-22">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.3.2</url>
             <description>

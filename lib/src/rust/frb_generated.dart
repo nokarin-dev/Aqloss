@@ -66,7 +66,7 @@ class AqlossCore
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1995867952;
+  int get rustContentHash => -2138114040;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -128,6 +128,61 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<void> crateApiPause();
 
   Future<void> crateApiPlay();
+
+  Future<void> crateApiPluginDispatchAppForeground();
+
+  Future<void> crateApiPluginDispatchLibraryScanComplete({required int total});
+
+  Future<void> crateApiPluginDispatchLibraryScanStart();
+
+  Future<void> crateApiPluginDispatchPlayPause({
+    required bool isPlaying,
+    required double positionSecs,
+  });
+
+  Future<void> crateApiPluginDispatchPositionUpdate({
+    required double positionSecs,
+    required double durationSecs,
+    required double progress,
+  });
+
+  Future<void> crateApiPluginDispatchTrackComplete({
+    required String title,
+    required String artist,
+    required double durationSecs,
+    required String path,
+  });
+
+  Future<void> crateApiPluginDispatchTrackLoved({
+    required String title,
+    required String artist,
+    required bool loved,
+  });
+
+  Future<void> crateApiPluginDispatchTrackStart({
+    required String title,
+    required String artist,
+    String? album,
+    required double durationSecs,
+    required String path,
+  });
+
+  Future<void> crateApiPluginDispatchTrackStop({String? title, String? artist});
+
+  bool crateApiPluginIsEnabled({required String id});
+
+  Future<String> crateApiPluginLoad({required String dirPath});
+
+  List<String> crateApiPluginLoadedIds();
+
+  String? crateApiPluginManifestJson({required String id});
+
+  Future<void> crateApiPluginSetEnabled({
+    required String id,
+    required bool enabled,
+  });
+
+  Future<void> crateApiPluginUnload({required String id});
 
   Future<Uint8List?> crateApiReadAlbumArt({required String path});
 
@@ -704,6 +759,479 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "play", argNames: []);
 
   @override
+  Future<void> crateApiPluginDispatchAppForeground() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchAppForegroundConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchAppForegroundConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_app_foreground",
+        argNames: [],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchLibraryScanComplete({required int total}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(total, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchLibraryScanCompleteConstMeta,
+        argValues: [total],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchLibraryScanCompleteConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_library_scan_complete",
+        argNames: ["total"],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchLibraryScanStart() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchLibraryScanStartConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchLibraryScanStartConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_library_scan_start",
+        argNames: [],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchPlayPause({
+    required bool isPlaying,
+    required double positionSecs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(isPlaying, serializer);
+          sse_encode_f_64(positionSecs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchPlayPauseConstMeta,
+        argValues: [isPlaying, positionSecs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchPlayPauseConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_play_pause",
+        argNames: ["isPlaying", "positionSecs"],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchPositionUpdate({
+    required double positionSecs,
+    required double durationSecs,
+    required double progress,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_f_64(positionSecs, serializer);
+          sse_encode_f_64(durationSecs, serializer);
+          sse_encode_f_64(progress, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchPositionUpdateConstMeta,
+        argValues: [positionSecs, durationSecs, progress],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchPositionUpdateConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_position_update",
+        argNames: ["positionSecs", "durationSecs", "progress"],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchTrackComplete({
+    required String title,
+    required String artist,
+    required double durationSecs,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(title, serializer);
+          sse_encode_String(artist, serializer);
+          sse_encode_f_64(durationSecs, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchTrackCompleteConstMeta,
+        argValues: [title, artist, durationSecs, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchTrackCompleteConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_track_complete",
+        argNames: ["title", "artist", "durationSecs", "path"],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchTrackLoved({
+    required String title,
+    required String artist,
+    required bool loved,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(title, serializer);
+          sse_encode_String(artist, serializer);
+          sse_encode_bool(loved, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchTrackLovedConstMeta,
+        argValues: [title, artist, loved],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchTrackLovedConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_track_loved",
+        argNames: ["title", "artist", "loved"],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchTrackStart({
+    required String title,
+    required String artist,
+    String? album,
+    required double durationSecs,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(title, serializer);
+          sse_encode_String(artist, serializer);
+          sse_encode_opt_String(album, serializer);
+          sse_encode_f_64(durationSecs, serializer);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchTrackStartConstMeta,
+        argValues: [title, artist, album, durationSecs, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchTrackStartConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_track_start",
+        argNames: ["title", "artist", "album", "durationSecs", "path"],
+      );
+
+  @override
+  Future<void> crateApiPluginDispatchTrackStop({
+    String? title,
+    String? artist,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_String(title, serializer);
+          sse_encode_opt_String(artist, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginDispatchTrackStopConstMeta,
+        argValues: [title, artist],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginDispatchTrackStopConstMeta =>
+      const TaskConstMeta(
+        debugName: "plugin_dispatch_track_stop",
+        argNames: ["title", "artist"],
+      );
+
+  @override
+  bool crateApiPluginIsEnabled({required String id}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginIsEnabledConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginIsEnabledConstMeta =>
+      const TaskConstMeta(debugName: "plugin_is_enabled", argNames: ["id"]);
+
+  @override
+  Future<String> crateApiPluginLoad({required String dirPath}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dirPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPluginLoadConstMeta,
+        argValues: [dirPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginLoadConstMeta =>
+      const TaskConstMeta(debugName: "plugin_load", argNames: ["dirPath"]);
+
+  @override
+  List<String> crateApiPluginLoadedIds() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginLoadedIdsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginLoadedIdsConstMeta =>
+      const TaskConstMeta(debugName: "plugin_loaded_ids", argNames: []);
+
+  @override
+  String? crateApiPluginManifestJson({required String id}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 31)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginManifestJsonConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginManifestJsonConstMeta =>
+      const TaskConstMeta(debugName: "plugin_manifest_json", argNames: ["id"]);
+
+  @override
+  Future<void> crateApiPluginSetEnabled({
+    required String id,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginSetEnabledConstMeta,
+        argValues: [id, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginSetEnabledConstMeta => const TaskConstMeta(
+    debugName: "plugin_set_enabled",
+    argNames: ["id", "enabled"],
+  );
+
+  @override
+  Future<void> crateApiPluginUnload({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPluginUnloadConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPluginUnloadConstMeta =>
+      const TaskConstMeta(debugName: "plugin_unload", argNames: ["id"]);
+
+  @override
   Future<Uint8List?> crateApiReadAlbumArt({required String path}) {
     return handler.executeNormal(
       NormalTask(
@@ -713,7 +1241,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 34,
             port: port_,
           );
         },
@@ -741,7 +1269,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 35,
             port: port_,
           );
         },
@@ -772,7 +1300,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 36,
             port: port_,
           );
         },
@@ -802,7 +1330,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 37,
             port: port_,
           );
         },
@@ -829,7 +1357,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 38,
             port: port_,
           );
         },
@@ -861,7 +1389,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 39,
             port: port_,
           );
         },
@@ -891,7 +1419,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 40,
             port: port_,
           );
         },
@@ -919,7 +1447,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 41,
             port: port_,
           );
         },
@@ -947,7 +1475,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 42,
             port: port_,
           );
         },
@@ -976,7 +1504,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1006,7 +1534,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1034,7 +1562,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1062,7 +1590,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1090,7 +1618,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1118,7 +1646,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1146,7 +1674,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1176,7 +1704,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1204,7 +1732,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1232,7 +1760,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1260,7 +1788,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 53,
             port: port_,
           );
         },
@@ -1287,7 +1815,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 54,
             port: port_,
           );
         },

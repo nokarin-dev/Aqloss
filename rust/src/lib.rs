@@ -7,6 +7,7 @@ mod frb_generated;
 pub mod logger;
 pub mod metadata;
 pub mod output;
+pub mod plugin_engine;
 pub mod resampler;
 pub mod stereo_enhance;
 

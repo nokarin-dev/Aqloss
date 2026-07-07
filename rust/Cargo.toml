@@ -1,6 +1,6 @@
 [package]
 name = "aqloss_rust_core"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 
 [lib]
@@ -39,6 +39,19 @@ biquad = "0.6.0"
 image = "0.25.10"
 lru = "0.18.0"
 realfft = "3.5.0"
+
+# Lua scripting engine
+mlua = { version = "0.11.6", features = ["lua54", "vendored", "send"] }
+
+# Blocking HTTP for plugins
+ureq = { version = "3.3.0", features = ["json"] }
+
+# Zip for .aqx extraction
+zip = "2"
+
+# JSON serializations for plugin
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1"

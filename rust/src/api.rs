@@ -1,4 +1,7 @@
-use crate::{audio_engine::AudioEngine, logger, metadata, PlaybackPosition, TrackInfo};
+use crate::{
+    audio_engine::AudioEngine, logger, metadata, plugin_engine, plugin_engine::PluginEvent,
+    PlaybackPosition, TrackInfo,
+};
 use anyhow::Result;
 use flutter_rust_bridge::frb;
 
@@ -13,10 +16,12 @@ pub struct AudioDeviceInfo {
 // Engine lifecycle
 pub fn init_engine() -> Result<()> {
     logger::init();
+    crate::plugin_engine::engine_init();
     AudioEngine::init_default()
 }
 pub fn init_engine_with_device(device_id: String, exclusive: bool) -> Result<()> {
     logger::init();
+    crate::plugin_engine::engine_init();
     AudioEngine::init_with_device(&device_id, exclusive)
 }
 pub fn reinit_engine(device_id: String, exclusive: bool) -> Result<()> {
@@ -225,4 +230,118 @@ pub fn discord_update_paused(
 }
 pub fn discord_clear() -> Result<()> {
     crate::discord_rpc::clear()
+}
+
+// Plugin engine
+#[frb(sync)]
+pub fn plugin_is_enabled(id: String) -> bool {
+    plugin_engine::with_engine_read(|e| e.is_enabled(&id)).unwrap_or(false)
+}
+
+#[frb(sync)]
+pub fn plugin_loaded_ids() -> Vec<String> {
+    plugin_engine::with_engine_read(|e| e.loaded_ids()).unwrap_or_default()
+}
+
+#[frb(sync)]
+pub fn plugin_manifest_json(id: String) -> Option<String> {
+    plugin_engine::with_engine_read(|e| {
+        e.manifest(&id).and_then(|m| serde_json::to_string(&m).ok())
+    })
+    .flatten()
+}
+
+pub fn plugin_load(dir_path: String) -> Result<String> {
+    plugin_engine::with_engine(|e| e.load_plugin(std::path::Path::new(&dir_path)))?
+}
+
+pub fn plugin_unload(id: String) {
+    let _ = plugin_engine::with_engine(|e| e.unload_plugin(&id));
+}
+
+pub fn plugin_set_enabled(id: String, enabled: bool) {
+    let _ = plugin_engine::with_engine(|e| e.set_enabled(&id, enabled));
+}
+
+pub fn plugin_dispatch_track_start(
+    title: String,
+    artist: String,
+    album: Option<String>,
+    duration_secs: f64,
+    path: String,
+) {
+    plugin_engine::with_engine_read(|e| {
+        e.dispatch(&PluginEvent::TrackStart {
+            title,
+            artist,
+            album,
+            duration_secs,
+            path,
+        });
+    });
+}
+
+pub fn plugin_dispatch_track_stop(title: Option<String>, artist: Option<String>) {
+    plugin_engine::with_engine_read(|e| {
+        e.dispatch(&PluginEvent::TrackStop { title, artist });
+    });
+}
+
+pub fn plugin_dispatch_play_pause(is_playing: bool, position_secs: f64) {
+    plugin_engine::with_engine_read(|e| {
+        e.dispatch(&PluginEvent::PlayPause {
+            is_playing,
+            position_secs,
+        });
+    });
+}
+
+pub fn plugin_dispatch_position_update(position_secs: f64, duration_secs: f64, progress: f64) {
+    plugin_engine::with_engine_read(|e| {
+        e.dispatch(&PluginEvent::PositionUpdate {
+            position_secs,
+            duration_secs,
+            progress,
+        });
+    });
+}
+
+pub fn plugin_dispatch_track_complete(
+    title: String,
+    artist: String,
+    duration_secs: f64,
+    path: String,
+) {
+    plugin_engine::with_engine_read(|e| {
+        e.dispatch(&PluginEvent::TrackComplete {
+            title,
+            artist,
+            duration_secs,
+            path,
+        });
+    });
+}
+
+pub fn plugin_dispatch_library_scan_start() {
+    plugin_engine::with_engine_read(|e| e.dispatch(&PluginEvent::LibraryScanStart));
+}
+
+pub fn plugin_dispatch_library_scan_complete(total: u32) {
+    plugin_engine::with_engine_read(|e| {
+        e.dispatch(&PluginEvent::LibraryScanComplete { total });
+    });
+}
+
+pub fn plugin_dispatch_track_loved(title: String, artist: String, loved: bool) {
+    plugin_engine::with_engine_read(|e| {
+        e.dispatch(&PluginEvent::TrackLoved {
+            title,
+            artist,
+            loved,
+        });
+    });
+}
+
+pub fn plugin_dispatch_app_foreground() {
+    plugin_engine::with_engine_read(|e| e.dispatch(&PluginEvent::AppForeground));
 }

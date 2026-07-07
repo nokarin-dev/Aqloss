@@ -19,26 +19,20 @@
             {
                 "title": "Plugin System Core",
                 "description": "Implement the core plugin registry and context bridge to allow safe communication between Aqloss and third-party plugins.",
-                "status": "in-progress",
+                "status": "done",
                 "category": "Architecture"
             },
             {
                 "title": "Extension Format (.aqx)",
                 "description": "Support for custom .aqx (Aqloss Extension) archive format with manifest.json validation and extraction.",
-                "status": "in-progress",
+                "status": "done",
                 "category": "File System"
             },
             {
-                "title": "Material Design 3 & Material You",
-                "description": "Migrate the app's UI to Material Design 3 and implement dynamic colors based on the user's OS theme for a more modern look.",
-                "status": "planned",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Responsive Mobile Album View",
-                "description": "Redesign the album page to adapt gracefully on smaller screens, utilizing a single-column layout instead of a dense grid.",
-                "status": "planned",
-                "category": "Frontend · UI"
+                "title": "Non-embedded Album Art Support",
+                "description": "Fallback to fetching local image files (e.g., cover.jpg or folder.jpg) from the music directory when embedded album art is missing.",
+                "status": "in-progress",
+                "category": "Core · Audio"
             },
             {
                 "title": "ListenBrainz Scrobbling",
@@ -47,10 +41,16 @@
                 "category": "Integrations"
             },
             {
-                "title": "Non-embedded Album Art Support",
-                "description": "Fallback to fetching local image files (e.g., cover.jpg or folder.jpg) from the music directory when embedded album art is missing.",
+                "title": "Responsive Mobile Album View",
+                "description": "Redesign the album page to adapt gracefully on smaller screens, utilizing a single-column layout instead of a dense grid.",
                 "status": "planned",
-                "category": "Core · Audio"
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Material Design 3 & Material You",
+                "description": "Migrate the app's UI to Material Design 3 and implement dynamic colors based on the user's OS theme for a more modern look.",
+                "status": "planned",
+                "category": "Frontend · UI"
             }
         ]
     },

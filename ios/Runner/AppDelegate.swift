@@ -13,13 +13,43 @@ import MediaPlayer
     GeneratedPluginRegistrant.register(with: self)
 
     if let controller = window?.rootViewController as? FlutterViewController {
-        mediaControls = MediaControlsPlugin(messenger: controller.binaryMessenger)
+      mediaControls = MediaControlsPlugin(messenger: controller.binaryMessenger)
+      FileOpenPlugin.shared.setup(messenger: controller.binaryMessenger)
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    return FileOpenPlugin.shared.send(url.path)
+  }
 }
 
+// FileOpenPlugin
+class FileOpenPlugin {
+  static let shared = FileOpenPlugin()
+  private var channel: FlutterMethodChannel?
+
+  func setup(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(
+      name: "xyz.nokarin.aqloss/file_open",
+      binaryMessenger: messenger
+    )
+  }
+
+  @discardableResult
+  func send(_ path: String) -> Bool {
+    guard let ch = channel else { return false }
+    ch.invokeMethod("openFile", arguments: path)
+    return true
+  }
+}
+
+// MediaControlsPlugin
 class MediaControlsPlugin: NSObject {
     private let channel: FlutterMethodChannel
     private var isRegistered = false
@@ -90,40 +120,37 @@ class MediaControlsPlugin: NSObject {
             return .success
         }
 
-        // Enable/disable controls
-        cc.playCommand.isEnabled           = true
-        cc.pauseCommand.isEnabled          = true
+        cc.playCommand.isEnabled = true
+        cc.pauseCommand.isEnabled = true
         cc.togglePlayPauseCommand.isEnabled = true
-        cc.nextTrackCommand.isEnabled      = true
-        cc.previousTrackCommand.isEnabled  = true
+        cc.nextTrackCommand.isEnabled = true
+        cc.previousTrackCommand.isEnabled = true
         cc.changePlaybackPositionCommand.isEnabled = true
-        cc.stopCommand.isEnabled           = false
-        cc.seekForwardCommand.isEnabled    = false
-        cc.seekBackwardCommand.isEnabled   = false
+        cc.stopCommand.isEnabled = false
+        cc.seekForwardCommand.isEnabled = false
+        cc.seekBackwardCommand.isEnabled = false
     }
 
-    // Playing info
     private func updateNowPlaying(_ args: [String: Any]) {
-        let title     = args["title"]     as? String ?? ""
-        let artist    = args["artist"]    as? String ?? ""
-        let album     = args["album"]     as? String ?? ""
+        let title = args["title"] as? String ?? ""
+        let artist = args["artist"] as? String ?? ""
+        let album = args["album"] as? String ?? ""
         let isPlaying = args["isPlaying"] as? Bool   ?? false
-        let posMs     = args["positionMs"] as? Double ?? 0
-        let durMs     = args["durationMs"] as? Double ?? 0
-        let artBytes  = args["artBytes"]  as? FlutterStandardTypedData
+        let posMs = args["positionMs"] as? Double ?? 0
+        let durMs = args["durationMs"] as? Double ?? 0
+        let artBytes = args["artBytes"] as? FlutterStandardTypedData
 
         var info: [String: Any] = [
-            MPMediaItemPropertyTitle:              title,
-            MPMediaItemPropertyArtist:             artist,
-            MPMediaItemPropertyAlbumTitle:         album,
-            MPMediaItemPropertyPlaybackDuration:   durMs / 1000.0,
+            MPMediaItemPropertyTitle: title,
+            MPMediaItemPropertyArtist: artist,
+            MPMediaItemPropertyAlbumTitle: album,
+            MPMediaItemPropertyPlaybackDuration: durMs / 1000.0,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: posMs / 1000.0,
-            MPNowPlayingInfoPropertyPlaybackRate:  isPlaying ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyMediaType:     MPNowPlayingInfoMediaType.audio.rawValue,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
         ]
 
-        if let bytes = artBytes?.data,
-            let image = UIImage(data: bytes) {
+        if let bytes = artBytes?.data, let image = UIImage(data: bytes) {
             let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
             info[MPMediaItemPropertyArtwork] = artwork
         }

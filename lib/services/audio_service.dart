@@ -86,7 +86,7 @@ class AudioService {
           if (_deviceChangePendingCount >= _kDeviceChangeDebounce) {
             Logger.debugAudioService(
               'device change confirmed (${_deviceChangePendingCount}x) '
-              '— default: $_lastDefaultId → $defaultId',
+              '- default: $_lastDefaultId → $defaultId',
             );
             _lastDeviceIds = ids;
             _lastDefaultId = defaultId;
@@ -176,7 +176,7 @@ class AudioService {
       return true;
     } catch (e) {
       Logger.errorAudioService(
-        'reinitToDevice failed: $e — trying system default',
+        'reinitToDevice failed: $e - trying system default',
       );
       try {
         await backend.initEngine().timeout(const Duration(seconds: 6));

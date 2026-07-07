@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:aqloss/util/search_focus_tracker.dart';
+import 'package:aqloss/screens/plugin_pane.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:aqloss/services/audio_service.dart';
@@ -29,9 +30,9 @@ enum _SettingsPage {
   playback,
   dsp,
   display,
-  lastfm,
   shortcuts,
   integrations,
+  plugins,
   updates,
   about,
 }
@@ -43,9 +44,9 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.playback => 'Playback',
     _SettingsPage.dsp => 'DSP / EQ',
     _SettingsPage.display => 'Display',
-    _SettingsPage.lastfm => 'Last.fm',
-    _SettingsPage.shortcuts => 'Shortcuts',
     _SettingsPage.integrations => 'Integrations',
+    _SettingsPage.shortcuts => 'Shortcuts',
+    _SettingsPage.plugins => 'Plugins',
     _SettingsPage.updates => 'Updates',
     _SettingsPage.about => 'About',
   };
@@ -57,9 +58,10 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
     _SettingsPage.dsp => 'Equalizer, soft-clip, stereo width and depth',
     _SettingsPage.display => 'Theme, spectrum analyser, album art',
-    _SettingsPage.lastfm => 'Scrobbling and account authentication',
+    _SettingsPage.integrations =>
+      'Manage external services, rich presence, and plugins',
     _SettingsPage.shortcuts => 'Global keyboard shortcuts',
-    _SettingsPage.integrations => 'Discord Rich Presence and other services',
+    _SettingsPage.plugins => 'Installed third-party and built-in plugins',
     _SettingsPage.updates => 'Check for new releases',
     _SettingsPage.about => 'Version info and logs',
   };
@@ -70,9 +72,9 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.playback => Icons.play_circle_outline_rounded,
     _SettingsPage.dsp => Icons.equalizer_rounded,
     _SettingsPage.display => Icons.palette_outlined,
-    _SettingsPage.lastfm => Icons.podcasts_rounded,
-    _SettingsPage.shortcuts => Icons.keyboard_outlined,
     _SettingsPage.integrations => Icons.extension_outlined,
+    _SettingsPage.shortcuts => Icons.keyboard_outlined,
+    _SettingsPage.plugins => Icons.widgets_outlined,
     _SettingsPage.updates => Icons.system_update_alt_rounded,
     _SettingsPage.about => Icons.info_outline_rounded,
   };
@@ -80,9 +82,9 @@ extension _SettingsPageX on _SettingsPage {
   String get section => switch (this) {
     _SettingsPage.musicFolders || _SettingsPage.audioOutput => 'LIBRARY',
     _SettingsPage.playback || _SettingsPage.dsp => 'PLAYBACK',
-    _SettingsPage.display || _SettingsPage.lastfm => 'APPEARANCE',
+    _SettingsPage.display || _SettingsPage.integrations => 'APPEARANCE',
     _SettingsPage.shortcuts ||
-    _SettingsPage.integrations ||
+    _SettingsPage.plugins ||
     _SettingsPage.updates ||
     _SettingsPage.about => 'SYSTEM',
   };
@@ -352,9 +354,9 @@ class _SettingsContent extends StatelessWidget {
       _SettingsPage.playback => const _PlaybackPane(),
       _SettingsPage.dsp => const _DspPane(),
       _SettingsPage.display => const _DisplayPane(),
-      _SettingsPage.lastfm => const _LastFmPane(),
-      _SettingsPage.shortcuts => const _ShortcutsPane(),
       _SettingsPage.integrations => const _IntegrationsPane(),
+      _SettingsPage.shortcuts => const _ShortcutsPane(),
+      _SettingsPage.plugins => const PluginsPane(),
       _SettingsPage.updates => const _UpdatesPane(),
       _SettingsPage.about => const _AboutPane(),
     };
@@ -1372,36 +1374,6 @@ class _AccentModeChip extends StatelessWidget {
   );
 }
 
-// Last.fm pane
-class _LastFmPane extends ConsumerWidget {
-  const _LastFmPane();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(settingsProvider);
-    final n = ref.read(settingsProvider.notifier);
-
-    return _Pane(
-      page: _SettingsPage.lastfm,
-      children: [
-        _SettingsCard(
-          children: [
-            _ToggleRow(
-              icon: Icons.radio_button_checked_rounded,
-              title: 'Scrobble',
-              subtitle:
-                  'Submit track plays to Last.fm after 50% played or 4 minutes.',
-              value: s.scrobbleLastFm,
-              onChanged: (_) => n.toggleScrobble(),
-            ),
-            if (s.scrobbleLastFm) ...[_Div(), const LastFmAuthRow()],
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 // Shortcuts pane
 class _ShortcutsPane extends ConsumerStatefulWidget {
   const _ShortcutsPane();
@@ -1805,7 +1777,7 @@ class _CaptureInputState extends State<_CaptureInput> {
 }
 
 // Updates pane
-const _kCurrentVersion = '0.3.2';
+const _kCurrentVersion = '0.4.0';
 
 enum _UpdateStatus { idle, checking, upToDate, available, error }
 
@@ -2291,6 +2263,16 @@ class _IntegrationsPane extends ConsumerWidget {
                 DiscordService.enabled = !s.discordRpc;
               },
             ),
+            _Div(),
+            _ToggleRow(
+              icon: Icons.radio_button_checked_rounded,
+              title: 'Scrobble',
+              subtitle:
+                  'Submit track plays to Last.fm after 50% played or 4 minutes.',
+              value: s.scrobbleLastFm,
+              onChanged: (_) => n.toggleScrobble(),
+            ),
+            if (s.scrobbleLastFm) ...[_Div(), const LastFmAuthRow()],
           ],
         ),
       ],
@@ -2347,7 +2329,7 @@ class _AboutPane extends StatelessWidget {
             const _InfoRow(
               icon: Icons.music_note_rounded,
               title: 'Aqloss',
-              value: 'Version 0.3.2',
+              value: 'Version 0.4.0',
             ),
             _Div(),
             const _InfoRow(

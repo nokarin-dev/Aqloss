@@ -22,10 +22,10 @@ rust/src/           → Audio backend (Rust)
 
 ## Before submitting a PR
 
-- Keep changes focused — one fix or feature per PR
+- Keep changes focused - one fix or feature per PR
 - If you're fixing a bug, mention the issue number (`Fixes #123`)
 - Test on your platform at minimum; note if you can't test others
-- For Rust changes, make sure there are no new `unwrap()`/`expect()` on hot paths — use `?` or `global_opt()` instead
+- For Rust changes, make sure there are no new `unwrap()`/`expect()` on hot paths - use `?` or `global_opt()` instead
 - For Flutter changes, test both desktop and mobile behavior if relevant (they can differ, e.g. context menus)
 - Short commit messages are fine, just be descriptive enough
 
@@ -33,7 +33,7 @@ rust/src/           → Audio backend (Rust)
 
 - Rust: `cargo fmt` before committing
 - Dart: `dart format .` before committing
-- Comments are welcome but keep them brief — `// ...` style, not paragraph essays
+- Comments are welcome but keep them brief - `// ...` style, not paragraph essays
 
 ## What to work on
 
@@ -41,4 +41,4 @@ Check issues labeled `good first issue` or `help wanted`. If you want to work on
 
 ## Reporting bugs
 
-Use the bug report template. Logs are really helpful — especially backend logs and `RUST_BACKTRACE=1` output for panics.
+Use the bug report template. Logs are really helpful - especially backend logs and `RUST_BACKTRACE=1` output for panics.

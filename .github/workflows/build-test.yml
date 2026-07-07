@@ -7,6 +7,7 @@ on:
     paths-ignore:
       - "**.md"
       - "**.ico"
+      - "**.json"
       - ".gitignore"
       - "LICENSE"
       - "assets/banner/**"
@@ -19,12 +20,14 @@ on:
     paths-ignore:
       - "**.md"
       - "**.ico"
+      - "**.json"
       - ".gitignore"
       - "LICENSE"
       - "assets/banner/**"
       - "assets/preview/**"
       - ".github/codeowners"
       - ".github/funding.yml"
+
 permissions:
   contents: read
   checks: write
@@ -134,7 +137,8 @@ jobs:
 
           mkdir -p "$PKG/DEBIAN" "$PKG/opt/aqloss" "$PKG/usr/bin" \
             "$PKG/usr/share/applications" \
-            "$PKG/usr/share/icons/hicolor/256x256/apps"
+            "$PKG/usr/share/icons/hicolor/256x256/apps" \
+            "$PKG/usr/share/mime/packages"
 
           cp -r "$BUNDLE/." "$PKG/opt/aqloss/"
 
@@ -145,23 +149,15 @@ jobs:
 
           ln -s /opt/aqloss/aqloss "$PKG/usr/bin/aqloss"
 
-          cat > "$PKG/usr/share/applications/aqloss.desktop" << 'DESKTOP'
-          [Desktop Entry]
-          Version=1.0
-          Type=Application
-          Name=Aqloss
-          GenericName=Music Player
-          Comment=High-quality local music player
-          Exec=/opt/aqloss/aqloss
-          Icon=aqloss
-          Categories=Audio;Music;Player;AudioVideo;
-          Terminal=false
-          StartupWMClass=aqloss
-          DESKTOP
+          cp linux/xyz.nokarin.aqloss.desktop \
+            "$PKG/usr/share/applications/xyz.nokarin.aqloss.desktop"
+
+          cp linux/xyz.nokarin.aqloss.xml \
+            "$PKG/usr/share/mime/packages/xyz.nokarin.aqloss.xml"
 
           [ -f "assets/icons/icon_256.png" ] && \
             cp "assets/icons/icon_256.png" \
-              "$PKG/usr/share/icons/hicolor/256x256/apps/aqloss.png"
+              "$PKG/usr/share/icons/hicolor/256x256/apps/xyz.nokarin.aqloss.png"
 
           cat > "$PKG/DEBIAN/control" << EOF
           Package: aqloss
@@ -174,7 +170,7 @@ jobs:
           Priority: optional
           EOF
 
-          printf '#!/bin/sh\nchmod +x /opt/aqloss/aqloss 2>/dev/null||true\nupdate-desktop-database /usr/share/applications 2>/dev/null||true\nexit 0\n' \
+          printf '#!/bin/sh\nchmod +x /opt/aqloss/aqloss 2>/dev/null||true\nupdate-mime-database /usr/share/mime 2>/dev/null||true\nupdate-desktop-database /usr/share/applications 2>/dev/null||true\nexit 0\n' \
             > "$PKG/DEBIAN/postinst"
           chmod 755 "$PKG/DEBIAN/postinst"
 
@@ -192,25 +188,20 @@ jobs:
           APPIMAGETOOL="/tmp/squashfs-root/AppRun"
           cd "$GITHUB_WORKSPACE"
 
-          mkdir -p AppDir/app AppDir/usr/share/icons/hicolor/256x256/apps
+          mkdir -p AppDir/app AppDir/usr/share/icons/hicolor/256x256/apps \
+            AppDir/usr/share/mime/packages
 
           cp -r "$BUNDLE/." AppDir/app/
 
           [ -f "assets/icons/icon_256.png" ] \
             && cp "assets/icons/icon_256.png" \
-              AppDir/usr/share/icons/hicolor/256x256/apps/aqloss.png \
+              AppDir/usr/share/icons/hicolor/256x256/apps/xyz.nokarin.aqloss.png \
             && cp "assets/icons/icon_64.png" AppDir/aqloss.png \
             || printf 'PNG' > AppDir/aqloss.png
 
-          cat > AppDir/aqloss.desktop << 'DESKTOP'
-          [Desktop Entry]
-          Type=Application
-          Name=Aqloss
-          Exec=aqloss
-          Icon=aqloss
-          Categories=Audio;Music;AudioVideo;
-          Terminal=false
-          DESKTOP
+          cp linux/xyz.nokarin.aqloss.desktop AppDir/aqloss.desktop
+          cp linux/xyz.nokarin.aqloss.xml \
+            AppDir/usr/share/mime/packages/xyz.nokarin.aqloss.xml
 
           cat > AppDir/AppRun << 'APPRUN'
           #!/bin/sh
@@ -309,15 +300,11 @@ jobs:
             cp "$GITHUB_WORKSPACE/assets/icons/icon_256.png" \
               "$RPMROOT/SOURCES/aqloss.png"
 
-          cat > "$RPMROOT/SOURCES/aqloss.desktop" << 'DESKTOP'
-          [Desktop Entry]
-          Type=Application
-          Name=Aqloss
-          Exec=/opt/aqloss/aqloss
-          Icon=aqloss
-          Categories=Audio;Music;AudioVideo;
-          Terminal=false
-          DESKTOP
+          cp "$GITHUB_WORKSPACE/linux/xyz.nokarin.aqloss.desktop" \
+            "$RPMROOT/SOURCES/xyz.nokarin.aqloss.desktop"
+
+          cp "$GITHUB_WORKSPACE/linux/xyz.nokarin.aqloss.xml" \
+            "$RPMROOT/SOURCES/xyz.nokarin.aqloss.xml"
 
           cat > "$RPMROOT/SPECS/aqloss.spec" << SPEC
           Name:           Aqloss
@@ -335,7 +322,8 @@ jobs:
           BUNDLE=\$(cat $RPMROOT/SOURCES/bundle_path.txt)
           mkdir -p %{buildroot}/opt/aqloss %{buildroot}/usr/bin \
             %{buildroot}/usr/share/applications \
-            %{buildroot}/usr/share/icons/hicolor/256x256/apps
+            %{buildroot}/usr/share/icons/hicolor/256x256/apps \
+            %{buildroot}/usr/share/mime/packages
           cp -r \$BUNDLE/. %{buildroot}/opt/aqloss/
           EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f \
             ! -name "*.so" ! -name "*.desktop" | head -1)
@@ -344,18 +332,21 @@ jobs:
             mv "\$EXE" %{buildroot}/opt/aqloss/aqloss
           chmod +x %{buildroot}/opt/aqloss/aqloss
           ln -s /opt/aqloss/aqloss %{buildroot}/usr/bin/aqloss
-          cp $RPMROOT/SOURCES/aqloss.desktop \
-            %{buildroot}/usr/share/applications/aqloss.desktop
+          cp $RPMROOT/SOURCES/xyz.nokarin.aqloss.desktop \
+            %{buildroot}/usr/share/applications/xyz.nokarin.aqloss.desktop
+          cp $RPMROOT/SOURCES/xyz.nokarin.aqloss.xml \
+            %{buildroot}/usr/share/mime/packages/xyz.nokarin.aqloss.xml
           if [ -f "$RPMROOT/SOURCES/aqloss.png" ]; then
             cp $RPMROOT/SOURCES/aqloss.png \
-              %{buildroot}/usr/share/icons/hicolor/256x256/apps/aqloss.png
+              %{buildroot}/usr/share/icons/hicolor/256x256/apps/xyz.nokarin.aqloss.png
           fi
 
           %files
           %attr(0755, root, root) /usr/bin/aqloss
           /opt/aqloss/*
-          /usr/share/applications/aqloss.desktop
-          /usr/share/icons/hicolor/256x256/apps/aqloss.png
+          /usr/share/applications/xyz.nokarin.aqloss.desktop
+          /usr/share/mime/packages/xyz.nokarin.aqloss.xml
+          /usr/share/icons/hicolor/256x256/apps/xyz.nokarin.aqloss.png
           SPEC
 
           rpmbuild -bb \
@@ -544,7 +535,6 @@ jobs:
             Aqloss-android-arm32.apk
             Aqloss-android-x86_64.apk
 
-  # macOS
   test-macos:
     name: Build Test - macOS (dmg + portable)
     needs: [analyze, rust-check]
@@ -582,11 +572,9 @@ jobs:
         run: |
           echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
 
-      # Build
       - name: Build macOS (release)
         run: flutter build macos --release
 
-      #  Package as dmg
       - name: Create .dmg
         run: |
           APP="build/macos/Build/Products/Release/Aqloss.app"
@@ -604,17 +592,12 @@ jobs:
               "$DMG" "$APP" || true
           fi
 
-          # Fallback if create-dmg failed or is not installed
           if [ ! -f "$DMG" ]; then
             hdiutil create -volname "Aqloss" -srcfolder "$APP" \
               -ov -format UDZO "$DMG"
           fi
 
           echo "✓ DMG: $(du -h $DMG | cut -f1)"
-
-      # Portable zip
-      - name: Build macOS (portable)
-        run: flutter build macos --release
 
       - name: Package macOS portable
         run: |
@@ -634,7 +617,6 @@ jobs:
             Aqloss-macos.dmg
             Aqloss-macos-portable.zip
 
-  # iOS
   test-ios:
     name: Build Test - iOS
     needs: [analyze, rust-check]
@@ -675,13 +657,11 @@ jobs:
         run: |
           echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
 
-      # Build
       - name: Build iOS (release, no-codesign)
         run: |
           flutter build ios --release --no-codesign
           echo "✓ iOS build successful"
 
-      # Package unsigned IPA
       - name: Package unsigned .ipa
         run: |
           APP_PATH="build/ios/iphoneos/Runner.app"

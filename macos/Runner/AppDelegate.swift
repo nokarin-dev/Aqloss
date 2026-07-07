@@ -10,6 +10,7 @@ class AppDelegate: FlutterAppDelegate {
     super.applicationDidFinishLaunching(notification)
     if let controller = mainFlutterWindow?.contentViewController as? FlutterViewController {
       mediaControls = MediaControlsPlugin(messenger: controller.engine.binaryMessenger)
+      FileOpenPlugin.shared.setup(messenger: controller.engine.binaryMessenger)
     }
   }
 
@@ -18,6 +19,34 @@ class AppDelegate: FlutterAppDelegate {
   }
 
   override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+    return true
+  }
+
+  override func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+    return FileOpenPlugin.shared.send(filename)
+  }
+
+  override func application(_ sender: NSApplication, openFiles filenames: [String]) {
+    filenames.forEach { FileOpenPlugin.shared.send($0) }
+  }
+}
+
+// FileOpenPlugin
+class FileOpenPlugin {
+  static let shared = FileOpenPlugin()
+  private var channel: FlutterMethodChannel?
+
+  func setup(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(
+      name: "xyz.nokarin.aqloss/file_open",
+      binaryMessenger: messenger
+    )
+  }
+
+  @discardableResult
+  func send(_ path: String) -> Bool {
+    guard let ch = channel else { return false }
+    ch.invokeMethod("openFile", arguments: path)
     return true
   }
 }
@@ -95,13 +124,13 @@ class MediaControlsPlugin: NSObject {
             return .success
         }
 
-        cc.playCommand.isEnabled                      = true
-        cc.pauseCommand.isEnabled                     = true
-        cc.togglePlayPauseCommand.isEnabled            = true
-        cc.nextTrackCommand.isEnabled                 = true
-        cc.previousTrackCommand.isEnabled             = true
-        cc.changePlaybackPositionCommand.isEnabled    = true
-        cc.stopCommand.isEnabled                      = false
+        cc.playCommand.isEnabled = true
+        cc.pauseCommand.isEnabled = true
+        cc.togglePlayPauseCommand.isEnabled = true
+        cc.nextTrackCommand.isEnabled = true
+        cc.previousTrackCommand.isEnabled = true
+        cc.changePlaybackPositionCommand.isEnabled = true
+        cc.stopCommand.isEnabled = false
     }
 
     // Now Playing info
@@ -117,17 +146,16 @@ class MediaControlsPlugin: NSObject {
         let artBytes  = args["artBytes"]  as? FlutterStandardTypedData
 
         var info: [String: Any] = [
-            MPMediaItemPropertyTitle:              title,
-            MPMediaItemPropertyArtist:             artist,
-            MPMediaItemPropertyAlbumTitle:         album,
-            MPMediaItemPropertyPlaybackDuration:   durMs / 1000.0,
+            MPMediaItemPropertyTitle: title,
+            MPMediaItemPropertyArtist: artist,
+            MPMediaItemPropertyAlbumTitle: album,
+            MPMediaItemPropertyPlaybackDuration: durMs / 1000.0,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: posMs / 1000.0,
-            MPNowPlayingInfoPropertyPlaybackRate:  isPlaying ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyMediaType:     MPNowPlayingInfoMediaType.audio.rawValue,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
         ]
 
-        if let bytes = artBytes?.data,
-            let image = NSImage(data: bytes) {
+        if let bytes = artBytes?.data, let image = NSImage(data: bytes) {
             let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
             info[MPMediaItemPropertyArtwork] = artwork
         }

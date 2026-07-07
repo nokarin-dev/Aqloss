@@ -31,6 +31,7 @@ struct Logger {
     audio: Mutex<File>,
     output: Mutex<File>,
     discord: Mutex<File>,
+    plugin: Mutex<File>,
 }
 
 static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
@@ -81,6 +82,7 @@ pub fn init() {
         audio: Mutex::new(open_log(&dir, "audio.log")),
         output: Mutex::new(open_log(&dir, "output.log")),
         discord: Mutex::new(open_log(&dir, "discord_rpc.log")),
+        plugin: Mutex::new(open_log(&dir, "plugin.log")),
     };
 
     let sep = format!(
@@ -89,7 +91,7 @@ pub fn init() {
          ──────────────────────────────────────────────────────\n",
         timestamp()
     );
-    for file in [&logger.audio, &logger.discord] {
+    for file in [&logger.audio, &logger.discord, &logger.plugin] {
         if let Ok(mut f) = file.lock() {
             let _ = f.write_all(sep.as_bytes());
         }
@@ -134,6 +136,7 @@ enum Target {
     Audio,
     Output,
     Discord,
+    Plugin,
 }
 
 fn write(target: Target, level: Level, msg: &str) {
@@ -155,6 +158,7 @@ fn write(target: Target, level: Level, msg: &str) {
         Target::Audio => &logger.audio,
         Target::Output => &logger.output,
         Target::Discord => &logger.discord,
+        Target::Plugin => &logger.plugin,
     };
 
     if let Ok(mut f) = file.lock() {
@@ -238,3 +242,26 @@ macro_rules! info_output  { ($($arg:tt)*) => { $crate::logger::info_output(forma
 macro_rules! warn_output  { ($($arg:tt)*) => { $crate::logger::warn_output(format!($($arg)*)) }; }
 #[macro_export]
 macro_rules! error_output { ($($arg:tt)*) => { $crate::logger::error_output(format!($($arg)*)) }; }
+
+// plugin
+pub fn debug_plugin(msg: impl AsRef<str>) {
+    write(Target::Plugin, Level::Debug, msg.as_ref());
+}
+pub fn info_plugin(msg: impl AsRef<str>) {
+    write(Target::Plugin, Level::Info, msg.as_ref());
+}
+pub fn warn_plugin(msg: impl AsRef<str>) {
+    write(Target::Plugin, Level::Warn, msg.as_ref());
+}
+pub fn error_plugin(msg: impl AsRef<str>) {
+    write(Target::Plugin, Level::Error, msg.as_ref());
+}
+
+#[macro_export]
+macro_rules! debug_plugin { ($($arg:tt)*) => { $crate::logger::debug_plugin(format!($($arg)*)) }; }
+#[macro_export]
+macro_rules! info_plugin  { ($($arg:tt)*) => { $crate::logger::info_plugin(format!($($arg)*)) }; }
+#[macro_export]
+macro_rules! warn_plugin  { ($($arg:tt)*) => { $crate::logger::warn_plugin(format!($($arg)*)) }; }
+#[macro_export]
+macro_rules! error_plugin { ($($arg:tt)*) => { $crate::logger::error_plugin(format!($($arg)*)) }; }

@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/plugins/plugin_api.dart';
+import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -175,11 +177,15 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     }
     state = state.copyWith(lovedPaths: loved);
     await _saveLoved();
+    PluginRegistry.instance.dispatchTrackLoved(
+      TrackLovedEvent(track: track, loved: !wasLoved),
+    );
     return !wasLoved;
   }
 
   Future<void> setLoved(Track track, {required bool loved}) async {
     final set = Set<String>.from(state.lovedPaths);
+    final wasLoved = set.contains(track.path);
     if (loved) {
       set.add(track.path);
     } else {
@@ -187,6 +193,11 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     }
     state = state.copyWith(lovedPaths: set);
     await _saveLoved();
+    if (wasLoved != loved) {
+      PluginRegistry.instance.dispatchTrackLoved(
+        TrackLovedEvent(track: track, loved: loved),
+      );
+    }
   }
 
   // Bulk-import loved paths

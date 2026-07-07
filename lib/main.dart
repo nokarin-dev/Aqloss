@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:aqloss/services/file_open_service.dart';
 import 'package:aqloss/src/rust/frb_generated.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/widgets/mini_player_window.dart';
@@ -10,10 +11,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'plugins/plugin_registry.dart';
+import 'plugins/plugin_toast_service.dart';
+import 'providers/history_provider.dart';
+import 'providers/library_provider.dart';
+import 'providers/player_provider.dart';
+import 'providers/plugin_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/audio_service.dart';
 import 'services/discord_service.dart';
 import 'services/notifier/media_control_windows.dart';
+
+final _container = ProviderContainer();
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,16 +39,14 @@ void main(List<String> args) async {
     return;
   }
 
-  // Main window
   if (Platform.isWindows) {
     await MediaControlPlatform.initialize();
   }
 
-  // Main window
   await windowManager.waitUntilReadyToShow(
     WindowOptions(
       size: const Size(1280, 720),
-      minimumSize: const Size(1280, 720),
+      minimumSize: const Size(800, 600),
       center: true,
       titleBarStyle: TitleBarStyle.hidden,
       windowButtonVisibility: Platform.isMacOS ? false : null,
@@ -56,7 +63,9 @@ void main(List<String> args) async {
   await AqlossCore.init();
   await Logger.init();
 
-  runApp(const ProviderScope(child: AqlossApp()));
+  runApp(
+    UncontrolledProviderScope(container: _container, child: const AqlossApp()),
+  );
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     if (Platform.isAndroid) {
@@ -73,6 +82,23 @@ void main(List<String> args) async {
         settings: settings,
       );
       DiscordService.enabled = settings.discordRpc;
+
+      // Wire plugin registry to live provider state
+      final bridge = AppContextBridge(
+        getCurrentTrack: () => _container.read(playerProvider).currentTrack,
+        getPosition: () => _container.read(playerProvider).position,
+        getQueue: () => _container.read(playerProvider).queue,
+        addToQueue: (t) =>
+            _container.read(playerProvider.notifier).addToQueueLast(t),
+        getAllTracks: () => _container.read(libraryProvider).tracks,
+        getLovedPaths: () => _container.read(historyProvider).lovedPaths,
+        getPlayCount: (path) =>
+            _container.read(historyProvider).playCount(path),
+        showToast: (msg) => PluginToastService.instance.show(msg),
+      );
+      await PluginRegistry.instance.init(bridge);
+      _container.read(pluginProvider.notifier).refresh();
+      FileOpenService.instance.init();
     } catch (e, st) {
       Logger.errorFrontend('[aqloss] main init error: $e\n$st');
     }

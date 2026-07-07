@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+
+  <mime-type type="application/x-aqloss-playlist">
+    <comment>Aqloss Playlist</comment>
+    <icon name="aqloss"/>
+    <glob pattern="*.aqp"/>
+    <magic priority="50">
+      <match type="string" offset="0" value="{&quot;format&quot;:&quot;aqloss-playlist"/>
+    </magic>
+  </mime-type>
+
+  <mime-type type="application/x-aqloss-plugin">
+    <comment>Aqloss Plugin</comment>
+    <icon name="aqloss"/>
+    <glob pattern="*.aqx"/>
+    <magic priority="50">
+      <match type="string" offset="0" value="PK"/>
+    </magic>
+  </mime-type>
+
+</mime-info>

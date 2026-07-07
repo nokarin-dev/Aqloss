@@ -619,7 +619,7 @@ class _ArtistStatsRow extends StatelessWidget {
             _StatDivider(),
             _StatItem(
               label: 'most played',
-              value: topEntry?.key.displayTitle ?? '—',
+              value: topEntry?.key.displayTitle ?? '-',
               sub: topEntry != null ? '${topEntry.value}×' : null,
               flex: 2,
             ),
