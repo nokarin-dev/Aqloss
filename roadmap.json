@@ -1,7 +1,7 @@
 [
     {
         "title": "v0.4.0",
-        "subtitle": "Plugins system.",
+        "subtitle": "Plugins system, UI Revamp & Integrations.",
         "status": "in-progress",
         "items": [
             {
@@ -9,6 +9,12 @@
                 "description": "Reduced minimum window size constraint from 1280x720 to 800x600, allowing the app to properly scale down when snapped into half-screen layouts on 1080p and lower resolution monitors.",
                 "status": "done",
                 "category": "Frontend · UI"
+            },
+            {
+                "title": "Plugin Manager UI",
+                "description": "A dedicated page in Settings to install, enable, disable, and uninstall plugins dynamically.",
+                "status": "done",
+                "category": "Frontend"
             },
             {
                 "title": "Plugin System Core",
@@ -23,11 +29,28 @@
                 "category": "File System"
             },
             {
-                "title": "Plugin Manager UI",
-                
-                "description": "A dedicated page in Settings to install, enable, disable, and uninstall plugins dynamically.",
-                "status": "done",
-                "category": "Frontend"
+                "title": "Material Design 3 & Material You",
+                "description": "Migrate the app's UI to Material Design 3 and implement dynamic colors based on the user's OS theme for a more modern look.",
+                "status": "planned",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Responsive Mobile Album View",
+                "description": "Redesign the album page to adapt gracefully on smaller screens, utilizing a single-column layout instead of a dense grid.",
+                "status": "planned",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "ListenBrainz Scrobbling",
+                "description": "Add support for scrobbling playback history to ListenBrainz as an alternative or addition to the existing Last.fm integration.",
+                "status": "planned",
+                "category": "Integrations"
+            },
+            {
+                "title": "Non-embedded Album Art Support",
+                "description": "Fallback to fetching local image files (e.g., cover.jpg or folder.jpg) from the music directory when embedded album art is missing.",
+                "status": "planned",
+                "category": "Core · Audio"
             }
         ]
     },
