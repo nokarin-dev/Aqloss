@@ -247,12 +247,12 @@ jobs:
           if [ -f "assets/icons/icon_256.png" ]; then
             cp "assets/icons/icon_256.png" \
               AppDir/usr/share/icons/hicolor/256x256/apps/xyz.nokarin.aqloss.png
-            cp "assets/icons/icon_64.png" AppDir/aqloss.png
+            cp "assets/icons/icon_256.png" AppDir/xyz.nokarin.aqloss.png
           else
-            printf 'PNG' > AppDir/aqloss.png
+            printf 'PNG' > AppDir/xyz.nokarin.aqloss.png
           fi
 
-          cp linux/xyz.nokarin.aqloss.desktop AppDir/aqloss.desktop
+          cp linux/xyz.nokarin.aqloss.desktop AppDir/xyz.nokarin.aqloss.desktop
           cp linux/xyz.nokarin.aqloss.xml \
             AppDir/usr/share/mime/packages/xyz.nokarin.aqloss.xml
 
@@ -525,7 +525,6 @@ jobs:
             ${{ env.CARGO_HOME }}/git
             rust/target
           key: macos-cargo-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: macos-cargo-
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -610,7 +609,6 @@ jobs:
             ${{ env.CARGO_HOME }}/git
             rust/target
           key: ios-cargo-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: ios-cargo-
 
       - name: Get Flutter dependencies
         run: flutter pub get
