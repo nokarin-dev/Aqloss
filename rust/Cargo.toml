@@ -41,7 +41,7 @@ lru = "0.18.0"
 realfft = "3.5.0"
 
 # Lua scripting engine
-mlua = { version = "0.11.6", features = ["lua54", "vendored", "send"] }
+mlua = { version = "0.12", features = ["lua54", "vendored", "send"] }
 
 # Blocking HTTP for plugins
 ureq = { version = "3.3.0", features = ["json"] }
