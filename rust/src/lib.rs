@@ -13,6 +13,12 @@ pub mod stereo_enhance;
 
 use flutter_rust_bridge::frb;
 
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[no_mangle]
+pub extern "C" fn bz_internal_error(errcode: std::os::raw::c_int) {
+    panic!("bzip2 internal error: {}", errcode);
+}
+
 #[cfg(target_os = "android")]
 #[no_mangle]
 pub unsafe extern "C" fn Java_xyz_nokarin_aqloss_MainActivity_initAudioContext(

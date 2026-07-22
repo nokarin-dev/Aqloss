@@ -17,6 +17,7 @@ Aqloss is a music player built around a Rust audio engine, with optional WASAPI 
   s.swift_version = '5.0'
 
   s.frameworks = 'CoreAudio', 'AudioToolbox'
+  s.libraries = 'bz2'
 
   s.script_phase = {
     :name => 'Build Rust library',
