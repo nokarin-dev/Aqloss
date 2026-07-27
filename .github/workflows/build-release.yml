@@ -146,7 +146,6 @@ jobs:
           path: |
             ${{ env.CARGO_HOME }}/registry
             ${{ env.CARGO_HOME }}/git
-            rust/target
           key: linux-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: linux-cargo-
 
@@ -327,7 +326,6 @@ jobs:
           path: |
             ${{ env.CARGO_HOME }}/registry
             ${{ env.CARGO_HOME }}/git
-            rust/target
           key: rpm-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: rpm-cargo-
 
@@ -459,7 +457,6 @@ jobs:
           path: |
             ${{ env.CARGO_HOME }}/registry
             ${{ env.CARGO_HOME }}/git
-            rust/target
           key: android-cargo-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: android-cargo-
 
@@ -521,19 +518,12 @@ jobs:
         working-directory: rust
         run: cargo clean
 
-      - name: Build Rust core
-        working-directory: rust
-        run: |
-          cargo build --release --target aarch64-apple-darwin
-          cargo build --release --target x86_64-apple-darwin
-
       - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.CARGO_HOME }}/registry
             ${{ env.CARGO_HOME }}/git
-            rust/target
           key: macos-cargo-${{ hashFiles('rust/Cargo.lock') }}
 
       - name: Get Flutter dependencies
@@ -617,7 +607,6 @@ jobs:
           path: |
             ${{ env.CARGO_HOME }}/registry
             ${{ env.CARGO_HOME }}/git
-            rust/target
           key: ios-cargo-${{ hashFiles('rust/Cargo.lock') }}
 
       - name: Get Flutter dependencies
