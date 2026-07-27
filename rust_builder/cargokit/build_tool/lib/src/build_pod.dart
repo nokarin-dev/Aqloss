@@ -42,26 +42,6 @@ class BuildPod {
       ]);
     }
 
-    Iterable<String> mergeVendoredLibs(String staticLibPath) {
-      final buildDir =
-          Directory(path.join(path.dirname(staticLibPath), 'build'));
-      if (!buildDir.existsSync()) return [staticLibPath];
-      final vendored = buildDir
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) =>
-              f.path.endsWith('.a') &&
-              path.basename(f.path) != path.basename(staticLibPath) &&
-              f.path.contains('${path.separator}out${path.separator}'))
-          .map((f) => f.path)
-          .toSet();
-      if (vendored.isEmpty) return [staticLibPath];
-      final merged = '$staticLibPath.merged.a';
-      runCommand(
-          'libtool', ['-static', '-o', merged, staticLibPath, ...vendored]);
-      return [merged];
-    }
-
     final outputDir = Environment.outputDir;
 
     Directory(outputDir).createSync(recursive: true);
@@ -80,8 +60,7 @@ class BuildPod {
     // If there is static lib, use it and link it with pod
     if (staticLibs.isNotEmpty) {
       final finalTargetFile = path.join(outputDir, "lib$libName.a");
-      final mergedPaths = staticLibs.expand((e) => mergeVendoredLibs(e.path));
-      performLipo(finalTargetFile, mergedPaths);
+      performLipo(finalTargetFile, staticLibs.map((e) => e.path));
     } else {
       // Otherwise try to replace bundle dylib with our dylib
       final bundlePaths = [
