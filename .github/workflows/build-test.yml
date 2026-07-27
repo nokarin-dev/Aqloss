@@ -555,6 +555,10 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
+      - name: Clean Rust Build
+        working-directory: rust
+        run: cargo clean
+
       - name: Build Rust core
         working-directory: rust
         run: |
@@ -660,6 +664,10 @@ jobs:
       - name: Get version
         run: |
           echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
+
+      - name: Clean Rust Build
+        working-directory: rust
+        run: cargo clean
 
       - name: Build iOS (release, no-codesign)
         run: |

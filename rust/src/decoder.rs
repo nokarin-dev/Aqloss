@@ -1,13 +1,14 @@
 use anyhow::{anyhow, Result};
 use std::fs::File;
 use symphonia::core::{
-    audio::SampleBuffer,
-    codecs::{Decoder as SymphDecoder, DecoderOptions},
+    codecs::{
+        audio::{AudioDecoder as SymphDecoder, AudioDecoderOptions},
+        CodecParameters,
+    },
     errors::Error as SymphError,
-    formats::{FormatOptions, FormatReader, SeekMode, SeekTo},
+    formats::{probe::Hint, FormatOptions, FormatReader, SeekMode, SeekTo, TrackType},
     io::MediaSourceStream,
     meta::MetadataOptions,
-    probe::Hint,
     units::Time,
 };
 
@@ -35,34 +36,55 @@ impl Decoder {
             hint.with_extension(ext);
         }
 
-        let probed = symphonia::default::get_probe().format(
+        let format = symphonia::default::get_probe().probe(
             &hint,
             mss,
-            &FormatOptions {
-                enable_gapless: gapless,
-                ..Default::default()
-            },
-            &MetadataOptions::default(),
+            FormatOptions::default(),
+            MetadataOptions::default(),
         )?;
 
-        let format = probed.format;
         let track = format
-            .default_track()
+            .default_track(TrackType::Audio)
             .ok_or_else(|| anyhow!("No default audio track found"))?;
 
         let track_id = track.id;
-        let params = &track.codec_params;
+
+        let CodecParameters::Audio(params) = track
+            .codec_params
+            .as_ref()
+            .ok_or_else(|| anyhow!("No codec parameters"))?
+        else {
+            return Err(anyhow!("Track is not an audio track"));
+        };
+
         let sample_rate = params.sample_rate.unwrap_or(44100);
-        let channels = params.channels.map(|c| c.count() as u32).unwrap_or(2);
+        let channels = params
+            .channels
+            .as_ref()
+            .map(|c| c.count() as u32)
+            .unwrap_or(2);
         let bit_depth = params.bits_per_sample.unwrap_or(16);
-        let n_frames = params.n_frames.unwrap_or(0);
+
+        if bit_depth == 32 && channels > 1 {
+            return Err(anyhow!(
+                "32-bit stereo FLAC is not supported: symphonia-bundle-flac 0.6.0 corrupts \
+                 side-channel samples on Mid/Side, Left/Side, and Right/Side decorrelation \
+                 (see decoder.rs:read_subframe, bits_per_sample+1 overflows i32 storage). \
+                 Re-encode below 32-bit or mono."
+            ));
+        }
+
+        let n_frames = track.num_frames.unwrap_or(0);
         let duration_secs = if sample_rate > 0 {
             n_frames as f64 / sample_rate as f64
         } else {
             0.0
         };
 
-        let decoder = symphonia::default::get_codecs().make(params, &DecoderOptions::default())?;
+        let mut dec_opts = AudioDecoderOptions::default();
+        dec_opts.gapless = gapless;
+
+        let decoder = symphonia::default::get_codecs().make_audio_decoder(&params, &dec_opts)?;
 
         Ok(Self {
             format,
@@ -79,7 +101,8 @@ impl Decoder {
     pub fn next_packet(&mut self) -> Result<Option<Vec<f32>>> {
         loop {
             let packet = match self.format.next_packet() {
-                Ok(p) => p,
+                Ok(Some(p)) => p,
+                Ok(None) => return Ok(None),
                 Err(SymphError::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
                     return Ok(None)
                 }
@@ -87,10 +110,10 @@ impl Decoder {
                     self.decoder.reset();
                     continue;
                 }
-                Err(_) => return Ok(None),
+                Err(e) => return Err(e.into()),
             };
 
-            if packet.track_id() != self.track_id {
+            if packet.track_id != self.track_id {
                 continue;
             }
 
@@ -100,16 +123,21 @@ impl Decoder {
                 Err(e) => return Err(e.into()),
             };
 
-            let spec = *decoded.spec();
-            let mut buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, spec);
-            buf.copy_interleaved_ref(decoded);
-            self.position_secs = packet.ts() as f64 / self.sample_rate as f64;
-            return Ok(Some(buf.samples().to_vec()));
+            let spec = decoded.spec();
+            let sample_rate = spec.rate();
+
+            let mut buf: Vec<f32> = Vec::with_capacity(decoded.capacity());
+            decoded.copy_to_vec_interleaved(&mut buf);
+
+            let decoded_frames = decoded.frames();
+            self.position_secs += decoded_frames as f64 / sample_rate as f64;
+
+            return Ok(Some(buf));
         }
     }
 
     pub fn seek(&mut self, position_secs: f64) -> Result<()> {
-        let time = Time::from(position_secs);
+        let time = Time::from(position_secs.trunc() as u32);
         self.format.seek(
             SeekMode::Accurate,
             SeekTo::Time {

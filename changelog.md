@@ -10,17 +10,20 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
-- [Backend|Architecture] Added plugins system.
 - [Frontend|FileSystem] Support for custom .aqx (Aqloss Extension) archive format with manifest.json validation and extraction.
 - [Frontend|UI] Added dedicated page in Settings to install, enable, disable, and uninstall plugins dynamically.
+- [Backend|Architecture] Added plugins system.
 
 ### Fixed
 
 - [Frontend|UI] Reduced minimum window size constraint from 1280x720 to 800x600, allowing the app to properly scale down when snapped into half-screen layouts on 1080p and lower resolution monitors.
+- [Backend|Audio] 32-bit FLAC no longer fails to load (was hitting immediate `UnexpectedEof` on the first packet due to a demuxer frame-sync bug in Symphonia 0.5.5, fixed upstream in 0.6.0)
+- [Backend|Audio] Playback position now derived from accumulated decoded frame count instead of packet timestamp, fixing drift introduced by the Symphonia 0.6.0 upgrade
 
 ### Changed
 
 - [Frontend|Settings] Move lastfm to integrations
+- [Backend|Audio] Migrated Symphonia 0.5.5 -> 0.6.0
 
 ---
 

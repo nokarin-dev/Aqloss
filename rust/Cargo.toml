@@ -5,10 +5,7 @@ edition = "2021"
 
 [lib]
 name = "aqloss_rust_core"
-crate-type = ["staticlib"]
-
-[target.'cfg(target_os = "android")'.lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 flutter_rust_bridge = "=2.12.0"
