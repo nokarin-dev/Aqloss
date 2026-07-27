@@ -5,13 +5,16 @@ edition = "2021"
 
 [lib]
 name = "aqloss_rust_core"
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["staticlib"]
+
+[target.'cfg(target_os = "android")'.lib]
+crate-type = ["cdylib"]
 
 [dependencies]
 flutter_rust_bridge = "=2.12.0"
 
 # Audio decoding
-symphonia = { version = "0.5", features = ["all"] }
+symphonia = { version = "0.6", features = ["all"] }
 
 # Audio output (cross-platform)
 cpal = "0.17"

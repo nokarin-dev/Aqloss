@@ -517,6 +517,12 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
+      - name: Build Rust core
+        working-directory: rust
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+
       - name: Cache cargo
         uses: actions/cache@v4
         with:
