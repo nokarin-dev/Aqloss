@@ -75,14 +75,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: rust-check-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: rust-check-
+          workspaces: "rust -> target"
 
       - name: cargo check
         working-directory: rust
@@ -112,14 +108,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ${{ env.CARGO_HOME }}/registry
-            ${{ env.CARGO_HOME }}/git
-          key: linux-cargo-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: linux-cargo-
+          workspaces: "rust -> target"
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -269,14 +261,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ${{ env.CARGO_HOME }}/registry
-            ${{ env.CARGO_HOME }}/git
-          key: rpm-cargo-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: rpm-cargo-
+          workspaces: "rust -> target"
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -382,15 +370,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ${{ env.CARGO_HOME }}\registry
-            ${{ env.CARGO_HOME }}\git
-            rust\target
-          key: win-cargo-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: win-cargo-
+          workspaces: "rust -> target"
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -487,14 +470,10 @@ jobs:
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
 
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ${{ env.CARGO_HOME }}/registry
-            ${{ env.CARGO_HOME }}/git
-          key: android-cargo-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: android-cargo-
+          workspaces: "rust -> target"
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -551,17 +530,10 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Clean Rust Build
-        working-directory: rust
-        run: cargo clean
-
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ${{ env.CARGO_HOME }}/registry
-            ${{ env.CARGO_HOME }}/git
-          key: macos-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          workspaces: "rust -> target"
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -638,13 +610,10 @@ jobs:
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim
 
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ${{ env.CARGO_HOME }}/registry
-            ${{ env.CARGO_HOME }}/git
-          key: ios-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          workspaces: "rust -> target"
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -652,10 +621,6 @@ jobs:
       - name: Get version
         run: |
           echo "VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //;s/+.*//')" >> $GITHUB_ENV
-
-      - name: Clean Rust Build
-        working-directory: rust
-        run: cargo clean
 
       - name: Build iOS (release, no-codesign)
         run: |
