@@ -30,6 +30,6 @@ Aqloss is a music player built around a Rust audio engine, with optional WASAPI 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    'OTHER_LDFLAGS' => '$(inherited) -force_load ${BUILT_PRODUCTS_DIR}/libaqloss_rust_core.a',
+    'OTHER_LDFLAGS' => '$(inherited) -force_load ${BUILT_PRODUCTS_DIR}/libaqloss_rust_core.a -undefined dynamic_lookup',
   }
 end
