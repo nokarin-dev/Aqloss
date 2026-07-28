@@ -2673,8 +2673,6 @@ dependencies = [
 [[package]]
 name = "symphonia-bundle-flac"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee69ad01236a67260b82fd1ff9790dd75ead29f2f46af145e63b7e72273e0e03"
 dependencies = [
  "log",
  "symphonia-common",

@@ -65,15 +65,6 @@ impl Decoder {
             .unwrap_or(2);
         let bit_depth = params.bits_per_sample.unwrap_or(16);
 
-        if bit_depth == 32 && channels > 1 {
-            return Err(anyhow!(
-                "32-bit stereo FLAC is not supported: symphonia-bundle-flac 0.6.0 corrupts \
-                 side-channel samples on Mid/Side, Left/Side, and Right/Side decorrelation \
-                 (see decoder.rs:read_subframe, bits_per_sample+1 overflows i32 storage). \
-                 Re-encode below 32-bit or mono."
-            ));
-        }
-
         let n_frames = track.num_frames.unwrap_or(0);
         let duration_secs = if sample_rate > 0 {
             n_frames as f64 / sample_rate as f64
