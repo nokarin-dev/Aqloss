@@ -66,23 +66,13 @@ windows = { version = "0.62", features = [
     "Win32_Security",
 ]}
 
-[target.x86_64-apple-darwin]
-rustflags = [
-  "-C", "link-arg=-undefined",
-  "-C", "link-arg=dynamic_lookup",
-]
-
-[target.aarch64-apple-darwin]
-rustflags = [
-  "-C", "link-arg=-undefined",
-  "-C", "link-arg=dynamic_lookup",
-]
-
 [profile.release]
 opt-level = 3
 lto = true
 codegen-units = 1
-strip = "symbols"
+# Do not strip release artifacts: macOS/iOS link a staticlib (.a) via
+# CocoaPods, and stripping removes Lua symbols needed at the final link step.
+strip = false
 
 [profile.dev]
 opt-level = 1
