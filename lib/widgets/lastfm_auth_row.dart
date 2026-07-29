@@ -1,3 +1,5 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
@@ -16,7 +18,11 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
     final n = ref.read(settingsProvider.notifier);
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color a(double v) => onSurface.withValues(alpha: v);
     final hasSession = s.lastFmSessionKey != null;
     final needsKey = s.needsUserKey;
 
@@ -29,9 +35,9 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: cs.onSurface.withValues(alpha: 0.04),
+                color: a(0.04),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+                border: Border.all(color: a(0.08)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,7 +47,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: cs.onSurface.withValues(alpha: 0.70),
+                      color: a(0.70),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -49,11 +55,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                     'This build doesn\'t include a Last.fm API key. '
                     'Get a free key at https://last.fm/api/account/create, '
                     'then enter it below.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 1.4,
-                      color: cs.onSurface.withValues(alpha: 0.40),
-                    ),
+                    style: TextStyle(fontSize: 11, height: 1.4, color: a(0.40)),
                   ),
                   const SizedBox(height: 8),
                   GestureDetector(
@@ -64,18 +66,13 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: cs.onSurface.withValues(alpha: 0.08),
+                        color: a(0.08),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: cs.onSurface.withValues(alpha: 0.14),
-                        ),
+                        border: Border.all(color: a(0.14)),
                       ),
                       child: Text(
                         'Enter API key',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: cs.onSurface.withValues(alpha: 0.70),
-                        ),
+                        style: TextStyle(fontSize: 11, color: a(0.70)),
                       ),
                     ),
                   ),
@@ -84,16 +81,11 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
             ),
           ),
         ] else ...[
-          // Account row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                Icon(
-                  Icons.person_outline_rounded,
-                  size: 17,
-                  color: cs.onSurface.withValues(alpha: 0.36),
-                ),
+                Icon(Icons.person_outline_rounded, size: 17, color: a(0.36)),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -105,18 +97,12 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                             : (s.lastFmUsername?.isNotEmpty == true
                                   ? s.lastFmUsername!
                                   : 'Not signed in'),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: cs.onSurface.withValues(alpha: 0.70),
-                        ),
+                        style: TextStyle(fontSize: 13, color: a(0.70)),
                       ),
                       if (hasSession)
                         Text(
                           'Scrobbling active',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: cs.onSurface.withValues(alpha: 0.30),
-                          ),
+                          style: TextStyle(fontSize: 11, color: a(0.30)),
                         ),
                       if (!hasSession && !needsKey && s.hasBuiltInKey)
                         Text(
@@ -124,7 +110,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                           style: TextStyle(
                             fontSize: 10,
                             fontStyle: FontStyle.italic,
-                            color: cs.onSurface.withValues(alpha: 0.24),
+                            color: a(0.24),
                           ),
                         ),
                       if (s.lastFmApiKey?.isNotEmpty == true)
@@ -133,7 +119,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                           style: TextStyle(
                             fontSize: 10,
                             fontStyle: FontStyle.italic,
-                            color: cs.onSurface.withValues(alpha: 0.24),
+                            color: a(0.24),
                           ),
                         ),
                     ],
@@ -146,59 +132,51 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
-                      color: cs.onSurface.withValues(alpha: 0.38),
+                      color: a(0.38),
                     ),
                   )
                 else if (hasSession)
                   GestureDetector(
                     onTap: n.clearLastFmSession,
-                    child: _Chip(label: 'Sign out', cs: cs, filled: false),
+                    child: _Chip(
+                      label: 'Sign out',
+                      onSurface: onSurface,
+                      filled: false,
+                    ),
                   )
                 else
                   GestureDetector(
                     onTap: () => _showLoginDialog(context, n, s),
-                    child: _Chip(label: 'Sign in', cs: cs, filled: true),
+                    child: _Chip(
+                      label: 'Sign in',
+                      onSurface: onSurface,
+                      filled: true,
+                    ),
                   ),
               ],
             ),
           ),
-
           if (!s.hasBuiltInKey || s.lastFmApiKey?.isNotEmpty == true) ...[
-            Divider(
-              height: 1,
-              color: cs.onSurface.withValues(alpha: 0.05),
-              indent: 16,
-              endIndent: 16,
-            ),
+            Divider(height: 1, color: a(0.05), indent: 16, endIndent: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.key_rounded,
-                    size: 15,
-                    color: cs.onSurface.withValues(alpha: 0.24),
-                  ),
+                  Icon(Icons.key_rounded, size: 15, color: a(0.24)),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
                       s.lastFmApiKey?.isNotEmpty == true
                           ? 'Custom API key set'
                           : 'Using built-in API key',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.44),
-                      ),
+                      style: TextStyle(fontSize: 12, color: a(0.44)),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => _showApiKeyDialog(context, n, s),
                     child: Text(
                       'Change',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.36),
-                      ),
+                      style: TextStyle(fontSize: 11, color: a(0.36)),
                     ),
                   ),
                 ],
@@ -217,79 +195,54 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
   ) async {
     final userCtrl = TextEditingController(text: s.lastFmUsername ?? '');
     final passCtrl = TextEditingController();
-    final cs = Theme.of(ctx).colorScheme;
 
-    await showDialog<void>(
+    await showUiDialog<void>(
       context: ctx,
-      builder: (dCtx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text(
-          'Sign in to Last.fm',
-          style: TextStyle(
-            color: cs.onSurface,
-            fontWeight: FontWeight.w400,
-            fontSize: 16,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Field(controller: userCtrl, hint: 'Username'),
-            const SizedBox(height: 10),
-            _Field(controller: passCtrl, hint: 'Password', obscure: true),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.38),
-                fontSize: 13,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dCtx);
-              setState(() => _loading = true);
-              n.setLastFmUsername(userCtrl.text.trim());
-              final creds = LastFmService.resolve(
-                userApiKey: s.lastFmApiKey,
-                userApiSecret: s.lastFmApiSecret,
-              );
-              final key = await LastFmService.authenticate(
-                username: userCtrl.text.trim(),
-                password: passCtrl.text,
-                creds: creds,
-              );
-              if (!mounted) return;
-              setState(() => _loading = false);
-              if (key != null) {
-                n.setLastFmSession(key);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Sign-in failed. Check credentials or API key.',
-                    ),
-                  ),
-                );
-              }
-            },
-            child: Text(
-              'Sign in',
-              style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.80),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+      title: 'Sign in to Last.fm',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Field(controller: userCtrl, hint: 'Username'),
+          const SizedBox(height: 10),
+          _Field(controller: passCtrl, hint: 'Password', obscure: true),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(ctx);
+            setState(() => _loading = true);
+            n.setLastFmUsername(userCtrl.text.trim());
+            final creds = LastFmService.resolve(
+              userApiKey: s.lastFmApiKey,
+              userApiSecret: s.lastFmApiSecret,
+            );
+            final key = await LastFmService.authenticate(
+              username: userCtrl.text.trim(),
+              password: passCtrl.text,
+              creds: creds,
+            );
+            if (!mounted) return;
+            setState(() => _loading = false);
+            if (key != null) {
+              n.setLastFmSession(key);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Sign-in failed. Check credentials or API key.',
+                  ),
+                ),
+              );
+            }
+          },
+          child: const Text('Sign in'),
+        ),
+      ],
     );
   }
 
@@ -300,105 +253,81 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
   ) async {
     final keyCtrl = TextEditingController(text: s.lastFmApiKey ?? '');
     final secretCtrl = TextEditingController(text: s.lastFmApiSecret ?? '');
-    final cs = Theme.of(ctx).colorScheme;
 
-    await showDialog<void>(
+    await showUiDialog<void>(
       context: ctx,
-      builder: (dCtx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text(
-          'Last.fm API Key',
-          style: TextStyle(
-            color: cs.onSurface,
-            fontWeight: FontWeight.w400,
-            fontSize: 16,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Get a free key at last.fm/api/account/create',
-              style: TextStyle(
-                fontSize: 11,
-                color: cs.onSurface.withValues(alpha: 0.36),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _Field(controller: keyCtrl, hint: 'API Key'),
-            const SizedBox(height: 10),
-            _Field(controller: secretCtrl, hint: 'Shared Secret'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.38),
-                fontSize: 13,
-              ),
+      title: 'Last.fm API Key',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Get a free key at last.fm/api/account/create',
+            style: TextStyle(
+              fontSize: 11,
+              color: ctx.isMaterial3Ui
+                  ? Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.36)
+                  : ctx.aq.onSurfaceMuted,
             ),
           ),
-          if (s.lastFmApiKey?.isNotEmpty == true)
-            TextButton(
-              onPressed: () {
-                n.setLastFmApiKey(null);
-                n.setLastFmApiSecret(null);
-                n.clearLastFmSession();
-                Navigator.pop(dCtx);
-              },
-              child: Text(
-                'Clear',
-                style: TextStyle(
-                  color: cs.onSurface.withValues(alpha: 0.38),
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          TextButton(
-            onPressed: () {
-              n.setLastFmApiKey(keyCtrl.text.trim());
-              n.setLastFmApiSecret(secretCtrl.text.trim());
-              n.clearLastFmSession();
-              Navigator.pop(dCtx);
-            },
-            child: Text(
-              'Save',
-              style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.80),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+          const SizedBox(height: 12),
+          _Field(controller: keyCtrl, hint: 'API Key'),
+          const SizedBox(height: 10),
+          _Field(controller: secretCtrl, hint: 'Shared Secret'),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        if (s.lastFmApiKey?.isNotEmpty == true)
+          TextButton(
+            onPressed: () {
+              n.setLastFmApiKey(null);
+              n.setLastFmApiSecret(null);
+              n.clearLastFmSession();
+              Navigator.pop(ctx);
+            },
+            child: const Text('Clear'),
+          ),
+        TextButton(
+          onPressed: () {
+            n.setLastFmApiKey(keyCtrl.text.trim());
+            n.setLastFmApiSecret(secretCtrl.text.trim());
+            n.clearLastFmSession();
+            Navigator.pop(ctx);
+          },
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
 
 class _Chip extends StatelessWidget {
   final String label;
-  final ColorScheme cs;
+  final Color onSurface;
   final bool filled;
-  const _Chip({required this.label, required this.cs, required this.filled});
+  const _Chip({
+    required this.label,
+    required this.onSurface,
+    required this.filled,
+  });
+
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
     decoration: BoxDecoration(
-      color: filled ? cs.onSurface.withValues(alpha: 0.08) : Colors.transparent,
+      color: filled ? onSurface.withValues(alpha: 0.08) : Colors.transparent,
       borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: cs.onSurface.withValues(alpha: 0.12)),
+      border: Border.all(color: onSurface.withValues(alpha: 0.12)),
     ),
     child: Text(
       label,
       style: TextStyle(
         fontSize: 11,
-        color: cs.onSurface.withValues(alpha: filled ? 0.70 : 0.44),
+        color: onSurface.withValues(alpha: filled ? 0.70 : 0.44),
       ),
     ),
   );
@@ -413,18 +342,22 @@ class _Field extends StatelessWidget {
     required this.hint,
     this.obscure = false,
   });
+
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
     return TextField(
       controller: controller,
       obscureText: obscure,
-      style: TextStyle(color: cs.onSurface, fontSize: 13),
+      style: TextStyle(color: onSurface, fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.28)),
+        hintStyle: TextStyle(color: onSurface.withValues(alpha: 0.28)),
         filled: true,
-        fillColor: cs.onSurface.withValues(alpha: 0.05),
+        fillColor: isM3 ? cs.onSurface.withValues(alpha: 0.05) : aq.indicator,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(9),
           borderSide: BorderSide.none,

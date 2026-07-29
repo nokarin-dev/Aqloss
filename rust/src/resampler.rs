@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rubato::{
-    audioadapter_buffers::direct::SequentialSliceOfVecs, Async, FixedAsync,
+    audioadapter_buffers::direct::SequentialSliceOfVecs, calculate_cutoff, Async, FixedAsync,
     Resampler as RubatoResampler, SincInterpolationParameters, SincInterpolationType,
     WindowFunction,
 };
@@ -18,11 +18,12 @@ pub struct Resampler {
 
 impl Resampler {
     pub fn new(source_rate: u32, target_rate: u32, channels: u32) -> Result<Self> {
+        const SINC_LEN: usize = 256;
         let params = SincInterpolationParameters {
-            sinc_len: 64,
-            f_cutoff: 0.95,
-            interpolation: SincInterpolationType::Linear,
-            oversampling_factor: 128,
+            sinc_len: SINC_LEN,
+            f_cutoff: calculate_cutoff(SINC_LEN, WindowFunction::BlackmanHarris2),
+            interpolation: SincInterpolationType::Cubic,
+            oversampling_factor: 256,
             window: WindowFunction::BlackmanHarris2,
         };
 

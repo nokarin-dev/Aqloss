@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:aqloss/app_version.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:aqloss/screens/plugin_pane.dart';
 import 'package:http/http.dart' as http;
@@ -10,12 +11,16 @@ import 'package:aqloss/services/discord_service.dart';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/eq_panel.dart';
 import 'package:aqloss/widgets/lastfm_auth_row.dart';
+import 'package:aqloss/widgets/listenbrainz_auth_row.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/theme/ui_framework.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/util/android_path_helper.dart';
@@ -125,7 +130,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Left sidebar nav
         _SettingsSidebar(
@@ -157,7 +162,6 @@ class _SettingsSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
     final library = ref.watch(libraryProvider);
     final isScanning = library.status == LibraryStatus.scanning;
 
@@ -167,23 +171,62 @@ class _SettingsSidebar extends ConsumerWidget {
               .where((p) => p != _SettingsPage.shortcuts)
               .toList();
 
-    // Group by section
     final sections = <String, List<_SettingsPage>>{};
     for (final page in pages) {
       sections.putIfAbsent(page.section, () => []).add(page);
     }
 
+    if (context.isMaterial3Ui) {
+      final theme = Theme.of(context);
+      final cs = theme.colorScheme;
+      return Container(
+        width: 196,
+        color: cs.surfaceContainerLow,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 12, 8),
+              child: Text(
+                'Settings',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+                children: [
+                  for (final entry in sections.entries) ...[
+                    _SidebarSectionLabel(entry.key),
+                    for (final page in entry.value)
+                      _SidebarNavItem(
+                        page: page,
+                        isActive: current == page,
+                        isScanning:
+                            page == _SettingsPage.musicFolders && isScanning,
+                        onTap: () => onSelect(page),
+                      ),
+                    const SizedBox(height: 6),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final aq = context.aq;
     return Container(
       width: 220,
       decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(color: cs.onSurface.withValues(alpha: 0.055)),
-        ),
+        border: Border(right: BorderSide(color: aq.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 28, 22, 20),
             child: Column(
@@ -192,7 +235,7 @@ class _SettingsSidebar extends ConsumerWidget {
                 Text(
                   'Settings',
                   style: TextStyle(
-                    color: cs.onSurface,
+                    color: aq.onSurface,
                     fontSize: 20,
                     fontWeight: FontWeight.w300,
                     letterSpacing: -0.4,
@@ -201,10 +244,7 @@ class _SettingsSidebar extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Aqloss preferences',
-                  style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.28),
-                    fontSize: 10.5,
-                  ),
+                  style: TextStyle(color: aq.onSurfaceMuted, fontSize: 10.5),
                 ),
               ],
             ),
@@ -243,7 +283,20 @@ class _SidebarSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 2),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            letterSpacing: 0.6,
+          ),
+        ),
+      );
+    }
+
+    final aq = context.aq;
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 4),
       child: Text(
@@ -252,7 +305,7 @@ class _SidebarSectionLabel extends StatelessWidget {
           fontSize: 9,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.4,
-          color: cs.onSurface.withValues(alpha: 0.22),
+          color: aq.onSurfaceMuted,
         ),
       ),
     );
@@ -281,8 +334,49 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final active = widget.isActive;
+
+    if (context.isMaterial3Ui) {
+      final cs = Theme.of(context).colorScheme;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: Material(
+          color: Colors.transparent,
+          child: ListTile(
+            dense: true,
+            selected: active,
+            selectedTileColor: cs.secondaryContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+            leading: Icon(
+              widget.page.icon,
+              size: 18,
+              color: active ? cs.onSecondaryContainer : cs.onSurfaceVariant,
+            ),
+            title: Text(
+              widget.page.label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: active ? cs.onSecondaryContainer : cs.onSurface,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            trailing: widget.isScanning
+                ? QSpinner(
+                    size: 12,
+                    color: cs.onSurfaceVariant,
+                    strokeWidth: 1.4,
+                  )
+                : null,
+            onTap: widget.onTap,
+          ),
+        ),
+      );
+    }
+
+    final aq = context.aq;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -297,9 +391,9 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: active
-                ? cs.onSurface.withValues(alpha: 0.09)
+                ? aq.indicator
                 : _hovered
-                ? cs.onSurface.withValues(alpha: 0.04)
+                ? aq.onSurface.withValues(alpha: 0.04)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(7),
           ),
@@ -309,8 +403,8 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
                 widget.page.icon,
                 size: 15,
                 color: active
-                    ? cs.onSurface.withValues(alpha: 0.82)
-                    : cs.onSurface.withValues(alpha: 0.38),
+                    ? aq.onSurface.withValues(alpha: 0.82)
+                    : aq.onSurfaceMuted,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -320,17 +414,13 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
                     fontSize: 13,
                     fontWeight: active ? FontWeight.w500 : FontWeight.w400,
                     color: active
-                        ? cs.onSurface.withValues(alpha: 0.88)
-                        : cs.onSurface.withValues(alpha: 0.52),
+                        ? aq.onSurface.withValues(alpha: 0.88)
+                        : aq.onSurface.withValues(alpha: 0.52),
                   ),
                 ),
               ),
               if (widget.isScanning)
-                QSpinner(
-                  size: 10,
-                  color: cs.onSurface.withValues(alpha: 0.28),
-                  strokeWidth: 1.4,
-                ),
+                QSpinner(size: 10, color: aq.onSurfaceMuted, strokeWidth: 1.4),
             ],
           ),
         ),
@@ -377,7 +467,44 @@ class _NarrowSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final pages = isDesktop
+        ? _SettingsPage.values
+        : _SettingsPage.values
+              .where((p) => p != _SettingsPage.shortcuts)
+              .toList();
+
+    if (context.isMaterial3Ui) {
+      return Scaffold(
+        appBar: AppBar(title: Text(page.label)),
+        drawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                margin: EdgeInsets.zero,
+                child: Text(
+                  'Settings',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ),
+              for (final p in pages)
+                ListTile(
+                  leading: Icon(p.icon),
+                  title: Text(p.label),
+                  selected: p == page,
+                  onTap: () {
+                    onSelect(p);
+                    Navigator.pop(context);
+                  },
+                ),
+            ],
+          ),
+        ),
+        body: _SettingsContent(page: page, isDesktop: isDesktop),
+      );
+    }
+
+    final aq = context.aq;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +517,7 @@ class _NarrowSettings extends StatelessWidget {
         Container(
           height: 1,
           margin: const EdgeInsets.only(top: 10),
-          color: cs.onSurface.withValues(alpha: 0.05),
+          color: aq.border,
         ),
         Expanded(
           child: _SettingsContent(page: page, isDesktop: isDesktop),
@@ -408,7 +535,7 @@ class _NarrowSettingsNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
     final sections = <String, List<_SettingsPage>>{};
     for (final p in _SettingsPage.values) {
       sections.putIfAbsent(p.section, () => []).add(p);
@@ -428,7 +555,7 @@ class _NarrowSettingsNav extends StatelessWidget {
               width: 1,
               height: 22,
               margin: const EdgeInsets.symmetric(horizontal: 8),
-              color: cs.onSurface.withValues(alpha: 0.09),
+              color: aq.border,
             ),
         ],
       ],
@@ -449,7 +576,7 @@ class _NarrowNavChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -457,14 +584,10 @@ class _NarrowNavChip extends StatelessWidget {
         margin: const EdgeInsets.only(right: 4),
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(
-          color: active
-              ? cs.onSurface.withValues(alpha: 0.10)
-              : cs.onSurface.withValues(alpha: 0.03),
+          color: active ? aq.indicator : aq.onSurface.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active
-                ? cs.onSurface.withValues(alpha: 0.14)
-                : cs.onSurface.withValues(alpha: 0.06),
+            color: active ? aq.border : aq.onSurface.withValues(alpha: 0.06),
           ),
         ),
         child: Row(
@@ -474,8 +597,8 @@ class _NarrowNavChip extends StatelessWidget {
               page.icon,
               size: 12,
               color: active
-                  ? cs.onSurface.withValues(alpha: 0.80)
-                  : cs.onSurface.withValues(alpha: 0.32),
+                  ? aq.onSurface.withValues(alpha: 0.80)
+                  : aq.onSurfaceMuted,
             ),
             const SizedBox(width: 5),
             Text(
@@ -484,8 +607,8 @@ class _NarrowNavChip extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: active ? FontWeight.w500 : FontWeight.w400,
                 color: active
-                    ? cs.onSurface.withValues(alpha: 0.86)
-                    : cs.onSurface.withValues(alpha: 0.40),
+                    ? aq.onSurface.withValues(alpha: 0.86)
+                    : aq.onSurface.withValues(alpha: 0.40),
               ),
             ),
           ],
@@ -1155,13 +1278,36 @@ class _DisplayPane extends ConsumerWidget {
             ),
             _Div(),
             _PickerRow(
-              icon: Icons.palette_outlined,
-              title: 'UI Style',
-              subtitle: 'Choose between Legacy or Islands sidebar style.',
-              options: const ['Legacy', 'Islands'],
-              selected: s.appStyle.index,
-              onChanged: (i) => n.setAppStyle(AppStyle.values[i]),
+              icon: Icons.layers_outlined,
+              title: 'UI framework',
+              subtitle:
+                  'Default uses the custom Aqloss interface. Material 3 follows Google\'s design system.',
+              options: const ['Default', 'Material Design 3'],
+              selected: s.uiFramework.index,
+              onChanged: (i) => n.setUiFramework(UiFramework.values[i]),
             ),
+            if (s.uiFramework == UiFramework.standalone) ...[
+              _Div(),
+              _PickerRow(
+                icon: Icons.palette_outlined,
+                title: 'Sidebar style',
+                subtitle: 'Legacy or Islands sidebar layout (default only).',
+                options: const ['Legacy', 'Islands'],
+                selected: s.appStyle.index,
+                onChanged: (i) => n.setAppStyle(AppStyle.values[i]),
+              ),
+            ],
+            if (s.uiFramework == UiFramework.material3) ...[
+              _Div(),
+              _ToggleRow(
+                icon: Icons.color_lens_outlined,
+                title: 'Dynamic colour',
+                subtitle:
+                    'Use system wallpaper colours (Android 12+, Windows 11, GNOME).',
+                value: s.materialYou,
+                onChanged: (_) => n.toggleMaterialYou(),
+              ),
+            ],
             _Div(),
             _ToggleRow(
               icon: Icons.image_outlined,
@@ -1777,8 +1923,6 @@ class _CaptureInputState extends State<_CaptureInput> {
 }
 
 // Updates pane
-const _kCurrentVersion = '0.4.0';
-
 enum _UpdateStatus { idle, checking, upToDate, available, error }
 
 class _UpdatesPane extends StatefulWidget {
@@ -1846,7 +1990,7 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
         _latestVersion = tag;
         _releaseNotes = notes.trim().isEmpty ? null : notes.trim();
         _releaseUrl = url;
-        _status = _isNewer(tag, _kCurrentVersion)
+        _status = _isNewer(tag, kAppVersion)
             ? _UpdateStatus.available
             : _UpdateStatus.upToDate;
       });
@@ -1900,7 +2044,7 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
             const _InfoRow(
               icon: Icons.tag_rounded,
               title: 'Installed version',
-              value: _kCurrentVersion,
+              value: kAppVersion,
             ),
             _Div(),
             _UpdateStatusRow(
@@ -2266,13 +2410,26 @@ class _IntegrationsPane extends ConsumerWidget {
             _Div(),
             _ToggleRow(
               icon: Icons.radio_button_checked_rounded,
-              title: 'Scrobble',
+              title: 'Scrobble to Last.fm',
               subtitle:
                   'Submit track plays to Last.fm after 50% played or 4 minutes.',
               value: s.scrobbleLastFm,
               onChanged: (_) => n.toggleScrobble(),
             ),
             if (s.scrobbleLastFm) ...[_Div(), const LastFmAuthRow()],
+            _Div(),
+            _ToggleRow(
+              icon: Icons.library_music_outlined,
+              title: 'Scrobble to ListenBrainz',
+              subtitle:
+                  'Same threshold as Last.fm. You can enable both at once.',
+              value: s.scrobbleListenBrainz,
+              onChanged: (_) => n.toggleScrobbleListenBrainz(),
+            ),
+            if (s.scrobbleListenBrainz) ...[
+              _Div(),
+              const ListenBrainzAuthRow(),
+            ],
           ],
         ),
       ],
@@ -2326,10 +2483,10 @@ class _AboutPane extends StatelessWidget {
               ),
             ),
             _Div(),
-            const _InfoRow(
+            _InfoRow(
               icon: Icons.music_note_rounded,
               title: 'Aqloss',
-              value: 'Version 0.4.0',
+              value: 'Version $kAppVersion',
             ),
             _Div(),
             const _InfoRow(
@@ -2350,19 +2507,49 @@ class _AboutPane extends StatelessWidget {
   }
 }
 
-// Shared primitives
+extension _SettingsTheme on BuildContext {
+  Color stOnSurface([double alpha = 1.0]) => isMaterial3Ui
+      ? Theme.of(this).colorScheme.onSurface.withValues(alpha: alpha)
+      : aq.onSurface.withValues(alpha: alpha);
+
+  Color stSurface([double alpha = 1.0]) => isMaterial3Ui
+      ? Theme.of(this).colorScheme.surface.withValues(alpha: alpha)
+      : aq.surface.withValues(alpha: alpha);
+
+  Color stMuted() => isMaterial3Ui
+      ? Theme.of(this).colorScheme.onSurfaceVariant
+      : aq.onSurfaceMuted;
+
+  Color stBorder() =>
+      isMaterial3Ui ? Theme.of(this).colorScheme.outlineVariant : aq.border;
+}
+
 class _SettingsCard extends StatelessWidget {
   final List<Widget> children;
   const _SettingsCard({required this.children});
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.hardEdge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      );
+    }
+
+    final aq = context.aq;
     return Container(
       decoration: BoxDecoration(
-        color: cs.onSurface.withValues(alpha: 0.025),
+        color: aq.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05)),
+        border: Border.all(color: aq.border),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(
@@ -2375,11 +2562,8 @@ class _SettingsCard extends StatelessWidget {
 
 class _Div extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Container(
-    height: 1,
-    margin: const EdgeInsets.symmetric(horizontal: 14),
-    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-  );
+  Widget build(BuildContext context) =>
+      const UiDivider(margin: EdgeInsets.symmetric(horizontal: 14));
 }
 
 class _IconBtn26 extends StatefulWidget {
@@ -2396,7 +2580,6 @@ class _IconBtn26State extends State<_IconBtn26> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -2409,15 +2592,11 @@ class _IconBtn26State extends State<_IconBtn26> {
           height: 26,
           decoration: BoxDecoration(
             color: _hovered
-                ? cs.onSurface.withValues(alpha: 0.07)
-                : cs.onSurface.withValues(alpha: 0.04),
+                ? context.stOnSurface(0.07)
+                : context.stOnSurface(0.04),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(
-            widget.icon,
-            size: 13,
-            color: cs.onSurface.withValues(alpha: 0.36),
-          ),
+          child: Icon(widget.icon, size: 13, color: context.stOnSurface(0.36)),
         ),
       ),
     );
@@ -2447,7 +2626,16 @@ class _ToggleRowState extends State<_ToggleRow> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return SwitchListTile(
+        secondary: Icon(widget.icon),
+        title: Text(widget.title),
+        subtitle: Text(widget.subtitle),
+        value: widget.value,
+        onChanged: widget.onChanged,
+      );
+    }
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -2457,9 +2645,7 @@ class _ToggleRowState extends State<_ToggleRow> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 110),
-          color: _hovered
-              ? cs.onSurface.withValues(alpha: 0.025)
-              : Colors.transparent,
+          color: _hovered ? context.stOnSurface(0.025) : Colors.transparent,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             child: Row(
@@ -2470,7 +2656,7 @@ class _ToggleRowState extends State<_ToggleRow> {
                   child: Icon(
                     widget.icon,
                     size: 16,
-                    color: cs.onSurface.withValues(alpha: 0.34),
+                    color: context.stOnSurface(0.34),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -2482,7 +2668,7 @@ class _ToggleRowState extends State<_ToggleRow> {
                         widget.title,
                         style: TextStyle(
                           fontSize: 13,
-                          color: cs.onSurface.withValues(alpha: 0.80),
+                          color: context.stOnSurface(0.80),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -2490,7 +2676,7 @@ class _ToggleRowState extends State<_ToggleRow> {
                         widget.subtitle,
                         style: TextStyle(
                           fontSize: 11,
-                          color: cs.onSurface.withValues(alpha: 0.28),
+                          color: context.stMuted(),
                           height: 1.4,
                         ),
                       ),
@@ -2536,14 +2722,55 @@ class _PickerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return Opacity(
+        opacity: disabled ? 0.40 : 1.0,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(icon),
+                title: Text(title),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(subtitle),
+                    if (disabled && disabledHint != null)
+                      Text(
+                        disabledHint!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              SegmentedButton<int>(
+                segments: [
+                  for (var i = 0; i < options.length; i++)
+                    ButtonSegment<int>(value: i, label: Text(options[i])),
+                ],
+                selected: {selected},
+                showSelectedIcon: false,
+                onSelectionChanged: disabled
+                    ? null
+                    : (selection) => onChanged(selection.first),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final narrow = MediaQuery.of(context).size.width < 500;
 
     Widget picker = _SegmentedPicker(
       options: options,
       selected: selected,
       onChanged: disabled ? (_) {} : onChanged,
-      cs: cs,
       disabled: disabled,
     );
 
@@ -2559,11 +2786,7 @@ class _PickerRow extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.only(top: 1),
-                  child: Icon(
-                    icon,
-                    size: 16,
-                    color: cs.onSurface.withValues(alpha: 0.34),
-                  ),
+                  child: Icon(icon, size: 16, color: context.stOnSurface(0.34)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -2574,7 +2797,7 @@ class _PickerRow extends StatelessWidget {
                         title,
                         style: TextStyle(
                           fontSize: 13,
-                          color: cs.onSurface.withValues(alpha: 0.80),
+                          color: context.stOnSurface(0.80),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -2582,7 +2805,7 @@ class _PickerRow extends StatelessWidget {
                         subtitle,
                         style: TextStyle(
                           fontSize: 11,
-                          color: cs.onSurface.withValues(alpha: 0.28),
+                          color: context.stMuted(),
                           height: 1.4,
                         ),
                       ),
@@ -2592,7 +2815,7 @@ class _PickerRow extends StatelessWidget {
                           disabledHint!,
                           style: TextStyle(
                             fontSize: 10,
-                            color: cs.onSurface.withValues(alpha: 0.20),
+                            color: context.stOnSurface(0.20),
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -2637,7 +2860,35 @@ class _SliderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(icon),
+              title: Text(title),
+              subtitle: Text(subtitle),
+              trailing: Text(
+                label(value),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            Slider(
+              value: value.clamp(min, max),
+              min: min,
+              max: max,
+              divisions: divisions,
+              label: label(value),
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 7),
       child: Column(
@@ -2648,11 +2899,7 @@ class _SliderRow extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 1),
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: cs.onSurface.withValues(alpha: 0.34),
-                ),
+                child: Icon(icon, size: 16, color: context.stOnSurface(0.34)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -2665,7 +2912,7 @@ class _SliderRow extends StatelessWidget {
                           title,
                           style: TextStyle(
                             fontSize: 13,
-                            color: cs.onSurface.withValues(alpha: 0.80),
+                            color: context.stOnSurface(0.80),
                           ),
                         ),
                         const Spacer(),
@@ -2674,7 +2921,7 @@ class _SliderRow extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: cs.onSurface.withValues(alpha: 0.58),
+                            color: context.stOnSurface(0.58),
                           ),
                         ),
                       ],
@@ -2684,7 +2931,7 @@ class _SliderRow extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.28),
+                        color: context.stMuted(),
                         height: 1.4,
                       ),
                     ),
@@ -2703,7 +2950,6 @@ class _SliderRow extends StatelessWidget {
               divisions: divisions,
               onChanged: onChanged,
               onChangeEnd: onChangeEnd,
-              cs: cs,
             ),
           ),
         ],
@@ -2764,7 +3010,40 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(widget.icon),
+              title: Text(widget.title),
+              subtitle: Text(widget.subtitle),
+              trailing: Text(
+                widget.label(_display),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            Slider(
+              value: _display.clamp(widget.min, widget.max),
+              min: widget.min,
+              max: widget.max,
+              divisions: widget.divisions,
+              label: widget.label(_display),
+              onChanged: (v) => _onDrag(
+                ((v - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0),
+              ),
+              onChangeEnd: (v) => _onCommit(
+                ((v - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final normalised = ((_display - widget.min) / (widget.max - widget.min))
         .clamp(0.0, 1.0);
 
@@ -2781,7 +3060,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                 child: Icon(
                   widget.icon,
                   size: 16,
-                  color: cs.onSurface.withValues(alpha: 0.34),
+                  color: context.stOnSurface(0.34),
                 ),
               ),
               const SizedBox(width: 12),
@@ -2795,7 +3074,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                           widget.title,
                           style: TextStyle(
                             fontSize: 13,
-                            color: cs.onSurface.withValues(alpha: 0.80),
+                            color: context.stOnSurface(0.80),
                           ),
                         ),
                         const Spacer(),
@@ -2804,7 +3083,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: cs.onSurface.withValues(alpha: 0.58),
+                            color: context.stOnSurface(0.58),
                           ),
                         ),
                       ],
@@ -2814,7 +3093,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                       widget.subtitle,
                       style: TextStyle(
                         fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.28),
+                        color: context.stMuted(),
                         height: 1.4,
                       ),
                     ),
@@ -2830,9 +3109,9 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
               value: normalised,
               trackHeight: 2,
               thumbRadius: 6,
-              activeColor: cs.onSurface.withValues(alpha: 0.58),
-              inactiveColor: cs.onSurface.withValues(alpha: 0.10),
-              thumbColor: cs.onSurface.withValues(alpha: 0.80),
+              activeColor: context.stOnSurface(0.58),
+              inactiveColor: context.stOnSurface(0.10),
+              thumbColor: context.stOnSurface(0.80),
               onChanged: _onDrag,
               onChangeEnd: _onCommit,
             ),
@@ -2848,14 +3127,12 @@ class _RangeSlider extends StatefulWidget {
   final int divisions;
   final ValueChanged<double> onChanged;
   final ValueChanged<double>? onChangeEnd;
-  final ColorScheme cs;
   const _RangeSlider({
     required this.value,
     required this.min,
     required this.max,
     required this.divisions,
     required this.onChanged,
-    required this.cs,
     this.onChangeEnd,
   });
   @override
@@ -2898,9 +3175,9 @@ class _RangeSliderState extends State<_RangeSlider> {
       value: normalised,
       trackHeight: 2,
       thumbRadius: 6,
-      activeColor: widget.cs.onSurface.withValues(alpha: 0.58),
-      inactiveColor: widget.cs.onSurface.withValues(alpha: 0.10),
-      thumbColor: widget.cs.onSurface.withValues(alpha: 0.80),
+      activeColor: context.stOnSurface(0.58),
+      inactiveColor: context.stOnSurface(0.10),
+      thumbColor: context.stOnSurface(0.80),
       onChanged: _onDragChanged,
       onChangeEnd: _onDragEnd,
     );
@@ -2917,28 +3194,21 @@ class _InfoRow extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       child: Row(
         children: [
-          Icon(icon, size: 15, color: cs.onSurface.withValues(alpha: 0.22)),
+          Icon(icon, size: 15, color: context.stOnSurface(0.22)),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.42),
-              ),
+              style: TextStyle(fontSize: 13, color: context.stOnSurface(0.42)),
             ),
           ),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurface.withValues(alpha: 0.26),
-            ),
+            style: TextStyle(fontSize: 12, color: context.stOnSurface(0.26)),
           ),
         ],
       ),
@@ -2950,22 +3220,20 @@ class _SegmentedPicker extends StatelessWidget {
   final List<String> options;
   final int selected;
   final ValueChanged<int> onChanged;
-  final ColorScheme cs;
   final bool disabled;
   const _SegmentedPicker({
     required this.options,
     required this.selected,
     required this.onChanged,
-    required this.cs,
     this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: cs.onSurface.withValues(alpha: 0.04),
+      color: context.stOnSurface(0.04),
       borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: cs.onSurface.withValues(alpha: 0.07)),
+      border: Border.all(color: context.stBorder()),
     ),
     padding: const EdgeInsets.all(2),
     child: Row(
@@ -2978,9 +3246,7 @@ class _SegmentedPicker extends StatelessWidget {
             duration: const Duration(milliseconds: 140),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: isSel
-                  ? cs.onSurface.withValues(alpha: 0.13)
-                  : Colors.transparent,
+              color: isSel ? context.stOnSurface(0.13) : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
@@ -2989,8 +3255,8 @@ class _SegmentedPicker extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
                 color: isSel
-                    ? cs.onSurface
-                    : cs.onSurface.withValues(alpha: 0.34),
+                    ? context.stOnSurface()
+                    : context.stOnSurface(0.34),
               ),
             ),
           ),
@@ -3006,7 +3272,10 @@ class _MiniSwitch extends StatelessWidget {
   const _MiniSwitch({required this.value, required this.onChanged});
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return Switch(value: value, onChanged: onChanged);
+    }
+
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -3014,9 +3283,7 @@ class _MiniSwitch extends StatelessWidget {
         width: 34,
         height: 19,
         decoration: BoxDecoration(
-          color: value
-              ? cs.onSurface.withValues(alpha: 0.85)
-              : cs.onSurface.withValues(alpha: 0.10),
+          color: value ? context.stOnSurface(0.85) : context.stOnSurface(0.10),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Padding(
@@ -3029,9 +3296,7 @@ class _MiniSwitch extends StatelessWidget {
               width: 14,
               height: 14,
               decoration: BoxDecoration(
-                color: value
-                    ? cs.surface
-                    : cs.onSurface.withValues(alpha: 0.34),
+                color: value ? context.stSurface() : context.stOnSurface(0.34),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -3061,7 +3326,6 @@ class _HoverTextBtnState extends State<_HoverTextBtn> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -3072,18 +3336,13 @@ class _HoverTextBtnState extends State<_HoverTextBtn> {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: _hovered
-                ? cs.onSurface.withValues(alpha: 0.06)
-                : Colors.transparent,
+            color: _hovered ? context.stOnSurface(0.06) : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: cs.onSurface.withValues(alpha: 0.12)),
+            border: Border.all(color: context.stBorder()),
           ),
           child: Text(
             widget.label,
-            style: TextStyle(
-              fontSize: 11,
-              color: cs.onSurface.withValues(alpha: 0.60),
-            ),
+            style: TextStyle(fontSize: 11, color: context.stOnSurface(0.60)),
           ),
         ),
       ),
@@ -3103,7 +3362,6 @@ class _ScanButtonState extends State<_ScanButton> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -3115,10 +3373,10 @@ class _ScanButtonState extends State<_ScanButton> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: _hovered && !widget.isScanning
-                ? cs.onSurface.withValues(alpha: 0.05)
-                : cs.onSurface.withValues(alpha: 0.02),
+                ? context.stOnSurface(0.05)
+                : context.stOnSurface(0.02),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: cs.onSurface.withValues(alpha: 0.07)),
+            border: Border.all(color: context.stBorder()),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -3126,21 +3384,21 @@ class _ScanButtonState extends State<_ScanButton> {
               if (widget.isScanning)
                 QSpinner(
                   size: 11,
-                  color: cs.onSurface.withValues(alpha: 0.36),
+                  color: context.stOnSurface(0.36),
                   strokeWidth: 1.5,
                 )
               else
                 Icon(
                   Icons.refresh_rounded,
                   size: 12,
-                  color: cs.onSurface.withValues(alpha: 0.36),
+                  color: context.stOnSurface(0.36),
                 ),
               const SizedBox(width: 7),
               Text(
                 widget.isScanning ? 'Switching…' : 'Rescan devices',
                 style: TextStyle(
                   fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.48),
+                  color: context.stOnSurface(0.48),
                 ),
               ),
             ],

@@ -1,3 +1,4 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showQSheet({
@@ -42,6 +43,12 @@ class _QSheetWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
+    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final surface = isM3 ? cs.surface : aq.surface;
+    final borderColor = isM3 ? cs.onSurface.withValues(alpha: 0.07) : aq.border;
+
     final slide = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
         .animate(
           CurvedAnimation(
@@ -61,15 +68,9 @@ class _QSheetWrapper extends StatelessWidget {
             maxHeight: MediaQuery.of(context).size.height * 0.65,
           ),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.07),
-              ),
-            ),
+            border: Border(top: BorderSide(color: borderColor)),
           ),
           child: SafeArea(top: false, child: child),
         ),

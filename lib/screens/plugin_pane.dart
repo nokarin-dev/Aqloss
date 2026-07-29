@@ -2,6 +2,7 @@ import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_io_service.dart';
 import 'package:aqloss/providers/plugin_provider.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,7 +80,9 @@ class PluginsPane extends ConsumerWidget {
                       cs: cs,
                     ),
                     if (i < state.manifests.length - 1)
-                      _Div(cs: cs)
+                      const UiDivider(
+                        margin: EdgeInsets.symmetric(horizontal: 14),
+                      )
                     else
                       _CardBottom(cs: cs),
                   ],
@@ -146,10 +149,25 @@ class _InstallButton extends ConsumerWidget {
   }
 
   Future<void> _doInstall(BuildContext context, WidgetRef ref) async {
-    final proceed = await _PermissionReviewSheet.show(context);
+    final preview = await ref.read(pluginProvider.notifier).previewInstall();
+    if (!context.mounted) return;
+
+    if (preview.cancelled) return;
+
+    if (!preview.ok) {
+      QToast.show(context, preview.userMessage);
+      return;
+    }
+
+    final proceed = await _PermissionReviewSheet.show(
+      context,
+      manifest: preview.manifest!,
+    );
     if (!proceed || !context.mounted) return;
 
-    final result = await ref.read(pluginProvider.notifier).install();
+    final result = await ref
+        .read(pluginProvider.notifier)
+        .installBytes(preview.bytes!);
     if (!context.mounted) return;
 
     if (!result.cancelled) {
@@ -354,41 +372,42 @@ class _MoreMenu extends ConsumerWidget {
   }
 
   Future<void> _confirmUninstall(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showUiDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: Text(
-          'Uninstall "${manifest.name}"?',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      title: 'Uninstall "${manifest.name}"?',
+      content: Text(
+        'The plugin and all of its files will be removed from disk.',
+        style: TextStyle(
+          fontSize: 13,
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.55),
         ),
-        content: Text(
-          'Plugin dan semua filenya akan dihapus dari disk.',
-          style: TextStyle(
-            fontSize: 13,
-            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.55),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Uninstall',
-              style: TextStyle(color: Colors.redAccent),
-            ),
-          ),
-        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'Uninstall',
+            style: TextStyle(color: Colors.redAccent),
+          ),
+        ),
+      ],
     );
 
     if (confirmed == true && context.mounted) {
-      await ref.read(pluginProvider.notifier).uninstall(manifest.id);
+      final ok = await ref.read(pluginProvider.notifier).uninstall(manifest.id);
       if (context.mounted) {
-        QToast.show(context, '"${manifest.name}" uninstalled.');
+        QToast.show(
+          context,
+          ok
+              ? '"${manifest.name}" uninstalled.'
+              : 'Could not uninstall "${manifest.name}".',
+        );
       }
     }
   }
@@ -405,16 +424,20 @@ enum _MenuAction { uninstall, export }
 
 // Permission review sheet
 class _PermissionReviewSheet extends StatelessWidget {
-  const _PermissionReviewSheet();
+  final PluginManifest manifest;
+  const _PermissionReviewSheet({required this.manifest});
 
-  static Future<bool> show(BuildContext context) async {
+  static Future<bool> show(
+    BuildContext context, {
+    required PluginManifest manifest,
+  }) async {
     final result = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => const _PermissionReviewSheet(),
+      builder: (_) => _PermissionReviewSheet(manifest: manifest),
     );
     return result ?? false;
   }
@@ -437,7 +460,7 @@ class _PermissionReviewSheet extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Install plugin',
+                'Install “${manifest.name}”?',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -448,9 +471,9 @@ class _PermissionReviewSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'The plugin has access to Aqloss\'s playback data, library, and UI as appropriate '
-            'permissions declared in plugin.json. Only install plugins from '
-            'a source you trust.',
+            manifest.permissions.isEmpty
+                ? 'This plugin does not request any extra permissions.'
+                : 'This plugin requests the permissions below. Only install plugins from sources you trust.',
             style: TextStyle(
               fontSize: 12,
               color: cs.onSurface.withValues(alpha: 0.45),
@@ -458,24 +481,20 @@ class _PermissionReviewSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _InfoRow(
-            icon: Icons.wifi_outlined,
-            label: 'network',
-            desc: 'Can access the internet',
-            cs: cs,
-          ),
-          _InfoRow(
-            icon: Icons.folder_outlined,
-            label: 'filesystem',
-            desc: 'Can read/write files',
-            cs: cs,
-          ),
-          _InfoRow(
-            icon: Icons.library_music_outlined,
-            label: 'library_write',
-            desc: 'Can modify track metadata',
-            cs: cs,
-          ),
+          if (manifest.permissions.contains(PluginPermission.network))
+            _InfoRow(
+              icon: Icons.wifi_outlined,
+              label: 'network',
+              desc: 'Outgoing HTTP requests',
+              cs: cs,
+            ),
+          if (manifest.permissions.contains(PluginPermission.filesystem))
+            _InfoRow(
+              icon: Icons.folder_outlined,
+              label: 'filesystem',
+              desc: 'Read files inside the plugin folder',
+              cs: cs,
+            ),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -511,7 +530,7 @@ class _PermissionReviewSheet extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: const Text(
-                      'Select .aqx files',
+                      'Install',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.white,
@@ -607,18 +626,6 @@ class _CardBottom extends StatelessWidget {
   );
 }
 
-class _Div extends StatelessWidget {
-  final ColorScheme cs;
-  const _Div({required this.cs});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 1,
-    margin: const EdgeInsets.symmetric(horizontal: 14),
-    color: cs.onSurface.withValues(alpha: 0.05),
-  );
-}
-
 class _VersionChip extends StatelessWidget {
   final String version;
   final ColorScheme cs;
@@ -662,7 +669,6 @@ class _PermBadge extends StatelessWidget {
   String get _label => switch (perm) {
     PluginPermission.network => 'network',
     PluginPermission.filesystem => 'filesystem',
-    PluginPermission.libraryWrite => 'library_write',
   };
 
   @override

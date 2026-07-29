@@ -20,6 +20,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         initAudioContext(applicationContext)
         MediaControlsPlugin.register(this, flutterEngine.dartExecutor.binaryMessenger)
+        AudioRoutePlugin.register(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
 
         flutterFileChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

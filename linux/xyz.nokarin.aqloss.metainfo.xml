@@ -59,14 +59,18 @@
     </screenshots>
 
     <releases>
-        <release version="0.4.0" date="2026-06-24">
-            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v0.4.0</url>
+        <release version="1.0.0" date="2026-07-28">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.0.0</url>
             <description>
-                <p>Plugin system, file type associations, and playlist import via .aqp.</p>
+                <p>Plugin system, new integrations, and a round of UI and audio fixes.</p>
                 <ul>
-                    <li>Added plugin system</li>
-                    <li>Added .aqp and .aqx file type registration on all platforms</li>
-                    <li>Added Plugins settings page with enable/disable and uninstall</li>
+                    <li>Lua and webhook plugins via .aqx packages, with a manager in Settings</li>
+                    <li>ListenBrainz scrobbling alongside Last.fm</li>
+                    <li>Album art fallback from folder images when tags have no embedded art</li>
+                    <li>Responsive album page on narrow screens</li>
+                    <li>Material You colour scheme toggle in Settings</li>
+                    <li>Fixed 32-bit FLAC playback and playback position drift</li>
+                    <li>Reduced minimum window size to 800x600</li>
                 </ul>
             </description>
         </release>

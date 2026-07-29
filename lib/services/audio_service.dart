@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
+import 'package:flutter/services.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
@@ -21,6 +23,7 @@ class AudioService {
   static bool _reinitingForDevice = false;
   static List<String> _lastDeviceIds = [];
   static String? _lastDefaultId;
+  static StreamSubscription<dynamic>? _androidRouteSub;
 
   static void _startWatchdog() {
     _watchdog?.cancel();
@@ -53,6 +56,8 @@ class AudioService {
     _watchdog = null;
     _deviceWatchdog?.cancel();
     _deviceWatchdog = null;
+    _androidRouteSub?.cancel();
+    _androidRouteSub = null;
   }
 
   static int _deviceChangePendingCount = 0;
@@ -100,6 +105,17 @@ class AudioService {
         // Enumeration can fail briefly during transitions
       }
     });
+  }
+
+  static void _startAndroidRouteListener() {
+    if (!Platform.isAndroid) return;
+    _androidRouteSub?.cancel();
+    const channel = EventChannel('xyz.nokarin.aqloss/audio_route');
+    _androidRouteSub = channel.receiveBroadcastStream().listen((_) {
+      if (_reinitingForDevice || _recovering) return;
+      Logger.debugAudioService('Android audio route changed');
+      onDeviceChanged?.call(null);
+    }, onError: (_) {});
   }
 
   // Init
@@ -152,6 +168,7 @@ class AudioService {
     if (settings != null) await applyAllDsp(settings);
     _startWatchdog();
     _startDeviceWatchdog();
+    _startAndroidRouteListener();
   }
 
   static Future<bool> reinitToDevice({

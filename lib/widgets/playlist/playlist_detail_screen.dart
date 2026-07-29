@@ -6,6 +6,9 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/services/playlist_io_service.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
@@ -70,7 +73,85 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       );
     }
 
-    return Scaffold(
+    final list = current.tracks.isEmpty
+        ? _EmptyPlaylist(cs: cs)
+        : ReorderableListView.builder(
+            scrollController: _scroll,
+            onReorderItem: (old, newIdx) {
+              final legacy = old < newIdx ? newIdx + 1 : newIdx;
+              notifier.reorderTrack(current.id, old, legacy);
+            },
+            itemCount: current.tracks.length,
+            itemBuilder: (ctx, i) {
+              final t = current.tracks[i];
+              return Dismissible(
+                key: ValueKey('${current.id}_${t.path}_$i'),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.10),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFFF6B6B),
+                    size: 18,
+                  ),
+                ),
+                onDismissed: (_) => notifier.removeTrack(current.id, i),
+                child: PlaylistTrackTile(
+                  key: ValueKey('tile_${t.path}_$i'),
+                  track: t,
+                  index: i,
+                  onTap: () => playerNotifier.loadWithQueue(t, current.tracks),
+                ),
+              );
+            },
+          );
+
+    if (context.isMaterial3Ui) {
+      return M3PageScaffold(
+        title: current.name,
+        subtitle: '${current.length} tracks · ${current.durationLabel}',
+        actions: [
+          IconButton(
+            tooltip: 'Export playlist',
+            icon: const Icon(Icons.upload_rounded),
+            onPressed: () async {
+              final result = await PlaylistIOService.export(current);
+              if (context.mounted) {
+                if (result.success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        result.savedPath != null
+                            ? 'Exported to ${result.savedPath}'
+                            : 'Exported',
+                      ),
+                    ),
+                  );
+                } else if (result.error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Export failed: ${result.error}')),
+                  );
+                }
+              }
+            },
+          ),
+          if (current.tracks.isNotEmpty)
+            FilledButton.tonalIcon(
+              onPressed: () => playerNotifier.loadWithQueue(
+                current.tracks.first,
+                current.tracks,
+              ),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Play'),
+            ),
+        ],
+        body: list,
+      );
+    }
+
+    return UiPage(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -162,15 +243,17 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               ],
             ),
           ),
-          Container(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
-          const NowPlayingHeader(),
+          const UiDivider(),
+          if (!context.isMaterial3Ui) const NowPlayingHeader(),
           Expanded(
             child: current.tracks.isEmpty
                 ? _EmptyPlaylist(cs: cs)
                 : ReorderableListView.builder(
                     scrollController: _scroll,
-                    onReorder: (old, newIdx) =>
-                        notifier.reorderTrack(current.id, old, newIdx),
+                    onReorderItem: (old, newIdx) {
+                      final legacy = old < newIdx ? newIdx + 1 : newIdx;
+                      notifier.reorderTrack(current.id, old, legacy);
+                    },
                     itemCount: current.tracks.length,
                     itemBuilder: (ctx, i) {
                       final t = current.tracks[i];

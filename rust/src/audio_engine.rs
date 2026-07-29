@@ -541,6 +541,9 @@ impl AudioEngine {
         self.output.stop_drain();
         if self.flags.alive.load(Ordering::SeqCst) {
             logger::debug_audio("play() - thread alive, resuming");
+            if !self.flags.playing.load(Ordering::SeqCst) {
+                self.smooth_volume = 0.0;
+            }
             self.flags.playing.store(true, Ordering::SeqCst);
             self.output.stop_drain();
             return Ok(());
@@ -608,7 +611,7 @@ impl AudioEngine {
             prev_out.fill(0.0);
         }
 
-        self.smooth_volume = self.volume;
+        self.smooth_volume = 0.0;
         self.flags.seek_pending.store(false, Ordering::SeqCst);
         if was_playing {
             self.output.stop_drain();
@@ -816,10 +819,12 @@ fn decode_loop(
                             let frames = converted.len() / out_ch as usize;
                             for f in 0..frames {
                                 let t = ((pos + f) as f32 / total as f32).clamp(0.0, 1.0);
+                                let phase = t * std::f32::consts::FRAC_PI_2;
+                                let (fade_in, fade_out) = (phase.sin(), phase.cos());
                                 for c in 0..out_ch as usize {
                                     let i = f * out_ch as usize + c;
                                     let next_s = next_conv.get(i).copied().unwrap_or(0.0);
-                                    converted[i] = converted[i] * (1.0 - t) + next_s * t;
+                                    converted[i] = converted[i] * fade_out + next_s * fade_in;
                                 }
                             }
                             crossfade_ramp = crossfade_ramp.saturating_sub(frames);

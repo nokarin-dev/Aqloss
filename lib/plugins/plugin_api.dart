@@ -1,10 +1,8 @@
-import 'dart:async';
 import 'package:aqloss/models/track.dart';
 
-// Manifest
-enum PluginPermission { network, filesystem, libraryWrite }
+enum PluginPermission { network, filesystem }
 
-enum PluginType { builtin, webhook, lua }
+enum PluginType { webhook, lua }
 
 class PluginManifest {
   final String id;
@@ -28,7 +26,7 @@ class PluginManifest {
     this.description,
     required this.minAqlossVersion,
     this.permissions = const {},
-    this.type = PluginType.builtin,
+    this.type = PluginType.lua,
     this.entry,
     this.webhookUrl,
     this.webhookHeaders,
@@ -39,7 +37,6 @@ class PluginManifest {
     final typeStr = json['type'] as String? ?? 'lua';
     final type = switch (typeStr) {
       'webhook' => PluginType.webhook,
-      'builtin' => PluginType.builtin,
       _ => PluginType.lua,
     };
 
@@ -66,13 +63,12 @@ class PluginManifest {
       version: json['version'] as String,
       author: json['author'] as String,
       description: json['description'] as String?,
-      minAqlossVersion: json['min_aqloss_version'] as String? ?? '0.4.0',
+      minAqlossVersion: json['min_aqloss_version'] as String? ?? '1.0.0',
       permissions: ((json['permissions'] as List<dynamic>?) ?? [])
           .map(
             (p) => switch (p as String) {
               'network' => PluginPermission.network,
               'filesystem' => PluginPermission.filesystem,
-              'library_write' => PluginPermission.libraryWrite,
               _ => null,
             },
           )
@@ -93,7 +89,7 @@ class PluginManifest {
     'author': author,
     if (description != null) 'description': description,
     'min_aqloss_version': minAqlossVersion,
-    'permissions': permissions.map((p) => p.name).toList(),
+    'permissions': permissions.map((p) => p.jsonName).toList(),
     'type': type.name,
     if (entry != null) 'entry': entry,
     if (webhookUrl != null) 'webhook_url': webhookUrl,
@@ -103,11 +99,16 @@ class PluginManifest {
   };
 
   bool get isWebhook => type == PluginType.webhook;
-  bool get isBuiltin => type == PluginType.builtin;
   bool get isLua => type == PluginType.lua;
 }
 
-// Webhook events
+extension PluginPermissionJson on PluginPermission {
+  String get jsonName => switch (this) {
+    PluginPermission.network => 'network',
+    PluginPermission.filesystem => 'filesystem',
+  };
+}
+
 enum WebhookEvent {
   trackStart,
   trackStop,
@@ -136,7 +137,6 @@ enum WebhookEvent {
   };
 }
 
-// Hook payloads
 class TrackStartEvent {
   final Track track;
   const TrackStartEvent(this.track);
@@ -181,75 +181,3 @@ class TrackLovedEvent {
 class AppForegroundEvent {
   const AppForegroundEvent();
 }
-
-// UI registration handles
-class PluginSidebarItem {
-  final String id;
-  final String label;
-  final dynamic icon;
-  final dynamic Function() builder;
-  const PluginSidebarItem({
-    required this.id,
-    required this.label,
-    required this.icon,
-    required this.builder,
-  });
-}
-
-class PluginSettingsPage {
-  final String id;
-  final String label;
-  final dynamic Function() builder;
-  const PluginSettingsPage({
-    required this.id,
-    required this.label,
-    required this.builder,
-  });
-}
-
-class PluginContextMenuItem {
-  final String id;
-  final String label;
-  final void Function(Track track) onTap;
-  const PluginContextMenuItem({
-    required this.id,
-    required this.label,
-    required this.onTap,
-  });
-}
-
-// Plugin context
-abstract class PluginContext {
-  Track? getCurrentTrack();
-  Duration getPosition();
-  List<Track> getQueue();
-  void addToQueue(Track track);
-
-  List<Track> queryTracks(bool Function(Track) predicate);
-  List<Track> getLovedTracks();
-  int getPlayCount(String path);
-
-  void showToast(String message);
-  void registerSidebarItem(PluginSidebarItem item);
-  void registerSettingsPage(PluginSettingsPage page);
-  void registerContextMenuItem(PluginContextMenuItem item);
-}
-
-abstract class BuiltinPlugin {
-  late PluginContext context;
-  late PluginManifest manifest;
-
-  Future<void> onLoad() async {}
-  Future<void> onUnload() async {}
-
-  Future<void> onTrackStart(TrackStartEvent event) async {}
-  Future<void> onTrackStop(TrackStopEvent event) async {}
-  Future<void> onPlayPause(PlayPauseEvent event) async {}
-  Future<void> onPositionUpdate(PositionUpdateEvent event) async {}
-  Future<void> onTrackComplete(TrackCompleteEvent event) async {}
-  Future<void> onLibraryScan(LibraryScanEvent event) async {}
-  Future<void> onTrackLoved(TrackLovedEvent event) async {}
-  Future<void> onAppForeground(AppForegroundEvent event) async {}
-}
-
-typedef AqlossPlugin = BuiltinPlugin;

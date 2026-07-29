@@ -128,7 +128,8 @@ impl Decoder {
     }
 
     pub fn seek(&mut self, position_secs: f64) -> Result<()> {
-        let time = Time::from(position_secs.trunc() as u32);
+        let time = Time::try_from_secs_f64(position_secs.max(0.0))
+            .ok_or_else(|| anyhow!("invalid seek target: {position_secs}"))?;
         self.format.seek(
             SeekMode::Accurate,
             SeekTo::Time {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_io_service.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
@@ -52,16 +54,27 @@ class PluginNotifier extends StateNotifier<PluginState> {
     state = state.copyWith(enabledMap: updated);
   }
 
-  Future<PluginImportResult> install() async {
+  Future<PluginImportResult> installBytes(Uint8List bytes) async {
     state = state.copyWith(installing: true);
-    final result = await PluginIOService.importFromPicker(); 
+    final result = await PluginIOService.installBytes(bytes);
     _sync();
     return result;
   }
 
-  Future<void> uninstall(String pluginId) async {
-    await PluginRegistry.instance.uninstall(pluginId);
+  Future<PluginPreviewResult> previewInstall() =>
+      PluginIOService.previewFromPicker();
+
+  Future<PluginImportResult> install() async {
+    state = state.copyWith(installing: true);
+    final result = await PluginIOService.importFromPicker();
     _sync();
+    return result;
+  }
+
+  Future<bool> uninstall(String pluginId) async {
+    final ok = await PluginRegistry.instance.uninstall(pluginId);
+    _sync();
+    return ok;
   }
 
   void refresh() => _sync();

@@ -5,11 +5,14 @@ import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/lyrics_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/screens/mobile_now_playing.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/player_controls.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/widgets/spectrum_display.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 class PlayerScreen extends ConsumerWidget {
@@ -21,10 +24,140 @@ class PlayerScreen extends ConsumerWidget {
     final track = player.currentTrack;
     final isWide = MediaQuery.of(context).size.width > 700;
 
-    return Scaffold(
-      body: isWide
-          ? _WideLayout(track: track, player: player)
-          : _NarrowLayout(track: track, player: player),
+    if (!isWide) return const MobileNowPlaying();
+
+    if (context.isMaterial3Ui) {
+      return _M3WideLayout(track: track, player: player);
+    }
+
+    return UiPage(
+      body: _WideLayout(track: track, player: player),
+    );
+  }
+}
+
+class _M3WideLayout extends ConsumerWidget {
+  final Track? track;
+  final PlayerState player;
+  const _M3WideLayout({required this.track, required this.player});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(lyricsProvider);
+    final settings = ref.watch(settingsProvider);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final showLyricsPanel = track != null;
+
+    return ColoredBox(
+      color: cs.surface,
+      child: Row(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            width: showLyricsPanel ? width * 0.32 : width * 0.42,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(36, 36, 20, 28),
+              child: Column(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: _AlbumArtCard(
+                      track: track,
+                      showBackground: settings.showAlbumArtBackground,
+                      m3: true,
+                    ),
+                  ),
+                  if (showLyricsPanel) ...[
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: Card(
+                        elevation: 0,
+                        margin: EdgeInsets.zero,
+                        color: cs.surfaceContainerLow,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: const LyricsView(),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 40, 40, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: Column(
+                      key: ValueKey(track?.path),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track?.displayTitle ?? 'Nothing playing',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                () {
+                                  final parts = [
+                                    if (track?.artist != null) track!.artist!,
+                                    if (track?.album != null) track!.album!,
+                                  ];
+                                  return parts.isEmpty
+                                      ? '-'
+                                      : parts.join(' · ');
+                                }(),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (track != null) _PlayerLoveBtn(track: track!),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (track != null) ...[
+                    const SizedBox(height: 12),
+                    _FormatRow(track: track!, soft: true),
+                  ],
+                  const Spacer(),
+                  if (settings.spectrumEnabled) ...[
+                    SpectrumDisplay(
+                      height: 64,
+                      barCount: 48,
+                      color: cs.primary.withValues(alpha: 0.14),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  const PlayerControls(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -105,86 +238,16 @@ class _WideLayout extends ConsumerWidget {
   }
 }
 
-// Narrow layout
-class _NarrowLayout extends ConsumerWidget {
-  final Track? track;
-  final PlayerState player;
-  const _NarrowLayout({required this.track, required this.player});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasLyrics = ref.watch(lyricsProvider).hasLyrics;
-    final settings = ref.watch(settingsProvider);
-    final cs = Theme.of(context).colorScheme;
-    final size = MediaQuery.of(context).size;
-
-    return SafeArea(
-      child: Column(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 340),
-            curve: Curves.easeInOutCubic,
-            height: size.height * (hasLyrics ? 0.46 : 0.70),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: _AlbumArtCard(
-                          track: track,
-                          showBackground: settings.showAlbumArtBackground,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (settings.spectrumEnabled) ...[
-                    SpectrumDisplay(
-                      height: 36,
-                      barCount: 36,
-                      color: cs.onSurface.withValues(alpha: 0.09),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  _TrackInfo(track: track),
-                  const SizedBox(height: 4),
-                  if (track != null) _FormatRow(track: track!),
-                  const SizedBox(height: 14),
-                  const PlayerControls(),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-          ),
-
-          if (track != null)
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: cs.onSurface.withValues(alpha: 0.06),
-                    ),
-                  ),
-                ),
-                child: const LyricsView(),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 // Album art card
 class _AlbumArtCard extends ConsumerStatefulWidget {
   final Track? track;
   final bool showBackground;
-  const _AlbumArtCard({this.track, required this.showBackground});
+  final bool m3;
+  const _AlbumArtCard({
+    this.track,
+    required this.showBackground,
+    this.m3 = false,
+  });
 
   @override
   ConsumerState<_AlbumArtCard> createState() => _AlbumArtCardState();
@@ -231,6 +294,7 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final radius = widget.m3 ? 24.0 : 16.0;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
@@ -245,11 +309,10 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
       child: Stack(
         key: ValueKey('${widget.track?.path}_${widget.showBackground}'),
         children: [
-          // Blurred background art
           if (widget.showBackground && _artBytes != null)
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(radius),
                 child: Stack(
                   children: [
                     Positioned.fill(
@@ -273,20 +336,24 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
                 ),
               ),
             ),
-
-          // Main art
           Container(
             decoration: BoxDecoration(
               color: widget.showBackground && _artBytes != null
                   ? Colors.transparent
+                  : widget.m3
+                  ? cs.surfaceContainerHighest
                   : Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+              borderRadius: BorderRadius.circular(radius),
+              border: widget.m3
+                  ? null
+                  : Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.60),
-                  blurRadius: 50,
-                  offset: const Offset(0, 20),
+                  color: Colors.black.withValues(
+                    alpha: widget.m3 ? 0.28 : 0.60,
+                  ),
+                  blurRadius: widget.m3 ? 28 : 50,
+                  offset: Offset(0, widget.m3 ? 12 : 20),
                 ),
               ],
             ),
@@ -375,7 +442,8 @@ class _TrackInfo extends ConsumerWidget {
 // Format row
 class _FormatRow extends StatelessWidget {
   final Track track;
-  const _FormatRow({required this.track});
+  final bool soft;
+  const _FormatRow({required this.track, this.soft = false});
 
   @override
   Widget build(BuildContext context) {
@@ -384,18 +452,20 @@ class _FormatRow extends StatelessWidget {
       spacing: 5,
       runSpacing: 4,
       children: [
-        _Badge(track.format),
+        _Badge(track.format, soft: soft),
         if (track.sampleRate > 0)
           _Badge(
             '${(track.sampleRate / 1000).toStringAsFixed(track.sampleRate % 1000 == 0 ? 0 : 1)} kHz',
+            soft: soft,
           ),
-        if (track.bitDepth != null) _Badge('${track.bitDepth}-bit'),
+        if (track.bitDepth != null) _Badge('${track.bitDepth}-bit', soft: soft),
         if (isExclusive)
           _Badge(
             'BIT-PERFECT',
             color: Theme.of(
               context,
             ).colorScheme.onSurface.withValues(alpha: 0.06),
+            soft: soft,
           ),
       ],
     );
@@ -405,11 +475,30 @@ class _FormatRow extends StatelessWidget {
 class _Badge extends StatelessWidget {
   final String label;
   final Color? color;
-  const _Badge(this.label, {this.color});
+  final bool soft;
+  const _Badge(this.label, {this.color, this.soft = false});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    if (soft) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color ?? cs.secondaryContainer.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+            color: cs.onSecondaryContainer,
+          ),
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(

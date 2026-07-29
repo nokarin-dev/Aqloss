@@ -2,6 +2,10 @@ import 'dart:io';
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/services/file_open_service.dart';
+import 'package:aqloss/theme/material3_theme.dart';
+import 'package:aqloss/theme/standalone_theme.dart';
+import 'package:aqloss/theme/ui_framework.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -72,27 +76,96 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final navKey = FileOpenService.instance.navigatorKey;
-    final materialThemeMode = switch (settings.themeMode) {
-      ThemeMode.dark => theme.ThemeMode.dark,
-      ThemeMode.light => theme.ThemeMode.light,
-      ThemeMode.system => theme.ThemeMode.system,
-    };
 
     Color? accent;
     if (settings.accentMode != AccentMode.off) {
       accent = ref.watch(accentColorProvider);
     }
 
+    final useM3 = settings.uiFramework == UiFramework.material3;
+    final useDynamic = useM3 && settings.materialYou;
+
+    final app = _AqlossMaterialApp(
+      settings: settings,
+      accent: accent,
+      navKey: navKey,
+      isWindowedLinux: _isLinux && !_isMaximize,
+    );
+
+    if (!useDynamic) return app;
+
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        return _AqlossMaterialApp(
+          settings: settings,
+          accent: accent,
+          navKey: navKey,
+          isWindowedLinux: _isLinux && !_isMaximize,
+          lightDynamic: lightDynamic,
+          darkDynamic: darkDynamic,
+        );
+      },
+    );
+  }
+}
+
+class _AqlossMaterialApp extends StatelessWidget {
+  final SettingsState settings;
+  final Color? accent;
+  final GlobalKey<NavigatorState> navKey;
+  final bool isWindowedLinux;
+  final ColorScheme? lightDynamic;
+  final ColorScheme? darkDynamic;
+
+  const _AqlossMaterialApp({
+    required this.settings,
+    required this.accent,
+    required this.navKey,
+    required this.isWindowedLinux,
+    this.lightDynamic,
+    this.darkDynamic,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final materialThemeMode = switch (settings.themeMode) {
+      ThemeMode.dark => theme.ThemeMode.dark,
+      ThemeMode.light => theme.ThemeMode.light,
+      ThemeMode.system => theme.ThemeMode.system,
+    };
+
+    final useM3 = settings.uiFramework == UiFramework.material3;
+    final isDesktop =
+        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    final compactDesktop = useM3 && isDesktop;
+
+    final lightTheme = useM3
+        ? buildMaterial3Theme(
+            brightness: Brightness.light,
+            dynamicScheme: settings.materialYou ? lightDynamic : null,
+            accent: accent,
+            compactDesktop: compactDesktop,
+          )
+        : buildStandaloneTheme(brightness: Brightness.light, accent: accent);
+
+    final darkTheme = useM3
+        ? buildMaterial3Theme(
+            brightness: Brightness.dark,
+            dynamicScheme: settings.materialYou ? darkDynamic : null,
+            accent: accent,
+            compactDesktop: compactDesktop,
+          )
+        : buildStandaloneTheme(brightness: Brightness.dark, accent: accent);
+
     return MaterialApp(
       color: Colors.transparent,
       title: 'Aqloss',
       debugShowCheckedModeBanner: false,
       themeMode: materialThemeMode,
-      theme: _buildLightTheme(accent: accent),
-      darkTheme: _buildDarkTheme(accent: accent),
+      theme: lightTheme,
+      darkTheme: darkTheme,
       navigatorKey: navKey,
       builder: (context, child) {
-        final isWindowedLinux = _isLinux && !_isMaximize;
         final radius = isWindowedLinux
             ? BorderRadius.circular(14.0)
             : BorderRadius.zero;
@@ -112,304 +185,22 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
                   ),
                 ],
               ),
-              child: ClipRRect(borderRadius: radius, child: child),
+              child: ClipRRect(
+                borderRadius: radius,
+                child: Material(color: Colors.transparent, child: child),
+              ),
             ),
           );
         }
 
-        return ClipRRect(borderRadius: radius, child: child);
+        return ClipRRect(
+          borderRadius: radius,
+          child: Material(color: Colors.transparent, child: child),
+        );
       },
       home: const MiniPlayerOverlay(
         child: SettingsWatcher(child: HomeScreen()),
       ),
     );
   }
-}
-
-ThemeData _buildDarkTheme({Color? accent}) {
-  const surface = Color(0xFF060608);
-  const surfaceVariant = Color(0xFF0C0C10);
-  const card = Color(0xFF101014);
-  const onSurface = Colors.white;
-  const border = Color(0x10FFFFFF);
-  const indicator = Color(0x14FFFFFF);
-  final primary = accent ?? onSurface;
-  final onPrimary = accent != null ? Colors.white : surface;
-
-  return ThemeData(
-    colorScheme: ColorScheme(
-      brightness: Brightness.dark,
-      primary: primary,
-      onPrimary: onPrimary,
-      secondary: primary,
-      onSecondary: onPrimary,
-      secondaryContainer: indicator,
-      onSecondaryContainer: onSurface,
-      error: Color(0xFFFF6B6B),
-      onError: Colors.white,
-      surface: surface,
-      onSurface: onSurface,
-      surfaceContainerHighest: surfaceVariant,
-      outline: border,
-    ),
-    useMaterial3: true,
-    scaffoldBackgroundColor: surface,
-    cardColor: card,
-    dividerColor: border,
-    fontFamily: 'SF Pro Display',
-    appBarTheme: const AppBarTheme(
-      backgroundColor: surface,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      titleTextStyle: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w300,
-        color: onSurface,
-        letterSpacing: 2,
-      ),
-      iconTheme: IconThemeData(color: Color(0x70FFFFFF), size: 20),
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: surfaceVariant,
-      surfaceTintColor: Colors.transparent,
-      indicatorColor: Colors.transparent,
-      elevation: 0,
-      height: 56,
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return const IconThemeData(color: onSurface, size: 22);
-        }
-        return const IconThemeData(color: Color(0x38FFFFFF), size: 22);
-      }),
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return const TextStyle(
-            fontSize: 10,
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          );
-        }
-        return const TextStyle(fontSize: 10, color: Color(0x40FFFFFF));
-      }),
-    ),
-    listTileTheme: const ListTileThemeData(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      minLeadingWidth: 0,
-    ),
-    sliderTheme: const SliderThemeData(
-      activeTrackColor: Color(0xCCFFFFFF),
-      inactiveTrackColor: Color(0x16FFFFFF),
-      thumbColor: onSurface,
-      overlayColor: Color(0x14FFFFFF),
-      trackHeight: 2,
-      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
-      overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
-    ),
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected)
-            ? Colors.black
-            : const Color(0x40FFFFFF),
-      ),
-      trackColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected)
-            ? onSurface
-            : const Color(0x18FFFFFF),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0x80FFFFFF),
-        enabledMouseCursor: SystemMouseCursors.click,
-      ),
-    ),
-    iconButtonTheme: IconButtonThemeData(
-      style: IconButton.styleFrom(enabledMouseCursor: SystemMouseCursors.click),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        enabledMouseCursor: SystemMouseCursors.click,
-      ),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        enabledMouseCursor: SystemMouseCursors.click,
-      ),
-    ),
-    dialogTheme: DialogThemeData(
-      backgroundColor: card,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-    ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: card,
-      surfaceTintColor: Colors.transparent,
-    ),
-    snackBarTheme: SnackBarThemeData(
-      backgroundColor: card,
-      contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      behavior: SnackBarBehavior.floating,
-    ),
-    scrollbarTheme: ScrollbarThemeData(
-      thickness: WidgetStateProperty.all(2.5),
-      radius: const Radius.circular(99),
-      crossAxisMargin: 4,
-      mainAxisMargin: 4,
-      thumbColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.dragged) ||
-            states.contains(WidgetState.hovered)) {
-          return const Color(0x50FFFFFF);
-        }
-        return const Color(0x20FFFFFF);
-      }),
-      trackColor: WidgetStateProperty.all(Colors.transparent),
-      trackBorderColor: WidgetStateProperty.all(Colors.transparent),
-      interactive: true,
-    ),
-  );
-}
-
-ThemeData _buildLightTheme({Color? accent}) {
-  const surface = Color(0xFFF2F2F4);
-  const surfaceVariant = Color(0xFFE8E8EC);
-  const card = Colors.white;
-  const onSurface = Colors.black;
-  const border = Color(0x10000000);
-  const indicator = Color(0x10000000);
-  final primary = accent ?? onSurface;
-  final onPrimary = accent != null ? Colors.white : surface;
-
-  return ThemeData(
-    colorScheme: ColorScheme(
-      brightness: Brightness.light,
-      primary: primary,
-      onPrimary: onPrimary,
-      secondary: primary,
-      onSecondary: onPrimary,
-      secondaryContainer: indicator,
-      onSecondaryContainer: onSurface,
-      error: Color(0xFFB00020),
-      onError: Colors.white,
-      surface: surface,
-      onSurface: onSurface,
-      surfaceContainerHighest: surfaceVariant,
-      outline: border,
-    ),
-    useMaterial3: true,
-    scaffoldBackgroundColor: surface,
-    cardColor: card,
-    dividerColor: border,
-    fontFamily: 'SF Pro Display',
-    appBarTheme: const AppBarTheme(
-      backgroundColor: surface,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      titleTextStyle: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w300,
-        color: onSurface,
-        letterSpacing: 2,
-      ),
-      iconTheme: IconThemeData(color: Color(0x70000000), size: 20),
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: surfaceVariant,
-      surfaceTintColor: Colors.transparent,
-      indicatorColor: Colors.transparent,
-      elevation: 0,
-      height: 56,
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return const IconThemeData(color: onSurface, size: 22);
-        }
-        return const IconThemeData(color: Color(0x38000000), size: 22);
-      }),
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return const TextStyle(
-            fontSize: 10,
-            color: Colors.black,
-            fontWeight: FontWeight.w500,
-          );
-        }
-        return const TextStyle(fontSize: 10, color: Color(0x40000000));
-      }),
-    ),
-    listTileTheme: const ListTileThemeData(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      minLeadingWidth: 0,
-    ),
-    sliderTheme: const SliderThemeData(
-      activeTrackColor: Color(0x99000000),
-      inactiveTrackColor: Color(0x14000000),
-      thumbColor: onSurface,
-      overlayColor: Color(0x14000000),
-      trackHeight: 2,
-      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
-      overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
-    ),
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected)
-            ? Colors.white
-            : const Color(0x40000000),
-      ),
-      trackColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected)
-            ? onSurface
-            : const Color(0x18000000),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0x80000000),
-        enabledMouseCursor: SystemMouseCursors.click,
-      ),
-    ),
-    iconButtonTheme: IconButtonThemeData(
-      style: IconButton.styleFrom(enabledMouseCursor: SystemMouseCursors.click),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        enabledMouseCursor: SystemMouseCursors.click,
-      ),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        enabledMouseCursor: SystemMouseCursors.click,
-      ),
-    ),
-    dialogTheme: DialogThemeData(
-      backgroundColor: card,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-    ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: card,
-      surfaceTintColor: Colors.transparent,
-    ),
-    snackBarTheme: SnackBarThemeData(
-      backgroundColor: card,
-      contentTextStyle: const TextStyle(color: Colors.black, fontSize: 13),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      behavior: SnackBarBehavior.floating,
-    ),
-    scrollbarTheme: ScrollbarThemeData(
-      thickness: WidgetStateProperty.all(2.5),
-      radius: const Radius.circular(99),
-      crossAxisMargin: 4,
-      mainAxisMargin: 4,
-      thumbColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.dragged) ||
-            states.contains(WidgetState.hovered)) {
-          return const Color(0x50000000);
-        }
-        return const Color(0x20000000);
-      }),
-      trackColor: WidgetStateProperty.all(Colors.transparent),
-      trackBorderColor: WidgetStateProperty.all(Colors.transparent),
-      interactive: true,
-    ),
-  );
 }

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
@@ -50,7 +52,11 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
   Widget build(BuildContext context) {
     final player = ref.watch(playerProvider);
     final track = player.currentTrack;
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final bg = isM3 ? cs.surfaceContainerHighest : aq.surfaceVariant;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
 
     if (track?.path != _loadedPath) {
       Future.microtask(() => _loadArt(track?.path));
@@ -58,122 +64,118 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
 
     if (track == null) return const SizedBox.shrink();
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
-      switchInCurve: Curves.easeOut,
-      child: SizedBox(
-        key: ValueKey(track.path),
-        height: 180,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Art background
-                if (_artBytes != null) ...[
-                  Image.memory(_artBytes!, fit: BoxFit.cover),
-                  BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                    child: Container(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.62),
-                    ),
-                  ),
-                  // Overlay
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.50),
-                    ),
-                  ),
-                ] else
-                  Container(color: cs.surfaceContainerHighest),
-
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      // Cover art
-                      Container(
-                        width: 92,
-                        height: 92,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(7),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _artBytes != null
-                            ? Image.memory(_artBytes!, fit: BoxFit.cover)
-                            : Container(
-                                color: cs.onSurface.withValues(alpha: 0.06),
-                                child: Center(
-                                  child: Icon(
-                                    Icons.music_note_rounded,
-                                    size: 18,
-                                    color: cs.onSurface.withValues(alpha: 0.22),
-                                  ),
+    final content = SizedBox(
+      key: ValueKey(track.path),
+      height: 180,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(isM3 ? 12 : 16),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (_artBytes != null) ...[
+                Image.memory(_artBytes!, fit: BoxFit.cover),
+                BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                  child: Container(color: bg.withValues(alpha: 0.62)),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(color: bg.withValues(alpha: 0.50)),
+                ),
+              ] else
+                Container(color: bg),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 92,
+                      height: 92,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(7),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: _artBytes != null
+                          ? Image.memory(_artBytes!, fit: BoxFit.cover)
+                          : Container(
+                              color: onSurface.withValues(alpha: 0.06),
+                              child: Center(
+                                child: Icon(
+                                  Icons.music_note_rounded,
+                                  size: 18,
+                                  color: onSurface.withValues(alpha: 0.22),
                                 ),
                               ),
+                            ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'NOW PLAYING',
+                            style: TextStyle(
+                              fontSize: 14,
+                              letterSpacing: 1.4,
+                              fontWeight: FontWeight.w600,
+                              color: onSurface.withValues(alpha: 0.36),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            track.displayTitle,
+                            style: TextStyle(
+                              color: onSurface,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${track.displayArtist} \u2014 ${track.displayAlbum}',
+                            style: TextStyle(
+                              color: onSurface.withValues(alpha: 0.46),
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-
-                      const SizedBox(width: 14),
-
-                      // Track info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'NOW PLAYING',
-                              style: TextStyle(
-                                fontSize: 14,
-                                letterSpacing: 1.4,
-                                fontWeight: FontWeight.w600,
-                                color: cs.onSurface.withValues(alpha: 0.36),
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              track.displayTitle,
-                              style: TextStyle(
-                                color: cs.onSurface,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: -0.2,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${track.displayArtist} \u2014 ${track.displayAlbum}',
-                              style: TextStyle(
-                                color: cs.onSurface.withValues(alpha: 0.46),
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      switchInCurve: Curves.easeOut,
+      child: isM3
+          ? UiSurface(
+              key: ValueKey(track.path),
+              borderRadius: BorderRadius.circular(12),
+              child: content,
+            )
+          : content,
     );
   }
 }

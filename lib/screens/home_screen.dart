@@ -8,6 +8,9 @@ import 'package:window_manager/window_manager.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/ui/app_shell.dart';
+import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:aqloss/widgets/mini_player_bar.dart';
 import 'package:aqloss/widgets/shared/input_dialog.dart';
@@ -23,6 +26,8 @@ import 'artists_screen.dart';
 import 'package:aqloss/widgets/mini_player_window.dart';
 import 'package:aqloss/widgets/queue_panel.dart';
 import 'package:aqloss/widgets/global_search.dart';
+import 'package:aqloss/ui/m3/shell/m3_home_shell.dart';
+import 'package:aqloss/widgets/ui/floating_nav_bar.dart';
 
 const _kSidebarCollapsed = 'aqloss_sidebar_collapsed';
 
@@ -279,190 +284,316 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    if (settings.uiFramework == UiFramework.material3) {
+      return const M3HomeShell();
+    }
+
     final isWide = MediaQuery.of(context).size.width > 700;
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
+    final bg = context.aq.surface;
 
     return Focus(
       autofocus: true,
-      child: Scaffold(
-        body: SafeArea(
+      child: AppShell(
+        color: bg,
+        child: SafeArea(
           top: !_isDesktop,
           bottom: false,
-          child: ColoredBox(
-            color: Theme.of(context).colorScheme.surface,
-            child: Column(
-              children: [
-                if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
-                Expanded(
-                  child: isWide
-                      ? GlobalSearchOverlay(
-                          key: globalSearchKey,
-                          child: Row(
-                            children: [
-                              SideNav(
-                                route: _route,
-                                collapsed: _sidebarCollapsed,
-                                onSelect: (r) => setState(() => _route = r),
-                                onToggleCollapse: _toggleSidebar,
+          child: Column(
+            children: [
+              if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
+              Expanded(
+                child: isWide
+                    ? GlobalSearchOverlay(
+                        key: globalSearchKey,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SideNav(
+                              route: _route,
+                              collapsed: _sidebarCollapsed,
+                              onSelect: (r) => setState(() => _route = r),
+                              onToggleCollapse: _toggleSidebar,
+                            ),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Expanded(child: _buildScreen()),
+                                  if (hasTrack && _route != 0)
+                                    MiniPlayerBar(
+                                      onTap: () => setState(() => _route = 0),
+                                    ),
+                                ],
                               ),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Expanded(child: _buildScreen()),
-                                    if (hasTrack && _route != 0)
-                                      MiniPlayerBar(
-                                        onTap: () => setState(() => _route = 0),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const QueuePanel(),
-                            ],
-                          ),
-                        )
-                      : _buildScreen(),
-                ),
-              ],
-            ),
+                            ),
+                            const QueuePanel(),
+                          ],
+                        ),
+                      )
+                    : _MobileShell(
+                        route: _route,
+                        hasTrack: hasTrack,
+                        onRouteChanged: (r) => setState(() => _route = r),
+                        onCreatePlaylist: _showCreatePlaylistDialog,
+                        screen: _buildScreen(),
+                      ),
+              ),
+            ],
           ),
         ),
-        bottomNavigationBar: isWide
-            ? null
-            : _MobileNavBar(
-                selectedIndex: _route.clamp(0, 3),
-                onDestinationSelected: (i) => setState(() => _route = i),
-                hasTrack: hasTrack && _route != 0,
-                onMiniPlayerTap: () => setState(() => _route = 0),
-              ),
       ),
     );
   }
 }
 
-// Mobile nav bar
-class _MobileNavBar extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onDestinationSelected;
+class _MobileShell extends StatefulWidget {
+  final int route;
   final bool hasTrack;
-  final VoidCallback onMiniPlayerTap;
+  final ValueChanged<int> onRouteChanged;
+  final VoidCallback onCreatePlaylist;
+  final Widget screen;
 
-  const _MobileNavBar({
-    required this.selectedIndex,
-    required this.onDestinationSelected,
+  const _MobileShell({
+    required this.route,
     required this.hasTrack,
-    required this.onMiniPlayerTap,
+    required this.onRouteChanged,
+    required this.onCreatePlaylist,
+    required this.screen,
   });
 
   @override
+  State<_MobileShell> createState() => _MobileShellState();
+}
+
+class _MobileShellState extends State<_MobileShell> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  int get _navIndex {
+    if (widget.route >= 10) return 4;
+    if (widget.route == 4) return 4;
+    if (widget.route == 5) return 4;
+    return widget.route.clamp(0, 3);
+  }
+
+  void _onNavSelected(int i) {
+    if (i == 4) {
+      _scaffoldKey.currentState?.openDrawer();
+    } else {
+      widget.onRouteChanged(i);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (hasTrack) MiniPlayerBar(onTap: onMiniPlayerTap),
-        Container(
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            border: Border(
-              top: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 54,
-              child: Row(
-                children: [
-                  _NavTab(
-                    icon: Icons.play_circle_outline_rounded,
-                    activeIcon: Icons.play_circle_rounded,
-                    label: 'Now Playing',
-                    isSelected: selectedIndex == 0,
-                    onTap: () => onDestinationSelected(0),
-                  ),
-                  _NavTab(
-                    icon: Icons.library_music_outlined,
-                    activeIcon: Icons.library_music_rounded,
-                    label: 'Library',
-                    isSelected: selectedIndex == 1,
-                    onTap: () => onDestinationSelected(1),
-                  ),
-                  _NavTab(
-                    icon: Icons.album_outlined,
-                    activeIcon: Icons.album_rounded,
-                    label: 'Albums',
-                    isSelected: selectedIndex == 2,
-                    onTap: () => onDestinationSelected(2),
-                  ),
-                  _NavTab(
-                    icon: Icons.tune_outlined,
-                    activeIcon: Icons.tune_rounded,
-                    label: 'Settings',
-                    isSelected: selectedIndex == 3,
-                    onTap: () => onDestinationSelected(3),
-                  ),
-                ],
+    final aq = context.aq;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final showMini = widget.hasTrack && widget.route != 0;
+    final contentBottom = 72.0 + bottom + (showMini ? 58.0 : 0.0);
+
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: Colors.transparent,
+      extendBody: true,
+      drawer: _MobileDrawer(
+        route: widget.route,
+        onSelect: widget.onRouteChanged,
+        onCreatePlaylist: widget.onCreatePlaylist,
+      ),
+      body: Padding(
+        padding: EdgeInsets.only(bottom: contentBottom),
+        child: widget.screen,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showMini)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+              child: Material(
+                elevation: 5,
+                shadowColor: Colors.black.withValues(alpha: 0.3),
+                color: aq.surfaceVariant,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                child: MiniPlayerBar(onTap: () => widget.onRouteChanged(0)),
               ),
             ),
-          ),
-        ),
-      ],
+          FloatingNavBar(selectedIndex: _navIndex, onSelected: _onNavSelected),
+        ],
+      ),
     );
   }
 }
 
-class _NavTab extends ConsumerWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _MobileDrawer extends ConsumerWidget {
+  final int route;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onCreatePlaylist;
 
-  const _NavTab({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
+  const _MobileDrawer({
+    required this.route,
+    required this.onSelect,
+    required this.onCreatePlaylist,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
-    final isIslands = ref.watch(settingsProvider).appStyle == AppStyle.islands;
-    final activeColor = isIslands ? cs.primary : cs.onSurface;
-    final inactiveColor = cs.onSurface.withValues(alpha: 0.30);
+    final playlists = ref.watch(playlistProvider);
+    final isM3 = context.isMaterial3Ui;
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
+    return Drawer(
+      child: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOut,
-              child: Icon(
-                isSelected ? activeIcon : icon,
-                key: ValueKey(isSelected),
-                size: 22,
-                color: isSelected ? activeColor : inactiveColor,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Aqloss',
+                      style: TextStyle(
+                        fontSize: isM3 ? 20 : 14,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: isM3 ? 0 : 2,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_rounded),
+                    tooltip: 'New playlist',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onCreatePlaylist();
+                    },
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? activeColor : inactiveColor,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            _DrawerTile(
+              icon: Icons.person_outline_rounded,
+              label: 'Artists',
+              selected: route == 5,
+              onTap: () {
+                Navigator.pop(context);
+                onSelect(5);
+              },
+            ),
+            _DrawerTile(
+              icon: Icons.history_rounded,
+              label: 'History',
+              selected: route == 4,
+              onTap: () {
+                Navigator.pop(context);
+                onSelect(4);
+              },
+            ),
+            const Divider(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Text(
+                'PLAYLISTS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
+            ),
+            Expanded(
+              child: playlists.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No playlists yet',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: playlists.length,
+                      itemBuilder: (ctx, i) {
+                        final pl = playlists[i];
+                        return _DrawerTile(
+                          icon: Icons.queue_music_rounded,
+                          label: pl.name,
+                          subtitle: '${pl.length} tracks',
+                          selected: route == i + 10,
+                          onTap: () {
+                            Navigator.pop(context);
+                            onSelect(i + 10);
+                          },
+                        );
+                      },
+                    ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DrawerTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DrawerTile({
+    required this.icon,
+    required this.label,
+    this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.isMaterial3Ui) {
+      return ListTile(
+        leading: Icon(icon),
+        title: Text(label),
+        subtitle: subtitle != null ? Text(subtitle!) : null,
+        selected: selected,
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      );
+    }
+
+    final aq = context.aq;
+    return ListTile(
+      leading: Icon(
+        icon,
+        size: 20,
+        color: selected ? aq.onSurface : aq.onSurfaceMuted,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          color: selected ? aq.onSurface : aq.onSurface.withValues(alpha: 0.75),
+        ),
+      ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle!,
+              style: TextStyle(fontSize: 11, color: aq.onSurfaceMuted),
+            )
+          : null,
+      selected: selected,
+      selectedTileColor: aq.onSurface.withValues(alpha: 0.06),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

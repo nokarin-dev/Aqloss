@@ -10,10 +10,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/widgets/track_tile.dart';
 import 'package:aqloss/widgets/track_grid_item.dart';
 import 'package:aqloss/widgets/shared/search_box.dart';
-import 'package:aqloss/widgets/sidebar/folder_manager_dialog.dart';
+import 'package:aqloss/widgets/ui/app_shell.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/ui/m3/widgets/m3_search_field.dart';
+import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -37,8 +42,64 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final isScanning = library.status == LibraryStatus.scanning;
     final viewMode = ref.watch(settingsProvider).libraryViewMode;
 
-    return ColoredBox(
-      color: Colors.transparent,
+    if (context.isMaterial3Ui) {
+      return M3PageScaffold(
+        title: 'Library',
+        subtitle: library.totalTracks > 0
+            ? '${library.totalTracks} tracks'
+            : null,
+        toolbar: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: M3SearchField(
+                    controller: _searchController,
+                    hintText: 'Search library',
+                    onChanged: (q) {
+                      ref.read(libraryProvider.notifier).setQuery(q);
+                      setState(() {});
+                    },
+                    onClear: () {
+                      _searchController.clear();
+                      ref.read(libraryProvider.notifier).setQuery('');
+                      setState(() {});
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SegmentedButton<LibraryViewMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: LibraryViewMode.detail,
+                      icon: Icon(Icons.view_list_rounded),
+                    ),
+                    ButtonSegment(
+                      value: LibraryViewMode.grid,
+                      icon: Icon(Icons.grid_view_rounded),
+                    ),
+                  ],
+                  selected: {viewMode},
+                  onSelectionChanged: (s) => ref
+                      .read(settingsProvider.notifier)
+                      .setLibraryViewMode(s.first),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _M3SortBar(library: library),
+          ],
+        ),
+        body: _TrackList(
+          library: library,
+          isScanning: isScanning,
+          viewMode: viewMode,
+        ),
+      );
+    }
+
+    return AppShell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -79,19 +140,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       .read(settingsProvider.notifier)
                       .setLibraryViewMode(LibraryViewMode.grid),
                 ),
-                if (!Platform.isWindows &&
-                    !Platform.isLinux &&
-                    !Platform.isMacOS) ...[
-                  const SizedBox(width: 2),
-                  _ViewModeButton(
-                    icon: Icons.folder_open_rounded,
-                    active: false,
-                    onTap: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => const FolderManagerDialog(),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -201,6 +249,83 @@ class _SortBar extends ConsumerWidget {
               },
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _M3SortBar extends ConsumerWidget {
+  final LibraryState library;
+  const _M3SortBar({required this.library});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final n = ref.read(libraryProvider.notifier);
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          FilterChip(
+            label: const Text('All'),
+            selected: library.filter == LibraryFilter.all,
+            onSelected: (_) => n.setFilter(LibraryFilter.all),
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            label: const Text('Lossless'),
+            selected: library.filter == LibraryFilter.lossless,
+            onSelected: (_) => n.setFilter(LibraryFilter.lossless),
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            label: const Text('Hi-Res'),
+            selected: library.filter == LibraryFilter.hiRes,
+            onSelected: (_) => n.setFilter(LibraryFilter.hiRes),
+          ),
+          const SizedBox(width: 12),
+          Text('Sort', style: theme.textTheme.labelMedium),
+          const SizedBox(width: 8),
+          ...[
+            (SortField.artist, 'Artist'),
+            (SortField.album, 'Album'),
+            (SortField.title, 'Title'),
+            (SortField.duration, 'Duration'),
+            (SortField.format, 'Format'),
+          ].map((e) {
+            final selected = library.sortField == e.$1;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: FilterChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(e.$2),
+                    if (selected) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        library.sortOrder == SortOrder.ascending
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        size: 14,
+                      ),
+                    ],
+                  ],
+                ),
+                selected: selected,
+                onSelected: (_) {
+                  if (library.sortField == e.$1) {
+                    n.toggleSortOrder();
+                  } else {
+                    n.setSortField(e.$1);
+                  }
+                },
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -448,8 +573,13 @@ class _TrackListState extends ConsumerState<_TrackList> {
               ? null
               : () => _showOptions(ctx, tracks[i], playlists, playlistNotifier),
           // desktop
-          onSecondaryTap: isDesktop
-              ? () => _showOptions(ctx, tracks[i], playlists, playlistNotifier)
+          onSecondaryTapDown: isDesktop
+              ? (d) => showTrackContextMenu(
+                  context: ctx,
+                  globalPosition: d.globalPosition,
+                  track: tracks[i],
+                  ref: ref,
+                )
               : null,
         ),
       );
@@ -469,8 +599,13 @@ class _TrackListState extends ConsumerState<_TrackList> {
             ? null
             : () => _showOptions(ctx, tracks[i], playlists, playlistNotifier),
         // desktop
-        onSecondaryTap: isDesktop
-            ? () => _showOptions(ctx, tracks[i], playlists, playlistNotifier)
+        onSecondaryTapDown: isDesktop
+            ? (d) => showTrackContextMenu(
+                context: ctx,
+                globalPosition: d.globalPosition,
+                track: tracks[i],
+                ref: ref,
+              )
             : null,
       ),
     );
@@ -502,7 +637,7 @@ class _Empty extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Add a folder via the sidebar',
+            'Add folders in Settings → Library',
             style: TextStyle(
               fontSize: 11,
               color: cs.onSurface.withValues(alpha: 0.18),
@@ -564,8 +699,7 @@ class _TrackOptions extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          // custom divider - no Material Divider widget
-          Container(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+          const UiDivider(),
           const SizedBox(height: 12),
           if (playlists.isNotEmpty) ...[
             Text(
@@ -595,55 +729,17 @@ class _TrackOptions extends StatelessWidget {
   }
 }
 
-class _PlaylistOptionRow extends StatefulWidget {
+class _PlaylistOptionRow extends StatelessWidget {
   final dynamic pl;
   final VoidCallback onTap;
   const _PlaylistOptionRow({required this.pl, required this.onTap});
-  @override
-  State<_PlaylistOptionRow> createState() => _PlaylistOptionRowState();
-}
 
-class _PlaylistOptionRowState extends State<_PlaylistOptionRow> {
-  bool _hovered = false;
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 110),
-          color: _hovered
-              ? cs.onSurface.withValues(alpha: 0.04)
-              : Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.pl.name,
-                style: TextStyle(
-                  color: cs.onSurface.withValues(alpha: 0.60),
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${widget.pl.length} tracks',
-                style: TextStyle(
-                  color: cs.onSurface.withValues(alpha: 0.24),
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return UiListTile(
+      title: pl.name,
+      subtitle: '${pl.length} tracks',
+      onTap: onTap,
     );
   }
 }

@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -32,71 +34,77 @@ class _QueuePanelContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     final player = ref.watch(playerProvider);
     final queue = player.queue;
     final curIdx = player.queueIndex;
     final notifier = ref.read(playerProvider.notifier);
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(color: cs.onSurface.withValues(alpha: 0.055)),
+    final panel = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 12, 10),
+          child: Row(
+            children: [
+              Icon(
+                Icons.queue_music_rounded,
+                size: 14,
+                color: onSurfaceAlpha(0.30),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Queue',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: onSurfaceAlpha(0.80),
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${queue.length} track${queue.length == 1 ? '' : 's'}',
+                style: TextStyle(fontSize: 10.5, color: onSurfaceAlpha(0.26)),
+              ),
+              const SizedBox(width: 8),
+              _CloseBtn(
+                onTap: () =>
+                    ref.read(queuePanelOpenProvider.notifier).state = false,
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 12, 10),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.queue_music_rounded,
-                  size: 14,
-                  color: cs.onSurface.withValues(alpha: 0.30),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Queue',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: cs.onSurface.withValues(alpha: 0.80),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${queue.length} track${queue.length == 1 ? '' : 's'}',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: cs.onSurface.withValues(alpha: 0.26),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _CloseBtn(
-                  onTap: () =>
-                      ref.read(queuePanelOpenProvider.notifier).state = false,
-                ),
-              ],
-            ),
-          ),
+        if (isM3) const UiDivider(),
+        Expanded(
+          child: queue.isEmpty
+              ? _EmptyQueue()
+              : _QueueList(queue: queue, curIdx: curIdx, notifier: notifier),
+        ),
+      ],
+    );
 
-          // Track list
-          Expanded(
-            child: queue.isEmpty
-                ? _EmptyQueue()
-                : _QueueList(queue: queue, curIdx: curIdx, notifier: notifier),
-          ),
-        ],
+    if (isM3) {
+      return SizedBox.expand(
+        child: UiSurface(borderRadius: BorderRadius.zero, child: panel),
+      );
+    }
+
+    return SizedBox.expand(
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: onSurfaceAlpha(0.055))),
+        ),
+        child: panel,
       ),
     );
   }
 }
 
-// Queue list
 class _QueueList extends StatefulWidget {
   final List<Track> queue;
   final int curIdx;
@@ -205,7 +213,11 @@ class _QueueTileState extends State<_QueueTile> {
 
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     final alpha = widget.isPast ? 0.40 : 1.0;
 
     return MouseRegion(
@@ -218,9 +230,9 @@ class _QueueTileState extends State<_QueueTile> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
           color: widget.isCurrent
-              ? cs.onSurface.withValues(alpha: 0.05)
+              ? onSurfaceAlpha(0.05)
               : _hovered
-              ? cs.onSurface.withValues(alpha: 0.03)
+              ? onSurfaceAlpha(0.03)
               : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           child: Opacity(
@@ -235,9 +247,7 @@ class _QueueTileState extends State<_QueueTile> {
                     child: Icon(
                       Icons.drag_handle_rounded,
                       size: 14,
-                      color: cs.onSurface.withValues(
-                        alpha: _hovered ? 0.28 : 0.10,
-                      ),
+                      color: onSurfaceAlpha(_hovered ? 0.28 : 0.10),
                     ),
                   ),
                 ),
@@ -259,8 +269,8 @@ class _QueueTileState extends State<_QueueTile> {
                               ? FontWeight.w500
                               : FontWeight.w400,
                           color: widget.isCurrent
-                              ? cs.onSurface
-                              : cs.onSurface.withValues(alpha: 0.78),
+                              ? onSurface
+                              : onSurfaceAlpha(0.78),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -270,7 +280,7 @@ class _QueueTileState extends State<_QueueTile> {
                         widget.track.displayArtist,
                         style: TextStyle(
                           fontSize: 10.5,
-                          color: cs.onSurface.withValues(alpha: 0.32),
+                          color: onSurfaceAlpha(0.32),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -345,7 +355,11 @@ class _QueueArtState extends State<_QueueArt> {
 
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     final radius = BorderRadius.circular(4);
 
     return SizedBox(
@@ -356,7 +370,7 @@ class _QueueArtState extends State<_QueueArt> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.06),
+              color: onSurfaceAlpha(0.06),
               borderRadius: radius,
             ),
             child: _art != null
@@ -367,7 +381,7 @@ class _QueueArtState extends State<_QueueArt> {
                 : Icon(
                     Icons.music_note_rounded,
                     size: 13,
-                    color: cs.onSurface.withValues(alpha: 0.16),
+                    color: onSurfaceAlpha(0.16),
                   ),
           ),
           if (widget.isCurrent)
@@ -392,7 +406,11 @@ class _QueueArtState extends State<_QueueArt> {
 class _EmptyQueue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -400,15 +418,12 @@ class _EmptyQueue extends StatelessWidget {
           Icon(
             Icons.queue_music_rounded,
             size: 26,
-            color: cs.onSurface.withValues(alpha: 0.10),
+            color: onSurfaceAlpha(0.10),
           ),
           const SizedBox(height: 10),
           Text(
             'Queue is empty',
-            style: TextStyle(
-              fontSize: 13,
-              color: cs.onSurface.withValues(alpha: 0.26),
-            ),
+            style: TextStyle(fontSize: 13, color: onSurfaceAlpha(0.26)),
           ),
         ],
       ),
@@ -430,7 +445,11 @@ class _CloseBtnState extends State<_CloseBtn> {
 
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -442,15 +461,13 @@ class _CloseBtnState extends State<_CloseBtn> {
           width: 22,
           height: 22,
           decoration: BoxDecoration(
-            color: _hovered
-                ? cs.onSurface.withValues(alpha: 0.07)
-                : Colors.transparent,
+            color: _hovered ? onSurfaceAlpha(0.07) : Colors.transparent,
             borderRadius: BorderRadius.circular(5),
           ),
           child: Icon(
             Icons.close_rounded,
             size: 12,
-            color: cs.onSurface.withValues(alpha: 0.34),
+            color: onSurfaceAlpha(0.34),
           ),
         ),
       ),

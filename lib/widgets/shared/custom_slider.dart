@@ -1,3 +1,4 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 
 class CustomSlider extends StatefulWidget {
@@ -58,11 +59,31 @@ class _CustomSliderState extends State<CustomSlider> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final active = widget.activeColor ?? cs.onSurface;
+    if (context.isMaterial3Ui) {
+      return SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: widget.trackHeight,
+          thumbShape: widget.showThumb
+              ? RoundSliderThumbShape(enabledThumbRadius: widget.thumbRadius)
+              : const RoundSliderThumbShape(enabledThumbRadius: 0),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+          activeTrackColor: widget.activeColor,
+          inactiveTrackColor: widget.inactiveColor,
+          thumbColor: widget.thumbColor ?? widget.activeColor,
+        ),
+        child: Slider(
+          value: widget.value.clamp(0.0, 1.0),
+          onChanged: widget.onChanged,
+          onChangeEnd: widget.onChangeEnd,
+        ),
+      );
+    }
+
+    final aq = context.aq;
+    final active = widget.activeColor ?? aq.onSurface;
     final inactive =
-        widget.inactiveColor ?? cs.onSurface.withValues(alpha: 0.12);
-    final thumb = widget.thumbColor ?? cs.onSurface;
+        widget.inactiveColor ?? aq.onSurface.withValues(alpha: 0.12);
+    final thumb = widget.thumbColor ?? aq.onSurface;
 
     return LayoutBuilder(
       builder: (ctx, constraints) {

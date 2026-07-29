@@ -171,19 +171,21 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     if (prev?.lastFmSessionKey != s.lastFmSessionKey ||
         prev?.lastFmApiKey != s.lastFmApiKey ||
         prev?.lastFmApiSecret != s.lastFmApiSecret ||
-        prev?.scrobbleLastFm != s.scrobbleLastFm) {
+        prev?.scrobbleLastFm != s.scrobbleLastFm ||
+        prev?.listenBrainzToken != s.listenBrainzToken ||
+        prev?.scrobbleListenBrainz != s.scrobbleListenBrainz) {
+      LastFmCredentials? creds;
       if (s.scrobbleReady) {
-        final creds = LastFmService.resolve(
+        creds = LastFmService.resolve(
           userApiKey: s.lastFmApiKey,
           userApiSecret: s.lastFmApiSecret,
         );
-        ScrobbleController.instance.setSession(
-          s.lastFmSessionKey,
-          creds: creds,
-        );
-      } else {
-        ScrobbleController.instance.setSession(null);
       }
+      ScrobbleController.instance.configure(
+        lastFmSessionKey: s.scrobbleReady ? s.lastFmSessionKey : null,
+        lastFmCreds: creds,
+        listenBrainzToken: s.listenBrainzReady ? s.listenBrainzToken : null,
+      );
     }
   }
 }

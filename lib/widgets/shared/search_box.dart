@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
+import 'package:flutter/material.dart';
 
 class SearchBox extends StatefulWidget {
   final TextEditingController controller;
@@ -36,17 +37,37 @@ class _SearchBoxState extends State<SearchBox> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        onChanged: widget.onChanged,
+        decoration: InputDecoration(
+          hintText: 'Search',
+          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          suffixIcon: widget.controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: widget.onClear,
+                )
+              : null,
+          isDense: true,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+
+    final aq = context.aq;
     return GestureDetector(
       onTap: _focusNode.requestFocus,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         height: 36,
         decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.04),
+          color: aq.indicator,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: cs.onSurface.withValues(
+            color: aq.onSurface.withValues(
               alpha: _focusNode.hasFocus ? 0.18 : 0.08,
             ),
           ),
@@ -54,23 +75,19 @@ class _SearchBoxState extends State<SearchBox> {
         child: Row(
           children: [
             const SizedBox(width: 10),
-            Icon(
-              Icons.search_rounded,
-              size: 16,
-              color: cs.onSurface.withValues(alpha: 0.28),
-            ),
+            Icon(Icons.search_rounded, size: 16, color: aq.onSurfaceMuted),
             const SizedBox(width: 8),
             Expanded(
               child: EditableText(
                 controller: widget.controller,
                 focusNode: _focusNode,
                 onChanged: widget.onChanged,
-                style: TextStyle(color: cs.onSurface, fontSize: 13),
-                cursorColor: cs.onSurface.withValues(alpha: 0.60),
+                style: TextStyle(color: aq.onSurface, fontSize: 13),
+                cursorColor: aq.onSurface.withValues(alpha: 0.60),
                 backgroundCursorColor: Colors.transparent,
                 cursorWidth: 1.2,
                 cursorRadius: const Radius.circular(1),
-                selectionColor: cs.onSurface.withValues(alpha: 0.15),
+                selectionColor: aq.onSurface.withValues(alpha: 0.15),
               ),
             ),
             if (widget.controller.text.isNotEmpty)
@@ -81,7 +98,7 @@ class _SearchBoxState extends State<SearchBox> {
                   child: Icon(
                     Icons.close_rounded,
                     size: 14,
-                    color: cs.onSurface.withValues(alpha: 0.28),
+                    color: aq.onSurfaceMuted,
                   ),
                 ),
               ),

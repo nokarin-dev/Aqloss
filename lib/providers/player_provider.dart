@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/src/rust/lib.dart' as backend show PlaybackPosition;
 import 'package:aqloss/util/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -73,11 +75,15 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   bool _disposed = false;
   bool _handlingTrackEnd = false;
   bool _playPauseBusy = false;
+  bool _seeking = false;
+  double _lastPollPositionSecs = 0;
   SettingsState Function()? _readSettings;
   HistoryNotifier? _historyNotifier;
 
   // Guards against concurrent device-change reinit
   bool _deviceReinitBusy = false;
+  int _stallTicks = 0;
+  double _lastAdvancingPositionSecs = 0;
 
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
@@ -89,77 +95,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       Logger.warnPlayerProvider(
         'freeze recovery - reloading ${track.displayTitle}',
       );
-      final posSecs = state.position.inMilliseconds / 1000.0;
-      try {
-        await AudioService.loadTrack(track.path);
-        if (posSecs > 1.0) await AudioService.seek(posSecs);
-        await AudioService.play();
-        if (mounted) state = state.copyWith(status: PlayerStatus.playing);
-        _startTimer();
-      } catch (e) {
-        Logger.errorPlayerProvider('freeze recovery failed: $e');
-        if (mounted) state = state.copyWith(status: PlayerStatus.error);
-      }
+      await _recoverAfterOutputRouteChange(null);
     };
 
-    // Audio device changed
-    AudioService.onDeviceChanged = (String? newDefaultDeviceId) async {
-      if (!mounted || _deviceReinitBusy) return;
-      _deviceReinitBusy = true;
-
-      final wasPlaying = state.status == PlayerStatus.playing;
-      final track = state.currentTrack;
-      final posSecs = state.position.inMilliseconds / 1000.0;
-
-      _stopTimer();
-      if (mounted) {
-        state = state.copyWith(status: PlayerStatus.paused);
-      }
-
-      Logger.warnPlayerProvider(
-        'device changed → $newDefaultDeviceId  wasPlaying=$wasPlaying',
-      );
-      _deviceNotifier?.refreshAfterDeviceChange(newDefaultDeviceId);
-
-      try {
-        final settings = _readSettings?.call();
-        final exclusive = settings?.outputMode == AudioOutputMode.exclusive;
-
-        await Future.delayed(const Duration(milliseconds: 600));
-        if (!mounted) return;
-
-        final ok = await AudioService.reinitToDevice(
-          deviceId: newDefaultDeviceId,
-          exclusive: exclusive,
-        );
-
-        if (!mounted) return;
-        if (!ok) {
-          state = state.copyWith(status: PlayerStatus.error);
-          _deviceReinitBusy = false;
-          return;
-        }
-
-        if (wasPlaying && track != null) {
-          try {
-            state = state.copyWith(status: PlayerStatus.loading);
-            await AudioService.loadTrack(track.path);
-            if (!mounted) return;
-            if (posSecs > 0.5) await AudioService.seek(posSecs);
-            await AudioService.play();
-            if (mounted) {
-              state = state.copyWith(status: PlayerStatus.playing);
-              _startTimer();
-            }
-          } catch (e) {
-            Logger.errorPlayerProvider('device-change reload failed: $e');
-            if (mounted) state = state.copyWith(status: PlayerStatus.error);
-          }
-        }
-      } finally {
-        _deviceReinitBusy = false;
-      }
-    };
+    AudioService.onDeviceChanged = _recoverAfterOutputRouteChange;
   }
 
   AudioDeviceNotifier? _deviceNotifier;
@@ -174,6 +113,68 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   void injectDeviceNotifier(AudioDeviceNotifier n) {
     _deviceNotifier = n;
+  }
+
+  Future<void> _recoverAfterOutputRouteChange([
+    String? newDefaultDeviceId,
+  ]) async {
+    if (!mounted || _deviceReinitBusy) return;
+    _deviceReinitBusy = true;
+    _stallTicks = 0;
+
+    final wasPlaying = state.status == PlayerStatus.playing;
+    final track = state.currentTrack;
+    final posSecs = state.position.inMilliseconds / 1000.0;
+
+    _stopTimer();
+    if (mounted) {
+      state = state.copyWith(status: PlayerStatus.paused);
+    }
+
+    Logger.warnPlayerProvider(
+      'output route changed → $newDefaultDeviceId  wasPlaying=$wasPlaying',
+    );
+    _deviceNotifier?.refreshAfterDeviceChange(newDefaultDeviceId);
+
+    try {
+      final settings = _readSettings?.call();
+      final exclusive =
+          !Platform.isAndroid &&
+          !Platform.isIOS &&
+          settings?.outputMode == AudioOutputMode.exclusive;
+
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+
+      final ok = await AudioService.reinitToDevice(
+        deviceId: newDefaultDeviceId ?? 'default',
+        exclusive: exclusive,
+      );
+
+      if (!mounted) return;
+      if (!ok) {
+        state = state.copyWith(status: PlayerStatus.error);
+        return;
+      }
+
+      if (wasPlaying && track != null) {
+        state = state.copyWith(status: PlayerStatus.loading);
+        await AudioService.loadTrack(track.path);
+        if (!mounted) return;
+        if (posSecs > 0.5) await AudioService.seek(posSecs);
+        await AudioService.play();
+        if (mounted) {
+          _lastAdvancingPositionSecs = posSecs;
+          state = state.copyWith(status: PlayerStatus.playing);
+          _startTimer();
+        }
+      }
+    } catch (e) {
+      Logger.errorPlayerProvider('output route recovery failed: $e');
+      if (mounted) state = state.copyWith(status: PlayerStatus.error);
+    } finally {
+      _deviceReinitBusy = false;
+    }
   }
 
   @override
@@ -217,6 +218,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> _loadAndPlay(Track track, {bool stopFirst = true}) async {
     _stopTimer();
     _handlingTrackEnd = false;
+    _lastPollPositionSecs = 0;
+    _stallTicks = 0;
+    _lastAdvancingPositionSecs = 0;
     ScrobbleController.instance.onTrackStop();
     PluginRegistry.instance.dispatchTrackStop(
       TrackStopEvent(state.currentTrack),
@@ -336,10 +340,16 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> seek(Duration position) async {
     final sec = position.inMilliseconds / 1000.0;
-    await AudioService.seek(sec);
-    state = state.copyWith(position: position);
-    if (state.status == PlayerStatus.playing) {
-      DiscordService.updateAfterSeek(state, sec);
+    _seeking = true;
+    try {
+      await AudioService.seek(sec);
+      if (!mounted) return;
+      state = state.copyWith(position: position);
+      if (state.status == PlayerStatus.playing) {
+        DiscordService.updateAfterSeek(state, sec);
+      }
+    } finally {
+      _seeking = false;
     }
   }
 
@@ -349,10 +359,16 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> seekCommit(Duration position) async {
     final sec = position.inMilliseconds / 1000.0;
-    await AudioService.seek(sec);
-    state = state.copyWith(position: position);
-    if (state.status == PlayerStatus.playing) {
-      DiscordService.updateAfterSeek(state, sec);
+    _seeking = true;
+    try {
+      await AudioService.seek(sec);
+      if (!mounted) return;
+      state = state.copyWith(position: position);
+      if (state.status == PlayerStatus.playing) {
+        DiscordService.updateAfterSeek(state, sec);
+      }
+    } finally {
+      _seeking = false;
     }
   }
 
@@ -495,7 +511,28 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         PositionUpdateEvent(position: newPos, duration: effDur),
       );
 
-      if (pos.durationSecs > 0 && pos.positionSecs >= pos.durationSecs - 0.1) {
+      if (state.status == PlayerStatus.playing &&
+          !_seeking &&
+          !_handlingTrackEnd &&
+          !_deviceReinitBusy &&
+          !_playPauseBusy) {
+        final posSecs = pos.positionSecs;
+        if ((posSecs - _lastAdvancingPositionSecs).abs() < 0.08) {
+          _stallTicks++;
+          if (_stallTicks >= 6) {
+            _stallTicks = 0;
+            Logger.warnPlayerProvider('playback stall at ${posSecs}s');
+            await _recoverAfterOutputRouteChange(null);
+            return;
+          }
+        } else {
+          _stallTicks = 0;
+          _lastAdvancingPositionSecs = posSecs;
+        }
+      }
+
+      final trackEnded = _shouldHandleTrackEnd(pos);
+      if (trackEnded) {
         if (_handlingTrackEnd) return;
         _handlingTrackEnd = true;
         _stopTimer();
@@ -509,6 +546,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         _handlingTrackEnd = false;
         return;
       }
+      _lastPollPositionSecs = pos.positionSecs;
       state = state.copyWith(
         position: newPos,
         currentTrack: effDur != state.currentTrack?.duration
@@ -551,8 +589,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     // Loop mode
     switch (s.loopMode) {
       case LoopMode.track:
-        await seek(Duration.zero);
-        await play();
+        final track = s.currentTrack;
+        if (track != null) {
+          await _loadAndPlay(track);
+        }
       case LoopMode.album:
         final album = s.queue
             .where((t) => t.album == s.currentTrack?.album)
@@ -577,6 +617,23 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           DiscordService.update(state);
         }
     }
+  }
+
+  bool _shouldHandleTrackEnd(backend.PlaybackPosition pos) {
+    if (pos.durationSecs <= 0) return false;
+
+    final nearEnd = pos.positionSecs >= pos.durationSecs - 0.1;
+    if (nearEnd) return true;
+
+    final backendStopped =
+        state.status == PlayerStatus.playing &&
+        !backend.isPlaying() &&
+        !_seeking &&
+        !_playPauseBusy;
+    if (!backendStopped) return false;
+
+    return pos.positionSecs >= pos.durationSecs - 1.5 ||
+        _lastPollPositionSecs >= pos.durationSecs - 1.5;
   }
 
   int _rand(int length, {required int exclude}) {

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
@@ -75,7 +76,11 @@ class _WaveformBarState extends ConsumerState<WaveformBar>
       _stopAnimating();
     }
 
-    final barColor = widget.color ?? Theme.of(context).colorScheme.onSurface;
+    final barColor =
+        widget.color ??
+        (context.isMaterial3Ui
+            ? Theme.of(context).colorScheme.onSurface
+            : context.aq.onSurface);
 
     return SizedBox(
       width: widget.width,

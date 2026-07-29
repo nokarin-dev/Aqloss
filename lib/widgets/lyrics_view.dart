@@ -1,3 +1,4 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/lyrics_provider.dart';
@@ -49,7 +50,11 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   Widget build(BuildContext context) {
     final lyrics = ref.watch(lyricsProvider);
     final player = ref.watch(playerProvider);
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
 
     if (lyrics.isLoading) {
       return Center(
@@ -58,7 +63,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
           height: 20,
           child: CircularProgressIndicator(
             strokeWidth: 1.5,
-            color: cs.onSurface.withValues(alpha: 0.20),
+            color: onSurfaceAlpha(0.20),
           ),
         ),
       );
@@ -69,26 +74,16 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lyrics_outlined,
-              size: 32,
-              color: cs.onSurface.withValues(alpha: 0.10),
-            ),
+            Icon(Icons.lyrics_outlined, size: 32, color: onSurfaceAlpha(0.10)),
             const SizedBox(height: 12),
             Text(
               'No lyrics found',
-              style: TextStyle(
-                fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.24),
-              ),
+              style: TextStyle(fontSize: 13, color: onSurfaceAlpha(0.24)),
             ),
             const SizedBox(height: 6),
             Text(
               'Embed lyrics in the audio file tags,\nor add a .lrc file next to it',
-              style: TextStyle(
-                fontSize: 11,
-                color: cs.onSurface.withValues(alpha: 0.14),
-              ),
+              style: TextStyle(fontSize: 11, color: onSurfaceAlpha(0.14)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -164,7 +159,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
               lyrics.rawText!,
               style: TextStyle(
                 fontSize: 14,
-                color: cs.onSurface.withValues(alpha: 0.50),
+                color: onSurfaceAlpha(0.50),
                 height: 1.8,
               ),
               textAlign: TextAlign.center,
@@ -216,13 +211,16 @@ class _MeasuredLyricLineState extends State<_MeasuredLyricLine> {
 
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
     final color = widget.isCurrent
-        ? cs.onSurface
+        ? onSurface
         : widget.isPast
-        ? cs.onSurface.withValues(alpha: 0.28)
-        : cs.onSurface.withValues(alpha: 0.22);
-    final highlight = cs.onSurface.withValues(alpha: 0.05);
+        ? onSurface.withValues(alpha: 0.28)
+        : onSurface.withValues(alpha: 0.22);
+    final highlight = onSurface.withValues(alpha: 0.05);
 
     return AnimatedContainer(
       key: _key,
@@ -257,7 +255,10 @@ class _SourceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (source == LyricsSource.none) return const SizedBox.shrink();
 
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
     final (icon, label) = switch (source) {
       LyricsSource.embedded => (Icons.music_note, 'Embedded'),
       LyricsSource.lrcFile => (Icons.text_snippet_outlined, '.lrc file'),
@@ -271,13 +272,13 @@ class _SourceBadge extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 11, color: cs.onSurface.withValues(alpha: 0.22)),
+          Icon(icon, size: 11, color: onSurface.withValues(alpha: 0.22)),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               fontSize: 10,
-              color: cs.onSurface.withValues(alpha: 0.22),
+              color: onSurface.withValues(alpha: 0.22),
               letterSpacing: 0.5,
             ),
           ),

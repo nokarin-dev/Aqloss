@@ -1,0 +1,66 @@
+name: Setup Aqloss
+description: Flutter, Rust, caches, and pub get for Aqloss CI builds
+
+inputs:
+  flutter-version:
+    description: Flutter SDK channel version
+    required: false
+    default: "3.x"
+  rust-targets:
+    description: Optional comma-separated rustup targets
+    required: false
+    default: ""
+  install-linux-deps:
+    description: Install apt packages required for Linux desktop builds
+    required: false
+    default: "false"
+  install-linux-audio-deps:
+    description: Install apt packages required for Rust audio (cargo check on Linux)
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Linux dependencies
+      if: inputs.install-linux-deps == 'true'
+      shell: bash
+      run: bash .github/scripts/linux-deps.sh desktop
+
+    - name: Install Linux audio dependencies
+      if: inputs.install-linux-audio-deps == 'true'
+      shell: bash
+      run: bash .github/scripts/linux-deps.sh audio
+
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ inputs.flutter-version }}
+        channel: stable
+        cache: true
+
+    - uses: dtolnay/rust-toolchain@stable
+
+    - name: Add Rust targets
+      if: inputs.rust-targets != ''
+      shell: bash
+      run: |
+        IFS=',' read -ra targets <<< "${{ inputs.rust-targets }}"
+        for t in "${targets[@]}"; do
+          rustup target add "$t"
+        done
+
+    - name: Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: rust -> target
+
+    - name: Get cargokit build_tool dependencies
+      shell: bash
+      run: |
+        if [ -d rust_builder/cargokit/build_tool ]; then
+          cd rust_builder/cargokit/build_tool && flutter pub get
+        fi
+
+    - name: Get Flutter dependencies
+      shell: bash
+      run: flutter pub get

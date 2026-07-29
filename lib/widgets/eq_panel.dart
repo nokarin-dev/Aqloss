@@ -1,3 +1,4 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
@@ -22,7 +23,10 @@ class EqPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(settingsProvider);
     final n = ref.read(settingsProvider.notifier);
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -41,7 +45,7 @@ class EqPanel extends ConsumerWidget {
                     label: _eqFreqLabels[i],
                     gain: gain,
                     onChanged: (v) => n.setEqBand(i, v),
-                    cs: cs,
+                    onSurface: onSurface,
                   ),
                 );
               }),
@@ -53,7 +57,7 @@ class EqPanel extends ConsumerWidget {
             children: [
               Expanded(
                 child: Divider(
-                  color: cs.onSurface.withValues(alpha: 0.08),
+                  color: onSurface.withValues(alpha: 0.08),
                   height: 1,
                 ),
               ),
@@ -62,13 +66,13 @@ class EqPanel extends ConsumerWidget {
                 '0 dB',
                 style: TextStyle(
                   fontSize: 9,
-                  color: cs.onSurface.withValues(alpha: 0.24),
+                  color: onSurface.withValues(alpha: 0.24),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Divider(
-                  color: cs.onSurface.withValues(alpha: 0.08),
+                  color: onSurface.withValues(alpha: 0.08),
                   height: 1,
                 ),
               ),
@@ -81,15 +85,15 @@ class EqPanel extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: cs.onSurface.withValues(alpha: 0.04),
+                color: onSurface.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
+                border: Border.all(color: onSurface.withValues(alpha: 0.08)),
               ),
               child: Text(
                 'Reset all bands',
                 style: TextStyle(
                   fontSize: 11,
-                  color: cs.onSurface.withValues(alpha: 0.40),
+                  color: onSurface.withValues(alpha: 0.40),
                 ),
               ),
             ),
@@ -104,13 +108,13 @@ class _BandSlider extends StatelessWidget {
   final String label;
   final double gain;
   final ValueChanged<double> onChanged;
-  final ColorScheme cs;
+  final Color onSurface;
 
   const _BandSlider({
     required this.label,
     required this.gain,
     required this.onChanged,
-    required this.cs,
+    required this.onSurface,
   });
 
   @override
@@ -126,8 +130,8 @@ class _BandSlider extends StatelessWidget {
           style: TextStyle(
             fontSize: 8,
             color: gain.abs() > 0.5
-                ? cs.onSurface.withValues(alpha: 0.70)
-                : cs.onSurface.withValues(alpha: 0.24),
+                ? onSurface.withValues(alpha: 0.70)
+                : onSurface.withValues(alpha: 0.24),
           ),
           textAlign: TextAlign.center,
         ),
@@ -136,7 +140,11 @@ class _BandSlider extends StatelessWidget {
         Expanded(
           child: RotatedBox(
             quarterTurns: 3,
-            child: _EqBandSlider(gain: gain, cs: cs, onChanged: onChanged),
+            child: _EqBandSlider(
+              gain: gain,
+              onSurface: onSurface,
+              onChanged: onChanged,
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -145,7 +153,7 @@ class _BandSlider extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 8,
-            color: cs.onSurface.withValues(alpha: 0.30),
+            color: onSurface.withValues(alpha: 0.30),
           ),
           textAlign: TextAlign.center,
         ),
@@ -157,11 +165,11 @@ class _BandSlider extends StatelessWidget {
 // EQ band slider
 class _EqBandSlider extends StatefulWidget {
   final double gain;
-  final ColorScheme cs;
+  final Color onSurface;
   final ValueChanged<double> onChanged;
   const _EqBandSlider({
     required this.gain,
-    required this.cs,
+    required this.onSurface,
     required this.onChanged,
   });
   @override
@@ -197,12 +205,12 @@ class _EqBandSliderState extends State<_EqBandSlider> {
               painter: _EqSliderPainter(
                 norm: norm,
                 activeColor: active
-                    ? widget.cs.onSurface.withValues(alpha: 0.60)
-                    : widget.cs.onSurface.withValues(alpha: 0.20),
-                inactiveColor: widget.cs.onSurface.withValues(alpha: 0.08),
+                    ? widget.onSurface.withValues(alpha: 0.60)
+                    : widget.onSurface.withValues(alpha: 0.20),
+                inactiveColor: widget.onSurface.withValues(alpha: 0.08),
                 thumbColor: active
-                    ? widget.cs.onSurface.withValues(alpha: 0.80)
-                    : widget.cs.onSurface.withValues(alpha: 0.30),
+                    ? widget.onSurface.withValues(alpha: 0.80)
+                    : widget.onSurface.withValues(alpha: 0.30),
               ),
             ),
           ),

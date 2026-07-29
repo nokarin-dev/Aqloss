@@ -8,6 +8,9 @@ import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,41 +29,63 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-          child: Row(
-            children: [
-              _TabPill(
-                label: 'History',
-                icon: Icons.history_rounded,
-                active: _tab == _Tab.history,
-                onTap: () => setState(() => _tab = _Tab.history),
-              ),
-              const SizedBox(width: 6),
-              _TabPill(
-                label: 'Loved',
-                icon: Icons.favorite_rounded,
-                active: _tab == _Tab.loved,
-                onTap: () => setState(() => _tab = _Tab.loved),
-              ),
-            ],
+    final content = switch (_tab) {
+      _Tab.history => const _HistoryTab(),
+      _Tab.loved => const _LovedTab(),
+    };
+
+    if (context.isMaterial3Ui) {
+      return M3PageScaffold(
+        title: 'History',
+        toolbar: SegmentedButton<_Tab>(
+          segments: const [
+            ButtonSegment(
+              value: _Tab.history,
+              label: Text('History'),
+              icon: Icon(Icons.history_rounded),
+            ),
+            ButtonSegment(
+              value: _Tab.loved,
+              label: Text('Loved'),
+              icon: Icon(Icons.favorite_rounded),
+            ),
+          ],
+          selected: {_tab},
+          onSelectionChanged: (s) => setState(() => _tab = s.first),
+        ),
+        body: content,
+      );
+    }
+
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+            child: Row(
+              children: [
+                _TabPill(
+                  label: 'History',
+                  icon: Icons.history_rounded,
+                  active: _tab == _Tab.history,
+                  onTap: () => setState(() => _tab = _Tab.history),
+                ),
+                const SizedBox(width: 6),
+                _TabPill(
+                  label: 'Loved',
+                  icon: Icons.favorite_rounded,
+                  active: _tab == _Tab.loved,
+                  onTap: () => setState(() => _tab = _Tab.loved),
+                ),
+              ],
+            ),
           ),
-        ),
-
-        const SizedBox(height: 2),
-
-        // Content
-        Expanded(
-          child: switch (_tab) {
-            _Tab.history => const _HistoryTab(),
-            _Tab.loved => const _LovedTab(),
-          },
-        ),
-      ],
+          const SizedBox(height: 2),
+          Expanded(child: content),
+        ],
+      ),
     );
   }
 }
@@ -223,22 +248,10 @@ class _DateSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 5),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-              color: cs.onSurface.withValues(alpha: 0.28),
-            ),
-          ),
-        ),
+        UiSectionHeader(title: label),
         for (final entry in entries) _HistoryTile(entry: entry),
       ],
     );

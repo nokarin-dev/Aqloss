@@ -1,0 +1,20 @@
+name: Read version
+description: Read app version from version.yaml (fallback pubspec.yaml)
+
+outputs:
+  version:
+    description: Semver without build number (e.g. 1.0.0)
+    value: ${{ steps.read.outputs.version }}
+  build:
+    description: Build number
+    value: ${{ steps.read.outputs.build }}
+  pubspec:
+    description: Full pubspec-style version (e.g. 1.0.0+1)
+    value: ${{ steps.read.outputs.pubspec }}
+
+runs:
+  using: composite
+  steps:
+    - id: read
+      shell: bash
+      run: bash .github/scripts/read-version.sh

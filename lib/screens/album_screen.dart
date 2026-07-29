@@ -6,13 +6,29 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/widgets/ui/app_shell.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/ui/m3/widgets/m3_search_field.dart';
+import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/shared/search_box.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 
 // Helpers
 bool get _isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
+bool _isCompactWidth(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < 600;
+
+int _albumGridColumns(double width) {
+  if (width < 600) return 1;
+  if (width < 900) return 3;
+  if (width < 1200) return 4;
+  return 6;
+}
 
 String _fmtDuration(Duration d) {
   final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -85,6 +101,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   @override
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
+    final viewMode = ref.watch(settingsProvider).albumViewMode;
     final cs = Theme.of(context).colorScheme;
 
     final allAlbums = _groupAlbums(library.tracks);
@@ -98,62 +115,142 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               )
               .toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const NowPlayingHeader(),
+    void openAlbum(_Album album) {
+      Navigator.of(context).push(_fadeRoute(_AlbumDetailScreen(album: album)));
+    }
 
-        // Search
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-          child: SearchBox(
-            controller: _searchCtrl,
-            onChanged: (q) => setState(() => _query = q),
-            onClear: () {
-              _searchCtrl.clear();
-              setState(() => _query = '');
-            },
-          ),
-        ),
-
-        // Stats
-        if (allAlbums.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              _query.isEmpty
-                  ? '${allAlbums.length} albums'
-                  : '${albums.length} of ${allAlbums.length} albums',
-              style: TextStyle(
-                fontSize: 11,
-                color: cs.onSurface.withValues(alpha: 0.28),
+    if (context.isMaterial3Ui) {
+      return M3PageScaffold(
+        title: 'Albums',
+        subtitle: allAlbums.isEmpty
+            ? null
+            : _query.isEmpty
+            ? '${allAlbums.length} albums'
+            : '${albums.length} of ${allAlbums.length} albums',
+        toolbar: Row(
+          children: [
+            Expanded(
+              child: M3SearchField(
+                controller: _searchCtrl,
+                hintText: 'Search albums',
+                onChanged: (q) => setState(() => _query = q),
+                onClear: () {
+                  _searchCtrl.clear();
+                  setState(() => _query = '');
+                },
               ),
+            ),
+            const SizedBox(width: 8),
+            SegmentedButton<LibraryViewMode>(
+              segments: const [
+                ButtonSegment(
+                  value: LibraryViewMode.detail,
+                  icon: Icon(Icons.view_list_rounded),
+                ),
+                ButtonSegment(
+                  value: LibraryViewMode.grid,
+                  icon: Icon(Icons.grid_view_rounded),
+                ),
+              ],
+              selected: {viewMode},
+              onSelectionChanged: (s) =>
+                  ref.read(settingsProvider.notifier).setAlbumViewMode(s.first),
+            ),
+          ],
+        ),
+        body: library.tracks.isEmpty
+            ? const _EmptyState()
+            : albums.isEmpty
+            ? Center(
+                child: Text(
+                  'No results',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            : viewMode == LibraryViewMode.grid
+            ? _AlbumGrid(albums: albums, onTap: openAlbum)
+            : _AlbumList(albums: albums, onTap: openAlbum),
+      );
+    }
+
+    return AppShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const NowPlayingHeader(),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SearchBox(
+                    controller: _searchCtrl,
+                    onChanged: (q) => setState(() => _query = q),
+                    onClear: () {
+                      _searchCtrl.clear();
+                      setState(() => _query = '');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 6),
+                _ViewModeButton(
+                  icon: Icons.view_list_rounded,
+                  active: viewMode == LibraryViewMode.detail,
+                  onTap: () => ref
+                      .read(settingsProvider.notifier)
+                      .setAlbumViewMode(LibraryViewMode.detail),
+                ),
+                const SizedBox(width: 2),
+                _ViewModeButton(
+                  icon: Icons.grid_view_rounded,
+                  active: viewMode == LibraryViewMode.grid,
+                  onTap: () => ref
+                      .read(settingsProvider.notifier)
+                      .setAlbumViewMode(LibraryViewMode.grid),
+                ),
+              ],
             ),
           ),
 
-        const SizedBox(height: 6),
-
-        Expanded(
-          child: library.tracks.isEmpty
-              ? const _EmptyState()
-              : albums.isEmpty
-              ? Center(
-                  child: Text(
-                    'No results',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.24),
-                    ),
-                  ),
-                )
-              : _AlbumGrid(
-                  albums: albums,
-                  onTap: (album) => Navigator.of(
-                    context,
-                  ).push(_fadeRoute(_AlbumDetailScreen(album: album))),
+          // Stats
+          if (allAlbums.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                _query.isEmpty
+                    ? '${allAlbums.length} albums'
+                    : '${albums.length} of ${allAlbums.length} albums',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurface.withValues(alpha: 0.28),
                 ),
-        ),
-      ],
+              ),
+            ),
+
+          const SizedBox(height: 6),
+
+          Expanded(
+            child: library.tracks.isEmpty
+                ? const _EmptyState()
+                : albums.isEmpty
+                ? Center(
+                    child: Text(
+                      'No results',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurface.withValues(alpha: 0.24),
+                      ),
+                    ),
+                  )
+                : viewMode == LibraryViewMode.grid
+                ? _AlbumGrid(albums: albums, onTap: openAlbum)
+                : _AlbumList(albums: albums, onTap: openAlbum),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -178,18 +275,187 @@ class _AlbumGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cols = _isDesktop ? 6 : 3;
+    final width = MediaQuery.sizeOf(context).width;
+    final cols = _albumGridColumns(width);
+    final compact = cols == 1;
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 24),
+      padding: EdgeInsets.fromLTRB(compact ? 14 : 12, 2, compact ? 14 : 12, 24),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: cols,
-        mainAxisSpacing: 6,
-        crossAxisSpacing: 6,
-        childAspectRatio: 0.72,
+        mainAxisSpacing: compact ? 14 : 6,
+        crossAxisSpacing: compact ? 0 : 6,
+        childAspectRatio: compact ? 0.82 : 0.72,
       ),
       itemCount: albums.length,
       itemBuilder: (_, i) =>
           _AlbumCard(album: albums[i], onTap: () => onTap(albums[i])),
+    );
+  }
+}
+
+class _AlbumList extends StatelessWidget {
+  final List<_Album> albums;
+  final void Function(_Album) onTap;
+
+  const _AlbumList({required this.albums, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 2, 8, 24),
+      itemCount: albums.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 2),
+      itemBuilder: (_, i) =>
+          _AlbumListTile(album: albums[i], onTap: () => onTap(albums[i])),
+    );
+  }
+}
+
+class _AlbumListTile extends ConsumerWidget {
+  final _Album album;
+  final VoidCallback onTap;
+
+  const _AlbumListTile({required this.album, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+
+    return UiListTile(
+      leading: _AlbumThumb(path: album.tracks.first.path, size: 56),
+      title: album.name,
+      subtitle: album.artist,
+      onTap: onTap,
+      trailing: PopupMenuButton<String>(
+        icon: Icon(
+          Icons.more_vert_rounded,
+          size: 20,
+          color: cs.onSurface.withValues(alpha: 0.34),
+        ),
+        padding: EdgeInsets.zero,
+        onSelected: (value) {
+          if (value == 'play') {
+            ref
+                .read(playerProvider.notifier)
+                .loadWithQueue(album.tracks.first, album.tracks);
+          }
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'play', child: Text('Play album')),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlbumThumb extends StatefulWidget {
+  final String path;
+  final double size;
+
+  const _AlbumThumb({required this.path, required this.size});
+
+  @override
+  State<_AlbumThumb> createState() => _AlbumThumbState();
+}
+
+class _AlbumThumbState extends State<_AlbumThumb> {
+  Uint8List? _art;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_AlbumThumb old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) {
+      setState(() {
+        _art = null;
+        _loaded = false;
+      });
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    try {
+      final bytes = await backend.readAlbumArtThumbnail(path: widget.path);
+      if (mounted) {
+        setState(() {
+          _art = bytes != null ? Uint8List.fromList(bytes) : null;
+          _loaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final radius = BorderRadius.circular(8);
+
+    return ClipRRect(
+      borderRadius: radius,
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: _loaded
+            ? (_art != null
+                  ? Image.memory(
+                      _art!,
+                      fit: BoxFit.cover,
+                      key: ValueKey(widget.path),
+                    )
+                  : _PlaceholderArt(isDark: isDark))
+            : ColoredBox(color: cs.onSurface.withValues(alpha: 0.05)),
+      ),
+    );
+  }
+}
+
+class _ViewModeButton extends StatelessWidget {
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _ViewModeButton({
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: active
+              ? cs.onSurface.withValues(alpha: 0.10)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active
+                ? cs.onSurface.withValues(alpha: 0.20)
+                : cs.onSurface.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: cs.onSurface.withValues(alpha: active ? 0.72 : 0.34),
+        ),
+      ),
     );
   }
 }
@@ -464,8 +730,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ── Album detail screen ───────────────────────────────────────────────────────
-
+// Album detail screen
 class _AlbumDetailScreen extends ConsumerStatefulWidget {
   final _Album album;
 
@@ -527,10 +792,14 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
     final player = ref.watch(playerProvider);
     final playerNotifier = ref.read(playerProvider.notifier);
     final album = widget.album;
-    final hPad = _isDesktop ? 24.0 : 14.0;
-    final artSize = _isDesktop ? 148.0 : 110.0;
+    final compact = _isCompactWidth(context);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final hPad = compact ? 14.0 : (_isDesktop ? 24.0 : 14.0);
+    final artSize = compact
+        ? (screenWidth - hPad * 2).clamp(200.0, 320.0)
+        : (_isDesktop ? 148.0 : 110.0);
 
-    return Scaffold(
+    return UiPage(
       body: FadeTransition(
         opacity: _enterAnim,
         child: CustomScrollView(
@@ -552,90 +821,160 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                       onTap: () => Navigator.of(context).pop(),
                       label: 'Albums',
                     ),
-                    SizedBox(height: _isDesktop ? 16 : 12),
+                    SizedBox(height: compact ? 10 : (_isDesktop ? 16 : 12)),
 
                     // Art + metadata
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _DetailArt(
-                          art: _art,
-                          artLoaded: _artLoaded,
-                          size: artSize,
-                        ),
-                        SizedBox(width: _isDesktop ? 20 : 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
+                    if (compact)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _DetailArt(
+                            art: _art,
+                            artLoaded: _artLoaded,
+                            size: artSize,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            album.name,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.5,
+                              color: cs.onSurface,
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            album.artist,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: cs.onSurface.withValues(alpha: 0.46),
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '${album.tracks.length} tracks · ${album.durationLabel}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurface.withValues(alpha: 0.26),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                album.name,
-                                style: TextStyle(
-                                  fontSize: _isDesktop ? 22 : 17,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: -0.5,
-                                  color: cs.onSurface,
-                                  height: 1.15,
+                              _ActionButton(
+                                icon: Icons.play_arrow_rounded,
+                                label: 'Play',
+                                filled: true,
+                                onTap: () => playerNotifier.loadWithQueue(
+                                  album.tracks.first,
+                                  album.tracks,
                                 ),
                               ),
-                              const SizedBox(height: 5),
-                              Text(
-                                album.artist,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: cs.onSurface.withValues(alpha: 0.46),
-                                  letterSpacing: -0.1,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${album.tracks.length} tracks · ${album.durationLabel}',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: cs.onSurface.withValues(alpha: 0.26),
-                                ),
-                              ),
-                              SizedBox(height: _isDesktop ? 14 : 10),
-                              Row(
-                                children: [
-                                  _ActionButton(
-                                    icon: Icons.play_arrow_rounded,
-                                    label: 'Play',
-                                    filled: true,
-                                    onTap: () => playerNotifier.loadWithQueue(
-                                      album.tracks.first,
-                                      album.tracks,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 7),
-                                  _ActionButton(
-                                    icon: Icons.shuffle_rounded,
-                                    label: 'Shuffle',
-                                    filled: false,
-                                    onTap: () {
-                                      final shuffled = List<Track>.from(
-                                        album.tracks,
-                                      )..shuffle();
-                                      playerNotifier.loadWithQueue(
-                                        shuffled.first,
-                                        shuffled,
-                                      );
-                                    },
-                                  ),
-                                ],
+                              const SizedBox(width: 7),
+                              _ActionButton(
+                                icon: Icons.shuffle_rounded,
+                                label: 'Shuffle',
+                                filled: false,
+                                onTap: () {
+                                  final shuffled = List<Track>.from(
+                                    album.tracks,
+                                  )..shuffle();
+                                  playerNotifier.loadWithQueue(
+                                    shuffled.first,
+                                    shuffled,
+                                  );
+                                },
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _DetailArt(
+                            art: _art,
+                            artLoaded: _artLoaded,
+                            size: artSize,
+                          ),
+                          SizedBox(width: _isDesktop ? 20 : 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                  album.name,
+                                  style: TextStyle(
+                                    fontSize: _isDesktop ? 22 : 17,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.5,
+                                    color: cs.onSurface,
+                                    height: 1.15,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  album.artist,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: cs.onSurface.withValues(alpha: 0.46),
+                                    letterSpacing: -0.1,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${album.tracks.length} tracks · ${album.durationLabel}',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: cs.onSurface.withValues(alpha: 0.26),
+                                  ),
+                                ),
+                                SizedBox(height: _isDesktop ? 14 : 10),
+                                Row(
+                                  children: [
+                                    _ActionButton(
+                                      icon: Icons.play_arrow_rounded,
+                                      label: 'Play',
+                                      filled: true,
+                                      onTap: () => playerNotifier.loadWithQueue(
+                                        album.tracks.first,
+                                        album.tracks,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 7),
+                                    _ActionButton(
+                                      icon: Icons.shuffle_rounded,
+                                      label: 'Shuffle',
+                                      filled: false,
+                                      onTap: () {
+                                        final shuffled = List<Track>.from(
+                                          album.tracks,
+                                        )..shuffle();
+                                        playerNotifier.loadWithQueue(
+                                          shuffled.first,
+                                          shuffled,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
 
                     SizedBox(height: _isDesktop ? 22 : 16),
-                    Container(
-                      height: 1,
-                      color: cs.onSurface.withValues(alpha: 0.06),
-                    ),
+                    const UiDivider(),
                   ],
                 ),
               ),
@@ -1047,7 +1386,6 @@ class _PlayingBarsState extends State<_PlayingBars>
   late final List<AnimationController> _ctrls;
   late final List<Animation<double>> _anims;
 
-  // Base heights and stagger delays per bar
   static const List<double> _baseH = [0.50, 0.80, 0.60];
   static const List<int> _delaysMs = [0, 160, 80];
 

@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:aqloss/models/audio_format.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/plugins/plugin_api.dart';
+import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 enum LibraryStatus { idle, scanning, done, error }
@@ -348,6 +350,9 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   }
 
   Future<void> _scanAll(List<String> folders, {bool background = false}) async {
+    await PluginRegistry.instance.dispatchLibraryScan(
+      const LibraryScanEvent(phase: LibraryScanPhase.started),
+    );
     try {
       final results = await Future.wait(
         folders.map((f) => backend.scanDirectory(path: f)),
@@ -392,6 +397,12 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
           status: LibraryStatus.done,
         );
       }
+      await PluginRegistry.instance.dispatchLibraryScan(
+        LibraryScanEvent(
+          phase: LibraryScanPhase.complete,
+          count: tracks.length,
+        ),
+      );
     } catch (e) {
       if (mounted && !background) {
         state = state.copyWith(

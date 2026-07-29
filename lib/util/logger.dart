@@ -16,6 +16,7 @@ enum LogTarget {
   scrobble('scrobble.log'),
   audioService('audio_service.log'),
   lastfm('lastfm.log'),
+  listenBrainz('listenbrainz.log'),
   deviceProdiver('device_provider.log'),
   playerProvider('player_provider.log'),
   frontend('frontend.log');
@@ -113,6 +114,16 @@ class Logger {
       _instance._log(LogTarget.lastfm, LogLevel.warn, msg);
   static void errorLastfm(String msg) =>
       _instance._log(LogTarget.lastfm, LogLevel.error, msg);
+
+  // ListenBrainz
+  static void debugListenBrainz(String msg) =>
+      _instance._log(LogTarget.listenBrainz, LogLevel.debug, msg);
+  static void infoListenBrainz(String msg) =>
+      _instance._log(LogTarget.listenBrainz, LogLevel.info, msg);
+  static void warnListenBrainz(String msg) =>
+      _instance._log(LogTarget.listenBrainz, LogLevel.warn, msg);
+  static void errorListenBrainz(String msg) =>
+      _instance._log(LogTarget.listenBrainz, LogLevel.error, msg);
 
   // DeviceProviuder
   static void debugDeviceProvider(String msg) =>

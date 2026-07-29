@@ -1,3 +1,4 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -7,7 +8,7 @@ class CustomTitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       onDoubleTap: () async {
@@ -19,7 +20,7 @@ class CustomTitleBar extends StatelessWidget {
       },
       child: Container(
         height: 32,
-        color: cs.surfaceContainerHighest,
+        color: aq.surfaceVariant,
         child: Row(
           children: [
             const Spacer(),
@@ -71,7 +72,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -91,7 +92,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
                 color: _hovered
                     ? widget.isClose
                           ? const Color(0xFFE81123)
-                          : cs.onSurface.withValues(alpha: 0.08)
+                          : aq.onSurface.withValues(alpha: 0.08)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -100,7 +101,7 @@ class _TitleBarBtnState extends State<_TitleBarBtn> {
                 size: 12,
                 color: _hovered && widget.isClose
                     ? Colors.white
-                    : cs.onSurface.withValues(alpha: 0.42),
+                    : aq.onSurface.withValues(alpha: 0.42),
               ),
             ),
           ),

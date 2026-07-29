@@ -23,7 +23,22 @@ fn default_type() -> String {
 }
 
 fn default_min_version() -> String {
-    "0.4.0".to_string()
+    "1.0.0".to_string()
+}
+
+fn parse_version_triplet(s: &str) -> Option<(u64, u64, u64)> {
+    let mut parts = s.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+    let patch = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+    Some((major, minor, patch))
+}
+
+fn version_at_least(host: &str, min: &str) -> bool {
+    match (parse_version_triplet(host), parse_version_triplet(min)) {
+        (Some(h), Some(m)) => h >= m,
+        _ => true,
+    }
 }
 
 // Manifest
@@ -268,7 +283,11 @@ impl PluginInstance {
         let globals = self.lua.globals();
         let func: Option<LuaFunction> = globals.get(hook)?;
         if let Some(f) = func {
-            let arg = json_to_lua(&self.lua, event_json)?;
+            let mut payload = event_json.clone();
+            if let serde_json::Value::Object(ref mut map) = payload {
+                map.remove("event");
+            }
+            let arg = json_to_lua(&self.lua, &payload)?;
             f.call::<()>(arg)?;
         }
         Ok(())
@@ -352,6 +371,15 @@ impl LuaPluginEngine {
             .map_err(|_| anyhow!("plugin.json not found in {}", dir.display()))?;
         let manifest: PluginManifest =
             serde_json::from_str(&raw).map_err(|e| anyhow!("plugin.json parse: {e}"))?;
+
+        let host_version = env!("CARGO_PKG_VERSION");
+        if !version_at_least(host_version, &manifest.min_aqloss_version) {
+            return Err(anyhow!(
+                "plugin {} requires Aqloss {} or newer (running {host_version})",
+                manifest.id,
+                manifest.min_aqloss_version
+            ));
+        }
 
         let id = manifest.id.clone();
         if self.plugins.contains_key(&id) {

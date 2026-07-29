@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:aqloss/theme/ui_framework.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -86,14 +87,19 @@ const _kGapless = 'aqloss_gapless';
 const _kCrossfade = 'aqloss_crossfade';
 const _kStopAfter = 'aqloss_stop_after';
 const _kTheme = 'aqloss_theme';
+const _kUiFramework = 'aqloss_ui_framework';
 const _kAppStyle = 'aqloss_app_style';
 const _kLibraryViewMode = 'aqloss_library_view_mode';
+const _kAlbumViewMode = 'aqloss_album_view_mode';
 const _kShowBitDepth = 'aqloss_show_bit_depth';
 const _kScrobble = 'aqloss_scrobble';
 const _kLastFmUser = 'aqloss_lastfm_user';
 const _kLastFmApiKey = 'aqloss_lastfm_api_key';
 const _kLastFmApiSecret = 'aqloss_lastfm_api_secret';
 const _kLastFmSession = 'aqloss_lastfm_session';
+const _kScrobbleListenBrainz = 'aqloss_scrobble_listenbrainz';
+const _kListenBrainzToken = 'aqloss_listenbrainz_token';
+const _kListenBrainzUser = 'aqloss_listenbrainz_user';
 const _kEqEnabled = 'aqloss_eq_enabled';
 const _kEqGains = 'aqloss_eq_gains';
 const _kNotchFilter = 'aqloss_notch_filter';
@@ -106,6 +112,7 @@ const _kAccentColor = 'aqloss_accent_color';
 const _kStereoWidth = 'aqloss_stereo_width';
 const _kHaasMs = 'aqloss_haas_ms';
 const _kDiscordRpc = 'aqloss_discord_rpc';
+const _kMaterialYou = 'aqloss_material_you';
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -122,7 +129,9 @@ class SettingsState {
   final bool notchFilter;
   final ThemeMode themeMode;
   final AppStyle appStyle;
+  final UiFramework uiFramework;
   final LibraryViewMode libraryViewMode;
+  final LibraryViewMode albumViewMode;
   final bool showBitDepthInLibrary;
   final Map<ShortcutAction, String> shortcuts;
   final bool showAlbumArtBackground;
@@ -133,11 +142,15 @@ class SettingsState {
   final String? lastFmApiKey;
   final String? lastFmApiSecret;
   final String? lastFmSessionKey;
+  final bool scrobbleListenBrainz;
+  final String? listenBrainzToken;
+  final String? listenBrainzUsername;
   final AccentMode accentMode;
   final int? accentColor;
   final double stereoWidth;
   final double haasMs;
   final bool discordRpc;
+  final bool materialYou;
   final bool loaded;
 
   const SettingsState({
@@ -155,7 +168,9 @@ class SettingsState {
     this.notchFilter = true,
     this.themeMode = ThemeMode.dark,
     this.appStyle = AppStyle.legacy,
+    this.uiFramework = UiFramework.standalone,
     this.libraryViewMode = LibraryViewMode.detail,
+    this.albumViewMode = LibraryViewMode.detail,
     this.showBitDepthInLibrary = true,
     this.shortcuts = const {},
     this.showAlbumArtBackground = true,
@@ -166,11 +181,15 @@ class SettingsState {
     this.lastFmApiKey,
     this.lastFmApiSecret,
     this.lastFmSessionKey,
+    this.scrobbleListenBrainz = false,
+    this.listenBrainzToken,
+    this.listenBrainzUsername,
     this.accentMode = AccentMode.off,
     this.accentColor,
     this.stereoWidth = 1.0,
     this.haasMs = 0.0,
     this.discordRpc = true,
+    this.materialYou = false,
     this.loaded = false,
   });
 
@@ -179,6 +198,11 @@ class SettingsState {
   String binding(ShortcutAction a) => shortcuts[a] ?? a.defaultKey;
 
   bool get scrobbleReady => scrobbleLastFm && lastFmSessionKey != null;
+
+  bool get listenBrainzReady =>
+      scrobbleListenBrainz &&
+      listenBrainzToken != null &&
+      listenBrainzToken!.trim().isNotEmpty;
 
   // True if build-time key was injected via --dart-define
   bool get hasBuiltInKey => const String.fromEnvironment(
@@ -219,7 +243,9 @@ class SettingsState {
     bool? notchFilter,
     ThemeMode? themeMode,
     AppStyle? appStyle,
+    UiFramework? uiFramework,
     LibraryViewMode? libraryViewMode,
+    LibraryViewMode? albumViewMode,
     bool? showBitDepthInLibrary,
     Map<ShortcutAction, String>? shortcuts,
     bool? showAlbumArtBackground,
@@ -231,12 +257,17 @@ class SettingsState {
     String? lastFmApiSecret,
     String? lastFmSessionKey,
     bool clearSession = false,
+    bool? scrobbleListenBrainz,
+    String? listenBrainzToken,
+    String? listenBrainzUsername,
+    bool clearListenBrainz = false,
     AccentMode? accentMode,
     int? accentColor,
     bool clearAccentColor = false,
     double? stereoWidth,
     double? haasMs,
     bool? discordRpc,
+    bool? materialYou,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -255,7 +286,9 @@ class SettingsState {
     notchFilter: notchFilter ?? this.notchFilter,
     themeMode: themeMode ?? this.themeMode,
     appStyle: appStyle ?? this.appStyle,
+    uiFramework: uiFramework ?? this.uiFramework,
     libraryViewMode: libraryViewMode ?? this.libraryViewMode,
+    albumViewMode: albumViewMode ?? this.albumViewMode,
     showBitDepthInLibrary: showBitDepthInLibrary ?? this.showBitDepthInLibrary,
     shortcuts: shortcuts ?? this.shortcuts,
     showAlbumArtBackground:
@@ -269,11 +302,19 @@ class SettingsState {
     lastFmSessionKey: clearSession
         ? null
         : (lastFmSessionKey ?? this.lastFmSessionKey),
+    scrobbleListenBrainz: scrobbleListenBrainz ?? this.scrobbleListenBrainz,
+    listenBrainzToken: clearListenBrainz
+        ? null
+        : (listenBrainzToken ?? this.listenBrainzToken),
+    listenBrainzUsername: clearListenBrainz
+        ? null
+        : (listenBrainzUsername ?? this.listenBrainzUsername),
     accentMode: accentMode ?? this.accentMode,
     accentColor: clearAccentColor ? null : (accentColor ?? this.accentColor),
     stereoWidth: stereoWidth ?? this.stereoWidth,
     haasMs: haasMs ?? this.haasMs,
     discordRpc: discordRpc ?? this.discordRpc,
+    materialYou: materialYou ?? this.materialYou,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -307,9 +348,28 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       eqGains: eqGains,
       notchFilter: p.getBool(_kNotchFilter) ?? true,
       themeMode: ThemeMode.values[(p.getInt(_kTheme) ?? 0).clamp(0, 2)],
-      appStyle: AppStyle.values[(p.getInt(_kAppStyle) ?? 0).clamp(0, 2)],
+      appStyle:
+          AppStyle.values[(p.getInt(_kAppStyle) ?? 0).clamp(
+            0,
+            AppStyle.values.length - 1,
+          )],
+      uiFramework: () {
+        final stored = p.getInt(_kUiFramework);
+        if (stored != null) {
+          return UiFramework.values[stored.clamp(
+            0,
+            UiFramework.values.length - 1,
+          )];
+        }
+        if (p.getBool(_kMaterialYou) == true) {
+          return UiFramework.material3;
+        }
+        return UiFramework.standalone;
+      }(),
       libraryViewMode: LibraryViewMode
           .values[(p.getInt(_kLibraryViewMode) ?? 0).clamp(0, 1)],
+      albumViewMode:
+          LibraryViewMode.values[(p.getInt(_kAlbumViewMode) ?? 0).clamp(0, 1)],
       showBitDepthInLibrary: p.getBool(_kShowBitDepth) ?? true,
       shortcuts: _loadShortcuts(p),
       showAlbumArtBackground: p.getBool(_kShowAlbumArtBg) ?? true,
@@ -320,11 +380,15 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       lastFmApiKey: p.getString(_kLastFmApiKey),
       lastFmApiSecret: p.getString(_kLastFmApiSecret),
       lastFmSessionKey: p.getString(_kLastFmSession),
+      scrobbleListenBrainz: p.getBool(_kScrobbleListenBrainz) ?? false,
+      listenBrainzToken: p.getString(_kListenBrainzToken),
+      listenBrainzUsername: p.getString(_kListenBrainzUser),
       accentMode: AccentMode.values[(p.getInt(_kAccentMode) ?? 0).clamp(0, 2)],
       accentColor: p.getInt(_kAccentColor),
       stereoWidth: (p.getDouble(_kStereoWidth) ?? 1.0).clamp(0.0, 2.0),
       haasMs: (p.getDouble(_kHaasMs) ?? 0.0).clamp(0.0, 25.0),
       discordRpc: p.getBool(_kDiscordRpc) ?? true,
+      materialYou: p.getBool(_kMaterialYou) ?? false,
       loaded: true,
     );
   }
@@ -350,7 +414,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setBool(_kNotchFilter, state.notchFilter),
       p.setInt(_kTheme, state.themeMode.index),
       p.setInt(_kAppStyle, state.appStyle.index),
+      p.setInt(_kUiFramework, state.uiFramework.index),
       p.setInt(_kLibraryViewMode, state.libraryViewMode.index),
+      p.setInt(_kAlbumViewMode, state.albumViewMode.index),
       p.setBool(_kShowBitDepth, state.showBitDepthInLibrary),
       _saveShortcuts(p, state.shortcuts),
       p.setBool(_kShowAlbumArtBg, state.showAlbumArtBackground),
@@ -369,6 +435,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       state.lastFmSessionKey != null
           ? p.setString(_kLastFmSession, state.lastFmSessionKey!)
           : p.remove(_kLastFmSession),
+      p.setBool(_kScrobbleListenBrainz, state.scrobbleListenBrainz),
+      state.listenBrainzToken != null
+          ? p.setString(_kListenBrainzToken, state.listenBrainzToken!)
+          : p.remove(_kListenBrainzToken),
+      state.listenBrainzUsername != null
+          ? p.setString(_kListenBrainzUser, state.listenBrainzUsername!)
+          : p.remove(_kListenBrainzUser),
       p.setInt(_kAccentMode, state.accentMode.index),
       state.accentColor != null
           ? p.setInt(_kAccentColor, state.accentColor!)
@@ -376,6 +449,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setDouble(_kStereoWidth, state.stereoWidth),
       p.setDouble(_kHaasMs, state.haasMs),
       p.setBool(_kDiscordRpc, state.discordRpc),
+      p.setBool(_kMaterialYou, state.materialYou),
     ]);
   }
 
@@ -490,8 +564,21 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _save();
   }
 
+  void setUiFramework(UiFramework f) {
+    state = state.copyWith(
+      uiFramework: f,
+      materialYou: f == UiFramework.material3 ? state.materialYou : false,
+    );
+    _save();
+  }
+
   void setLibraryViewMode(LibraryViewMode m) {
     state = state.copyWith(libraryViewMode: m);
+    _save();
+  }
+
+  void setAlbumViewMode(LibraryViewMode m) {
+    state = state.copyWith(albumViewMode: m);
     _save();
   }
 
@@ -547,6 +634,24 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _save();
   }
 
+  void toggleScrobbleListenBrainz() {
+    state = state.copyWith(scrobbleListenBrainz: !state.scrobbleListenBrainz);
+    _save();
+  }
+
+  void setListenBrainzToken(String? token, {String? username}) {
+    state = state.copyWith(
+      listenBrainzToken: token,
+      listenBrainzUsername: username,
+    );
+    _save();
+  }
+
+  void clearListenBrainz() {
+    state = state.copyWith(clearListenBrainz: true);
+    _save();
+  }
+
   void setAccentMode(AccentMode m) {
     state = state.copyWith(accentMode: m);
     _save();
@@ -587,6 +692,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void toggleDiscordRpc() {
     state = state.copyWith(discordRpc: !state.discordRpc);
+    _save();
+  }
+
+  void toggleMaterialYou() {
+    if (state.uiFramework != UiFramework.material3) return;
+    state = state.copyWith(materialYou: !state.materialYou);
     _save();
   }
 }

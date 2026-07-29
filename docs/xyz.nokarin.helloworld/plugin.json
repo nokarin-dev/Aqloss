@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "nokarin",
   "description": "Basic example plugin: logs every playback event to the Aqloss backend log.",
-  "min_aqloss_version": "0.4.0",
+  "min_aqloss_version": "1.0.0",
   "entry": "main.lua",
   "type": "lua",
   "permissions": [

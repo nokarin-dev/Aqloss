@@ -1,0 +1,123 @@
+import 'dart:convert';
+import 'package:aqloss/app_version.dart';
+import 'package:aqloss/util/logger.dart';
+import 'package:http/http.dart' as http;
+
+const _kApiRoot = 'https://api.listenbrainz.org/1';
+
+class ListenBrainzService {
+  static Future<String?> validateToken(String token) async {
+    final trimmed = token.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      final res = await http
+          .get(
+            Uri.parse('$_kApiRoot/validate-token'),
+            headers: _authHeaders(trimmed),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode != 200) {
+        Logger.errorListenBrainz('validate: HTTP ${res.statusCode}');
+        return null;
+      }
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final user = body['user_name'] as String?;
+      if (user == null || user.isEmpty) return null;
+      return user;
+    } catch (e) {
+      Logger.errorListenBrainz('validate exception: $e');
+      return null;
+    }
+  }
+
+  static Future<void> updateNowPlaying({
+    required String token,
+    required String artist,
+    required String track,
+    String? album,
+    int? durationSecs,
+  }) async {
+    final payload = [
+      {
+        'track_metadata': _trackMetadata(
+          artist: artist,
+          track: track,
+          album: album,
+          durationSecs: durationSecs,
+        ),
+      },
+    ];
+    await _submit(token: token, listenType: 'playing_now', payload: payload);
+  }
+
+  static Future<bool> scrobble({
+    required String token,
+    required String artist,
+    required String track,
+    String? album,
+    required int listenedAt,
+    int? durationSecs,
+  }) async {
+    final payload = [
+      {
+        'listened_at': listenedAt,
+        'track_metadata': _trackMetadata(
+          artist: artist,
+          track: track,
+          album: album,
+          durationSecs: durationSecs,
+        ),
+      },
+    ];
+    return _submit(token: token, listenType: 'single', payload: payload);
+  }
+
+  static Map<String, dynamic> _trackMetadata({
+    required String artist,
+    required String track,
+    String? album,
+    int? durationSecs,
+  }) {
+    return {
+      'artist_name': artist,
+      'track_name': track,
+      if (album != null && album.isNotEmpty) 'release_name': album,
+      'additional_info': {
+        'submission_client': 'Aqloss',
+        'media_player': 'Aqloss',
+        'duration': ?durationSecs,
+      },
+    };
+  }
+
+  static Future<bool> _submit({
+    required String token,
+    required String listenType,
+    required List<Map<String, dynamic>> payload,
+  }) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$_kApiRoot/submit-listens'),
+            headers: {
+              ..._authHeaders(token),
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'listen_type': listenType, 'payload': payload}),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode >= 200 && res.statusCode < 300) return true;
+      Logger.errorListenBrainz('submit $listenType: HTTP ${res.statusCode}');
+      return false;
+    } catch (e) {
+      Logger.errorListenBrainz('submit $listenType exception: $e');
+      return false;
+    }
+  }
+
+  static Map<String, String> _authHeaders(String token) => {
+    'Authorization': 'Token ${token.trim()}',
+    'User-Agent':
+        'Aqloss/$kAppVersion ( https://github.com/nokarin-dev/Aqloss )',
+  };
+}

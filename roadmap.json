@@ -1,8 +1,8 @@
 [
     {
-        "title": "v0.4.0",
+        "title": "v1.0.0",
         "subtitle": "Plugins system, UI Revamp & Integrations.",
-        "status": "in-progress",
+        "status": "done",
         "items": [
             {
                 "title": "Fix Half-Screen Snapping",
@@ -18,7 +18,7 @@
             },
             {
                 "title": "Plugin System Core",
-                "description": "Implement the core plugin registry and context bridge to allow safe communication between Aqloss and third-party plugins.",
+                "description": "Lua and webhook plugins loaded from plugin.json, with permission-gated APIs and playback event dispatch.",
                 "status": "done",
                 "category": "Architecture"
             },
@@ -31,26 +31,56 @@
             {
                 "title": "Non-embedded Album Art Support",
                 "description": "Fallback to fetching local image files (e.g., cover.jpg or folder.jpg) from the music directory when embedded album art is missing.",
-                "status": "in-progress",
+                "status": "done",
                 "category": "Core · Audio"
             },
             {
                 "title": "ListenBrainz Scrobbling",
                 "description": "Add support for scrobbling playback history to ListenBrainz as an alternative or addition to the existing Last.fm integration.",
-                "status": "planned",
+                "status": "done",
                 "category": "Integrations"
             },
             {
                 "title": "Responsive Mobile Album View",
                 "description": "Redesign the album page to adapt gracefully on smaller screens, utilizing a single-column layout instead of a dense grid.",
-                "status": "planned",
+                "status": "done",
                 "category": "Frontend · UI"
             },
             {
-                "title": "Material Design 3 & Material You",
-                "description": "Migrate the app's UI to Material Design 3 and implement dynamic colors based on the user's OS theme for a more modern look.",
-                "status": "planned",
+                "title": "Dual UI Framework",
+                "description": "Switchable Standalone (custom Aqloss UI) and Material Design 3 modes. M3 uses NavigationBar/Rail, ListTile, Card, and optional Material You dynamic colour.",
+                "status": "done",
                 "category": "Frontend · UI"
+            },
+            {
+                "title": "Album Grid/Detail Toggle",
+                "description": "Toggle between grid and detail list views on the album page, persisted in settings.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Sample-Accurate Seeking",
+                "description": "Seek targets are no longer truncated to whole seconds - playback lands exactly where the seek bar says.",
+                "status": "done",
+                "category": "Core · Audio"
+            },
+            {
+                "title": "Audio Pipeline Quality Pass",
+                "description": "256-tap cubic sinc resampler, EQ biquads in double precision with flat-band bypass, equal-power crossfade, and click-free seek/resume.",
+                "status": "done",
+                "category": "Audio · DSP"
+            },
+            {
+                "title": "Material 3 Desktop Polish",
+                "description": "Expanded desktop nav by default, shared M3 page scaffold, interactive queue drawer and mini player, track hover actions, Now Playing wide layout, and tighter Settings sidebar.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Plugin Install/Uninstall Reliability",
+                "description": "Uninstall deletes the real install directory by manifest id; install flattens nested .aqx zips, verifies registry load, and surfaces errors instead of failing silently.",
+                "status": "done",
+                "category": "Frontend · Plugins"
             }
         ]
     },

@@ -8,7 +8,11 @@ import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/ui/m3/widgets/m3_search_field.dart';
+import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/shared/search_box.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 bool get _isDesktop =>
@@ -86,6 +90,53 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
               .where((a) => a.name.toLowerCase().contains(_query.toLowerCase()))
               .toList();
 
+    final body = library.tracks.isEmpty
+        ? _EmptyState()
+        : artists.isEmpty
+        ? Center(
+            child: Text(
+              'No results',
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.24),
+              ),
+            ),
+          )
+        : _isDesktop
+        ? _ArtistGrid(
+            artists: artists,
+            onTap: (a) => Navigator.of(
+              context,
+            ).push(_artistDetailRoute(_ArtistDetailScreen(artist: a))),
+          )
+        : _ArtistList(
+            artists: artists,
+            onTap: (a) => Navigator.of(
+              context,
+            ).push(_artistDetailRoute(_ArtistDetailScreen(artist: a))),
+          );
+
+    if (context.isMaterial3Ui) {
+      return M3PageScaffold(
+        title: 'Artists',
+        subtitle: all.isEmpty
+            ? null
+            : _query.isEmpty
+            ? '${all.length} artists'
+            : '${artists.length} of ${all.length} artists',
+        toolbar: M3SearchField(
+          controller: _searchCtrl,
+          hintText: 'Search artists',
+          onChanged: (q) => setState(() => _query = q),
+          onClear: () {
+            _searchCtrl.clear();
+            setState(() => _query = '');
+          },
+        ),
+        body: body,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -115,33 +166,7 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
             ),
           ),
         const SizedBox(height: 6),
-        Expanded(
-          child: library.tracks.isEmpty
-              ? _EmptyState()
-              : artists.isEmpty
-              ? Center(
-                  child: Text(
-                    'No results',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.24),
-                    ),
-                  ),
-                )
-              : _isDesktop
-              ? _ArtistGrid(
-                  artists: artists,
-                  onTap: (a) => Navigator.of(
-                    context,
-                  ).push(_artistDetailRoute(_ArtistDetailScreen(artist: a))),
-                )
-              : _ArtistList(
-                  artists: artists,
-                  onTap: (a) => Navigator.of(
-                    context,
-                  ).push(_artistDetailRoute(_ArtistDetailScreen(artist: a))),
-                ),
-        ),
+        Expanded(child: body),
       ],
     );
   }
@@ -258,72 +283,28 @@ class _ArtistCardState extends State<_ArtistCard> {
 }
 
 // List row (mobile)
-class _ArtistRow extends StatefulWidget {
+class _ArtistRow extends StatelessWidget {
   final ArtistInfo artist;
   final VoidCallback onTap;
 
   const _ArtistRow({required this.artist, required this.onTap});
 
   @override
-  State<_ArtistRow> createState() => _ArtistRowState();
-}
-
-class _ArtistRowState extends State<_ArtistRow> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          color: _hovered
-              ? cs.onSurface.withValues(alpha: 0.03)
-              : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          child: Row(
-            children: [
-              _ArtistAvatar(artist: widget.artist, size: 44),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.artist.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: cs.onSurface.withValues(alpha: 0.82),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${widget.artist.tracks.length} tracks'
-                      '${widget.artist.albums.isNotEmpty ? ' · ${widget.artist.albums.length} albums' : ''}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.32),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 16,
-                color: cs.onSurface.withValues(alpha: 0.18),
-              ),
-            ],
-          ),
-        ),
+    final subtitle =
+        '${artist.tracks.length} tracks'
+        '${artist.albums.isNotEmpty ? ' · ${artist.albums.length} albums' : ''}';
+
+    return UiListTile(
+      leading: _ArtistAvatar(artist: artist, size: 44),
+      title: artist.name,
+      subtitle: subtitle,
+      onTap: onTap,
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        size: 16,
+        color: cs.onSurface.withValues(alpha: 0.18),
       ),
     );
   }
@@ -463,7 +444,7 @@ class _ArtistDetailScreen extends ConsumerWidget {
       (sum, t) => sum + history.playCount(t.path),
     );
 
-    return Scaffold(
+    return UiPage(
       backgroundColor: cs.surface,
       body: Column(
         children: [

@@ -8,23 +8,44 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
+Major release: plugin system, UI refresh, integrations, and an audio pipeline quality pass.
+
 ### Added
 
-- [Frontend|FileSystem] Support for custom .aqx (Aqloss Extension) archive format with manifest.json validation and extraction.
-- [Frontend|UI] Added dedicated page in Settings to install, enable, disable, and uninstall plugins dynamically.
-- [Backend|Architecture] Added plugins system.
+- [Frontend|FileSystem] `.aqx` plugin packages (`plugin.json` + Lua or webhook)
+- [Frontend|UI] Plugin manager in Settings (install, enable, export, uninstall)
+- [Backend|Architecture] Lua plugin sandbox with permission-gated `aqloss` API
+- [Backend|Library] Album art fallback from folder images (`cover.jpg`, `folder.jpg`, etc.)
+- [Backend|Integrations] ListenBrainz scrobbling (alongside Last.fm)
+- [Frontend|UI] Responsive album page for narrow screens with grid/detail toggle
+- [Frontend|UI] Dual UI framework: Default (custom Aqloss) or Material Design 3 (shared sidebar, M3 components, dynamic colour)
+- [Frontend|UI] Material 3 desktop shell polish — expanded nav by default, page scaffold, richer queue drawer / mini player, track hover actions, Now Playing & Settings layout cleanup
+- [Frontend|UI] Shared UI kit (`UiPage`, `UiListTile`, `UiSurface`, `UiDivider`, `showUiDialog`) for framework-aware screens
+- [Tooling] Centralised app version in `version.yaml` (`dart run tool/sync_version.dart`)
+- [Tooling] CI split into `ci.yml` and `release.yml`; release signing removed
 
 ### Fixed
 
-- [Frontend|UI] Reduced minimum window size constraint from 1280x720 to 800x600, allowing the app to properly scale down when snapped into half-screen layouts on 1080p and lower resolution monitors.
-- [Backend|Audio] 32-bit FLAC no longer fails to load.
-- [Backend|Audio] Playback position now derived from accumulated decoded frame count instead of packet timestamp, fixing drift introduced by the Symphonia 0.6.0 upgrade
+- [Frontend|Plugins] Uninstall now deletes the real install folder (by `plugin.json` id), so removed plugins no longer reappear after restart
+- [Frontend|Plugins] Install flow reports errors (invalid `.aqx`, missing manifest, load failure) instead of failing silently; nested zip roots are flattened on extract
+- [Frontend|UI] Minimum window size reduced to 800×600 for half-screen layouts
+- [Backend|Audio] 32-bit FLAC playback
+- [Backend|Audio] Playback position drift after Symphonia 0.6.0 upgrade
+- [Backend|Audio] Seek only landed on whole seconds; now sample-accurate
+- [Backend|Audio] Audible click on seek and on resume from pause (short gain ramp-in, shared mode only)
+- [Frontend|Player] Loop-one stalled at end of track with the UI stuck on playing
+- [Frontend|Android] Black screen on launch (`desktop_multi_window` guarded to desktop only)
+- [Frontend|Android] Audio freeze when TWS/headset route changes mid-playback
+- [Backend|Plugins] Library scan hooks now fire; Lua dispatch is awaited; position updates throttled
 
 ### Changed
 
-- [Frontend|Settings] Move lastfm to integrations
-- [Backend|Audio] Migrated Symphonia 0.5.5 -> 0.6.0
-- [Backend|Audio] `symphonia-bundle-flac` patched in-tree (`rust/vendor/`, `[patch.crates-io]`) until upstream lands a proper 32-bit LPC fix
+- [Backend|Audio] Resampler upgraded from 64-tap linear sinc to 256-tap cubic (transparent, >140 dB stopband)
+- [Backend|Audio] EQ biquads now run in f64 (DF2T); flat bands are bypassed entirely
+- [Backend|Audio] Crossfade uses an equal-power curve instead of linear (no mid-fade level dip)
+- [Frontend|Settings] Last.fm moved to Integrations
+- [Backend|Audio] Symphonia 0.5.5 → 0.6.0 (with in-tree FLAC patch)
+- [Docs] Plugin author guide rewritten (`docs/plugin.md`)
 
 ---
 
@@ -242,7 +263,7 @@ Initial public
 ---
 
 [Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.2...HEAD
-[0.4.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v0.4.0
+[1.0.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v1.0.0
 [0.3.2]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.3...v0.3.0

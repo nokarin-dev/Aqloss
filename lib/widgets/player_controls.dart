@@ -1,7 +1,10 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
+import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
@@ -18,6 +21,10 @@ class PlayerControls extends ConsumerWidget {
     final position = player.position;
     final cs = Theme.of(context).colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 700;
+    final isM3 = context.isMaterial3Ui;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
 
     final double progress =
         duration.inMilliseconds > 0 && player.currentTrack != null
@@ -28,57 +35,78 @@ class PlayerControls extends ConsumerWidget {
 
     return Column(
       children: [
-        // Seek bar
-        CustomSlider(
-          value: progress,
-          trackHeight: 2.5,
-          thumbRadius: 5,
-          activeColor: ref.accentOrSurface(context),
-          inactiveColor: cs.onSurface.withValues(alpha: 0.10),
-          thumbColor: ref.accentOrSurface(context),
-          onChanged: player.currentTrack == null
-              ? null
-              : (v) {
-                  if (duration.inMilliseconds > 0) {
-                    notifier.seekPreview(duration * v.clamp(0.0, 1.0));
-                  }
-                },
-          onChangeEnd: player.currentTrack == null
-              ? null
-              : (v) {
-                  if (duration.inMilliseconds > 0) {
-                    notifier.seekCommit(duration * v.clamp(0.0, 1.0));
-                  }
-                },
-        ),
-
-        const SizedBox(height: 5),
-
-        // Time labels
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _fmt(position),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: cs.onSurface.withValues(alpha: 0.30),
-                  letterSpacing: 0.3,
-                ),
-              ),
-              Text(
-                _fmt(duration),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: cs.onSurface.withValues(alpha: 0.22),
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
+        if (isM3)
+          M3SeekBar(
+            progress: progress,
+            position: position,
+            duration: duration,
+            enabled: player.currentTrack != null,
+            playing: isPlaying,
+            activeColor: ref.accentOrSurface(context),
+            onChanged: player.currentTrack == null
+                ? null
+                : (v) {
+                    if (duration.inMilliseconds > 0) {
+                      notifier.seekPreview(duration * v.clamp(0.0, 1.0));
+                    }
+                  },
+            onChangeEnd: player.currentTrack == null
+                ? null
+                : (v) {
+                    if (duration.inMilliseconds > 0) {
+                      notifier.seekCommit(duration * v.clamp(0.0, 1.0));
+                    }
+                  },
+          )
+        else ...[
+          CustomSlider(
+            value: progress,
+            trackHeight: 2.5,
+            thumbRadius: 5,
+            activeColor: ref.accentOrSurface(context),
+            inactiveColor: onSurfaceAlpha(0.10),
+            thumbColor: ref.accentOrSurface(context),
+            onChanged: player.currentTrack == null
+                ? null
+                : (v) {
+                    if (duration.inMilliseconds > 0) {
+                      notifier.seekPreview(duration * v.clamp(0.0, 1.0));
+                    }
+                  },
+            onChangeEnd: player.currentTrack == null
+                ? null
+                : (v) {
+                    if (duration.inMilliseconds > 0) {
+                      notifier.seekCommit(duration * v.clamp(0.0, 1.0));
+                    }
+                  },
           ),
-        ),
+          const SizedBox(height: 5),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _fmt(position),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: onSurfaceAlpha(0.30),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                Text(
+                  _fmt(duration),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: onSurfaceAlpha(0.22),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
 
         SizedBox(height: isMobile ? 16 : 20),
 
@@ -92,7 +120,7 @@ class PlayerControls extends ConsumerWidget {
               onTap: notifier.toggleShuffle,
             ),
             const Spacer(),
-            if (isExclusive) _BitPerfectBadge(cs: cs),
+            if (isExclusive) _BitPerfectBadge(onSurface: onSurface),
             const Spacer(),
             _LoopButton(mode: player.loopMode, onTap: notifier.cycleLoopMode),
           ],
@@ -117,7 +145,10 @@ class PlayerControls extends ConsumerWidget {
               isLoading: isLoading,
               hasTrack: player.currentTrack != null,
               isMobile: isMobile,
+              progress: progress,
               cs: cs,
+              aq: aq,
+              isM3: isM3,
               accentColor: ref.watch(accentColorProvider),
               onTap: player.currentTrack == null
                   ? null
@@ -138,28 +169,30 @@ class PlayerControls extends ConsumerWidget {
         SizedBox(height: isMobile ? 18 : 22),
 
         // Volume
+        if (isM3) const UiDivider(margin: EdgeInsets.symmetric(vertical: 8)),
+
         Row(
           children: [
             Icon(
               Icons.volume_mute_rounded,
               size: 14,
-              color: cs.onSurface.withValues(alpha: 0.20),
+              color: onSurfaceAlpha(0.20),
             ),
             Expanded(
               child: CustomSlider(
                 value: player.volume.clamp(0.0, 1.0),
                 trackHeight: 1.5,
                 thumbRadius: 4,
-                activeColor: cs.onSurface.withValues(alpha: 0.38),
-                inactiveColor: cs.onSurface.withValues(alpha: 0.09),
-                thumbColor: cs.onSurface.withValues(alpha: 0.60),
+                activeColor: onSurfaceAlpha(0.38),
+                inactiveColor: onSurfaceAlpha(0.09),
+                thumbColor: onSurfaceAlpha(0.60),
                 onChanged: notifier.setVolume,
               ),
             ),
             Icon(
               Icons.volume_up_rounded,
               size: 14,
-              color: cs.onSurface.withValues(alpha: 0.20),
+              color: onSurfaceAlpha(0.20),
             ),
           ],
         ),
@@ -176,8 +209,10 @@ class PlayerControls extends ConsumerWidget {
 
 // Play button
 class _PlayButton extends StatefulWidget {
-  final bool isPlaying, isLoading, hasTrack, isMobile;
+  final bool isPlaying, isLoading, hasTrack, isMobile, isM3;
+  final double progress;
   final ColorScheme cs;
+  final AqlossTokens aq;
   final Color? accentColor;
   final VoidCallback? onTap;
   const _PlayButton({
@@ -185,7 +220,10 @@ class _PlayButton extends StatefulWidget {
     required this.isLoading,
     required this.hasTrack,
     required this.isMobile,
+    required this.progress,
     required this.cs,
+    required this.aq,
+    required this.isM3,
     this.accentColor,
     this.onTap,
   });
@@ -221,6 +259,73 @@ class _PlayButtonState extends State<_PlayButton>
   @override
   Widget build(BuildContext context) {
     final sz = widget.isMobile ? 54.0 : 58.0;
+    final onSurface = widget.isM3 ? widget.cs.onSurface : widget.aq.onSurface;
+    final surface = widget.isM3 ? widget.cs.surface : widget.aq.surface;
+    final accent = widget.accentColor ?? onSurface;
+    final indicatorTheme = Theme.of(context).progressIndicatorTheme;
+
+    final showInnerSpinner = widget.isLoading && !widget.isM3;
+
+    Widget button = AnimatedContainer(
+      duration: const Duration(milliseconds: 130),
+      width: sz,
+      height: sz,
+      decoration: BoxDecoration(
+        color: !widget.hasTrack
+            ? onSurface.withValues(alpha: 0.07)
+            : _hovered
+            ? accent.withValues(alpha: 0.86)
+            : accent,
+        shape: BoxShape.circle,
+        boxShadow: widget.hasTrack
+            ? [
+                BoxShadow(
+                  color: (widget.accentColor ?? Colors.black).withValues(
+                    alpha: 0.38,
+                  ),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : null,
+      ),
+      child: showInnerSpinner
+          ? Padding(
+              padding: EdgeInsets.all(sz * 0.28),
+              child: CircularProgressIndicator(strokeWidth: 2, color: surface),
+            )
+          : Icon(
+              widget.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: widget.hasTrack
+                  ? surface
+                  : onSurface.withValues(alpha: 0.20),
+              size: widget.isMobile ? 27 : 30,
+            ),
+    );
+
+    if (widget.isM3 && widget.hasTrack) {
+      button = M3PlaybackRing(
+        progress: widget.isLoading ? null : widget.progress,
+        loading: widget.isLoading,
+        size: sz + 12,
+        strokeWidth: 3.5,
+        color: widget.accentColor ?? widget.cs.primary,
+        child: button,
+      );
+    } else if (widget.isM3 && widget.isLoading) {
+      button = SizedBox(
+        width: sz + 8,
+        height: sz + 8,
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          strokeCap: StrokeCap.round,
+          year2023: false,
+          color: indicatorTheme.color ?? widget.cs.primary,
+          backgroundColor: indicatorTheme.circularTrackColor,
+        ),
+      );
+    }
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -232,52 +337,7 @@ class _PlayButtonState extends State<_PlayButton>
           widget.onTap?.call();
         },
         onTapCancel: () => _scaleCtrl.reverse(),
-        child: ScaleTransition(
-          scale: _scaleAnim,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 130),
-            width: sz,
-            height: sz,
-            decoration: BoxDecoration(
-              color: !widget.hasTrack
-                  ? widget.cs.onSurface.withValues(alpha: 0.07)
-                  : _hovered
-                  ? (widget.accentColor ?? widget.cs.onSurface).withValues(
-                      alpha: 0.86,
-                    )
-                  : (widget.accentColor ?? widget.cs.onSurface),
-              shape: BoxShape.circle,
-              boxShadow: widget.hasTrack
-                  ? [
-                      BoxShadow(
-                        color: (widget.accentColor ?? Colors.black).withValues(
-                          alpha: 0.38,
-                        ),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: widget.isLoading
-                ? Padding(
-                    padding: const EdgeInsets.all(17),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: widget.cs.surface,
-                    ),
-                  )
-                : Icon(
-                    widget.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: widget.hasTrack
-                        ? widget.cs.surface
-                        : widget.cs.onSurface.withValues(alpha: 0.20),
-                    size: widget.isMobile ? 27 : 30,
-                  ),
-          ),
-        ),
+        child: ScaleTransition(scale: _scaleAnim, child: button),
       ),
     );
   }
@@ -296,7 +356,11 @@ class _LoopButtonState extends State<_LoopButton> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     final (icon, label, active) = switch (widget.mode) {
       LoopMode.off => (Icons.repeat_rounded, '', false),
       LoopMode.track => (Icons.repeat_one_rounded, 'Track', true),
@@ -314,9 +378,7 @@ class _LoopButtonState extends State<_LoopButton> {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
           decoration: BoxDecoration(
-            color: _hovered
-                ? cs.onSurface.withValues(alpha: 0.05)
-                : Colors.transparent,
+            color: _hovered ? onSurfaceAlpha(0.05) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -325,9 +387,7 @@ class _LoopButtonState extends State<_LoopButton> {
               Icon(
                 icon,
                 size: 18,
-                color: active
-                    ? cs.onSurface
-                    : cs.onSurface.withValues(alpha: 0.20),
+                color: active ? onSurface : onSurfaceAlpha(0.20),
               ),
               if (label.isNotEmpty) ...[
                 const SizedBox(width: 4),
@@ -335,9 +395,7 @@ class _LoopButtonState extends State<_LoopButton> {
                   label,
                   style: TextStyle(
                     fontSize: 10,
-                    color: active
-                        ? cs.onSurface.withValues(alpha: 0.68)
-                        : cs.onSurface.withValues(alpha: 0.20),
+                    color: active ? onSurfaceAlpha(0.68) : onSurfaceAlpha(0.20),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -370,7 +428,11 @@ class _IconToggleState extends State<_IconToggle> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     return Tooltip(
       message: widget.tooltip,
       child: MouseRegion(
@@ -392,9 +454,7 @@ class _IconToggleState extends State<_IconToggle> {
             child: Icon(
               widget.icon,
               size: 18,
-              color: widget.active
-                  ? cs.onSurface
-                  : cs.onSurface.withValues(alpha: 0.20),
+              color: widget.active ? onSurface : onSurfaceAlpha(0.20),
             ),
           ),
         ),
@@ -423,7 +483,11 @@ class _TransportButtonState extends State<_TransportButton> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -435,7 +499,7 @@ class _TransportButtonState extends State<_TransportButton> {
           padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
             color: _hovered && widget.enabled
-                ? cs.onSurface.withValues(alpha: 0.05)
+                ? onSurfaceAlpha(0.05)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
@@ -443,8 +507,8 @@ class _TransportButtonState extends State<_TransportButton> {
             widget.icon,
             size: widget.size,
             color: widget.enabled
-                ? cs.onSurface.withValues(alpha: _hovered ? 0.82 : 0.52)
-                : cs.onSurface.withValues(alpha: 0.10),
+                ? onSurfaceAlpha(_hovered ? 0.82 : 0.52)
+                : onSurfaceAlpha(0.10),
           ),
         ),
       ),
@@ -454,22 +518,22 @@ class _TransportButtonState extends State<_TransportButton> {
 
 // Bit-perfect badge
 class _BitPerfectBadge extends StatelessWidget {
-  final ColorScheme cs;
-  const _BitPerfectBadge({required this.cs});
+  final Color onSurface;
+  const _BitPerfectBadge({required this.onSurface});
   @override
   Widget build(BuildContext context) => Tooltip(
     message: 'WASAPI Exclusive – bit-perfect output',
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        border: Border.all(color: cs.onSurface.withValues(alpha: 0.10)),
+        border: Border.all(color: onSurface.withValues(alpha: 0.10)),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         'BIT-PERFECT',
         style: TextStyle(
           fontSize: 7.5,
-          color: cs.onSurface.withValues(alpha: 0.25),
+          color: onSurface.withValues(alpha: 0.25),
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
         ),

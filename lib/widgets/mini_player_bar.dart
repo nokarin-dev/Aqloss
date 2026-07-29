@@ -1,14 +1,47 @@
 import 'dart:io' show Platform;
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+
+class _BarColors {
+  final Color surface;
+  final Color onSurface;
+  final Color contrast;
+
+  const _BarColors({
+    required this.surface,
+    required this.onSurface,
+    required this.contrast,
+  });
+
+  factory _BarColors.of(BuildContext context) {
+    if (context.isMaterial3Ui) {
+      final cs = Theme.of(context).colorScheme;
+      return _BarColors(
+        surface: cs.surfaceContainerHighest,
+        onSurface: cs.onSurface,
+        contrast: cs.surface,
+      );
+    }
+    final aq = context.aq;
+    return _BarColors(
+      surface: aq.surfaceVariant,
+      onSurface: aq.onSurface,
+      contrast: aq.surface,
+    );
+  }
+
+  Color onSurfaceAlpha(double alpha) => onSurface.withValues(alpha: alpha);
+}
 
 class MiniPlayerBar extends ConsumerStatefulWidget {
   final VoidCallback onTap;
@@ -85,7 +118,7 @@ class _DesktopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
+    final colors = _BarColors.of(context);
     final notifier = ref.read(playerProvider.notifier);
     final track = player.currentTrack!;
     final isPlaying = player.status == PlayerStatus.playing;
@@ -110,7 +143,7 @@ class _DesktopBar extends ConsumerWidget {
       isExclusive: isExclusive,
       duration: duration,
       progress: progress,
-      cs: cs,
+      colors: colors,
       accent: ref.watch(accentColorProvider),
       onTap: onTap,
     );
@@ -119,9 +152,9 @@ class _DesktopBar extends ConsumerWidget {
       return Container(
         margin: const EdgeInsets.fromLTRB(0, 0, 5, 5),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+          border: Border.all(color: colors.onSurfaceAlpha(0.06)),
         ),
         child: content,
       );
@@ -129,10 +162,8 @@ class _DesktopBar extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        border: Border(
-          top: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
-        ),
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.onSurfaceAlpha(0.06))),
       ),
       child: content,
     );
@@ -147,7 +178,7 @@ class _DesktopBarContent extends StatelessWidget {
   final bool isPlaying, isLoading, isExclusive;
   final Duration duration;
   final double progress;
-  final ColorScheme cs;
+  final _BarColors colors;
   final Color? accent;
   final VoidCallback onTap;
 
@@ -161,7 +192,7 @@ class _DesktopBarContent extends StatelessWidget {
     required this.isExclusive,
     required this.duration,
     required this.progress,
-    required this.cs,
+    required this.colors,
     required this.onTap,
     this.accent,
   });
@@ -195,7 +226,7 @@ class _DesktopBarContent extends StatelessWidget {
                       child: _ArtBox(
                         key: ValueKey(track.path),
                         artBytes: artBytes,
-                        cs: cs,
+                        colors: colors,
                         size: 44,
                         radius: 7,
                       ),
@@ -209,7 +240,7 @@ class _DesktopBarContent extends StatelessWidget {
                           Text(
                             track.displayTitle,
                             style: TextStyle(
-                              color: cs.onSurface,
+                              color: colors.onSurface,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
                             ),
@@ -220,7 +251,7 @@ class _DesktopBarContent extends StatelessWidget {
                           Text(
                             track.displayArtist,
                             style: TextStyle(
-                              color: cs.onSurface.withValues(alpha: 0.38),
+                              color: colors.onSurfaceAlpha(0.38),
                               fontSize: 11,
                             ),
                             maxLines: 1,
@@ -231,7 +262,7 @@ class _DesktopBarContent extends StatelessWidget {
                             isExclusive
                                 ? 'BIT-PERFECT'
                                 : '${track.format} · ${_khz(track.sampleRate)}',
-                            cs,
+                            colors,
                           ),
                         ],
                       ),
@@ -268,7 +299,7 @@ class _DesktopBarContent extends StatelessWidget {
                     _MiniPlayBtn(
                       isPlaying: isPlaying,
                       isLoading: isLoading,
-                      cs: cs,
+                      colors: colors,
                       onTap: isPlaying ? notifier.pause : notifier.play,
                     ),
                     const SizedBox(width: 6),
@@ -286,50 +317,70 @@ class _DesktopBarContent extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 5),
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Text(
-                      _fmt(player.position),
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: cs.onSurface.withValues(alpha: 0.38),
-                        letterSpacing: 0.2,
-                      ),
+                if (context.isMaterial3Ui)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: M3MiniPlaybackProgress(
+                      progress: progress,
+                      position: player.position,
+                      duration: duration,
+                      playing: isPlaying,
+                      onChanged: (v) {
+                        if (duration.inMilliseconds > 0) {
+                          notifier.seekPreview(duration * v);
+                        }
+                      },
+                      onChangeEnd: (v) {
+                        if (duration.inMilliseconds > 0) {
+                          notifier.seekCommit(duration * v);
+                        }
+                      },
                     ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: CustomSlider(
-                        value: progress,
-                        trackHeight: 2,
-                        showThumb: false,
-                        activeColor:
-                            accent ?? cs.onSurface.withValues(alpha: 0.45),
-                        inactiveColor: cs.onSurface.withValues(alpha: 0.08),
-                        onChanged: (v) {
-                          if (duration.inMilliseconds > 0) {
-                            notifier.seekPreview(duration * v);
-                          }
-                        },
-                        onChangeEnd: (v) {
-                          if (duration.inMilliseconds > 0) {
-                            notifier.seekCommit(duration * v);
-                          }
-                        },
+                  )
+                else
+                  Row(
+                    children: [
+                      const SizedBox(width: 16),
+                      Text(
+                        _fmt(player.position),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: colors.onSurfaceAlpha(0.38),
+                          letterSpacing: 0.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 7),
-                    Text(
-                      _fmt(duration),
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: cs.onSurface.withValues(alpha: 0.22),
-                        letterSpacing: 0.2,
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: CustomSlider(
+                          value: progress,
+                          trackHeight: 2,
+                          showThumb: false,
+                          activeColor: accent ?? colors.onSurfaceAlpha(0.45),
+                          inactiveColor: colors.onSurfaceAlpha(0.08),
+                          onChanged: (v) {
+                            if (duration.inMilliseconds > 0) {
+                              notifier.seekPreview(duration * v);
+                            }
+                          },
+                          onChangeEnd: (v) {
+                            if (duration.inMilliseconds > 0) {
+                              notifier.seekCommit(duration * v);
+                            }
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                  ],
-                ),
+                      const SizedBox(width: 7),
+                      Text(
+                        _fmt(duration),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: colors.onSurfaceAlpha(0.22),
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -358,7 +409,7 @@ class _DesktopBarContent extends StatelessWidget {
               Icon(
                 Icons.volume_down_rounded,
                 size: 15,
-                color: cs.onSurface.withValues(alpha: 0.20),
+                color: colors.onSurfaceAlpha(0.20),
               ),
               SizedBox(
                 width: 110,
@@ -366,16 +417,16 @@ class _DesktopBarContent extends StatelessWidget {
                   value: player.volume.clamp(0.0, 1.0),
                   trackHeight: 1.5,
                   thumbRadius: 4,
-                  activeColor: cs.onSurface.withValues(alpha: 0.36),
-                  inactiveColor: cs.onSurface.withValues(alpha: 0.08),
-                  thumbColor: cs.onSurface.withValues(alpha: 0.58),
+                  activeColor: colors.onSurfaceAlpha(0.36),
+                  inactiveColor: colors.onSurfaceAlpha(0.08),
+                  thumbColor: colors.onSurfaceAlpha(0.58),
                   onChanged: notifier.setVolume,
                 ),
               ),
               Icon(
                 Icons.volume_up_rounded,
                 size: 15,
-                color: cs.onSurface.withValues(alpha: 0.20),
+                color: colors.onSurfaceAlpha(0.20),
               ),
             ],
           ),
@@ -407,7 +458,7 @@ class _MobileBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
+    final colors = _BarColors.of(context);
     final notifier = ref.read(playerProvider.notifier);
     final track = player.currentTrack!;
     final isPlaying = player.status == PlayerStatus.playing;
@@ -419,43 +470,68 @@ class _MobileBar extends ConsumerWidget {
           )
         : 0.0;
 
+    final isM3 = context.isMaterial3Ui;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          border: Border(
-            top: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
-          ),
+          color: colors.surface,
+          border: Border(top: BorderSide(color: colors.onSurfaceAlpha(0.06))),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Seek bar
-            CustomSlider(
-              value: progress,
-              trackHeight: 1.5,
-              showThumb: false,
-              activeColor:
-                  ref.watch(accentColorProvider) ??
-                  cs.onSurface.withValues(alpha: 0.32),
-              inactiveColor: cs.onSurface.withValues(alpha: 0.07),
-              onChanged: (v) {
-                if (duration.inMilliseconds > 0) {
-                  notifier.seekPreview(duration * v);
-                }
-              },
-              onChangeEnd: (v) {
-                if (duration.inMilliseconds > 0) {
-                  notifier.seekCommit(duration * v);
-                }
-              },
-            ),
+            if (isM3)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                child: M3MiniPlaybackProgress(
+                  progress: progress,
+                  position: player.position,
+                  duration: duration,
+                  playing: isPlaying,
+                  onChanged: (v) {
+                    if (duration.inMilliseconds > 0) {
+                      notifier.seekPreview(duration * v);
+                    }
+                  },
+                  onChangeEnd: (v) {
+                    if (duration.inMilliseconds > 0) {
+                      notifier.seekCommit(duration * v);
+                    }
+                  },
+                ),
+              )
+            else
+              CustomSlider(
+                value: progress,
+                trackHeight: 1.5,
+                showThumb: false,
+                activeColor:
+                    ref.watch(accentColorProvider) ??
+                    colors.onSurfaceAlpha(0.32),
+                inactiveColor: colors.onSurfaceAlpha(0.07),
+                onChanged: (v) {
+                  if (duration.inMilliseconds > 0) {
+                    notifier.seekPreview(duration * v);
+                  }
+                },
+                onChangeEnd: (v) {
+                  if (duration.inMilliseconds > 0) {
+                    notifier.seekCommit(duration * v);
+                  }
+                },
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(13, 6, 8, 8),
               child: Row(
                 children: [
-                  _ArtBox(artBytes: artBytes, cs: cs, size: 36, radius: 6),
+                  _ArtBox(
+                    artBytes: artBytes,
+                    colors: colors,
+                    size: 36,
+                    radius: 6,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -465,7 +541,7 @@ class _MobileBar extends ConsumerWidget {
                         Text(
                           track.displayTitle,
                           style: TextStyle(
-                            color: cs.onSurface,
+                            color: colors.onSurface,
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
                           ),
@@ -475,7 +551,7 @@ class _MobileBar extends ConsumerWidget {
                         Text(
                           track.displayArtist,
                           style: TextStyle(
-                            color: cs.onSurface.withValues(alpha: 0.34),
+                            color: colors.onSurfaceAlpha(0.34),
                             fontSize: 11,
                           ),
                           maxLines: 1,
@@ -493,7 +569,7 @@ class _MobileBar extends ConsumerWidget {
                   _MiniPlayBtn(
                     isPlaying: isPlaying,
                     isLoading: false,
-                    cs: cs,
+                    colors: colors,
                     small: true,
                     onTap: isPlaying ? notifier.pause : notifier.play,
                   ),
@@ -516,12 +592,12 @@ class _MobileBar extends ConsumerWidget {
 // Shared sub widgets
 class _ArtBox extends StatelessWidget {
   final Uint8List? artBytes;
-  final ColorScheme cs;
+  final _BarColors colors;
   final double size, radius;
   const _ArtBox({
     super.key,
     required this.artBytes,
-    required this.cs,
+    required this.colors,
     required this.size,
     required this.radius,
   });
@@ -531,9 +607,9 @@ class _ArtBox extends StatelessWidget {
     width: size,
     height: size,
     decoration: BoxDecoration(
-      color: cs.onSurface.withValues(alpha: 0.05),
+      color: colors.onSurfaceAlpha(0.05),
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+      border: Border.all(color: colors.onSurfaceAlpha(0.06)),
     ),
     clipBehavior: Clip.antiAlias,
     child: artBytes != null
@@ -542,7 +618,7 @@ class _ArtBox extends StatelessWidget {
             child: Icon(
               Icons.music_note_rounded,
               size: size * 0.35,
-              color: cs.onSurface.withValues(alpha: 0.18),
+              color: colors.onSurfaceAlpha(0.18),
             ),
           ),
   );
@@ -550,14 +626,14 @@ class _ArtBox extends StatelessWidget {
 
 class _InlineBadge extends StatelessWidget {
   final String text;
-  final ColorScheme cs;
-  const _InlineBadge(this.text, this.cs);
+  final _BarColors colors;
+  const _InlineBadge(this.text, this.colors);
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
     decoration: BoxDecoration(
-      border: Border.all(color: cs.onSurface.withValues(alpha: 0.09)),
+      border: Border.all(color: colors.onSurfaceAlpha(0.09)),
       borderRadius: BorderRadius.circular(3),
     ),
     child: Text(
@@ -565,7 +641,7 @@ class _InlineBadge extends StatelessWidget {
       style: TextStyle(
         fontSize: 8,
         letterSpacing: 0.3,
-        color: cs.onSurface.withValues(alpha: 0.26),
+        color: colors.onSurfaceAlpha(0.26),
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -574,12 +650,12 @@ class _InlineBadge extends StatelessWidget {
 
 class _MiniPlayBtn extends StatefulWidget {
   final bool isPlaying, isLoading, small;
-  final ColorScheme cs;
+  final _BarColors colors;
   final VoidCallback? onTap;
   const _MiniPlayBtn({
     required this.isPlaying,
     required this.isLoading,
-    required this.cs,
+    required this.colors,
     required this.onTap,
     this.small = false,
   });
@@ -616,6 +692,59 @@ class _MiniPlayBtnState extends State<_MiniPlayBtn>
   @override
   Widget build(BuildContext context) {
     final sz = widget.small ? 32.0 : 36.0;
+    final isM3 = context.isMaterial3Ui;
+
+    Widget core = AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      width: sz,
+      height: sz,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: _hovered
+            ? widget.colors.onSurfaceAlpha(0.88)
+            : widget.colors.onSurface,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.30),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: (!isM3 && widget.isLoading)
+          ? Padding(
+              padding: const EdgeInsets.all(9),
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: widget.colors.contrast,
+              ),
+            )
+          : Icon(
+              widget.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: widget.colors.contrast,
+              size: widget.small ? 20 : 22,
+            ),
+    );
+
+    if (isM3 && widget.isLoading) {
+      final cs = Theme.of(context).colorScheme;
+      core = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: SizedBox(
+          width: sz + 8,
+          height: sz + 8,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            strokeCap: StrokeCap.round,
+            year2023: false,
+            color: cs.primary,
+            backgroundColor: cs.surfaceContainerHighest,
+          ),
+        ),
+      );
+    }
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -627,43 +756,7 @@ class _MiniPlayBtnState extends State<_MiniPlayBtn>
           widget.onTap?.call();
         },
         onTapCancel: () => _pressCtrl.reverse(),
-        child: ScaleTransition(
-          scale: _pressAnim,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: sz,
-            height: sz,
-            margin: const EdgeInsets.symmetric(horizontal: 6),
-            decoration: BoxDecoration(
-              color: _hovered
-                  ? widget.cs.onSurface.withValues(alpha: 0.88)
-                  : widget.cs.onSurface,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.30),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: widget.isLoading
-                ? Padding(
-                    padding: const EdgeInsets.all(9),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: widget.cs.surface,
-                    ),
-                  )
-                : Icon(
-                    widget.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: widget.cs.surface,
-                    size: widget.small ? 20 : 22,
-                  ),
-          ),
-        ),
+        child: ScaleTransition(scale: _pressAnim, child: core),
       ),
     );
   }
@@ -682,7 +775,7 @@ class _DragToQueueTargetState extends ConsumerState<_DragToQueueTarget> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final colors = _BarColors.of(context);
     final notifier = ref.read(playerProvider.notifier);
 
     return DragTarget<List<Track>>(
@@ -709,11 +802,11 @@ class _DragToQueueTargetState extends ConsumerState<_DragToQueueTarget> {
               ? BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: cs.onSurface.withValues(alpha: 0.22),
+                      color: colors.onSurfaceAlpha(0.22),
                       width: 1.5,
                     ),
                   ),
-                  color: cs.onSurface.withValues(alpha: 0.04),
+                  color: colors.onSurfaceAlpha(0.04),
                 )
               : const BoxDecoration(),
           child: Stack(
@@ -733,10 +826,10 @@ class _DragToQueueTargetState extends ConsumerState<_DragToQueueTarget> {
                             vertical: 7,
                           ),
                           decoration: BoxDecoration(
-                            color: cs.surface.withValues(alpha: 0.88),
+                            color: colors.surface.withValues(alpha: 0.88),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: cs.onSurface.withValues(alpha: 0.12),
+                              color: colors.onSurfaceAlpha(0.12),
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -751,14 +844,14 @@ class _DragToQueueTargetState extends ConsumerState<_DragToQueueTarget> {
                               Icon(
                                 Icons.queue_music_rounded,
                                 size: 14,
-                                color: cs.onSurface.withValues(alpha: 0.70),
+                                color: colors.onSurfaceAlpha(0.70),
                               ),
                               const SizedBox(width: 7),
                               Text(
                                 'Add to queue',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: cs.onSurface.withValues(alpha: 0.70),
+                                  color: colors.onSurfaceAlpha(0.70),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -800,7 +893,7 @@ class _MiniBtnState extends State<_MiniBtn> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final colors = _BarColors.of(context);
     final child = MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -812,17 +905,15 @@ class _MiniBtnState extends State<_MiniBtn> {
           duration: const Duration(milliseconds: 110),
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: _hovered
-                ? cs.onSurface.withValues(alpha: 0.06)
-                : Colors.transparent,
+            color: _hovered ? colors.onSurfaceAlpha(0.06) : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             widget.icon,
             size: widget.size,
             color: widget.active
-                ? cs.onSurface
-                : cs.onSurface.withValues(alpha: _hovered ? 0.68 : 0.42),
+                ? colors.onSurface
+                : colors.onSurfaceAlpha(_hovered ? 0.68 : 0.42),
           ),
         ),
       ),
@@ -851,7 +942,7 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final colors = _BarColors.of(context);
     final (icon, label, active) = switch (widget.mode) {
       LoopMode.off => (Icons.repeat_rounded, '', false),
       LoopMode.track => (Icons.repeat_one_rounded, '1', true),
@@ -880,7 +971,7 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: _hovered
-                  ? cs.onSurface.withValues(alpha: 0.06)
+                  ? colors.onSurfaceAlpha(0.06)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
             ),
@@ -891,8 +982,8 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
                   icon,
                   size: 15,
                   color: active
-                      ? cs.onSurface
-                      : cs.onSurface.withValues(alpha: 0.40),
+                      ? colors.onSurface
+                      : colors.onSurfaceAlpha(0.40),
                 ),
                 if (label.isNotEmpty) ...[
                   const SizedBox(width: 2),
@@ -901,8 +992,8 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
                     style: TextStyle(
                       fontSize: 9,
                       color: active
-                          ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.40),
+                          ? colors.onSurface
+                          : colors.onSurfaceAlpha(0.40),
                       fontWeight: FontWeight.w700,
                     ),
                   ),

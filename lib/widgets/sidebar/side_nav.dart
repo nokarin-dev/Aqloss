@@ -1,3 +1,4 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/models/playlist.dart';
@@ -5,12 +6,50 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
+import 'package:aqloss/widgets/q_toast.dart';
 import 'package:aqloss/widgets/queue_panel.dart';
 import 'package:aqloss/services/playlist_io_service.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/widgets/playlist/playlist_art_icon.dart';
 import 'package:aqloss/widgets/shared/input_dialog.dart';
 import 'package:aqloss/widgets/sidebar/playlist_nav_item.dart';
+
+class _NavPalette {
+  final Color surfaceVariant;
+  final Color border;
+  final Color onSurface;
+  final Color onSurfaceMuted;
+  final Color indicator;
+
+  const _NavPalette({
+    required this.surfaceVariant,
+    required this.border,
+    required this.onSurface,
+    required this.onSurfaceMuted,
+    required this.indicator,
+  });
+
+  factory _NavPalette.of(BuildContext context) {
+    if (context.isMaterial3Ui) {
+      final cs = Theme.of(context).colorScheme;
+      return _NavPalette(
+        surfaceVariant: cs.surfaceContainerLow,
+        border: cs.outlineVariant.withValues(alpha: 0.35),
+        onSurface: cs.onSurface,
+        onSurfaceMuted: cs.onSurfaceVariant,
+        indicator: cs.secondaryContainer.withValues(alpha: 0.55),
+      );
+    }
+    final aq = context.aq;
+    return _NavPalette(
+      surfaceVariant: aq.surfaceVariant,
+      border: aq.border,
+      onSurface: aq.onSurface,
+      onSurfaceMuted: aq.onSurfaceMuted,
+      indicator: aq.indicator,
+    );
+  }
+}
 
 class SideNav extends ConsumerStatefulWidget {
   final int route;
@@ -122,6 +161,8 @@ class _SideNavState extends ConsumerState<SideNav>
     final library = ref.watch(libraryProvider);
     final player = ref.watch(playerProvider);
     final appStyle = ref.watch(settingsProvider).appStyle;
+    final isM3 = context.isMaterial3Ui;
+    final useIslands = !isM3 && appStyle == AppStyle.islands;
 
     return AnimatedBuilder(
       animation: _anim,
@@ -133,7 +174,8 @@ class _SideNavState extends ConsumerState<SideNav>
       child: _SideNavBody(
         route: widget.route,
         collapsed: widget.collapsed,
-        isIslands: appStyle == AppStyle.islands,
+        isIslands: useIslands,
+        isM3: isM3,
         playlists: playlists,
         library: library,
         player: player,
@@ -147,8 +189,17 @@ class _SideNavState extends ConsumerState<SideNav>
         onPlayPlaylist: (pl) => ref
             .read(playerProvider.notifier)
             .loadWithQueue(pl.tracks.first, pl.tracks),
-        onAddTracksToPlaylist: (pl, tracks) =>
-            ref.read(playlistProvider.notifier).addTracks(pl.id, tracks),
+        onAddTracksToPlaylist: (pl, tracks) {
+          ref.read(playlistProvider.notifier).addTracks(pl.id, tracks);
+          if (mounted) {
+            QToast.show(
+              context,
+              tracks.length == 1
+                  ? 'Added to "${pl.name}"'
+                  : 'Added ${tracks.length} tracks to "${pl.name}"',
+            );
+          }
+        },
       ),
     );
   }
@@ -159,6 +210,7 @@ class _SideNavBody extends StatelessWidget {
   final int route;
   final bool collapsed;
   final bool isIslands;
+  final bool isM3;
   final List<Playlist> playlists;
   final LibraryState library;
   final PlayerState player;
@@ -175,6 +227,7 @@ class _SideNavBody extends StatelessWidget {
     required this.route,
     required this.collapsed,
     required this.isIslands,
+    required this.isM3,
     required this.playlists,
     required this.library,
     required this.player,
@@ -190,33 +243,35 @@ class _SideNavBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final content = _buildContent(context, cs);
+    final p = _NavPalette.of(context);
+    final content = _buildContent(context, p);
 
     if (isIslands) {
-      return Container(
-        margin: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
-          borderRadius: const BorderRadius.all(Radius.circular(5)),
+      return SizedBox.expand(
+        child: Container(
+          margin: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: p.surfaceVariant,
+            border: Border.all(color: p.border),
+            borderRadius: const BorderRadius.all(Radius.circular(5)),
+          ),
+          child: content,
         ),
-        child: content,
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        border: Border(
-          right: BorderSide(color: cs.onSurface.withValues(alpha: 0.06)),
+    return SizedBox.expand(
+      child: Container(
+        decoration: BoxDecoration(
+          color: p.surfaceVariant,
+          border: Border(right: BorderSide(color: p.border)),
         ),
+        child: content,
       ),
-      child: content,
     );
   }
 
-  Widget _buildContent(BuildContext context, ColorScheme cs) {
+  Widget _buildContent(BuildContext context, _NavPalette p) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -280,7 +335,7 @@ class _SideNavBody extends StatelessWidget {
               '${library.totalTracks} tracks',
               style: TextStyle(
                 fontSize: 9.5,
-                color: cs.onSurface.withValues(alpha: 0.20),
+                color: p.onSurface.withValues(alpha: 0.20),
               ),
             ),
           ),
@@ -325,13 +380,13 @@ class _SideNavBody extends StatelessWidget {
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: cs.onSurface.withValues(alpha: 0.05),
+                      color: p.onSurface.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
                       Icons.add_rounded,
                       size: 13,
-                      color: cs.onSurface.withValues(alpha: 0.30),
+                      color: p.onSurface.withValues(alpha: 0.30),
                     ),
                   ),
                 ),
@@ -362,10 +417,10 @@ class _SideNavBody extends StatelessWidget {
                           ),
                           decoration: isOver
                               ? BoxDecoration(
-                                  color: cs.onSurface.withValues(alpha: 0.06),
+                                  color: p.onSurface.withValues(alpha: 0.06),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: cs.onSurface.withValues(alpha: 0.14),
+                                    color: p.onSurface.withValues(alpha: 0.14),
                                   ),
                                 )
                               : null,
@@ -394,7 +449,7 @@ class _SideNavBody extends StatelessWidget {
 
         Container(
           height: 1,
-          color: cs.onSurface.withValues(alpha: 0.06),
+          color: p.onSurface.withValues(alpha: 0.06),
           margin: const EdgeInsets.symmetric(horizontal: 7),
         ),
         const SizedBox(height: 4),
@@ -431,7 +486,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final p = _NavPalette.of(context);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -452,7 +507,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
             ),
             decoration: BoxDecoration(
               color: _hovered
-                  ? cs.onSurface.withValues(alpha: 0.04)
+                  ? p.onSurface.withValues(alpha: 0.04)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
@@ -465,7 +520,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
                       child: Icon(
                         Icons.chevron_right_rounded,
                         size: 16,
-                        color: cs.onSurface.withValues(alpha: 0.25),
+                        color: p.onSurface.withValues(alpha: 0.25),
                       ),
                     ),
                   )
@@ -478,7 +533,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
                         child: Icon(
                           Icons.chevron_right_rounded,
                           size: 16,
-                          color: cs.onSurface.withValues(alpha: 0.25),
+                          color: p.onSurface.withValues(alpha: 0.25),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -487,7 +542,7 @@ class _CollapseBtnState extends State<_CollapseBtn> {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
-                          color: cs.onSurface.withValues(alpha: 0.18),
+                          color: p.onSurface.withValues(alpha: 0.18),
                           letterSpacing: 3.0,
                         ),
                       ),
@@ -528,7 +583,7 @@ class _NavItemState extends State<_NavItem> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final p = _NavPalette.of(context);
     final item = MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -544,9 +599,9 @@ class _NavItemState extends State<_NavItem> {
           ),
           decoration: BoxDecoration(
             color: widget.isActive
-                ? cs.onSurface.withValues(alpha: 0.08)
+                ? p.onSurface.withValues(alpha: 0.08)
                 : _hovered
-                ? cs.onSurface.withValues(alpha: 0.04)
+                ? p.onSurface.withValues(alpha: 0.04)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
@@ -556,8 +611,8 @@ class _NavItemState extends State<_NavItem> {
                     widget.isActive ? widget.activeIcon : widget.icon,
                     size: 18,
                     color: widget.isActive
-                        ? cs.onSurface
-                        : cs.onSurface.withValues(alpha: 0.32),
+                        ? p.onSurface
+                        : p.onSurface.withValues(alpha: 0.32),
                   ),
                 )
               : Row(
@@ -566,10 +621,10 @@ class _NavItemState extends State<_NavItem> {
                       widget.isActive ? widget.activeIcon : widget.icon,
                       size: 16,
                       color: widget.isActive
-                          ? cs.onSurface
+                          ? p.onSurface
                           : widget.onTap == null
-                          ? cs.onSurface.withValues(alpha: 0.18)
-                          : cs.onSurface.withValues(alpha: 0.45),
+                          ? p.onSurface.withValues(alpha: 0.18)
+                          : p.onSurface.withValues(alpha: 0.45),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -578,10 +633,10 @@ class _NavItemState extends State<_NavItem> {
                         style: TextStyle(
                           fontSize: 12.5,
                           color: widget.isActive
-                              ? cs.onSurface
+                              ? p.onSurface
                               : widget.onTap == null
-                              ? cs.onSurface.withValues(alpha: 0.18)
-                              : cs.onSurface.withValues(alpha: 0.55),
+                              ? p.onSurface.withValues(alpha: 0.18)
+                              : p.onSurface.withValues(alpha: 0.55),
                           fontWeight: widget.isActive
                               ? FontWeight.w500
                               : FontWeight.w400,
@@ -629,7 +684,7 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final p = _NavPalette.of(context);
     return Tooltip(
       message: '${widget.playlist.name} · ${widget.playlist.length} tracks',
       preferBelow: false,
@@ -645,9 +700,9 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
             height: 38,
             decoration: BoxDecoration(
               color: widget.isActive
-                  ? cs.onSurface.withValues(alpha: 0.09)
+                  ? p.onSurface.withValues(alpha: 0.09)
                   : _hovered
-                  ? cs.onSurface.withValues(alpha: 0.04)
+                  ? p.onSurface.withValues(alpha: 0.04)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
@@ -677,7 +732,10 @@ class _NowPlayingDot extends StatelessWidget {
       decoration: BoxDecoration(
         color: status == PlayerStatus.playing
             ? const Color(0xFF4ADE80).withValues(alpha: 0.85)
-            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.20),
+            : Theme.of(context).extension<AqlossTokens>()?.onSurface.withValues(
+                    alpha: 0.20,
+                  ) ??
+                  AqlossTokens.dark.onSurface.withValues(alpha: 0.20),
         shape: BoxShape.circle,
       ),
     );
@@ -690,7 +748,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final p = _NavPalette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 14, 4),
       child: Text(
@@ -698,7 +756,7 @@ class _SectionLabel extends StatelessWidget {
         style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.w700,
-          color: cs.onSurface.withValues(alpha: 0.18),
+          color: p.onSurface.withValues(alpha: 0.18),
           letterSpacing: 1.6,
         ),
       ),
@@ -718,7 +776,7 @@ class _IconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final p = _NavPalette.of(context);
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -729,13 +787,13 @@ class _IconBtn extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.05),
+              color: p.onSurface.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
               icon,
               size: 13,
-              color: cs.onSurface.withValues(alpha: 0.32),
+              color: p.onSurface.withValues(alpha: 0.32),
             ),
           ),
         ),
@@ -752,7 +810,7 @@ class _QueueToggleItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final open = ref.watch(queuePanelOpenProvider);
-    final cs = Theme.of(context).colorScheme;
+    final p = _NavPalette.of(context);
 
     return _NavItem(
       icon: Icons.queue_music_outlined,
@@ -766,7 +824,7 @@ class _QueueToggleItem extends ConsumerWidget {
               height: 6,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: cs.onSurface.withValues(alpha: 0.50),
+                color: p.onSurface.withValues(alpha: 0.50),
               ),
             )
           : null,

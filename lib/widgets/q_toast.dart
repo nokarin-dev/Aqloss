@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 
 class QToast {
@@ -50,7 +51,7 @@ class _QToastWidgetState extends State<_QToastWidget>
     );
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _slide = Tween(
-      begin: const Offset(0, 0.3),
+      begin: const Offset(0, 1.8),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _ctrl.forward();
@@ -64,20 +65,27 @@ class _QToastWidgetState extends State<_QToastWidget>
 
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final bg = isM3 ? cs.inverseSurface : aq.onSurface.withValues(alpha: 0.88);
+    final fg = isM3 ? cs.onInverseSurface : aq.surface;
+
     return Positioned(
-      bottom: 28,
-      left: 0,
-      right: 0,
-      child: Center(
+      bottom: 24,
+      left: 16,
+      right: 16,
+      child: Align(
+        alignment: Alignment.bottomCenter,
         child: FadeTransition(
           opacity: _opacity,
           child: SlideTransition(
             position: _slide,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              constraints: const BoxConstraints(maxWidth: 420),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: cs.onSurface.withValues(alpha: 0.88),
+                color: bg,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
@@ -91,7 +99,7 @@ class _QToastWidgetState extends State<_QToastWidget>
                 widget.message,
                 style: TextStyle(
                   fontSize: 12,
-                  color: cs.surface,
+                  color: fg,
                   fontWeight: FontWeight.w500,
                 ),
               ),

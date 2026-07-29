@@ -12,10 +12,6 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'plugins/plugin_registry.dart';
-import 'plugins/plugin_toast_service.dart';
-import 'providers/history_provider.dart';
-import 'providers/library_provider.dart';
-import 'providers/player_provider.dart';
 import 'providers/plugin_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/audio_service.dart';
@@ -27,38 +23,38 @@ final _container = ProviderContainer();
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (!Platform.isAndroid && !Platform.isIOS) {
+  final isDesktop = !Platform.isAndroid && !Platform.isIOS;
+
+  if (isDesktop) {
     await windowManager.ensureInitialized();
+
+    final windowController = await WindowController.fromCurrentEngine();
+    if (windowController.arguments == 'mini_player') {
+      runApp(const ProviderScope(child: MiniPlayerStandalone()));
+      return;
+    }
+
+    if (Platform.isWindows) {
+      await MediaControlPlatform.initialize();
+    }
+
+    await windowManager.waitUntilReadyToShow(
+      WindowOptions(
+        size: const Size(1280, 720),
+        minimumSize: const Size(800, 600),
+        center: true,
+        titleBarStyle: TitleBarStyle.hidden,
+        windowButtonVisibility: Platform.isMacOS ? false : null,
+        skipTaskbar: false,
+        title: 'Aqloss',
+        backgroundColor: Platform.isLinux ? Colors.transparent : null,
+      ),
+      () async {
+        await windowManager.show();
+        await windowManager.focus();
+      },
+    );
   }
-
-  final windowController = await WindowController.fromCurrentEngine();
-  final argument = windowController.arguments;
-
-  if (argument == 'mini_player') {
-    runApp(const ProviderScope(child: MiniPlayerStandalone()));
-    return;
-  }
-
-  if (Platform.isWindows) {
-    await MediaControlPlatform.initialize();
-  }
-
-  await windowManager.waitUntilReadyToShow(
-    WindowOptions(
-      size: const Size(1280, 720),
-      minimumSize: const Size(800, 600),
-      center: true,
-      titleBarStyle: TitleBarStyle.hidden,
-      windowButtonVisibility: Platform.isMacOS ? false : null,
-      skipTaskbar: false,
-      title: 'Aqloss',
-      backgroundColor: Platform.isLinux ? Colors.transparent : null,
-    ),
-    () async {
-      await windowManager.show();
-      await windowManager.focus();
-    },
-  );
 
   await AqlossCore.init();
   await Logger.init();
@@ -83,20 +79,8 @@ void main(List<String> args) async {
       );
       DiscordService.enabled = settings.discordRpc;
 
-      // Wire plugin registry to live provider state
-      final bridge = AppContextBridge(
-        getCurrentTrack: () => _container.read(playerProvider).currentTrack,
-        getPosition: () => _container.read(playerProvider).position,
-        getQueue: () => _container.read(playerProvider).queue,
-        addToQueue: (t) =>
-            _container.read(playerProvider.notifier).addToQueueLast(t),
-        getAllTracks: () => _container.read(libraryProvider).tracks,
-        getLovedPaths: () => _container.read(historyProvider).lovedPaths,
-        getPlayCount: (path) =>
-            _container.read(historyProvider).playCount(path),
-        showToast: (msg) => PluginToastService.instance.show(msg),
-      );
-      await PluginRegistry.instance.init(bridge);
+      // Wire plugin registry
+      await PluginRegistry.instance.init();
       _container.read(pluginProvider.notifier).refresh();
       FileOpenService.instance.init();
     } catch (e, st) {

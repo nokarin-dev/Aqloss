@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -143,7 +144,9 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
 
     final barColor =
         widget.color ??
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.70);
+        (context.isMaterial3Ui
+            ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.70)
+            : context.aq.onSurface.withValues(alpha: 0.70));
 
     return SizedBox(
       height: widget.height,

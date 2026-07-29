@@ -1,10 +1,12 @@
 import 'dart:io' show File, Platform;
 
 import 'package:aqloss/plugins/plugin_io_service.dart';
+import 'package:aqloss/providers/plugin_provider.dart';
 import 'package:aqloss/services/playlist_io_service.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // File open service
 typedef _FileOpenCallback =
@@ -87,8 +89,15 @@ class FileOpenService {
     try {
       final bytes = await File(path).readAsBytes();
       final result = await PluginIOService.importFromBytes(bytes);
-      if (context.mounted && !result.cancelled) {
-        _showToast(context, result.userMessage);
+      if (context.mounted) {
+        if (result.success) {
+          ProviderScope.containerOf(
+            context,
+          ).read(pluginProvider.notifier).refresh();
+        }
+        if (!result.cancelled) {
+          _showToast(context, result.userMessage);
+        }
       }
     } catch (e) {
       Logger.errorPlayerProvider('[file_open] plugin import failed: $e');

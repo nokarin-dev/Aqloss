@@ -3,6 +3,8 @@ import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
@@ -196,7 +198,8 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final isM3 = context.isMaterial3Ui;
+    final aq = context.aq;
     final results = _buildResults();
 
     return KeyboardListener(
@@ -216,90 +219,51 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
           child: Center(
             child: GestureDetector(
               onTap: () {},
-              child: Container(
-                width: 560,
-                constraints: const BoxConstraints(maxHeight: 520),
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: cs.onSurface.withValues(alpha: 0.08),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.28),
-                      blurRadius: 40,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Input
-                      _SearchInput(
-                        ctrl: _ctrl,
-                        focusNode: _focus,
-                        onChanged: (v) => setState(() => _query = v),
-                        onClose: widget.onClose,
-                      ),
-
-                      // Results
-                      if (results.isNotEmpty)
-                        Flexible(
-                          child: ListView.builder(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            shrinkWrap: true,
-                            itemCount: results.length,
-                            itemBuilder: (context, i) {
-                              final r = results[i];
-                              final prevType = i > 0
-                                  ? results[i - 1].runtimeType
-                                  : null;
-                              final header = r.runtimeType != prevType
-                                  ? _SectionHeader(_typeLabel(r))
-                                  : null;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ?header,
-                                  _ResultTile(
-                                    result: r,
-                                    onClose: widget.onClose,
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        )
-                      else if (_query.trim().isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.search_off_rounded,
-                                size: 14,
-                                color: cs.onSurface.withValues(alpha: 0.22),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'No results for "$_query"',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: cs.onSurface.withValues(alpha: 0.32),
-                                ),
-                              ),
-                            ],
-                          ),
+              child: isM3
+                  ? SizedBox(
+                      width: 560,
+                      child: UiSurface(
+                        borderRadius: BorderRadius.circular(14),
+                        child: _SearchModalBody(
+                          query: _query,
+                          results: results,
+                          ctrl: _ctrl,
+                          focusNode: _focus,
+                          onChanged: (v) => setState(() => _query = v),
+                          onClose: widget.onClose,
+                          typeLabel: _typeLabel,
                         ),
-                    ],
-                  ),
-                ),
-              ),
+                      ),
+                    )
+                  : Container(
+                      width: 560,
+                      constraints: const BoxConstraints(maxHeight: 520),
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      decoration: BoxDecoration(
+                        color: aq.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: aq.border),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            blurRadius: 40,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: _SearchModalBody(
+                          query: _query,
+                          results: results,
+                          ctrl: _ctrl,
+                          focusNode: _focus,
+                          onChanged: (v) => setState(() => _query = v),
+                          onClose: widget.onClose,
+                          typeLabel: _typeLabel,
+                        ),
+                      ),
+                    ),
             ),
           ),
         ),
@@ -315,7 +279,93 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
   };
 }
 
-// Search input bar
+class _SearchModalBody extends StatelessWidget {
+  final String query;
+  final List<SearchResult> results;
+  final TextEditingController ctrl;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClose;
+  final String Function(SearchResult) typeLabel;
+
+  const _SearchModalBody({
+    required this.query,
+    required this.results,
+    required this.ctrl,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onClose,
+    required this.typeLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
+    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 520),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SearchInput(
+            ctrl: ctrl,
+            focusNode: focusNode,
+            onChanged: onChanged,
+            onClose: onClose,
+          ),
+          if (results.isNotEmpty)
+            Flexible(
+              child: ListView.builder(
+                padding: const EdgeInsets.only(bottom: 8),
+                shrinkWrap: true,
+                itemCount: results.length,
+                itemBuilder: (context, i) {
+                  final r = results[i];
+                  final prevType = i > 0 ? results[i - 1].runtimeType : null;
+                  final header = r.runtimeType != prevType
+                      ? _SectionHeader(typeLabel(r))
+                      : null;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ?header,
+                      _ResultTile(result: r, onClose: onClose),
+                    ],
+                  );
+                },
+              ),
+            )
+          else if (query.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 14,
+                    color: onSurfaceAlpha(0.22),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'No results for "$query"',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: onSurfaceAlpha(0.32),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SearchInput extends StatelessWidget {
   final TextEditingController ctrl;
   final FocusNode focusNode;
@@ -331,21 +381,21 @@ class _SearchInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: cs.onSurface.withValues(alpha: 0.07)),
-        ),
+        border: isM3
+            ? null
+            : Border(bottom: BorderSide(color: onSurfaceAlpha(0.07))),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.search_rounded,
-            size: 18,
-            color: cs.onSurface.withValues(alpha: 0.36),
-          ),
+          Icon(Icons.search_rounded, size: 18, color: onSurfaceAlpha(0.36)),
           const SizedBox(width: 10),
           Expanded(
             child: EditableText(
@@ -354,49 +404,51 @@ class _SearchInput extends StatelessWidget {
               onChanged: onChanged,
               style: TextStyle(
                 fontSize: 15,
-                color: cs.onSurface,
+                color: onSurface,
                 fontWeight: FontWeight.w300,
               ),
-              cursorColor: cs.onSurface.withValues(alpha: 0.70),
+              cursorColor: onSurfaceAlpha(0.70),
               backgroundCursorColor: Colors.transparent,
               cursorWidth: 1.4,
               cursorRadius: const Radius.circular(1),
-              selectionColor: cs.onSurface.withValues(alpha: 0.14),
+              selectionColor: onSurfaceAlpha(0.14),
             ),
           ),
           const SizedBox(width: 8),
-          _kbdHint('Esc', cs),
+          _kbdHint('Esc', onSurface),
         ],
       ),
     );
   }
 }
 
-Widget _kbdHint(String label, ColorScheme cs) => Container(
+Widget _kbdHint(String label, Color onSurface) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
   decoration: BoxDecoration(
-    color: cs.onSurface.withValues(alpha: 0.05),
+    color: onSurface.withValues(alpha: 0.05),
     borderRadius: BorderRadius.circular(4),
-    border: Border.all(color: cs.onSurface.withValues(alpha: 0.09)),
+    border: Border.all(color: onSurface.withValues(alpha: 0.09)),
   ),
   child: Text(
     label,
     style: TextStyle(
       fontSize: 10,
       fontWeight: FontWeight.w600,
-      color: cs.onSurface.withValues(alpha: 0.36),
+      color: onSurface.withValues(alpha: 0.36),
     ),
   ),
 );
 
-// Section label
 class _SectionHeader extends StatelessWidget {
   final String label;
   const _SectionHeader(this.label);
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (context.isMaterial3Ui) {
+      return UiSectionHeader(title: label);
+    }
+    final aq = context.aq;
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
       child: Text(
@@ -405,14 +457,13 @@ class _SectionHeader extends StatelessWidget {
           fontSize: 9,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.4,
-          color: cs.onSurface.withValues(alpha: 0.22),
+          color: aq.onSurface.withValues(alpha: 0.22),
         ),
       ),
     );
   }
 }
 
-// Result tiles
 class _ResultTile extends ConsumerWidget {
   final SearchResult result;
   final VoidCallback onClose;
