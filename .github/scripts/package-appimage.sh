@@ -3,16 +3,32 @@ set -euo pipefail
 
 OUTPUT="${1:-Aqloss-linux.AppImage}"
 BUNDLE="${BUNDLE:-build/linux/x64/release/bundle}"
+
+if [ ! -d "${BUNDLE}" ]; then
+  echo "Flutter Linux bundle not found: ${BUNDLE}" >&2
+  exit 1
+fi
+
+# Pin appimagetool (not continuous) for reproducible CI.
 APPIMAGETOOL_VERSION="${APPIMAGETOOL_VERSION:-1.9.1}"
 APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+
+if ! command -v wget >/dev/null 2>&1; then
+  echo "wget is required to download appimagetool" >&2
+  exit 1
+fi
 
 wget -q "${APPIMAGETOOL_URL}" -O /tmp/appimagetool.AppImage
 chmod +x /tmp/appimagetool.AppImage
 (
   cd /tmp
-  ./appimagetool.AppImage --appimage-extract >/dev/null 2>&1
+  ./appimagetool.AppImage --appimage-extract >/dev/null
 )
 APPIMAGETOOL="/tmp/squashfs-root/AppRun"
+if [ ! -x "${APPIMAGETOOL}" ]; then
+  echo "Failed to extract appimagetool from ${APPIMAGETOOL_URL}" >&2
+  exit 1
+fi
 
 mkdir -p AppDir/app AppDir/usr/share/icons/hicolor/256x256/apps \
   AppDir/usr/share/mime/packages

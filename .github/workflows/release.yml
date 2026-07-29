@@ -42,6 +42,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux
+          if-no-files-found: error
           path: |
             Aqloss-linux-installer.deb
             Aqloss-linux.AppImage
@@ -56,20 +57,24 @@ jobs:
     env:
       GIT_CONFIG_GLOBAL: /root/.gitconfig-ci
     steps:
+      - name: Install git
+        run: dnf install -y git
       - uses: actions/checkout@v4
-      - run: git config --global --add safe.directory '*'
+      - name: Configure Git safe directory
+        run: bash .github/scripts/git-safe-directory.sh
       - uses: ./.github/actions/read-version
         id: version
-      - run: |
-          dnf install -y @development-tools clang cmake ninja-build pkg-config \
-            gtk3-devel xz-devel libstdc++-devel alsa-lib-devel pulseaudio-libs-devel \
-            rpm-build desktop-file-utils hicolor-icon-theme which curl unzip git
+      - name: Install build dependencies
+        run: bash .github/scripts/fedora-rpm-deps.sh
       - uses: ./.github/actions/setup-aqloss
+        with:
+          install-linux-deps: "false"
       - run: flutter build linux --release
       - run: bash .github/scripts/package-rpm.sh "${{ steps.version.outputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
           name: linux-rpm
+          if-no-files-found: error
           path: Aqloss-linux-installer.rpm
 
   build-windows:
@@ -83,10 +88,14 @@ jobs:
       - uses: ./.github/actions/setup-aqloss
       - run: flutter build windows --release
       - shell: pwsh
-        run: .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "Inno Setup 6 not found at $iscc" }
+          .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
+          if-no-files-found: error
           path: |
             Aqloss-windows-installer.exe
             Aqloss-windows-portable.zip
@@ -109,12 +118,21 @@ jobs:
       - name: Build APKs (debug certificate, not Play Store-signed)
         run: flutter build apk --release --split-per-abi
       - run: |
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk   Aqloss-android-arm64.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Aqloss-android-arm32.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk      Aqloss-android-x86_64.apk
+          set -euo pipefail
+          for src_dst in \
+            "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk:Aqloss-android-arm64.apk" \
+            "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk:Aqloss-android-arm32.apk" \
+            "build/app/outputs/flutter-apk/app-x86_64-release.apk:Aqloss-android-x86_64.apk"
+          do
+            src="${src_dst%%:*}"
+            dst="${src_dst##*:}"
+            [ -f "$src" ] || { echo "Missing APK: $src"; ls -la build/app/outputs/flutter-apk || true; exit 1; }
+            cp "$src" "$dst"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: android
+          if-no-files-found: error
           path: |
             Aqloss-android-arm64.apk
             Aqloss-android-arm32.apk
@@ -147,6 +165,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos
+          if-no-files-found: error
           path: |
             Aqloss-macos.dmg
             Aqloss-macos-portable.zip
@@ -179,6 +198,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ios
+          if-no-files-found: error
           path: Aqloss-ios.ipa
 
   release:
@@ -204,6 +224,37 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      - name: Verify release artifacts
+        run: |
+          set -euo pipefail
+          required=(
+            dist/Aqloss-windows-installer.exe
+            dist/Aqloss-windows-portable.zip
+            dist/Aqloss-linux-installer.deb
+            dist/Aqloss-linux-installer.rpm
+            dist/Aqloss-linux.AppImage
+            dist/Aqloss-linux-portable.tar.gz
+            dist/Aqloss-android-arm64.apk
+            dist/Aqloss-android-arm32.apk
+            dist/Aqloss-android-x86_64.apk
+            dist/Aqloss-macos.dmg
+            dist/Aqloss-macos-portable.zip
+            dist/Aqloss-ios.ipa
+          )
+          missing=0
+          for f in "${required[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "Missing artifact: $f"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "--- dist tree ---"
+            find dist -type f | sort || true
+            exit 1
+          fi
+          echo "All release artifacts present."
 
       - name: Generate changelog
         run: |

@@ -67,6 +67,7 @@ jobs:
         with:
           name: linux
           retention-days: 7
+          if-no-files-found: error
           path: |
             Aqloss-linux-installer.deb
             Aqloss-linux.AppImage
@@ -81,21 +82,20 @@ jobs:
     env:
       GIT_CONFIG_GLOBAL: /root/.gitconfig-ci
     steps:
+      # Bare fedora images have no git; checkout/config need it first.
+      - name: Install git
+        run: dnf install -y git
+
       - uses: actions/checkout@v4
 
       - name: Configure Git safe directory
-        run: git config --global --add safe.directory '*'
+        run: bash .github/scripts/git-safe-directory.sh
 
       - uses: ./.github/actions/read-version
         id: version
 
       - name: Install build dependencies
-        run: |
-          dnf install -y @development-tools \
-            clang cmake ninja-build pkg-config \
-            gtk3-devel xz-devel libstdc++-devel \
-            alsa-lib-devel pulseaudio-libs-devel \
-            rpm-build desktop-file-utils hicolor-icon-theme which curl unzip git
+        run: bash .github/scripts/fedora-rpm-deps.sh
 
       - uses: ./.github/actions/setup-aqloss
         with:
@@ -111,6 +111,7 @@ jobs:
         with:
           name: linux-rpm
           retention-days: 7
+          if-no-files-found: error
           path: Aqloss-linux-installer.rpm
 
   build-windows:
@@ -131,12 +132,17 @@ jobs:
       - name: Package installer and portable
         shell: pwsh
         run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            throw "Inno Setup 6 not found at $iscc"
+          }
           .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           retention-days: 7
+          if-no-files-found: error
           path: |
             Aqloss-windows-installer.exe
             Aqloss-windows-portable.zip
@@ -162,14 +168,23 @@ jobs:
 
       - name: Rename APK artifacts
         run: |
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk   Aqloss-android-arm64.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Aqloss-android-arm32.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk      Aqloss-android-x86_64.apk
+          set -euo pipefail
+          for src_dst in \
+            "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk:Aqloss-android-arm64.apk" \
+            "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk:Aqloss-android-arm32.apk" \
+            "build/app/outputs/flutter-apk/app-x86_64-release.apk:Aqloss-android-x86_64.apk"
+          do
+            src="${src_dst%%:*}"
+            dst="${src_dst##*:}"
+            [ -f "$src" ] || { echo "Missing APK: $src"; ls -la build/app/outputs/flutter-apk || true; exit 1; }
+            cp "$src" "$dst"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
           name: android
           retention-days: 7
+          if-no-files-found: error
           path: |
             Aqloss-android-arm64.apk
             Aqloss-android-arm32.apk
@@ -210,6 +225,7 @@ jobs:
         with:
           name: macos
           retention-days: 7
+          if-no-files-found: error
           path: |
             Aqloss-macos.dmg
             Aqloss-macos-portable.zip
@@ -253,6 +269,7 @@ jobs:
         with:
           name: ios
           retention-days: 7
+          if-no-files-found: error
           path: Aqloss-ios.ipa
 
   ci-ok:
@@ -272,16 +289,18 @@ jobs:
       - name: Check required jobs
         run: |
           check() {
-            if [ "$1" != "success" ] && [ "$1" != "skipped" ]; then
-              echo "Job failed with result: $1"
+            local name="$1"
+            local result="$2"
+            if [ "$result" != "success" ]; then
+              echo "Required job '$name' did not succeed (result=$result)"
               exit 1
             fi
           }
-          check "${{ needs.quality.result }}"
-          check "${{ needs.rust.result }}"
-          check "${{ needs.build-linux.result }}"
-          check "${{ needs.build-linux-rpm.result }}"
-          check "${{ needs.build-windows.result }}"
-          check "${{ needs.build-android.result }}"
-          check "${{ needs.build-macos.result }}"
-          check "${{ needs.build-ios.result }}"
+          check quality "${{ needs.quality.result }}"
+          check rust "${{ needs.rust.result }}"
+          check build-linux "${{ needs.build-linux.result }}"
+          check build-linux-rpm "${{ needs.build-linux-rpm.result }}"
+          check build-windows "${{ needs.build-windows.result }}"
+          check build-android "${{ needs.build-android.result }}"
+          check build-macos "${{ needs.build-macos.result }}"
+          check build-ios "${{ needs.build-ios.result }}"

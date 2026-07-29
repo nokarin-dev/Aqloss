@@ -6,6 +6,11 @@ OUTPUT="${2:-Aqloss-linux-installer.deb}"
 BUNDLE="${BUNDLE:-build/linux/x64/release/bundle}"
 PKG="aqloss_${VERSION}_amd64"
 
+if [ ! -d "${BUNDLE}" ]; then
+  echo "Flutter Linux bundle not found: ${BUNDLE}" >&2
+  exit 1
+fi
+
 mkdir -p "${PKG}/DEBIAN" "${PKG}/opt/aqloss" "${PKG}/usr/bin" \
   "${PKG}/usr/share/applications" \
   "${PKG}/usr/share/icons/hicolor/256x256/apps" \
@@ -14,6 +19,11 @@ mkdir -p "${PKG}/DEBIAN" "${PKG}/opt/aqloss" "${PKG}/usr/bin" \
 cp -r "${BUNDLE}/." "${PKG}/opt/aqloss/"
 
 EXE="$(find "${PKG}/opt/aqloss" -maxdepth 1 -type f ! -name '*.so' ! -name '*.desktop' | head -1)"
+if [ -z "${EXE}" ]; then
+  echo "No executable found in ${PKG}/opt/aqloss" >&2
+  ls -la "${PKG}/opt/aqloss" >&2 || true
+  exit 1
+fi
 EXE_NAME="$(basename "${EXE}")"
 [ "${EXE_NAME}" != "aqloss" ] && mv "${EXE}" "${PKG}/opt/aqloss/aqloss"
 

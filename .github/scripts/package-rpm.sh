@@ -6,6 +6,11 @@ OUTPUT="${2:-Aqloss-linux-installer.rpm}"
 BUNDLE_DIR="${BUNDLE:-build/linux/x64/release/bundle}"
 RPMROOT="${RPMROOT:-$PWD/rpmbuild}"
 
+if [ ! -d "${BUNDLE_DIR}" ]; then
+  echo "Flutter Linux bundle not found: ${BUNDLE_DIR}" >&2
+  exit 1
+fi
+
 mkdir -p "${RPMROOT}"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 echo "${BUNDLE_DIR}" > "${RPMROOT}/SOURCES/bundle_path.txt"
 

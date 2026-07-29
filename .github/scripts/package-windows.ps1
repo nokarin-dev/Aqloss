@@ -49,8 +49,12 @@ Filename: "{app}\aqloss.exe"; Description: "{cm:LaunchProgram,Aqloss}"; Flags: n
 }
 
 if (-not $PortableOnly) {
+  $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+  if (-not (Test-Path $iscc)) {
+    throw "Inno Setup 6 not found at $iscc"
+  }
   New-InnoScript -AppVersion $Version
-  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+  & $iscc "installer.iss"
   if (-not (Test-Path $InstallerOutput)) {
     throw "Installer not produced: $InstallerOutput"
   }
@@ -58,7 +62,14 @@ if (-not $PortableOnly) {
 }
 
 if (-not $InstallerOnly) {
+  $releaseDir = "build\windows\x64\runner\Release"
+  if (-not (Test-Path $releaseDir)) {
+    throw "Windows release directory not found: $releaseDir"
+  }
   if (Test-Path $PortableOutput) { Remove-Item $PortableOutput -Force }
-  Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath $PortableOutput
+  Compress-Archive -Path "$releaseDir\*" -DestinationPath $PortableOutput
+  if (-not (Test-Path $PortableOutput)) {
+    throw "Portable zip not produced: $PortableOutput"
+  }
   Write-Host "Built $PortableOutput"
 }
