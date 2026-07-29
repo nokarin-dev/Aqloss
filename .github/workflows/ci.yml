@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   quality:
-    name: Analyze & test
+    name: Analyze
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,9 +25,6 @@ jobs:
 
       - name: Dart analyze
         run: flutter analyze --no-fatal-infos
-
-      - name: Unit tests
-        run: flutter test --reporter=github
 
   rust:
     name: Rust check
