@@ -71,7 +71,7 @@ function Ensure-7ZipTools {
 
     if (Test-Path $sdkDir) { Remove-Item $sdkDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $sdkDir | Out-Null
-    & $sevenZr x $archive "-o$sdkDir" -y
+    & $sevenZr x $archive "-o$sdkDir" -y *> $null
     if ($LASTEXITCODE -ne 0) {
       throw "Failed to extract SFX source archive (exit $LASTEXITCODE)."
     }
@@ -84,7 +84,7 @@ function Ensure-7ZipTools {
   }
 
   Write-Host "Using SFX module: $($sfx.FullName)"
-  return @{
+  ,@{
     SevenZr = $sevenZr
     Sfx     = $sfx.FullName
   }
@@ -119,7 +119,7 @@ function New-SelfExtractingInstaller {
 
     Push-Location $PayloadDir
     try {
-      & $SevenZr a -t7z -mx=9 $payload7z * | Out-Null
+      & $SevenZr a -t7z -mx=9 $payload7z * *> $null
     } finally {
       Pop-Location
     }
