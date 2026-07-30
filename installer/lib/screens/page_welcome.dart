@@ -1,5 +1,6 @@
 import 'package:aqloss_installer/app_version.dart';
 import 'package:aqloss_installer/services/install_detector.dart';
+import 'package:aqloss_installer/widgets/app_brand_icon.dart';
 import 'package:aqloss_installer/widgets/installer_button.dart';
 import 'package:aqloss_installer/widgets/side_accent.dart';
 import 'package:flutter/widgets.dart';
@@ -25,8 +26,8 @@ class WelcomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _Logo(),
-                const SizedBox(height: 32),
+                const AppBrandIcon(size: 56),
+                const SizedBox(height: 28),
                 Text(
                   detected.title,
                   style: const TextStyle(
@@ -64,33 +65,6 @@ class WelcomePage extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(5, (i) {
-        final heights = [14.0, 20.0, 28.0, 20.0, 14.0];
-        final opacities = [0.3, 0.55, 1.0, 0.55, 0.3];
-        return Padding(
-          padding: EdgeInsets.only(right: i < 4 ? 3.0 : 0),
-          child: Container(
-            width: 5,
-            height: heights[i],
-            decoration: BoxDecoration(
-              color: const Color(0xFF4F8EF7).withValues(alpha: opacities[i]),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        );
-      }),
     );
   }
 }

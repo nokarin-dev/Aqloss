@@ -35,15 +35,26 @@ class InstallService {
 
     if (createDesktopShortcut) {
       onProgress('Creating desktop shortcut...', 0.84);
-      await ShortcutService.createDesktop(targetPath: exePath, name: 'Aqloss');
+      try {
+        await ShortcutService.createDesktop(
+          targetPath: exePath,
+          name: 'Aqloss',
+        );
+      } catch (e) {
+        onProgress('Desktop shortcut skipped: $e', 0.86);
+      }
     }
 
     if (createStartMenuShortcut) {
       onProgress('Creating Start Menu shortcut...', 0.90);
-      await ShortcutService.createStartMenu(
-        targetPath: exePath,
-        name: 'Aqloss',
-      );
+      try {
+        await ShortcutService.createStartMenu(
+          targetPath: exePath,
+          name: 'Aqloss',
+        );
+      } catch (e) {
+        onProgress('Start Menu shortcut skipped: $e', 0.92);
+      }
     }
 
     onProgress('Registering application...', 0.95);
@@ -97,34 +108,33 @@ class InstallService {
 
   static Future<void> _writeUninstallerScript(String installPath) async {
     final scriptPath = p.join(installPath, 'uninstall.ps1');
-    final desktop = Platform.environment['USERPROFILE'] != null
-        ? p.join(Platform.environment['USERPROFILE']!, 'Desktop', 'Aqloss.lnk')
-        : '';
-    final startMenu = Platform.environment['APPDATA'] != null
-        ? p.join(
-            Platform.environment['APPDATA']!,
-            'Microsoft',
-            'Windows',
-            'Start Menu',
-            'Programs',
-            'Aqloss',
-          )
-        : '';
 
-    final script = '''
-\$ErrorActionPreference = 'SilentlyContinue'
-\$root = Split-Path -Parent \$MyInvocation.MyCommand.Path
-\$desktop = '${desktop.replaceAll("'", "''")}'
-\$startMenu = '${startMenu.replaceAll("'", "''")}'
-\$regKey = '${RegistryService.key}'
+    final script = r'''
+$ErrorActionPreference = 'SilentlyContinue'
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$regKey = 'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Aqloss'
 
-if (\$desktop -and (Test-Path \$desktop)) { Remove-Item -Force \$desktop }
-if (\$startMenu -and (Test-Path \$startMenu)) { Remove-Item -Recurse -Force \$startMenu }
-reg delete "\$regKey" /f | Out-Null
+$desktop = [Environment]::GetFolderPath('Desktop')
+if (-not $desktop) {
+  $desktop = Join-Path $env:USERPROFILE 'Desktop'
+}
+$desktopLnk = Join-Path $desktop 'Aqloss.lnk'
+if (Test-Path -LiteralPath $desktopLnk) { Remove-Item -Force -LiteralPath $desktopLnk }
 
-\$cmd = "cmd.exe"
-\$arg = '/c ping 127.0.0.1 -n 2 > nul & rmdir /s /q "' + \$root + '"'
-Start-Process -FilePath \$cmd -ArgumentList \$arg -WindowStyle Hidden
+$programs = [Environment]::GetFolderPath('Programs')
+if (-not $programs -and $env:APPDATA) {
+  $programs = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+}
+if ($programs) {
+  $startMenu = Join-Path $programs 'Aqloss'
+  if (Test-Path -LiteralPath $startMenu) { Remove-Item -Recurse -Force -LiteralPath $startMenu }
+}
+
+reg delete "$regKey" /f | Out-Null
+
+$cmd = 'cmd.exe'
+$arg = '/c ping 127.0.0.1 -n 2 > nul & rmdir /s /q "' + $root + '"'
+Start-Process -FilePath $cmd -ArgumentList $arg -WindowStyle Hidden
 '''
         .replaceAll('\n', '\r\n');
 

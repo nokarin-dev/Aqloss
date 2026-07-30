@@ -1,3 +1,4 @@
+import 'package:aqloss_installer/widgets/app_brand_icon.dart';
 import 'package:flutter/material.dart';
 
 class SideAccent extends StatelessWidget {
@@ -37,8 +38,11 @@ class SideAccent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _MiniLogo(glowing: highlight),
-                const SizedBox(height: 8),
+                Opacity(
+                  opacity: highlight ? 1.0 : 0.85,
+                  child: const AppBrandIcon(size: 36),
+                ),
+                const SizedBox(height: 10),
                 const Text(
                   'Aqloss',
                   style: TextStyle(
@@ -49,7 +53,7 @@ class SideAccent extends StatelessWidget {
                   ),
                 ),
                 const Text(
-                  'Lossless everywhere.',
+                  'Audio, uncompromised.',
                   style: TextStyle(
                     color: Color(0xFF2A2A38),
                     fontSize: 10.5,
@@ -61,35 +65,6 @@ class SideAccent extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MiniLogo extends StatelessWidget {
-  const _MiniLogo({this.glowing = false});
-
-  final bool glowing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(5, (i) {
-        final heights = [8.0, 12.0, 16.0, 12.0, 8.0];
-        final opacities = [0.2, 0.4, glowing ? 0.9 : 0.7, 0.4, 0.2];
-        return Padding(
-          padding: EdgeInsets.only(right: i < 4 ? 2.0 : 0),
-          child: Container(
-            width: 3,
-            height: heights[i],
-            decoration: BoxDecoration(
-              color: const Color(0xFF4F8EF7).withValues(alpha: opacities[i]),
-              borderRadius: BorderRadius.circular(1.5),
-            ),
-          ),
-        );
-      }),
     );
   }
 }

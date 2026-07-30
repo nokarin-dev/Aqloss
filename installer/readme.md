@@ -7,7 +7,7 @@ Custom Flutter Windows installer for [Aqloss](https://github.com/nokarin-dev/aql
 - Custom dark UI (welcome → folder → progress → done)
 - **Install / Update / Repair** from HKCU uninstall version
 - Default path: `%LOCALAPPDATA%\Aqloss` (no admin)
-- Desktop and Start Menu shortcuts
+- Desktop / Start Menu shortcuts
 - Add/Remove Programs (`HKCU`)
 - Quiet uninstall: `uninstall.ps1`
 - GUI uninstall: `--uninstall`
@@ -21,7 +21,7 @@ Custom Flutter Windows installer for [Aqloss](https://github.com/nokarin-dev/aql
 | Same version | **Repair** |
 | Older version (e.g. 0.3.4 → 1.0.0) | **Update** |
 
-## Build
+## Build (Windows packaging)
 
 After `flutter build windows --release` at repo root:
 
@@ -34,15 +34,8 @@ After `flutter build windows --release` at repo root:
 3. Wrap runner as SFX → `Aqloss-windows-installer.exe`
 4. Build `Aqloss-windows-portable.zip`
 
-## Preview (Linux/macOS)
-
 ```bash
 cd installer
 flutter pub get
 flutter run -d linux
 ```
-
-## Notes
-
-- SFX extracts to temp and runs `aqloss_installer.exe`.
-- `assets/aqloss_bundle.zip` in git is a placeholder; CI replaces it.
