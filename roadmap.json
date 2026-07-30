@@ -81,6 +81,12 @@
                 "description": "Uninstall deletes the real install directory by manifest id; install flattens nested .aqx zips, verifies registry load, and surfaces errors instead of failing silently.",
                 "status": "done",
                 "category": "Frontend · Plugins"
+            },
+            {
+                "title": "Custom Windows Installer",
+                "description": "Custom Flutter Windows installer",
+                "status": "done",
+                "category": "Frontend · Windows"
             }
         ]
     },

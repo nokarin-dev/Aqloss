@@ -88,10 +88,7 @@ jobs:
       - uses: ./.github/actions/setup-aqloss
       - run: flutter build windows --release
       - shell: pwsh
-        run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { throw "Inno Setup 6 not found at $iscc" }
-          .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+        run: .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -294,8 +291,6 @@ jobs:
             | Android | [arm64](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm64.apk) · [arm32](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm32.apk) · [x86_64](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-x86_64.apk) | sideload only |
             | macOS | [DMG](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-macos.dmg) (unsigned) | [zip](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-macos-portable.zip) |
             | iOS | [IPA](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-ios.ipa) (unsigned) | sideload only |
-
-            > **Note:** Mobile builds are not signed for App Store, Play Store, or notarization. Android APKs use the debug certificate; macOS and iOS require manual/sideload install. Desktop builds (Windows, Linux) are the primary distribution channel.
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |

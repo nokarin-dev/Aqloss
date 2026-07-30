@@ -23,6 +23,7 @@ Major release: plugin system, UI refresh, integrations, and an audio pipeline qu
 - [Frontend|UI] Shared UI kit (`UiPage`, `UiListTile`, `UiSurface`, `UiDivider`, `showUiDialog`) for framework-aware screens
 - [Tooling] Centralised app version in `version.yaml` (`dart run tool/sync_version.dart`)
 - [Tooling] CI split into `ci.yml` and `release.yml`; release signing removed
+- [Windows] Custom Flutter Windows installer
 
 ### Fixed
 

@@ -132,10 +132,6 @@ jobs:
       - name: Package installer and portable
         shell: pwsh
         run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) {
-            throw "Inno Setup 6 not found at $iscc"
-          }
           .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
 
       - uses: actions/upload-artifact@v4
