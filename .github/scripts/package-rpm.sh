@@ -11,11 +11,17 @@ if [ ! -d "${BUNDLE_DIR}" ]; then
   exit 1
 fi
 
-mkdir -p "${RPMROOT}"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
-echo "${BUNDLE_DIR}" > "${RPMROOT}/SOURCES/bundle_path.txt"
+BUNDLE_DIR="$(cd "${BUNDLE_DIR}" && pwd)"
+RPMROOT="$(mkdir -p "${RPMROOT}" && cd "${RPMROOT}" && pwd)"
+OUTPUT_ABS="$(cd "$(dirname "${OUTPUT}")" && pwd)/$(basename "${OUTPUT}")"
+CHANGELOG_DATE="$(date -u '+%a %b %d %Y')"
 
-[ -f assets/icons/icon_256.png ] && \
+mkdir -p "${RPMROOT}"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+printf '%s\n' "${BUNDLE_DIR}" > "${RPMROOT}/SOURCES/bundle_path.txt"
+
+if [ -f assets/icons/icon_256.png ]; then
   cp assets/icons/icon_256.png "${RPMROOT}/SOURCES/aqloss.png"
+fi
 
 cp linux/xyz.nokarin.aqloss.desktop "${RPMROOT}/SOURCES/xyz.nokarin.aqloss.desktop"
 cp linux/xyz.nokarin.aqloss.xml "${RPMROOT}/SOURCES/xyz.nokarin.aqloss.xml"
@@ -34,23 +40,35 @@ Requires:       gtk3, xz-libs, alsa-lib
 Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback.
 
 %install
-BUNDLE=\$(cat ${RPMROOT}/SOURCES/bundle_path.txt)
-mkdir -p %{buildroot}/opt/aqloss %{buildroot}/usr/bin \
-  %{buildroot}/usr/share/applications \
-  %{buildroot}/usr/share/icons/hicolor/256x256/apps \
+set -euo pipefail
+BUNDLE=\$(cat '${RPMROOT}/SOURCES/bundle_path.txt')
+if [ ! -d "\$BUNDLE" ]; then
+  echo "Bundle missing at \$BUNDLE" >&2
+  exit 1
+fi
+mkdir -p %{buildroot}/opt/aqloss %{buildroot}/usr/bin \\
+  %{buildroot}/usr/share/applications \\
+  %{buildroot}/usr/share/icons/hicolor/256x256/apps \\
   %{buildroot}/usr/share/mime/packages
-cp -r \$BUNDLE/. %{buildroot}/opt/aqloss/
-EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | head -1)
-EXE_NAME=\$(basename \$EXE)
-[ "\$EXE_NAME" != "aqloss" ] && mv "\$EXE" %{buildroot}/opt/aqloss/aqloss
+cp -a "\$BUNDLE"/. %{buildroot}/opt/aqloss/
+EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f ! -name '*.so' ! -name '*.desktop' | head -1)
+if [ -z "\$EXE" ]; then
+  echo "No executable found under %{buildroot}/opt/aqloss" >&2
+  ls -la %{buildroot}/opt/aqloss >&2 || true
+  exit 1
+fi
+EXE_NAME=\$(basename "\$EXE")
+if [ "\$EXE_NAME" != "aqloss" ]; then
+  mv "\$EXE" %{buildroot}/opt/aqloss/aqloss
+fi
 chmod +x %{buildroot}/opt/aqloss/aqloss
-ln -s /opt/aqloss/aqloss %{buildroot}/usr/bin/aqloss
-cp ${RPMROOT}/SOURCES/xyz.nokarin.aqloss.desktop \
+ln -sf /opt/aqloss/aqloss %{buildroot}/usr/bin/aqloss
+cp '${RPMROOT}/SOURCES/xyz.nokarin.aqloss.desktop' \\
   %{buildroot}/usr/share/applications/xyz.nokarin.aqloss.desktop
-cp ${RPMROOT}/SOURCES/xyz.nokarin.aqloss.xml \
+cp '${RPMROOT}/SOURCES/xyz.nokarin.aqloss.xml' \\
   %{buildroot}/usr/share/mime/packages/xyz.nokarin.aqloss.xml
-if [ -f "${RPMROOT}/SOURCES/aqloss.png" ]; then
-  cp ${RPMROOT}/SOURCES/aqloss.png \
+if [ -f '${RPMROOT}/SOURCES/aqloss.png' ]; then
+  cp '${RPMROOT}/SOURCES/aqloss.png' \\
     %{buildroot}/usr/share/icons/hicolor/256x256/apps/xyz.nokarin.aqloss.png
 fi
 
@@ -72,6 +90,10 @@ exit 0
 %if 0%{?aqloss_has_icon}
 /usr/share/icons/hicolor/256x256/apps/xyz.nokarin.aqloss.png
 %endif
+
+%changelog
+* ${CHANGELOG_DATE} nokarin <github@nokarin.my.id> - ${VERSION}-1
+- Packaged Aqloss ${VERSION}
 SPEC
 
 RPM_DEFINES=(
@@ -85,7 +107,12 @@ fi
 
 rpmbuild -bb "${RPM_DEFINES[@]}" "${RPMROOT}/SPECS/aqloss.spec"
 
-RPM_FILE="$(find "${RPMROOT}/RPMS/x86_64" -name '*.rpm' | head -1)"
-[ -z "${RPM_FILE}" ] && echo "RPM not found" >&2 && exit 1
-cp "${RPM_FILE}" "${OUTPUT}"
-echo "Built ${OUTPUT}"
+RPM_FILE="$(find "${RPMROOT}/RPMS" -type f -name '*.rpm' | head -1)"
+if [ -z "${RPM_FILE}" ]; then
+  echo "RPM not found under ${RPMROOT}/RPMS" >&2
+  find "${RPMROOT}" -type f | head -50 >&2 || true
+  exit 1
+fi
+
+cp "${RPM_FILE}" "${OUTPUT_ABS}"
+echo "Built ${OUTPUT_ABS} ($(du -h "${OUTPUT_ABS}" | cut -f1))"
