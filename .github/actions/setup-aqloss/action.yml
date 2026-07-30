@@ -38,6 +38,10 @@ runs:
         channel: stable
         cache: true
 
+    - name: Mark Flutter SDK as a safe git directory
+      shell: bash
+      run: bash .github/scripts/git-safe-directory.sh
+
     - uses: dtolnay/rust-toolchain@stable
 
     - name: Add Rust targets
