@@ -26,6 +26,12 @@ jobs:
       - name: Dart analyze
         run: flutter analyze --no-fatal-infos
 
+      - name: Installer analyze
+        working-directory: installer
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+
   rust:
     name: Rust check
     runs-on: ubuntu-latest
