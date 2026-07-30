@@ -9,7 +9,6 @@ if [ ! -d "${BUNDLE}" ]; then
   exit 1
 fi
 
-# Pin appimagetool (not continuous) for reproducible CI.
 APPIMAGETOOL_VERSION="${APPIMAGETOOL_VERSION:-1.9.1}"
 APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
 

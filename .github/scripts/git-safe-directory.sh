@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Mark the Actions workspace as a safe git directory (container ownership mismatch).
 set -euo pipefail
 
 if ! command -v git >/dev/null 2>&1; then
