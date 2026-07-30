@@ -20,31 +20,45 @@ function Assert-ReleaseDir {
   }
 }
 
+function Find-SfxModule {
+  param([string]$Root)
+  foreach ($name in @("7zSD.sfx", "7zS.sfx")) {
+    $hit = Get-ChildItem -Path $Root -Filter $name -Recurse -ErrorAction SilentlyContinue |
+      Select-Object -First 1
+    if ($hit) { return $hit }
+  }
+  return $null
+}
+
 function Ensure-7ZipTools {
   New-Item -ItemType Directory -Force -Path $ToolsDir | Out-Null
   $sevenZr = Join-Path $ToolsDir "7zr.exe"
-  $extraArchive = Join-Path $ToolsDir "7z-extra.7z"
-  $extraDir = Join-Path $ToolsDir "extra"
+  $sdkDir = Join-Path $ToolsDir "lzma-sdk"
 
   if (-not (Test-Path $sevenZr)) {
     Write-Host "Downloading 7zr.exe..."
     Invoke-WebRequest -Uri "https://www.7-zip.org/a/7zr.exe" -OutFile $sevenZr
   }
 
-  $sfx = Get-ChildItem -Path $ToolsDir -Filter "7zSD.sfx" -Recurse -ErrorAction SilentlyContinue |
-    Select-Object -First 1
+  $sfx = Find-SfxModule -Root $ToolsDir
   if (-not $sfx) {
-    Write-Host "Downloading 7-Zip Extra (SFX module)..."
-    $extraUrls = @(
-      "https://www.7-zip.org/a/7z2501-extra.7z",
-      "https://www.7-zip.org/a/7z2409-extra.7z",
-      "https://www.7-zip.org/a/7z2408-extra.7z"
+    # Modern 7-Zip Extra no longer ships installer SFX modules; LZMA SDK still does.
+    Write-Host "Downloading LZMA SDK (for 7zSD.sfx)..."
+    $sdkUrls = @(
+      "https://www.7-zip.org/a/lzma2602.7z",
+      "https://www.7-zip.org/a/lzma2501.7z",
+      "https://www.7-zip.org/a/lzma2409.7z",
+      "https://www.7-zip.org/a/7z920_extra.7z"
     )
+    $archive = Join-Path $ToolsDir "sfx-source.7z"
     $downloaded = $false
-    foreach ($url in $extraUrls) {
+    foreach ($url in $sdkUrls) {
       try {
         Write-Host "Trying $url"
-        Invoke-WebRequest -Uri $url -OutFile $extraArchive
+        Invoke-WebRequest -Uri $url -OutFile $archive
+        if ((Get-Item $archive).Length -lt 1024) {
+          throw "Download too small, likely not an archive."
+        }
         $downloaded = $true
         break
       } catch {
@@ -52,18 +66,24 @@ function Ensure-7ZipTools {
       }
     }
     if (-not $downloaded) {
-      throw "Could not download 7-Zip Extra (SFX module)."
+      throw "Could not download LZMA SDK / Extra with 7zSD.sfx."
     }
-    if (Test-Path $extraDir) { Remove-Item $extraDir -Recurse -Force }
-    & $sevenZr x $extraArchive "-o$extraDir" -y | Out-Null
-    $sfx = Get-ChildItem -Path $extraDir -Filter "7zSD.sfx" -Recurse |
-      Select-Object -First 1
+
+    if (Test-Path $sdkDir) { Remove-Item $sdkDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $sdkDir | Out-Null
+    & $sevenZr x $archive "-o$sdkDir" -y
+    if ($LASTEXITCODE -ne 0) {
+      throw "Failed to extract SFX source archive (exit $LASTEXITCODE)."
+    }
+
+    $sfx = Find-SfxModule -Root $sdkDir
   }
 
   if (-not $sfx) {
-    throw "7zSD.sfx not found after downloading 7-Zip Extra."
+    throw "7zSD.sfx not found after extracting LZMA SDK / Extra."
   }
 
+  Write-Host "Using SFX module: $($sfx.FullName)"
   return @{
     SevenZr = $sevenZr
     Sfx     = $sfx.FullName
