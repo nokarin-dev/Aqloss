@@ -6,7 +6,11 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ---
 
-## [Unreleased]
+No Changes Yet.
+
+---
+
+## [1.0.0] - 2026-08-01
 
 Major release: plugin system, UI refresh, integrations, and an audio pipeline quality pass.
 
@@ -263,8 +267,8 @@ Initial public
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.2...HEAD
-[1.0.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v1.0.0
+[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.2...v1.0.0
 [0.3.2]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.2.3...v0.3.0
