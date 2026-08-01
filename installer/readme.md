@@ -29,10 +29,11 @@ After `flutter build windows --release` at repo root:
 .\.github\scripts\package-windows.ps1 -Version 1.0.0
 ```
 
-1. Zip Release → `installer/assets/aqloss_bundle.zip`
-2. Build installer app
-3. Wrap runner as SFX → `Aqloss-windows-installer.exe`
-4. Build `Aqloss-windows-portable.zip`
+1. Sync app icon → `installer/windows/runner/resources/app_icon.ico`
+2. Zip Release → `installer/assets/aqloss_bundle.zip`
+3. Build installer app
+4. Wrap runner as SFX → `Aqloss-windows-installer.exe` (icon patched with rcedit)
+5. Build `Aqloss-windows-portable.zip`
 
 ```bash
 cd installer

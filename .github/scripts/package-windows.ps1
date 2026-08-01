@@ -13,6 +13,88 @@ $InstallerRoot = "installer"
 $BundleZip = Join-Path $InstallerRoot "assets\aqloss_bundle.zip"
 $InstallerRelease = Join-Path $InstallerRoot "build\windows\x64\runner\Release"
 $ToolsDir = Join-Path $env:TEMP "aqloss-7z-tools"
+$AppIcon = Join-Path $InstallerRoot "windows\runner\resources\app_icon.ico"
+$MainAppIcon = "windows\runner\resources\app_icon.ico"
+$Publisher = "nokarin-dev"
+
+function Get-VersionQuad {
+  param([string]$RawVersion)
+  $parts = $RawVersion.Split('.')
+  while ($parts.Count -lt 4) { $parts += '0' }
+  return ($parts[0..3] -join '.')
+}
+
+function Set-ExeVersionInfo {
+  param(
+    [string]$ExePath,
+    [string]$RawVersion,
+    [string]$FileDescription,
+    [string]$OriginalFilename,
+    [string]$InternalName,
+    [string]$ProductName = "Aqloss"
+  )
+  if (-not (Test-Path $ExePath)) {
+    throw "Executable not found: $ExePath"
+  }
+  $quad = Get-VersionQuad $RawVersion
+  $year = (Get-Date).Year
+  $rcedit = Ensure-Rcedit
+  & $rcedit $ExePath `
+    --set-version-string CompanyName $Publisher `
+    --set-version-string FileDescription $FileDescription `
+    --set-version-string ProductName $ProductName `
+    --set-version-string LegalCopyright "Copyright (C) $year $Publisher" `
+    --set-version-string OriginalFilename $OriginalFilename `
+    --set-version-string InternalName $InternalName `
+    --set-file-version $quad `
+    --set-product-version $quad
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to set version info on $ExePath"
+  }
+  Write-Host "Applied version info to $ExePath"
+}
+
+function Invoke-OptionalCodeSign {
+  param([string[]]$Files)
+  $signScript = Join-Path $PSScriptRoot "sign-windows.ps1"
+  if (-not (Test-Path $signScript)) { return }
+  & $signScript -Files $Files
+}
+
+function Sync-InstallerIcon {
+  if (-not (Test-Path $MainAppIcon)) {
+    throw "App icon not found: $MainAppIcon"
+  }
+  $iconDir = Split-Path -Parent $AppIcon
+  New-Item -ItemType Directory -Force -Path $iconDir | Out-Null
+  Copy-Item -Path $MainAppIcon -Destination $AppIcon -Force
+  Write-Host "Synced installer icon from $MainAppIcon"
+}
+
+function Ensure-Rcedit {
+  $rcedit = Join-Path $ToolsDir "rcedit-x64.exe"
+  if (-not (Test-Path $rcedit)) {
+    Write-Host "Downloading rcedit..."
+    Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile $rcedit
+  }
+  return $rcedit
+}
+
+function Set-ExeIcon {
+  param(
+    [string]$ExePath,
+    [string]$IconPath
+  )
+  if (-not (Test-Path $IconPath)) {
+    throw "Icon file not found: $IconPath"
+  }
+  $rcedit = Ensure-Rcedit
+  & $rcedit $ExePath --set-icon $IconPath
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to set icon on $ExePath"
+  }
+  Write-Host "Applied icon to $ExePath"
+}
 
 function Assert-ReleaseDir {
   if (-not (Test-Path $ReleaseDir)) {
@@ -145,6 +227,14 @@ ExtractPathText="Extracting Aqloss installer..."
       throw "Failed to assemble self-extracting installer: $OutputExe"
     }
 
+    Set-ExeIcon -ExePath $outFull -IconPath $AppIcon
+    Set-ExeVersionInfo `
+      -ExePath $outFull `
+      -RawVersion $Version `
+      -FileDescription "Aqloss Installer" `
+      -OriginalFilename "Aqloss-windows-installer.exe" `
+      -InternalName "AqlossInstaller"
+
     Write-Host "Built $OutputExe (v$Version)"
   } finally {
     Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
@@ -153,6 +243,8 @@ ExtractPathText="Extracting Aqloss installer..."
 
 function Build-FlutterInstaller {
   param([hashtable]$Tools)
+
+  Sync-InstallerIcon
 
   Push-Location $InstallerRoot
   try {
@@ -171,11 +263,24 @@ function Build-FlutterInstaller {
     throw "Installer exe not found: $exe"
   }
 
+  Set-ExeVersionInfo `
+    -ExePath $exe `
+    -RawVersion $Version `
+    -FileDescription "Aqloss Setup" `
+    -OriginalFilename "aqloss_installer.exe" `
+    -InternalName "aqloss_installer"
+
+  Invoke-OptionalCodeSign -Files @($exe)
+
+  $installerOut = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $InstallerOutput))
+
   New-SelfExtractingInstaller `
     -SevenZr $Tools.SevenZr `
     -SfxPath $Tools.Sfx `
     -PayloadDir $InstallerRelease `
-    -OutputExe $InstallerOutput
+    -OutputExe $installerOut
+
+  Invoke-OptionalCodeSign -Files @($installerOut)
 }
 
 if (-not $PortableOnly) {

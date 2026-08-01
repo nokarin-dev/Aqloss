@@ -60,13 +60,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "xyz.nokarin" "\0"
-            VALUE "FileDescription", "aqloss_installer" "\0"
+            VALUE "CompanyName", "nokarin-dev" "\0"
+            VALUE "FileDescription", "Aqloss Setup" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "aqloss_installer" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 xyz.nokarin. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 nokarin-dev. All rights reserved." "\0"
             VALUE "OriginalFilename", "aqloss_installer.exe" "\0"
-            VALUE "ProductName", "aqloss_installer" "\0"
+            VALUE "ProductName", "Aqloss" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
