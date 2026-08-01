@@ -33,10 +33,10 @@
         <category>Audio</category>
     </categories>
 
-    <mimetypes>
-        <mimetype>application/x-aqloss-playlist</mimetype>
-        <mimetype>application/x-aqloss-plugin</mimetype>
-    </mimetypes>
+    <provides>
+        <mediatype>application/x-aqloss-playlist</mediatype>
+        <mediatype>application/x-aqloss-plugin</mediatype>
+    </provides>
 
     <branding>
         <color type="primary" scheme_preference="light">#8ed0e6</color>
