@@ -13,7 +13,6 @@ use symphonia::{
         meta::MetadataOptions,
         units::Time,
     },
-    default::codecs::AacDecoder,
 };
 use symphonia_adapter_libopus::OpusDecoder;
 
