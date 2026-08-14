@@ -1,16 +1,21 @@
 use anyhow::{anyhow, Result};
 use std::fs::File;
-use symphonia::core::{
-    codecs::{
-        audio::{AudioDecoder as SymphDecoder, AudioDecoderOptions},
-        CodecParameters,
+use symphonia::{
+    core::{
+        codecs::{
+            audio::{AudioDecoder as SymphDecoder, AudioDecoderOptions},
+            registry::CodecRegistry,
+            CodecParameters,
+        },
+        errors::Error as SymphError,
+        formats::{probe::Hint, FormatOptions, FormatReader, SeekMode, SeekTo, TrackType},
+        io::MediaSourceStream,
+        meta::MetadataOptions,
+        units::Time,
     },
-    errors::Error as SymphError,
-    formats::{probe::Hint, FormatOptions, FormatReader, SeekMode, SeekTo, TrackType},
-    io::MediaSourceStream,
-    meta::MetadataOptions,
-    units::Time,
+    default::codecs::AacDecoder,
 };
+use symphonia_adapter_libopus::OpusDecoder;
 
 pub struct Decoder {
     format: Box<dyn FormatReader>,
@@ -75,7 +80,13 @@ impl Decoder {
         let mut dec_opts = AudioDecoderOptions::default();
         dec_opts.gapless = gapless;
 
-        let decoder = symphonia::default::get_codecs().make_audio_decoder(&params, &dec_opts)?;
+        let mut codec_registry = CodecRegistry::new();
+
+        symphonia::default::register_enabled_codecs(&mut codec_registry);
+
+        codec_registry.register_audio_decoder::<OpusDecoder>();
+
+        let decoder = codec_registry.make_audio_decoder(&params, &dec_opts)?;
 
         Ok(Self {
             format,
