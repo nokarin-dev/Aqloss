@@ -1,18 +1,16 @@
 use anyhow::{anyhow, Result};
-use std::fs::File;
-use symphonia::{
-    core::{
-        codecs::{
-            audio::{AudioDecoder as SymphDecoder, AudioDecoderOptions},
-            registry::CodecRegistry,
-            CodecParameters,
-        },
-        errors::Error as SymphError,
-        formats::{probe::Hint, FormatOptions, FormatReader, SeekMode, SeekTo, TrackType},
-        io::MediaSourceStream,
-        meta::MetadataOptions,
-        units::Time,
+use std::{fs::File, sync::OnceLock};
+use symphonia::core::{
+    codecs::{
+        audio::{AudioDecoder as SymphDecoder, AudioDecoderOptions},
+        registry::CodecRegistry,
+        CodecParameters,
     },
+    errors::Error as SymphError,
+    formats::{probe::Hint, FormatOptions, FormatReader, SeekMode, SeekTo, TrackType},
+    io::MediaSourceStream,
+    meta::MetadataOptions,
+    units::Time,
 };
 use symphonia_adapter_libopus::OpusDecoder;
 
@@ -79,12 +77,14 @@ impl Decoder {
         let mut dec_opts = AudioDecoderOptions::default();
         dec_opts.gapless = gapless;
 
-        let mut codec_registry = CodecRegistry::new();
+        static CODEC_REGISTRY: OnceLock<CodecRegistry> = OnceLock::new();
 
-        symphonia::default::register_enabled_codecs(&mut codec_registry);
-
-        codec_registry.register_audio_decoder::<OpusDecoder>();
-
+        let codec_registry = CODEC_REGISTRY.get_or_init(|| {
+            let mut registry = CodecRegistry::new();
+            symphonia::default::register_enabled_codecs(&mut registry);
+            registry.register_audio_decoder::<OpusDecoder>();
+            registry
+        });
         let decoder = codec_registry.make_audio_decoder(&params, &dec_opts)?;
 
         Ok(Self {

@@ -8,6 +8,7 @@ enum AudioFormat {
   mp3,
   aac,
   ogg,
+  opus,
   unknown;
 
   bool get isLossless => const {flac, wav, aiff, alac, dsf, dff}.contains(this);
@@ -24,6 +25,7 @@ enum AudioFormat {
       'mp3' => mp3,
       'aac' => aac,
       'ogg' => ogg,
+      'opus' => opus,
       _ => unknown,
     };
   }

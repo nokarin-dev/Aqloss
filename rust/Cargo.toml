@@ -11,7 +11,7 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=2.12.0"
 
 # Audio decoding
-symphonia = { version = "=0.6.1", features = ["all"] }
+symphonia = { version = "0.6.1", features = ["all"] }
 
 # Audio output (cross-platform)
 cpal = "0.17"
