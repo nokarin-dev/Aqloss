@@ -216,6 +216,9 @@ jobs:
       - name: Build macOS release
         run: flutter build macos --release
 
+      - name: Smoke test macOS launch
+        run: bash .github/scripts/smoke-macos.sh
+
       - name: Package DMG and portable zip
         run: |
           APP="build/macos/Build/Products/Release/Aqloss.app"
