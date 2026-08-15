@@ -100,7 +100,7 @@ class PluginIOService {
   static Future<PluginImportResult> importFromPath(String filePath) async {
     try {
       final bytes = await File(filePath).readAsBytes();
-      return _install(bytes);
+      return await _install(bytes);
     } catch (e) {
       return PluginImportResult._(
         status: PluginImportStatus.extractError,
@@ -204,8 +204,7 @@ class PluginIOService {
     return null;
   }
 
-  /// If every entry lives under a single top-level folder, return that folder
-  /// name so extraction can flatten to the destination root.
+  // Flatten single-root .aqx zips on extract.
   static String? _commonRootPrefix(Archive archive) {
     String? root;
     for (final entry in archive) {
