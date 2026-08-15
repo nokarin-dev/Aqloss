@@ -5,12 +5,61 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
+import 'package:logging/logging.dart';
+
 import 'artifacts_provider.dart';
 import 'builder.dart';
 import 'environment.dart';
 import 'options.dart';
 import 'target.dart';
 import 'util.dart';
+
+final _log = Logger('build_pod');
+
+String? _findVendoredLuaStaticLib(String staticLibPath) {
+  final buildRoot = path.join(path.dirname(staticLibPath), 'build');
+  if (!Directory(buildRoot).existsSync()) {
+    return null;
+  }
+
+  for (final entry in Directory(buildRoot).listSync()) {
+    if (entry is! Directory) {
+      continue;
+    }
+    if (!path.basename(entry.path).startsWith('mlua-sys-')) {
+      continue;
+    }
+    for (final name in ['liblua5.4.a', 'liblua.a']) {
+      final luaLib = path.join(entry.path, 'out', 'lib', name);
+      if (File(luaLib).existsSync()) {
+        return luaLib;
+      }
+    }
+  }
+  return null;
+}
+
+String _mergeWithVendoredLuaStaticLib(String staticLibPath) {
+  final luaLib = _findVendoredLuaStaticLib(staticLibPath);
+  if (luaLib == null) {
+    throw Exception(
+      'Vendored Lua static library not found next to $staticLibPath '
+      '(expected build/mlua-sys-*/out/lib/liblua5.4.a). '
+      'macOS/iOS would crash on launch with missing _luaopen_* symbols.',
+    );
+  }
+
+  final mergedPath = '$staticLibPath.merged.a';
+  _log.info('Merging vendored Lua $luaLib into $staticLibPath');
+  runCommand('libtool', [
+    '-static',
+    '-o',
+    mergedPath,
+    staticLibPath,
+    luaLib,
+  ]);
+  return mergedPath;
+}
 
 class BuildPod {
   BuildPod({required this.userOptions});
@@ -60,7 +109,9 @@ class BuildPod {
     // If there is static lib, use it and link it with pod
     if (staticLibs.isNotEmpty) {
       final finalTargetFile = path.join(outputDir, "lib$libName.a");
-      performLipo(finalTargetFile, staticLibs.map((e) => e.path));
+      final mergedStaticLibs = staticLibs
+          .map((artifact) => _mergeWithVendoredLuaStaticLib(artifact.path));
+      performLipo(finalTargetFile, mergedStaticLibs);
     } else {
       // Otherwise try to replace bundle dylib with our dylib
       final bundlePaths = [
