@@ -1,8 +1,9 @@
 use anyhow::{anyhow, Result};
-use std::fs::File;
+use std::{fs::File, sync::OnceLock};
 use symphonia::core::{
     codecs::{
         audio::{AudioDecoder as SymphDecoder, AudioDecoderOptions},
+        registry::CodecRegistry,
         CodecParameters,
     },
     errors::Error as SymphError,
@@ -11,6 +12,7 @@ use symphonia::core::{
     meta::MetadataOptions,
     units::Time,
 };
+use symphonia_adapter_libopus::OpusDecoder;
 
 pub struct Decoder {
     format: Box<dyn FormatReader>,
@@ -75,7 +77,15 @@ impl Decoder {
         let mut dec_opts = AudioDecoderOptions::default();
         dec_opts.gapless = gapless;
 
-        let decoder = symphonia::default::get_codecs().make_audio_decoder(&params, &dec_opts)?;
+        static CODEC_REGISTRY: OnceLock<CodecRegistry> = OnceLock::new();
+
+        let codec_registry = CODEC_REGISTRY.get_or_init(|| {
+            let mut registry = CodecRegistry::new();
+            symphonia::default::register_enabled_codecs(&mut registry);
+            registry.register_audio_decoder::<OpusDecoder>();
+            registry
+        });
+        let decoder = codec_registry.make_audio_decoder(&params, &dec_opts)?;
 
         Ok(Self {
             format,
