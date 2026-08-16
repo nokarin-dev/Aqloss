@@ -83,8 +83,6 @@ class Logger {
     }
   }
 
-  // Public API
-
   // Scrobble
   static void debugScrobble(String msg) =>
       _instance._log(LogTarget.scrobble, LogLevel.debug, msg);
@@ -125,7 +123,7 @@ class Logger {
   static void errorListenBrainz(String msg) =>
       _instance._log(LogTarget.listenBrainz, LogLevel.error, msg);
 
-  // DeviceProviuder
+  // DeviceProvider
   static void debugDeviceProvider(String msg) =>
       _instance._log(LogTarget.deviceProdiver, LogLevel.debug, msg);
   static void infoDeviceProvider(String msg) =>
@@ -135,7 +133,7 @@ class Logger {
   static void errorDeviceProvider(String msg) =>
       _instance._log(LogTarget.deviceProdiver, LogLevel.error, msg);
 
-  // PlayerProviuder
+  // PlayerProvider
   static void debugPlayerProvider(String msg) =>
       _instance._log(LogTarget.playerProvider, LogLevel.debug, msg);
   static void infoPlayerProvider(String msg) =>

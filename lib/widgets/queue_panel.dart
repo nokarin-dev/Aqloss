@@ -9,10 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-// Toggle provider
 final queuePanelOpenProvider = StateProvider<bool>((ref) => false);
 
-// Panel root
 class QueuePanel extends ConsumerWidget {
   const QueuePanel({super.key});
 

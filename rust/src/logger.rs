@@ -167,8 +167,6 @@ fn write(target: Target, level: Level, msg: &str) {
     }
 }
 
-// Public API
-
 // audio
 pub fn debug_audio(msg: impl AsRef<str>) {
     write(Target::Audio, Level::Debug, msg.as_ref());

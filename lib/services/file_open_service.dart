@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// File open service
 typedef _FileOpenCallback =
     Future<void> Function(String path, BuildContext context);
 
@@ -63,7 +62,6 @@ class FileOpenService {
     }
   }
 
-  // Handlers
   Future<void> _handlePlaylist(String path, BuildContext context) async {
     final cb = onPlaylist;
     if (cb != null) {
@@ -104,7 +102,6 @@ class FileOpenService {
     }
   }
 
-  // Minimal toast fallback
   void _showToast(BuildContext context, String message) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       SnackBar(

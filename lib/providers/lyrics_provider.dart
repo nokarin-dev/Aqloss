@@ -255,7 +255,6 @@ String _norm(String s) => s
     .replaceAll(RegExp(r'\s+'), ' ')
     .trim();
 
-// Main entry point
 Future<_LrclibResult?> _fetchFromLrclib({
   required String artist,
   required String title,

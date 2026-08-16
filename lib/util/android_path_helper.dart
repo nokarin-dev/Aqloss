@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// Request storage read permission on Android.
 Future<bool> requestAndroidStoragePermission() async {
   if (!Platform.isAndroid) return true;
 
@@ -15,7 +14,7 @@ Future<bool> requestAndroidStoragePermission() async {
   return status.isGranted;
 }
 
-// Convert Android content
+// content:// → filesystem path
 String resolveAndroidPath(String raw) {
   if (!Platform.isAndroid) return raw;
   if (!raw.startsWith('content://')) return raw;
