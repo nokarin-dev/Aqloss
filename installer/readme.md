@@ -1,42 +1,21 @@
-# Aqloss Installer
+# Windows installer
 
-Custom Flutter Windows installer for [Aqloss](https://github.com/nokarin-dev/aqloss).
+Flutter app that installs Aqloss for the current user (`%LOCALAPPDATA%\Aqloss`, no admin). The shipped file is a 7-Zip SFX: `Aqloss-windows-installer.exe`.
 
-## Features
+It reads the existing uninstall entry in HKCU to pick **Install**, **Repair** (same version), or **Update**. Uninstall is `uninstall.ps1`, or the GUI with `--uninstall`.
 
-- Custom dark UI (welcome → folder → progress → done)
-- **Install / Update / Repair** from HKCU uninstall version
-- Default path: `%LOCALAPPDATA%\Aqloss` (no admin)
-- Desktop / Start Menu shortcuts
-- Add/Remove Programs (`HKCU`)
-- Quiet uninstall: `uninstall.ps1`
-- GUI uninstall: `--uninstall`
-- Single file: `Aqloss-windows-installer.exe` (7-Zip SFX)
-
-## Mode detection
-
-| Existing install | UI |
-| --- | --- |
-| Not installed | **Install** |
-| Same version | **Repair** |
-| Older version (e.g. 0.3.4 → 1.0.0) | **Update** |
-
-## Build (Windows packaging)
-
-After `flutter build windows --release` at repo root:
+From the repo root, after `flutter build windows --release`:
 
 ```powershell
 .\.github\scripts\package-windows.ps1 -Version 1.0.0
 ```
 
-1. Sync app icon → `installer/windows/runner/resources/app_icon.ico`
-2. Zip Release → `installer/assets/aqloss_bundle.zip`
-3. Build installer app
-4. Wrap runner as SFX → `Aqloss-windows-installer.exe`
-5. Build `Aqloss-windows-portable.zip`
+That syncs the icon, zips the Release build into `installer/assets/aqloss_bundle.zip`, builds this app, then concatenates SFX stub + config + payload. Patch icon/version on the stub **before** that concat — `rcedit` on the final exe strips the 7z payload.
 
-```bash
+To iterate on the installer UI itself:
+
+```powershell
 cd installer
 flutter pub get
-flutter run -d linux
+flutter run -d windows
 ```
