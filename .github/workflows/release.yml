@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "!v*-apple-beta*"
   workflow_dispatch:
 
 concurrency:
@@ -17,6 +18,7 @@ permissions:
 jobs:
   validate:
     name: Validate tag & version
+    if: ${{ !contains(github.ref_name, '-apple-beta') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,7 +90,9 @@ jobs:
       - uses: ./.github/actions/setup-aqloss
       - run: flutter build windows --release
       - shell: pwsh
-        run: .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+        run: |
+          .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+          .\.github\scripts\verify-windows-installer.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -135,69 +139,6 @@ jobs:
             Aqloss-android-arm32.apk
             Aqloss-android-x86_64.apk
 
-  build-macos:
-    name: macOS
-    needs: [validate]
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: |
-          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
-            if [ -d "$xcode" ]; then
-              sudo xcode-select -s "$xcode"
-              break
-            fi
-          done
-      - uses: ./.github/actions/setup-aqloss
-        with:
-          rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-      - run: flutter build macos --release
-      - name: Package DMG and zip (unsigned)
-        run: |
-          APP="build/macos/Build/Products/Release/Aqloss.app"
-          [ -d "$APP" ] || { echo "Missing $APP"; find build/macos -name '*.app' | head -20; exit 1; }
-          hdiutil create -volname "Aqloss" -srcfolder "$APP" -ov -format UDZO "Aqloss-macos.dmg"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" Aqloss-macos-portable.zip
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos
-          if-no-files-found: error
-          path: |
-            Aqloss-macos.dmg
-            Aqloss-macos-portable.zip
-
-  build-ios:
-    name: iOS
-    needs: [validate]
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: |
-          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
-            if [ -d "$xcode" ]; then
-              sudo xcode-select -s "$xcode"
-              break
-            fi
-          done
-      - run: xcodebuild -downloadPlatform iOS
-      - uses: ./.github/actions/setup-aqloss
-        with:
-          rust-targets: aarch64-apple-ios,aarch64-apple-ios-sim
-      - run: flutter build ios --release --no-codesign
-      - name: Package IPA (unsigned)
-        run: |
-          APP_PATH="build/ios/iphoneos/Runner.app"
-          [ -d "$APP_PATH" ] || { echo "Missing $APP_PATH"; find build/ios -name '*.app' | head -20; exit 1; }
-          mkdir -p Payload && cp -r "$APP_PATH" Payload/
-          zip -qr Aqloss-ios.ipa Payload/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ios
-          if-no-files-found: error
-          path: Aqloss-ios.ipa
-
   release:
     name: Publish GitHub Release
     needs:
@@ -206,8 +147,6 @@ jobs:
       - build-linux-rpm
       - build-windows
       - build-android
-      - build-macos
-      - build-ios
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -235,9 +174,6 @@ jobs:
             dist/Aqloss-android-arm64.apk
             dist/Aqloss-android-arm32.apk
             dist/Aqloss-android-x86_64.apk
-            dist/Aqloss-macos.dmg
-            dist/Aqloss-macos-portable.zip
-            dist/Aqloss-ios.ipa
           )
           missing=0
           for f in "${required[@]}"; do
@@ -280,21 +216,26 @@ jobs:
           body: |
             ${{ env.CHANGELOG }}
 
-            ---
-
             ## Downloads
 
-            | Platform | Installer | Portable |
-            | --- | --- | --- |
-            | Windows | [Installer](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-windows-installer.exe) | [Portable](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-windows-portable.zip) |
-            | Linux | [.deb](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.deb) · [.rpm](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.rpm) · [AppImage](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux.AppImage) | [tar.gz](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-portable.tar.gz) |
-            | Android | [arm64](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm64.apk) · [arm32](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm32.apk) · [x86_64](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-x86_64.apk) | sideload only |
-            | macOS | [DMG](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-macos.dmg) (unsigned) | [zip](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-macos-portable.zip) |
-            | iOS | [IPA](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-ios.ipa) (unsigned) | sideload only |
+            ### Windows
+            [![Windows-Installer](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-windows-installer.exe?style=for-the-badge&logo=windows&logoColor=white&label=Installer&color=blue)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-windows-installer.exe)
+            [![Windows-Portable](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-windows-portable.zip?style=for-the-badge&logo=windows&logoColor=white&label=Portable&color=blue)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-windows-portable.zip)
 
-            > **Windows SmartScreen:** The installer is not code-signed yet. If you see *Windows protected your PC*, choose **More info** → **Run anyway**. A trusted publisher name requires a code signing certificate.
+            ### Linux
+            [![Linux-Debian](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-installer.deb?style=for-the-badge&logo=linux&logoColor=white&label=.deb&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.deb)
+            [![Linux-RPM](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-installer.rpm?style=for-the-badge&logo=linux&logoColor=white&label=.rpm&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.rpm)
+            [![Linux-AppImage](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux.AppImage?style=for-the-badge&logo=linux&logoColor=white&label=AppImage&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux.AppImage)
+            [![Linux-Portable](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-portable.tar.gz?style=for-the-badge&logo=linux&logoColor=white&label=Portable&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-portable.tar.gz)
+
+            ### Android
+            [![Android-ARM64](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-arm64.apk?style=for-the-badge&logo=android&logoColor=white&label=ARM64&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm64.apk)
+            [![Android-ARM32](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-arm32.apk?style=for-the-badge&logo=android&logoColor=white&label=ARM32&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm32.apk)
+            [![Android-x86_64](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-x86_64.apk?style=for-the-badge&logo=android&logoColor=white&label=x86_64&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-x86_64.apk)
+
+            macOS and iOS are not attached here. Unsigned builds live on the rolling [Apple Build](https://github.com/nokarin-dev/aqloss/releases/tag/apple-build) release.
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: false
           files: |
             dist/Aqloss-windows-installer.exe
             dist/Aqloss-windows-portable.zip
@@ -305,7 +246,4 @@ jobs:
             dist/Aqloss-android-arm64.apk
             dist/Aqloss-android-arm32.apk
             dist/Aqloss-android-x86_64.apk
-            dist/Aqloss-macos.dmg
-            dist/Aqloss-macos-portable.zip
-            dist/Aqloss-ios.ipa
           token: ${{ secrets.GH_TOKEN }}

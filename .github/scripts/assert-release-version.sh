@@ -16,6 +16,8 @@ if [ -z "${TAG_BARE}" ]; then
   exit 1
 fi
 
+TAG_VERSION="${TAG_BARE}"
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VERSION=""
 if [ -f "${ROOT}/version.yaml" ]; then
@@ -31,7 +33,7 @@ if [ -z "${VERSION}" ]; then
   exit 1
 fi
 
-if [ "${TAG_BARE}" != "${VERSION}" ]; then
+if [ "${TAG_VERSION}" != "${VERSION}" ]; then
   echo "Tag '${REF_NAME}' does not match version.yaml ('${VERSION}')." >&2
   echo "Update version.yaml (and run dart run tool/sync_version.dart) before tagging." >&2
   exit 1

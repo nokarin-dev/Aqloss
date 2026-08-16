@@ -1,0 +1,123 @@
+name: Release (Apple Build)
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "!v*-apple-beta*"
+  workflow_dispatch:
+
+concurrency:
+  group: apple-build
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  validate:
+    name: Validate tag & version
+    if: ${{ startsWith(github.ref_name, 'v') && github.ref_name != 'apple-build' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert tag matches version.yaml
+        run: bash .github/scripts/assert-release-version.sh
+
+  build-macos:
+    name: macOS
+    needs: [validate]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
+            if [ -d "$xcode" ]; then
+              sudo xcode-select -s "$xcode"
+              xcodebuild -version
+              break
+            fi
+          done
+      - uses: ./.github/actions/setup-aqloss
+        with:
+          rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Build macOS release
+        run: flutter build macos --release
+      - name: Smoke test macOS launch
+        run: bash .github/scripts/smoke-macos.sh
+      - name: Package DMG and zip (unsigned)
+        run: |
+          APP="build/macos/Build/Products/Release/Aqloss.app"
+          [ -d "$APP" ] || { echo "Missing $APP"; find build/macos -name '*.app' | head -20; exit 1; }
+          hdiutil create -volname "Aqloss" -srcfolder "$APP" -ov -format UDZO "Aqloss-macos.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" Aqloss-macos-portable.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          if-no-files-found: error
+          path: |
+            Aqloss-macos.dmg
+            Aqloss-macos-portable.zip
+
+  build-ios:
+    name: iOS
+    needs: [validate]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
+            if [ -d "$xcode" ]; then
+              sudo xcode-select -s "$xcode"
+              xcodebuild -version
+              break
+            fi
+          done
+      - name: Download iOS platform
+        run: xcodebuild -downloadPlatform iOS
+      - uses: ./.github/actions/setup-aqloss
+        with:
+          rust-targets: aarch64-apple-ios,aarch64-apple-ios-sim
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+      - name: Package unsigned IPA
+        run: |
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          [ -d "$APP_PATH" ] || { echo "Missing $APP_PATH"; find build/ios -name '*.app' | head -20; exit 1; }
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -qr Aqloss-ios.ipa Payload/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          if-no-files-found: error
+          path: Aqloss-ios.ipa
+
+  publish:
+    name: Update Apple Build release
+    needs:
+      - validate
+      - build-macos
+      - build-ios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assert tag matches version.yaml
+        run: bash .github/scripts/assert-release-version.sh
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish rolling Apple Build
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: bash .github/scripts/publish-apple-build.sh dist

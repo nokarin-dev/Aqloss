@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Catches issue #19: dyld missing _luaopen_base on launch.
-# Prefer an explicit .app path; otherwise accept Aqloss.app or aqloss.app.
+# Issue #19: crash if luaopen_* is undefined.
 
 find_app() {
   if [ -n "${1:-}" ]; then
@@ -37,7 +36,7 @@ if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
 fi
 
 undefined_lua() {
-  # Fat binaries need an explicit arch; also try the default nm -u view.
+  # Fat binaries: nm -u needs -arch.
   local arch
   for arch in arm64 x86_64; do
     nm -u -arch "$arch" "$BIN" 2>/dev/null || true

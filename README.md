@@ -2,8 +2,6 @@
 
 <div align="center">
 
-A music player built around a Rust audio engine, with optional WASAPI Exclusive mode on Windows for bit-perfect output to compatible hardware.
-
 [![Release](https://img.shields.io/github/v/release/nokarin-dev/aqloss?style=for-the-badge&color=4F8EF7)](https://github.com/nokarin-dev/aqloss/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](LICENSE)
 [![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?style=for-the-badge&logo=flutter)](https://flutter.dev)
@@ -18,117 +16,68 @@ A music player built around a Rust audio engine, with optional WASAPI Exclusive 
 
 ---
 
-## About
-
-Aqloss is an open-source music player with a Flutter UI and a Rust audio engine powered by [Symphonia](https://github.com/pdeljanov/Symphonia). It is currently in active development and targets 3 Platforms as its primary platforms.
-
-**WASAPI Exclusive mode** (Windows only) allows the audio signal to bypass the Windows audio mixer and be sent directly to the output device without modification, provided the device and driver support it. When this mode is active, features like volume control, EQ, ReplayGain, and soft-clip are intentionally bypassed. On other platforms or when using shared mode, audio passes through the OS mixer and optional DSP processing.
-
-Bit-perfect output depends on both the software path _and_ the hardware, a DAC, driver, and output chain that support it are required on the user's end.
-
----
-
-## Current Status
-
-| Area                         | Status                                        |
-| ---------------------------- | --------------------------------------------- |
-| Audio engine                 | Rust / Symphonia - stable                     |
-| WASAPI Exclusive (Windows)   | Implemented                                   |
-| Shared mode (Windows, Linux) | Via CPAL                                      |
-| macOS / iOS                  | Compiles, not actively tested                 |
-| EQ (10-band)                 | Implemented, applied in shared mode only      |
-| ReplayGain                   | Tag reading & gain applied in shared mode     |
-| Crossfade                    | Implemented                                   |
-| Gapless playback             | Via Symphonia                                 |
-| Scrobble (Last.fm)           | Implemented                                   |
-| DSD (DSF/DFF)                | Not supported, Symphonia does not decode DSD  |
-
----
-
-## Format Support
-
-Formats decoded by Symphonia
-
-| Format     | Extension      | Notes                            |
-| ---------- | -------------- | -------------------------------- |
-| FLAC       | `.flac`        | Lossless, up to 32-bit / 384 kHz |
-| WAV / AIFF | `.wav` `.aiff` | PCM lossless                     |
-| ALAC       | `.m4a`         | Lossless, up to 24-bit / 192 kHz |
-| MP3        | `.mp3`         | Lossy                            |
-| AAC        | `.aac` `.m4a`  | Lossy                            |
-| OGG Vorbis | `.ogg`         | Lossy                            |
-| Opus       | `.opus`        | Lossy                            |
-
 > [!NOTE]
-> DSD (DSF/DFF) is **not supported**. Symphonia does not have a DSD decoder. Native DSD playback would require a separate decode path which is not currently planned.
+> Windows, Linux, and Android are the platforms I actually ship. macOS and iOS compile; I don't test them regularly.
+
+On Windows, **WASAPI Exclusive** can send the stream straight to the device (no OS mixer). Volume, EQ, ReplayGain, and soft-clip are off in that mode - that's the point. Shared mode (and every other OS) goes through the mixer and whatever DSP you enable. Bit-perfect still needs a DAC/driver that won't resample behind your back.
 
 ---
 
-## Getting Started
+## Formats
 
-### Prerequisites
+DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm not adding a second path for it.
+| Format | Extensions | Notes |
+| --- | --- | --- |
+| FLAC | `.flac` | lossless, up to 32-bit / 384 kHz |
+| WAV / AIFF | `.wav` `.aiff` `.aif` | PCM |
+| ALAC | `.m4a` | lossless |
+| MP3 | `.mp3` | |
+| AAC | `.aac` `.m4a` | |
+| Vorbis | `.ogg` | |
+| Opus | `.opus` | libopus via Symphonia adapter |
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) ≥ 3.41
-- [Rust toolchain](https://rustup.rs/) (stable)
-- [flutter_rust_bridge CLI](https://cjycode.com/flutter_rust_bridge/integrate/quickstart.html)
+---
+
+## Download
+
+GitHub [releases](https://github.com/nokarin-dev/aqloss/releases/latest) (Windows installer/portable, Linux `.deb` / `.rpm` / AppImage / tarball, Android APKs). Linux is also on [Flathub](https://flathub.org/apps/xyz.nokarin.aqloss).
+
+The Windows installer is not code-signed. SmartScreen will complain; More info → Run anyway.
+
+macOS and iOS are a rolling [Apple Build](https://github.com/nokarin-dev/aqloss/releases/tag/apple-build) (unsigned, overwritten on each stable tag).
+
+---
+
+## Build
+
+You need Flutter (stable) and Rust (stable). For codegen changes, also `cargo install flutter_rust_bridge_codegen`.
 
 ```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Install flutter_rust_bridge codegen
-cargo install flutter_rust_bridge_codegen
-
-# Install Flutter dependencies
 flutter pub get
-
-# Generate Rust ↔ Dart bridge code
-flutter_rust_bridge_codegen generate
+flutter_rust_bridge_codegen generate   # only if you touch the Rust API
 ```
 
-### Platform setup
-
-**Windows**
-
 ```bash
-# Visual Studio Build Tools required.
 flutter run -d windows
 ```
 
-**Linux**
-
 ```bash
-sudo apt install libasound2-dev pkg-config
+sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+  libasound2-dev libpulse-dev
 flutter run -d linux
 ```
 
 ```bash
-# Android SDK & Android Device required
 flutter run -d android
 ```
 
-**macOS / iOS**
-
-These platforms compile but are not actively tested. Contributions and bug reports are welcome.
-
 ---
 
-## Last.fm Scrobbling
+## Last.fm / ListenBrainz
 
-Aqloss supports scrobbling via the Last.fm API. Because the source code is public, no API key is bundled with the repository.
+Both live under Settings → Integrations. Last.fm needs an API account because this repo is public and I don't ship a key - create one at [last.fm/api/account/create](https://www.last.fm/api/account/create) and paste it in settings. ListenBrainz uses your own user token.
 
-you will need to register a free API key at [last.fm/api/account/create](https://www.last.fm/api/account/create) and enter it in Settings → Last.fm.
-
----
-
-## Contributing
-
-Contributions are welcome. Please open an issue first to discuss what you'd like to change.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes
-4. Push and open a Pull Request
+Lua/webhook plugins: see [docs/plugin.md](docs/plugin.md).
 
 ---
 
