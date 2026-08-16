@@ -92,6 +92,7 @@ const _kAppStyle = 'aqloss_app_style';
 const _kLibraryViewMode = 'aqloss_library_view_mode';
 const _kAlbumViewMode = 'aqloss_album_view_mode';
 const _kShowBitDepth = 'aqloss_show_bit_depth';
+const _kShowNowPlayingHeader = 'aqloss_show_now_playing_header';
 const _kScrobble = 'aqloss_scrobble';
 const _kLastFmUser = 'aqloss_lastfm_user';
 const _kLastFmApiKey = 'aqloss_lastfm_api_key';
@@ -133,6 +134,7 @@ class SettingsState {
   final LibraryViewMode libraryViewMode;
   final LibraryViewMode albumViewMode;
   final bool showBitDepthInLibrary;
+  final bool showNowPlayingHeader;
   final Map<ShortcutAction, String> shortcuts;
   final bool showAlbumArtBackground;
   final bool spectrumEnabled;
@@ -172,6 +174,7 @@ class SettingsState {
     this.libraryViewMode = LibraryViewMode.detail,
     this.albumViewMode = LibraryViewMode.detail,
     this.showBitDepthInLibrary = true,
+    this.showNowPlayingHeader = false,
     this.shortcuts = const {},
     this.showAlbumArtBackground = true,
     this.spectrumEnabled = true,
@@ -247,6 +250,7 @@ class SettingsState {
     LibraryViewMode? libraryViewMode,
     LibraryViewMode? albumViewMode,
     bool? showBitDepthInLibrary,
+    bool? showNowPlayingHeader,
     Map<ShortcutAction, String>? shortcuts,
     bool? showAlbumArtBackground,
     bool? spectrumEnabled,
@@ -290,6 +294,7 @@ class SettingsState {
     libraryViewMode: libraryViewMode ?? this.libraryViewMode,
     albumViewMode: albumViewMode ?? this.albumViewMode,
     showBitDepthInLibrary: showBitDepthInLibrary ?? this.showBitDepthInLibrary,
+    showNowPlayingHeader: showNowPlayingHeader ?? this.showNowPlayingHeader,
     shortcuts: shortcuts ?? this.shortcuts,
     showAlbumArtBackground:
         showAlbumArtBackground ?? this.showAlbumArtBackground,
@@ -371,6 +376,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       albumViewMode:
           LibraryViewMode.values[(p.getInt(_kAlbumViewMode) ?? 0).clamp(0, 1)],
       showBitDepthInLibrary: p.getBool(_kShowBitDepth) ?? true,
+      showNowPlayingHeader: p.getBool(_kShowNowPlayingHeader) ?? false,
       shortcuts: _loadShortcuts(p),
       showAlbumArtBackground: p.getBool(_kShowAlbumArtBg) ?? true,
       spectrumEnabled: p.getBool(_kSpectrumEnabled) ?? true,
@@ -418,6 +424,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setInt(_kLibraryViewMode, state.libraryViewMode.index),
       p.setInt(_kAlbumViewMode, state.albumViewMode.index),
       p.setBool(_kShowBitDepth, state.showBitDepthInLibrary),
+      p.setBool(_kShowNowPlayingHeader, state.showNowPlayingHeader),
       _saveShortcuts(p, state.shortcuts),
       p.setBool(_kShowAlbumArtBg, state.showAlbumArtBackground),
       p.setBool(_kSpectrumEnabled, state.spectrumEnabled),
@@ -584,6 +591,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void toggleBitDepthDisplay() {
     state = state.copyWith(showBitDepthInLibrary: !state.showBitDepthInLibrary);
+    _save();
+  }
+
+  void toggleNowPlayingHeader() {
+    state = state.copyWith(showNowPlayingHeader: !state.showNowPlayingHeader);
     _save();
   }
 

@@ -249,7 +249,7 @@ class _DesktopBarContent extends StatelessWidget {
                           ),
                           const SizedBox(height: 1),
                           Text(
-                            track.displayArtist,
+                            track.displayArtistAlbum,
                             style: TextStyle(
                               color: colors.onSurfaceAlpha(0.38),
                               fontSize: 11,
@@ -549,7 +549,7 @@ class _MobileBar extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          track.displayArtist,
+                          track.displayArtistAlbum,
                           style: TextStyle(
                             color: colors.onSurfaceAlpha(0.34),
                             fontSize: 11,
