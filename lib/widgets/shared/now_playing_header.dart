@@ -5,6 +5,7 @@ import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 class NowPlayingHeader extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (!ref.read(settingsProvider).showNowPlayingHeader) return;
     final path = ref.read(playerProvider).currentTrack?.path;
     if (path != _loadedPath) _loadArt(path);
   }
@@ -50,6 +52,10 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
 
   @override
   Widget build(BuildContext context) {
+    if (!ref.watch(settingsProvider).showNowPlayingHeader) {
+      return const SizedBox.shrink();
+    }
+
     final player = ref.watch(playerProvider);
     final track = player.currentTrack;
     final isM3 = context.isMaterial3Ui;

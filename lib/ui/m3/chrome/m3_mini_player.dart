@@ -117,7 +117,7 @@ class _M3MiniPlayerBarState extends ConsumerState<M3MiniPlayerBar> {
                             ),
                           ),
                           Text(
-                            track.displayArtist,
+                            track.displayArtistAlbum,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(

@@ -1319,6 +1319,15 @@ class _DisplayPane extends ConsumerWidget {
             ),
             _Div(),
             _ToggleRow(
+              icon: Icons.album_outlined,
+              title: 'Now playing card',
+              subtitle:
+                  'Large card at the top of library pages. Off by default; the bottom bar already shows the current track.',
+              value: s.showNowPlayingHeader,
+              onChanged: (_) => n.toggleNowPlayingHeader(),
+            ),
+            _Div(),
+            _ToggleRow(
               icon: Icons.info_outline_rounded,
               title: 'Format details in library',
               subtitle: 'Shows bit depth and sample rate next to each track.',

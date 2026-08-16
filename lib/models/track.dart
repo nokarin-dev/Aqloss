@@ -113,6 +113,12 @@ class Track {
   String get displayArtist => artist ?? 'Unknown Artist';
   String get displayAlbum => album ?? 'Unknown Album';
 
+  String get displayArtistAlbum {
+    final albumName = album?.trim();
+    if (albumName == null || albumName.isEmpty) return displayArtist;
+    return '$displayArtist \u2014 $albumName';
+  }
+
   Duration get duration =>
       Duration(milliseconds: (durationSecs * 1000).round());
 
