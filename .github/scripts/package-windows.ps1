@@ -124,7 +124,6 @@ function Ensure-7ZipTools {
 
   $sfx = Find-SfxModule -Root $ToolsDir
   if (-not $sfx) {
-    # Modern 7-Zip Extra no longer ships installer SFX modules; LZMA SDK still does.
     Write-Host "Downloading LZMA SDK (for 7zSD.sfx)..."
     $sdkUrls = @(
       "https://www.7-zip.org/a/lzma2602.7z",
@@ -166,7 +165,7 @@ function Ensure-7ZipTools {
   }
 
   Write-Host "Using SFX module: $($sfx.FullName)"
-  ,@{
+  return @{
     SevenZr = $sevenZr
     Sfx     = $sfx.FullName
   }
@@ -185,6 +184,80 @@ function New-BundleZip {
   Write-Host "Created $BundleZip"
 }
 
+function Join-BinaryFiles {
+  param(
+    [string[]]$InputPaths,
+    [string]$OutputPath
+  )
+
+  foreach ($path in $InputPaths) {
+    if (-not (Test-Path $path)) {
+      throw "Cannot assemble installer; missing input: $path"
+    }
+  }
+
+  if (Test-Path $OutputPath) { Remove-Item $OutputPath -Force }
+  $output = [System.IO.File]::Open($OutputPath, [System.IO.FileMode]::CreateNew)
+  try {
+    foreach ($path in $InputPaths) {
+      $source = [System.IO.File]::OpenRead($path)
+      try {
+        $source.CopyTo($output)
+      } finally {
+        $source.Dispose()
+      }
+    }
+  } finally {
+    $output.Dispose()
+  }
+}
+
+function Prepare-SfxStub {
+  param(
+    [string]$SfxPath,
+    [string]$WorkDir,
+    [string]$RawVersion
+  )
+
+  $stubExe = Join-Path $WorkDir "sfx_stub.exe"
+  Copy-Item -Path $SfxPath -Destination $stubExe -Force
+
+  Set-ExeIcon -ExePath $stubExe -IconPath $AppIcon
+  Set-ExeVersionInfo `
+    -ExePath $stubExe `
+    -RawVersion $RawVersion `
+    -FileDescription "Aqloss Installer" `
+    -OriginalFilename "Aqloss-windows-installer.exe" `
+    -InternalName "AqlossInstaller"
+
+  return $stubExe
+}
+
+function Assert-InstallerArtifact {
+  param(
+    [string]$InstallerPath,
+    [long]$PayloadBytes,
+    [long]$MinInstallerBytes = 1048576
+  )
+
+  if (-not (Test-Path $InstallerPath)) {
+    throw "Installer not found: $InstallerPath"
+  }
+
+  $installerBytes = (Get-Item $InstallerPath).Length
+  Write-Host "Installer size: $installerBytes bytes (payload 7z: $PayloadBytes bytes)"
+
+  if ($PayloadBytes -lt 1024) {
+    throw "SFX payload archive is too small ($PayloadBytes bytes)."
+  }
+  if ($installerBytes -lt $MinInstallerBytes) {
+    throw "Installer is suspiciously small ($installerBytes bytes). SFX payload may be missing."
+  }
+  if ($installerBytes -lt ($PayloadBytes / 2)) {
+    throw "Installer ($installerBytes bytes) is much smaller than its 7z payload ($PayloadBytes bytes)."
+  }
+}
+
 function New-SelfExtractingInstaller {
   param(
     [string]$SevenZr,
@@ -201,12 +274,20 @@ function New-SelfExtractingInstaller {
 
     Push-Location $PayloadDir
     try {
-      & $SevenZr a -t7z -mx=9 $payload7z * *> $null
+      & $SevenZr a -t7z -mx=9 $payload7z *
+      if ($LASTEXITCODE -ne 0) {
+        throw "7zr failed to create payload archive (exit $LASTEXITCODE)."
+      }
     } finally {
       Pop-Location
     }
     if (-not (Test-Path $payload7z)) {
       throw "Failed to create SFX payload archive."
+    }
+
+    $payloadBytes = (Get-Item $payload7z).Length
+    if ($payloadBytes -lt 1024) {
+      throw "SFX payload archive is too small ($payloadBytes bytes)."
     }
 
     @"
@@ -219,22 +300,11 @@ ExtractPathText="Extracting Aqloss installer..."
 ;!@InstallEnd@!
 "@ | Set-Content -Path $config -Encoding Ascii
 
-    if (Test-Path $OutputExe) { Remove-Item $OutputExe -Force }
-
+    $stubExe = Prepare-SfxStub -SfxPath $SfxPath -WorkDir $work -RawVersion $Version
     $outFull = [System.IO.Path]::GetFullPath($OutputExe)
-    cmd.exe /c "copy /b `"$SfxPath`" + `"$config`" + `"$payload7z`" `"$outFull`" >nul"
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $OutputExe)) {
-      throw "Failed to assemble self-extracting installer: $OutputExe"
-    }
+    Join-BinaryFiles -InputPaths @($stubExe, $config, $payload7z) -OutputPath $outFull
 
-    Set-ExeIcon -ExePath $outFull -IconPath $AppIcon
-    Set-ExeVersionInfo `
-      -ExePath $outFull `
-      -RawVersion $Version `
-      -FileDescription "Aqloss Installer" `
-      -OriginalFilename "Aqloss-windows-installer.exe" `
-      -InternalName "AqlossInstaller"
-
+    Assert-InstallerArtifact -InstallerPath $outFull -PayloadBytes $payloadBytes
     Write-Host "Built $OutputExe (v$Version)"
   } finally {
     Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

@@ -139,6 +139,7 @@ jobs:
         shell: pwsh
         run: |
           .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+          .\.github\scripts\verify-windows-installer.ps1
 
       - uses: actions/upload-artifact@v4
         with:

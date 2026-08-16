@@ -32,7 +32,7 @@ After `flutter build windows --release` at repo root:
 1. Sync app icon → `installer/windows/runner/resources/app_icon.ico`
 2. Zip Release → `installer/assets/aqloss_bundle.zip`
 3. Build installer app
-4. Wrap runner as SFX → `Aqloss-windows-installer.exe` (icon patched with rcedit)
+4. Wrap runner as SFX → `Aqloss-windows-installer.exe`
 5. Build `Aqloss-windows-portable.zip`
 
 ```bash
