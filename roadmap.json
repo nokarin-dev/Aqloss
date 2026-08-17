@@ -1,92 +1,50 @@
 [
     {
-        "title": "v1.0.0",
-        "subtitle": "Plugins system, UI Revamp & Integrations.",
-        "status": "done",
+        "title": "v1.0.1",
+        "subtitle": "Opus, Apple launch fix, installer, queue actions, and a quieter header.",
+        "status": "in-progress",
         "items": [
             {
-                "title": "Fix Half-Screen Snapping",
-                "description": "Reduced minimum window size constraint from 1280x720 to 800x600, allowing the app to properly scale down when snapped into half-screen layouts on 1080p and lower resolution monitors.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Plugin Manager UI",
-                "description": "A dedicated page in Settings to install, enable, disable, and uninstall plugins dynamically.",
-                "status": "done",
-                "category": "Frontend"
-            },
-            {
-                "title": "Plugin System Core",
-                "description": "Lua and webhook plugins loaded from plugin.json, with permission-gated APIs and playback event dispatch.",
-                "status": "done",
-                "category": "Architecture"
-            },
-            {
-                "title": "Extension Format (.aqx)",
-                "description": "Support for custom .aqx (Aqloss Extension) archive format with manifest.json validation and extraction.",
-                "status": "done",
-                "category": "File System"
-            },
-            {
-                "title": "Non-embedded Album Art Support",
-                "description": "Fallback to fetching local image files (e.g., cover.jpg or folder.jpg) from the music directory when embedded album art is missing.",
+                "title": "Opus Playback",
+                "description": "Decode typical .opus (Ogg Opus) files through libopus and the Symphonia adapter.",
                 "status": "done",
                 "category": "Core · Audio"
             },
             {
-                "title": "ListenBrainz Scrobbling",
-                "description": "Add support for scrobbling playback history to ListenBrainz as an alternative or addition to the existing Last.fm integration.",
+                "title": "macOS Sequoia Launch Crash",
+                "description": "Link vendored Lua into the macOS/iOS staticlib so the app no longer dies on missing _luaopen_base at launch.",
                 "status": "done",
-                "category": "Integrations"
+                "category": "System · Platform"
             },
             {
-                "title": "Responsive Mobile Album View",
-                "description": "Redesign the album page to adapt gracefully on smaller screens, utilizing a single-column layout instead of a dense grid.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Dual UI Framework",
-                "description": "Switchable Standalone (custom Aqloss UI) and Material Design 3 modes. M3 uses NavigationBar/Rail, ListTile, Card, and optional Material You dynamic colour.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Album Grid/Detail Toggle",
-                "description": "Toggle between grid and detail list views on the album page, persisted in settings.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Sample-Accurate Seeking",
-                "description": "Seek targets are no longer truncated to whole seconds - playback lands exactly where the seek bar says.",
-                "status": "done",
-                "category": "Core · Audio"
-            },
-            {
-                "title": "Audio Pipeline Quality Pass",
-                "description": "256-tap cubic sinc resampler, EQ biquads in double precision with flat-band bypass, equal-power crossfade, and click-free seek/resume.",
-                "status": "done",
-                "category": "Audio · DSP"
-            },
-            {
-                "title": "Material 3 Desktop Polish",
-                "description": "Expanded desktop nav by default, shared M3 page scaffold, interactive queue drawer and mini player, track hover actions, Now Playing wide layout, and tighter Settings sidebar.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Plugin Install/Uninstall Reliability",
-                "description": "Uninstall deletes the real install directory by manifest id; install flattens nested .aqx zips, verifies registry load, and surfaces errors instead of failing silently.",
-                "status": "done",
-                "category": "Frontend · Plugins"
-            },
-            {
-                "title": "Custom Windows Installer",
-                "description": "Custom Flutter Windows installer",
+                "title": "Windows SFX Installer",
+                "description": "Patch the 7z SFX stub before concatenating the payload so rcedit cannot truncate the installer to ~100 KB.",
                 "status": "done",
                 "category": "Frontend · Windows"
+            },
+            {
+                "title": "Rolling Apple Build",
+                "description": "Unsigned macOS and iOS builds live on a single Apple Build prerelease, overwritten on each stable tag. Stable v* releases stay Windows, Linux, and Android.",
+                "status": "done",
+                "category": "Tooling · CI"
+            },
+            {
+                "title": "Now Playing Card Toggle",
+                "description": "Hide the top now playing card by default; opt in from Settings → Display. Mini player shows artist and album.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Queue improvements",
+                "description": "Play next and add to queue from track/album context menus, jump to album or artist from the queue, and drop the duplicate drag handle on queue rows.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Half-screen layout",
+                "description": "Linux tiled/half-screen: window chrome still has padding, margin, and rounded corners so the app does not fill the tile. Expanded navbar plus the queue panel also crush Now Playing (codec badge overlaps the lyrics).",
+                "status": "in-progress",
+                "category": "Frontend · UI"
             }
         ]
     },
@@ -104,12 +62,6 @@
             {
                 "title": "Crossfeed",
                 "description": "Binaural crossfeed filter for headphone listening - reduces fatigue on hard-panned recordings.",
-                "status": "planned",
-                "category": "Audio · DSP"
-            },
-            {
-                "title": "Stereo widening",
-                "description": "Mid/side processing for adjusting stereo width without clipping.",
                 "status": "planned",
                 "category": "Audio · DSP"
             },
@@ -176,12 +128,6 @@
             {
                 "title": "EQ presets",
                 "description": "Save/load EQ settings as named presets. Includes several default presets (Rock, Classical, Vocal).",
-                "status": "planned",
-                "category": "Audio · DSP"
-            },
-            {
-                "title": "Stereo width",
-                "description": "Mid/side balance control to widen or narrow the stereo image.",
                 "status": "planned",
                 "category": "Audio · DSP"
             },

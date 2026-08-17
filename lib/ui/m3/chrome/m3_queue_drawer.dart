@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -176,65 +177,73 @@ class _QueueItemState extends ConsumerState<_QueueItem> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: Material(
-        color: widget.playing
-            ? cs.secondaryContainer.withValues(alpha: 0.55)
-            : _hovered
-            ? cs.onSurface.withValues(alpha: 0.04)
-            : Colors.transparent,
-        child: ListTile(
-          onTap: widget.onTap,
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: _art != null
-                  ? Image.memory(_art!, fit: BoxFit.cover)
-                  : ColoredBox(
-                      color: cs.surfaceContainerHighest,
-                      child: Icon(
-                        widget.playing
-                            ? Icons.equalizer_rounded
-                            : Icons.music_note_rounded,
-                        size: 18,
-                        color: cs.onSurfaceVariant,
+      child: GestureDetector(
+        onSecondaryTapDown: (d) => showTrackContextMenu(
+          context: context,
+          globalPosition: d.globalPosition,
+          track: widget.track,
+          ref: ref,
+        ),
+        child: Material(
+          color: widget.playing
+              ? cs.secondaryContainer.withValues(alpha: 0.55)
+              : _hovered
+              ? cs.onSurface.withValues(alpha: 0.04)
+              : Colors.transparent,
+          child: ListTile(
+            onTap: widget.onTap,
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: _art != null
+                    ? Image.memory(_art!, fit: BoxFit.cover)
+                    : ColoredBox(
+                        color: cs.surfaceContainerHighest,
+                        child: Icon(
+                          widget.playing
+                              ? Icons.equalizer_rounded
+                              : Icons.music_note_rounded,
+                          size: 18,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
+              ),
+            ),
+            title: Text(
+              widget.track.displayTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: widget.playing ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              widget.track.displayArtist,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_hovered)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    tooltip: 'Remove',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: widget.onRemove,
+                  )
+                else
+                  Text(
+                    widget.track.durationLabel,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
                     ),
-            ),
-          ),
-          title: Text(
-            widget.track.displayTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontWeight: widget.playing ? FontWeight.w600 : FontWeight.w500,
-            ),
-          ),
-          subtitle: Text(
-            widget.track.displayArtist,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_hovered)
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  tooltip: 'Remove',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: widget.onRemove,
-                )
-              else
-                Text(
-                  widget.track.durationLabel,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
                   ),
-                ),
-              const Icon(Icons.drag_handle_rounded, size: 18),
-            ],
+                const Icon(Icons.drag_handle_rounded, size: 18),
+              ],
+            ),
           ),
         ),
       ),

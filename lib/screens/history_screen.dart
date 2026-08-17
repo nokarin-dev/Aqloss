@@ -11,6 +11,7 @@ import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -284,6 +285,12 @@ class _HistoryTile extends ConsumerWidget {
               atIndex: entryIdx >= 0 ? entryIdx : null,
             );
       },
+      onSecondaryTapDown: (d) => showTrackContextMenu(
+        context: context,
+        globalPosition: d.globalPosition,
+        track: track,
+        ref: ref,
+      ),
       builder: (hovered) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         child: Row(
@@ -441,6 +448,12 @@ class _LovedTile extends ConsumerWidget {
               lovedTracks.isNotEmpty ? lovedTracks : [track],
             );
       },
+      onSecondaryTapDown: (d) => showTrackContextMenu(
+        context: context,
+        globalPosition: d.globalPosition,
+        track: track,
+        ref: ref,
+      ),
       builder: (hovered) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         child: Row(
@@ -732,7 +745,12 @@ class _TabPillState extends State<_TabPill> {
 class _HoverableTile extends StatefulWidget {
   final Widget Function(bool hovered) builder;
   final VoidCallback onTap;
-  const _HoverableTile({required this.builder, required this.onTap});
+  final void Function(TapDownDetails)? onSecondaryTapDown;
+  const _HoverableTile({
+    required this.builder,
+    required this.onTap,
+    this.onSecondaryTapDown,
+  });
 
   @override
   State<_HoverableTile> createState() => _HoverableTileState();
@@ -750,6 +768,7 @@ class _HoverableTileState extends State<_HoverableTile> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
+        onSecondaryTapDown: widget.onSecondaryTapDown,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),

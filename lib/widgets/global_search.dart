@@ -5,6 +5,7 @@ import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
@@ -508,6 +509,12 @@ class _TrackTile extends ConsumerWidget {
             .loadWithQueue(result.tracks.first, library.tracks);
         onClose();
       },
+      onSecondaryTapDown: (d) => showTrackContextMenu(
+        context: context,
+        globalPosition: d.globalPosition,
+        track: result.tracks.first,
+        ref: ref,
+      ),
       child: Row(
         children: [
           _SmallArt(path: result.coverPath),
@@ -571,6 +578,14 @@ class _AlbumTile extends ConsumerWidget {
             .loadWithQueue(result.tracks.first, result.tracks);
         onClose();
       },
+      onSecondaryTapDown: (d) => showAlbumContextMenu(
+        context: context,
+        globalPosition: d.globalPosition,
+        album: result.album,
+        artist: result.artist,
+        tracks: result.tracks,
+        ref: ref,
+      ),
       child: Row(
         children: [
           _SmallArt(path: result.coverPath),
@@ -627,6 +642,13 @@ class _ArtistTile extends ConsumerWidget {
             .loadWithQueue(result.tracks.first, result.tracks);
         onClose();
       },
+      onSecondaryTapDown: (d) => showArtistContextMenu(
+        context: context,
+        globalPosition: d.globalPosition,
+        artist: result.artist,
+        tracks: result.tracks,
+        ref: ref,
+      ),
       child: Row(
         children: [
           Container(
@@ -732,7 +754,12 @@ class _PlaylistTile extends ConsumerWidget {
 class _HoverRow extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
-  const _HoverRow({required this.child, required this.onTap});
+  final void Function(TapDownDetails)? onSecondaryTapDown;
+  const _HoverRow({
+    required this.child,
+    required this.onTap,
+    this.onSecondaryTapDown,
+  });
 
   @override
   State<_HoverRow> createState() => _HoverRowState();
@@ -750,6 +777,7 @@ class _HoverRowState extends State<_HoverRow> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
+        onSecondaryTapDown: widget.onSecondaryTapDown,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 90),

@@ -421,16 +421,38 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   // Queue mutation
   void addToQueueNext(Track track) {
-    final q = List<Track>.from(state.queue);
-    final idx = state.queueIndex;
-    final insertAt = (idx + 1).clamp(0, q.length);
-    q.insert(insertAt, track);
-    state = state.copyWith(queue: q);
+    addAllToQueueNext([track]);
   }
 
   void addToQueueLast(Track track) {
-    final q = List<Track>.from(state.queue)..add(track);
+    addAllToQueueLast([track]);
+  }
+
+  void addAllToQueueNext(List<Track> tracks) {
+    if (tracks.isEmpty) return;
+    final q = List<Track>.from(state.queue);
+    var insertAt = (state.queueIndex + 1).clamp(0, q.length);
+    for (final track in tracks) {
+      q.insert(insertAt, track);
+      insertAt++;
+    }
     state = state.copyWith(queue: q);
+  }
+
+  void addAllToQueueLast(List<Track> tracks) {
+    if (tracks.isEmpty) return;
+    state = state.copyWith(queue: [...state.queue, ...tracks]);
+  }
+
+  Future<void> playNext(Track track) => playAllNext([track]);
+
+  Future<void> playAllNext(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    if (state.currentTrack == null) {
+      await loadWithQueue(tracks.first, tracks);
+      return;
+    }
+    addAllToQueueNext(tracks);
   }
 
   void removeFromQueue(int index) {

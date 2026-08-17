@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/library_nav_provider.dart';
 import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/widgets/track_tile.dart';
 import 'package:aqloss/widgets/track_grid_item.dart';
@@ -650,7 +651,7 @@ class _Empty extends StatelessWidget {
 }
 
 // Track options sheet
-class _TrackOptions extends StatelessWidget {
+class _TrackOptions extends ConsumerWidget {
   final Track track;
   final List playlists;
   final PlaylistNotifier notifier;
@@ -661,7 +662,7 @@ class _TrackOptions extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
@@ -669,7 +670,6 @@ class _TrackOptions extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // drag handle
           Center(
             child: Container(
               width: 32,
@@ -700,8 +700,44 @@ class _TrackOptions extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           const UiDivider(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          UiListTile(
+            title: 'Play next',
+            onTap: () async {
+              Navigator.pop(context);
+              await ref.read(playerProvider.notifier).playNext(track);
+              if (context.mounted) QToast.show(context, 'Playing next');
+            },
+          ),
+          UiListTile(
+            title: 'Add to queue',
+            onTap: () {
+              ref.read(playerProvider.notifier).addToQueueLast(track);
+              Navigator.pop(context);
+              QToast.show(context, 'Added to queue');
+            },
+          ),
+          UiListTile(
+            title: 'Show album',
+            onTap: () {
+              Navigator.pop(context);
+              requestShowAlbum(
+                context,
+                ref,
+                album: libraryAlbumOf(track),
+                artist: libraryArtistOf(track),
+              );
+            },
+          ),
+          UiListTile(
+            title: 'Show artist',
+            onTap: () {
+              Navigator.pop(context);
+              requestShowArtist(context, ref, artist: libraryArtistOf(track));
+            },
+          ),
           if (playlists.isNotEmpty) ...[
+            const SizedBox(height: 8),
             Text(
               'Add to playlist',
               style: TextStyle(
