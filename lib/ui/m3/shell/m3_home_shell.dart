@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/library_nav_provider.dart';
 import 'package:aqloss/screens/album_screen.dart';
 import 'package:aqloss/screens/artists_screen.dart';
 import 'package:aqloss/screens/history_screen.dart';
@@ -172,6 +173,11 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<LibraryNavRequest?>(libraryNavProvider, (prev, next) {
+      if (next == null) return;
+      if (_route != next.route) setState(() => _route = next.route);
+    });
+
     final isWide = MediaQuery.sizeOf(context).width > 700;
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;

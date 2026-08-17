@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/library_nav_provider.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/ui/app_shell.dart';
 import 'package:aqloss/theme/ui_framework.dart';
@@ -284,6 +285,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<LibraryNavRequest?>(libraryNavProvider, (prev, next) {
+      if (next == null) return;
+      if (_route != next.route) setState(() => _route = next.route);
+    });
+
     final settings = ref.watch(settingsProvider);
     if (settings.uiFramework == UiFramework.material3) {
       return const M3HomeShell();

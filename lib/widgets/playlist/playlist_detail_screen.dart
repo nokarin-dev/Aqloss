@@ -6,6 +6,7 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
@@ -358,6 +359,12 @@ class _PlaylistTrackTileState extends ConsumerState<PlaylistTrackTile> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
+        onSecondaryTapDown: (d) => showTrackContextMenu(
+          context: context,
+          globalPosition: d.globalPosition,
+          track: widget.track,
+          ref: ref,
+        ),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 110),

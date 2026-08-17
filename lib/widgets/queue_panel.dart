@@ -4,6 +4,7 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -172,7 +173,6 @@ class _QueueListState extends State<_QueueList> {
         return _QueueTile(
           key: ValueKey('q_${i}_${track.path}'),
           track: track,
-          index: i,
           isCurrent: isCur,
           isPast: isPast,
           onTap: () => widget.notifier.jumpToQueue(i),
@@ -184,9 +184,8 @@ class _QueueListState extends State<_QueueList> {
 }
 
 // Individual queue tile
-class _QueueTile extends StatefulWidget {
+class _QueueTile extends ConsumerStatefulWidget {
   final Track track;
-  final int index;
   final bool isCurrent;
   final bool isPast;
   final VoidCallback onTap;
@@ -195,7 +194,6 @@ class _QueueTile extends StatefulWidget {
   const _QueueTile({
     super.key,
     required this.track,
-    required this.index,
     required this.isCurrent,
     required this.isPast,
     required this.onTap,
@@ -203,10 +201,10 @@ class _QueueTile extends StatefulWidget {
   });
 
   @override
-  State<_QueueTile> createState() => _QueueTileState();
+  ConsumerState<_QueueTile> createState() => _QueueTileState();
 }
 
-class _QueueTileState extends State<_QueueTile> {
+class _QueueTileState extends ConsumerState<_QueueTile> {
   bool _hovered = false;
 
   @override
@@ -224,6 +222,12 @@ class _QueueTileState extends State<_QueueTile> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
+        onSecondaryTapDown: (d) => showTrackContextMenu(
+          context: context,
+          globalPosition: d.globalPosition,
+          track: widget.track,
+          ref: ref,
+        ),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
@@ -237,20 +241,6 @@ class _QueueTileState extends State<_QueueTile> {
             opacity: alpha,
             child: Row(
               children: [
-                // Drag handle
-                ReorderableDragStartListener(
-                  index: widget.index,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 8, 6, 8),
-                    child: Icon(
-                      Icons.drag_handle_rounded,
-                      size: 14,
-                      color: onSurfaceAlpha(_hovered ? 0.28 : 0.10),
-                    ),
-                  ),
-                ),
-
-                // Art thumbnail
                 _QueueArt(path: widget.track.path, isCurrent: widget.isCurrent),
                 const SizedBox(width: 9),
 

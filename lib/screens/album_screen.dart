@@ -7,7 +7,9 @@ import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/providers/library_nav_provider.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/widgets/ui/app_shell.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
@@ -15,6 +17,7 @@ import 'package:aqloss/ui/m3/widgets/m3_search_field.dart';
 import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/shared/search_box.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/widgets/q_toast.dart';
 
 // Helpers
 bool get _isDesktop =>
@@ -93,13 +96,55 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
   String _query = '';
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _consumeNav());
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
   }
 
+  void _consumeNav() {
+    final req = ref.read(libraryNavProvider);
+    if (req == null || req.kind != LibraryNavKind.album) return;
+    ref.read(libraryNavProvider.notifier).state = null;
+    if (!mounted) return;
+    final albums = _groupAlbums(ref.read(libraryProvider).tracks);
+    final album = _findAlbum(albums, req);
+    if (album == null) return;
+    Navigator.of(context).push(_fadeRoute(_AlbumDetailScreen(album: album)));
+  }
+
+  _Album? _findAlbum(List<_Album> albums, LibraryNavRequest req) {
+    final wantAlbum = req.album.trim().isEmpty ? 'Unknown Album' : req.album;
+    final wantArtist = req.artist.trim().isEmpty
+        ? 'Unknown Artist'
+        : req.artist;
+    final exact = albums.where(
+      (a) =>
+          a.name.toLowerCase() == wantAlbum.toLowerCase() &&
+          a.artist.toLowerCase() == wantArtist.toLowerCase(),
+    );
+    if (exact.isNotEmpty) return exact.first;
+    final byName = albums.where(
+      (a) => a.name.toLowerCase() == wantAlbum.toLowerCase(),
+    );
+    return byName.isEmpty ? null : byName.first;
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<LibraryNavRequest?>(libraryNavProvider, (prev, next) {
+      if (next?.kind == LibraryNavKind.album) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _consumeNav();
+        });
+      }
+    });
+
     final library = ref.watch(libraryProvider);
     final viewMode = ref.watch(settingsProvider).albumViewMode;
     final cs = Theme.of(context).colorScheme;
@@ -117,6 +162,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
     void openAlbum(_Album album) {
       Navigator.of(context).push(_fadeRoute(_AlbumDetailScreen(album: album)));
+    }
+
+    void onAlbumSecondary(_Album album, TapDownDetails d) {
+      showAlbumContextMenu(
+        context: context,
+        globalPosition: d.globalPosition,
+        album: album.name,
+        artist: album.artist,
+        tracks: album.tracks,
+        ref: ref,
+      );
     }
 
     if (context.isMaterial3Ui) {
@@ -170,8 +226,16 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                 ),
               )
             : viewMode == LibraryViewMode.grid
-            ? _AlbumGrid(albums: albums, onTap: openAlbum)
-            : _AlbumList(albums: albums, onTap: openAlbum),
+            ? _AlbumGrid(
+                albums: albums,
+                onTap: openAlbum,
+                onSecondaryTapDown: onAlbumSecondary,
+              )
+            : _AlbumList(
+                albums: albums,
+                onTap: openAlbum,
+                onSecondaryTapDown: onAlbumSecondary,
+              ),
       );
     }
 
@@ -246,8 +310,16 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                     ),
                   )
                 : viewMode == LibraryViewMode.grid
-                ? _AlbumGrid(albums: albums, onTap: openAlbum)
-                : _AlbumList(albums: albums, onTap: openAlbum),
+                ? _AlbumGrid(
+                    albums: albums,
+                    onTap: openAlbum,
+                    onSecondaryTapDown: onAlbumSecondary,
+                  )
+                : _AlbumList(
+                    albums: albums,
+                    onTap: openAlbum,
+                    onSecondaryTapDown: onAlbumSecondary,
+                  ),
           ),
         ],
       ),
@@ -270,8 +342,13 @@ PageRoute<void> _fadeRoute(Widget page) => PageRouteBuilder(
 class _AlbumGrid extends StatelessWidget {
   final List<_Album> albums;
   final void Function(_Album) onTap;
+  final void Function(_Album, TapDownDetails) onSecondaryTapDown;
 
-  const _AlbumGrid({required this.albums, required this.onTap});
+  const _AlbumGrid({
+    required this.albums,
+    required this.onTap,
+    required this.onSecondaryTapDown,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -287,8 +364,11 @@ class _AlbumGrid extends StatelessWidget {
         childAspectRatio: compact ? 0.82 : 0.72,
       ),
       itemCount: albums.length,
-      itemBuilder: (_, i) =>
-          _AlbumCard(album: albums[i], onTap: () => onTap(albums[i])),
+      itemBuilder: (_, i) => _AlbumCard(
+        album: albums[i],
+        onTap: () => onTap(albums[i]),
+        onSecondaryTapDown: (d) => onSecondaryTapDown(albums[i], d),
+      ),
     );
   }
 }
@@ -296,8 +376,13 @@ class _AlbumGrid extends StatelessWidget {
 class _AlbumList extends StatelessWidget {
   final List<_Album> albums;
   final void Function(_Album) onTap;
+  final void Function(_Album, TapDownDetails) onSecondaryTapDown;
 
-  const _AlbumList({required this.albums, required this.onTap});
+  const _AlbumList({
+    required this.albums,
+    required this.onTap,
+    required this.onSecondaryTapDown,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -305,8 +390,11 @@ class _AlbumList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 2, 8, 24),
       itemCount: albums.length,
       separatorBuilder: (_, _) => const SizedBox(height: 2),
-      itemBuilder: (_, i) =>
-          _AlbumListTile(album: albums[i], onTap: () => onTap(albums[i])),
+      itemBuilder: (_, i) => _AlbumListTile(
+        album: albums[i],
+        onTap: () => onTap(albums[i]),
+        onSecondaryTapDown: (d) => onSecondaryTapDown(albums[i], d),
+      ),
     );
   }
 }
@@ -314,35 +402,59 @@ class _AlbumList extends StatelessWidget {
 class _AlbumListTile extends ConsumerWidget {
   final _Album album;
   final VoidCallback onTap;
+  final void Function(TapDownDetails) onSecondaryTapDown;
 
-  const _AlbumListTile({required this.album, required this.onTap});
+  const _AlbumListTile({
+    required this.album,
+    required this.onTap,
+    required this.onSecondaryTapDown,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
 
-    return UiListTile(
-      leading: _AlbumThumb(path: album.tracks.first.path, size: 56),
-      title: album.name,
-      subtitle: album.artist,
-      onTap: onTap,
-      trailing: PopupMenuButton<String>(
-        icon: Icon(
-          Icons.more_vert_rounded,
-          size: 20,
-          color: cs.onSurface.withValues(alpha: 0.34),
+    return GestureDetector(
+      onSecondaryTapDown: onSecondaryTapDown,
+      child: UiListTile(
+        leading: _AlbumThumb(path: album.tracks.first.path, size: 56),
+        title: album.name,
+        subtitle: album.artist,
+        onTap: onTap,
+        trailing: PopupMenuButton<String>(
+          icon: Icon(
+            Icons.more_vert_rounded,
+            size: 20,
+            color: cs.onSurface.withValues(alpha: 0.34),
+          ),
+          padding: EdgeInsets.zero,
+          onSelected: (value) async {
+            final player = ref.read(playerProvider.notifier);
+            switch (value) {
+              case 'play':
+                await player.loadWithQueue(album.tracks.first, album.tracks);
+              case 'play_next':
+                await player.playAllNext(album.tracks);
+                if (context.mounted) QToast.show(context, 'Playing next');
+              case 'queue':
+                player.addAllToQueueLast(album.tracks);
+                if (context.mounted) {
+                  QToast.show(
+                    context,
+                    'Added ${album.tracks.length} tracks to queue',
+                  );
+                }
+              case 'show_artist':
+                requestShowArtist(context, ref, artist: album.artist);
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'play', child: Text('Play album')),
+            PopupMenuItem(value: 'play_next', child: Text('Play next')),
+            PopupMenuItem(value: 'queue', child: Text('Add to queue')),
+            PopupMenuItem(value: 'show_artist', child: Text('Show artist')),
+          ],
         ),
-        padding: EdgeInsets.zero,
-        onSelected: (value) {
-          if (value == 'play') {
-            ref
-                .read(playerProvider.notifier)
-                .loadWithQueue(album.tracks.first, album.tracks);
-          }
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'play', child: Text('Play album')),
-        ],
       ),
     );
   }
@@ -464,8 +576,13 @@ class _ViewModeButton extends StatelessWidget {
 class _AlbumCard extends StatefulWidget {
   final _Album album;
   final VoidCallback onTap;
+  final void Function(TapDownDetails) onSecondaryTapDown;
 
-  const _AlbumCard({required this.album, required this.onTap});
+  const _AlbumCard({
+    required this.album,
+    required this.onTap,
+    required this.onSecondaryTapDown,
+  });
 
   @override
   State<_AlbumCard> createState() => _AlbumCardState();
@@ -540,6 +657,7 @@ class _AlbumCardState extends State<_AlbumCard>
         onTapUp: (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
         onTap: widget.onTap,
+        onSecondaryTapDown: widget.onSecondaryTapDown,
         child: AnimatedScale(
           scale: _pressed ? 0.955 : 1.0,
           duration: const Duration(milliseconds: 120),
@@ -846,8 +964,8 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(
-                            album.artist,
+                          _ArtistNameLink(
+                            artist: album.artist,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 13,
@@ -922,8 +1040,8 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 5),
-                                Text(
-                                  album.artist,
+                                _ArtistNameLink(
+                                  artist: album.artist,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: cs.onSurface.withValues(alpha: 0.46),
@@ -1037,6 +1155,12 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                   hPad: hPad,
                   onTap: () =>
                       playerNotifier.loadWithQueue(track, album.tracks),
+                  onSecondaryTapDown: (d) => showTrackContextMenu(
+                    context: context,
+                    globalPosition: d.globalPosition,
+                    track: track,
+                    ref: ref,
+                  ),
                 );
               }, childCount: album.tracks.length),
             ),
@@ -1251,6 +1375,7 @@ class _DetailTrackRow extends StatefulWidget {
   final bool isActive;
   final double hPad;
   final VoidCallback onTap;
+  final void Function(TapDownDetails) onSecondaryTapDown;
 
   const _DetailTrackRow({
     required this.track,
@@ -1258,6 +1383,7 @@ class _DetailTrackRow extends StatefulWidget {
     required this.isActive,
     required this.hPad,
     required this.onTap,
+    required this.onSecondaryTapDown,
   });
 
   @override
@@ -1278,6 +1404,7 @@ class _DetailTrackRowState extends State<_DetailTrackRow> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
+        onSecondaryTapDown: widget.onSecondaryTapDown,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 110),
           color: _hovered
@@ -1516,6 +1643,39 @@ class _AlbumLoveBtnState extends ConsumerState<_AlbumLoveBtn>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ArtistNameLink extends StatelessWidget {
+  final String artist;
+  final TextStyle style;
+  final TextAlign? textAlign;
+
+  const _ArtistNameLink({
+    required this.artist,
+    required this.style,
+    this.textAlign,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, _) {
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () => requestShowArtist(context, ref, artist: artist),
+            child: Text(
+              artist,
+              textAlign: textAlign,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+        );
+      },
     );
   }
 }
