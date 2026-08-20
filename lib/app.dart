@@ -11,6 +11,7 @@ import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
+import 'package:aqloss/providers/window_chrome_provider.dart';
 import 'package:aqloss/widgets/settings_watcher.dart';
 import 'package:aqloss/widgets/mini_player_window.dart';
 import 'package:window_manager/window_manager.dart';
@@ -35,6 +36,11 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
     WidgetsBinding.instance.addObserver(this);
     if (_isLinux) {
       windowManager.addListener(this);
+      bindWindowChromeChannel((flush) {
+        if (!mounted) return;
+        if (ref.read(windowFlushProvider) == flush) return;
+        ref.read(windowFlushProvider.notifier).state = flush;
+      });
       _checkMaximize();
     }
   }
@@ -62,10 +68,20 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
   }
 
   @override
-  void onWindowMaximize() => setState(() => _isMaximize = true);
+  void onWindowMaximize() {
+    setState(() => _isMaximize = true);
+    ref.read(windowFlushProvider.notifier).state = true;
+  }
 
   @override
-  void onWindowUnmaximize() => setState(() => _isMaximize = false);
+  void onWindowUnmaximize() {
+    setState(() => _isMaximize = false);
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    ref.read(windowFlushProvider.notifier).state = true;
+  }
 
   @override
   void onWindowFocus() {
@@ -76,6 +92,10 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final navKey = FileOpenService.instance.navigatorKey;
+
+    final linuxFlush =
+        _isLinux && (ref.watch(windowFlushProvider) || _isMaximize);
+    final isWindowedLinux = _isLinux && !linuxFlush;
 
     Color? accent;
     if (settings.accentMode != AccentMode.off) {
@@ -89,7 +109,7 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
       settings: settings,
       accent: accent,
       navKey: navKey,
-      isWindowedLinux: _isLinux && !_isMaximize,
+      isWindowedLinux: isWindowedLinux,
     );
 
     if (!useDynamic) return app;
@@ -100,7 +120,7 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
           settings: settings,
           accent: accent,
           navKey: navKey,
-          isWindowedLinux: _isLinux && !_isMaximize,
+          isWindowedLinux: isWindowedLinux,
           lightDynamic: lightDynamic,
           darkDynamic: darkDynamic,
         );

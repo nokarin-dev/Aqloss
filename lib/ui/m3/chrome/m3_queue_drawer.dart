@@ -1,8 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/widgets/shared/mini_album_art.dart';
 import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -141,33 +139,7 @@ class _QueueItem extends ConsumerStatefulWidget {
 }
 
 class _QueueItemState extends ConsumerState<_QueueItem> {
-  Uint8List? _art;
   bool _hovered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(_QueueItem old) {
-    super.didUpdateWidget(old);
-    if (old.track.path != widget.track.path) _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final bytes = await backend.readAlbumArtThumbnail(
-        path: widget.track.path,
-      );
-      if (mounted) {
-        setState(() => _art = bytes != null ? Uint8List.fromList(bytes) : null);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _art = null);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -192,24 +164,11 @@ class _QueueItemState extends ConsumerState<_QueueItem> {
               : Colors.transparent,
           child: ListTile(
             onTap: widget.onTap,
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: _art != null
-                    ? Image.memory(_art!, fit: BoxFit.cover)
-                    : ColoredBox(
-                        color: cs.surfaceContainerHighest,
-                        child: Icon(
-                          widget.playing
-                              ? Icons.equalizer_rounded
-                              : Icons.music_note_rounded,
-                          size: 18,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-              ),
+            leading: MiniAlbumArt(
+              path: widget.track.path,
+              size: 40,
+              playing: widget.playing,
+              radius: 8,
             ),
             title: Text(
               widget.track.displayTitle,

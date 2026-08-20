@@ -10,6 +10,7 @@ import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/widgets/shared/mini_album_art.dart';
 import 'package:aqloss/services/playlist_io_service.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
@@ -23,7 +24,7 @@ class PlaylistDetailScreen extends ConsumerStatefulWidget {
 
 class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   final _scroll = ScrollController();
-  static const _kItemH = 52.0;
+  static const _kItemH = 56.0;
   String? _lastScrolledPath;
 
   @override
@@ -371,28 +372,15 @@ class _PlaylistTrackTileState extends ConsumerState<PlaylistTrackTile> {
           color: _hovered
               ? cs.onSurface.withValues(alpha: 0.03)
               : Colors.transparent,
-          padding: const EdgeInsets.only(left: 16, right: 0, top: 7, bottom: 7),
+          padding: const EdgeInsets.only(left: 16, right: 0, top: 8, bottom: 8),
           child: Row(
             children: [
-              SizedBox(
-                width: 32,
-                child: Center(
-                  child: isPlaying
-                      ? Icon(
-                          Icons.equalizer_rounded,
-                          size: 14,
-                          color: cs.onSurface.withValues(alpha: 0.7),
-                        )
-                      : Text(
-                          '${widget.index + 1}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: cs.onSurface.withValues(alpha: 0.22),
-                          ),
-                        ),
-                ),
+              MiniAlbumArt(
+                path: widget.track.path,
+                size: 40,
+                playing: isPlaying,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

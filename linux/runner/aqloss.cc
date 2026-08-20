@@ -9,6 +9,7 @@
 #include "desktop_multi_window/desktop_multi_window_plugin.h"
 #include <libgen.h>
 #include <cstdlib>
+#include <cstring>
 #include <gio/gio.h>
 
 struct _Aqloss
@@ -16,13 +17,110 @@ struct _Aqloss
   GtkApplication parent_instance;
   char **dart_entrypoint_arguments;
   FlMethodChannel *file_open_channel;
+  FlMethodChannel *chrome_channel;
+  gboolean chrome_flush;
+  gboolean chrome_flush_known;
 };
 
 G_DEFINE_TYPE(Aqloss, aqloss, GTK_TYPE_APPLICATION)
 
-static void first_frame_cb(Aqloss *, FlView *view)
+static gboolean window_is_flush(GtkWindow *win)
 {
-  gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+  GdkWindow *gdk_win = gtk_widget_get_window(GTK_WIDGET(win));
+  if (!gdk_win)
+    return FALSE;
+
+  GdkWindowState st = gdk_window_get_state(gdk_win);
+  if (st & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN |
+            GDK_WINDOW_STATE_TILED))
+    return TRUE;
+#if GTK_CHECK_VERSION(3, 22, 0)
+  if (st & (GDK_WINDOW_STATE_TOP_TILED | GDK_WINDOW_STATE_BOTTOM_TILED |
+            GDK_WINDOW_STATE_LEFT_TILED | GDK_WINDOW_STATE_RIGHT_TILED))
+    return TRUE;
+#endif
+
+  GdkDisplay *display = gdk_window_get_display(gdk_win);
+  GdkMonitor *mon = gdk_display_get_monitor_at_window(display, gdk_win);
+  if (!mon)
+    return FALSE;
+
+  GdkRectangle wa;
+  gdk_monitor_get_workarea(mon, &wa);
+
+  gint w = 0, h = 0, x = 0, y = 0;
+  gtk_window_get_size(win, &w, &h);
+  gtk_window_get_position(win, &x, &y);
+
+  const int edge = 32;
+  const gboolean fills_h = h >= wa.height - edge;
+  const gboolean fills_w = w >= wa.width - edge;
+  if (fills_w && fills_h)
+    return TRUE;
+
+  const gboolean left = x <= wa.x + edge;
+  const gboolean right = x + w >= wa.x + wa.width - edge;
+  const gboolean top = y <= wa.y + edge;
+  const gboolean bottom = y + h >= wa.y + wa.height - edge;
+
+  if (fills_h && (left || right || w <= (gint)(wa.width * 0.72)))
+    return TRUE;
+  if (fills_w && (top || bottom || h <= (gint)(wa.height * 0.72)))
+    return TRUE;
+  return FALSE;
+}
+
+static void emit_window_chrome(Aqloss *self, GtkWindow *win)
+{
+  if (!self || !self->chrome_channel || !win)
+    return;
+  const gboolean flush = window_is_flush(win);
+  if (self->chrome_flush_known && self->chrome_flush == flush)
+    return;
+  self->chrome_flush = flush;
+  self->chrome_flush_known = TRUE;
+  g_autoptr(FlValue) args = fl_value_new_bool(flush);
+  fl_method_channel_invoke_method(
+      self->chrome_channel, "setFlush", args, nullptr, nullptr, nullptr);
+}
+
+static gboolean on_window_configure(GtkWidget *widget, GdkEventConfigure *,
+                                    gpointer ud)
+{
+  emit_window_chrome(AQLOSS_APP(ud), GTK_WINDOW(widget));
+  return FALSE;
+}
+
+static gboolean on_window_state(GtkWidget *widget, GdkEventWindowState *,
+                                gpointer ud)
+{
+  emit_window_chrome(AQLOSS_APP(ud), GTK_WINDOW(widget));
+  return FALSE;
+}
+
+static void chrome_method_call(FlMethodChannel *, FlMethodCall *call,
+                               gpointer ud)
+{
+  Aqloss *self = AQLOSS_APP(ud);
+  g_autoptr(FlMethodResponse) resp = nullptr;
+  if (strcmp(fl_method_call_get_name(call), "getFlush") == 0)
+  {
+    resp = FL_METHOD_RESPONSE(
+        fl_method_success_response_new(fl_value_new_bool(self->chrome_flush)));
+  }
+  else
+  {
+    resp = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(call, resp, nullptr);
+}
+
+static void first_frame_cb(Aqloss *self, FlView *view)
+{
+  GtkWidget *top = gtk_widget_get_toplevel(GTK_WIDGET(view));
+  gtk_widget_show(top);
+  if (GTK_IS_WINDOW(top))
+    emit_window_chrome(self, GTK_WINDOW(top));
 }
 
 static void set_transparent(GtkWindow *win, FlView *fl_view)
@@ -227,6 +325,24 @@ static void aqloss_activate(GApplication *application)
         FL_METHOD_CODEC(codec));
   }
 
+  {
+    g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+    g_autoptr(FlPluginRegistrar) reg =
+        fl_plugin_registry_get_registrar_for_plugin(
+            FL_PLUGIN_REGISTRY(view), "aqloss_window_chrome");
+    self->chrome_channel = fl_method_channel_new(
+        fl_plugin_registrar_get_messenger(reg),
+        "xyz.nokarin.aqloss/window_chrome",
+        FL_METHOD_CODEC(codec));
+    fl_method_channel_set_method_call_handler(
+        self->chrome_channel, chrome_method_call, self, nullptr);
+  }
+
+  g_signal_connect(window, "configure-event", G_CALLBACK(on_window_configure),
+                   self);
+  g_signal_connect(window, "window-state-event", G_CALLBACK(on_window_state),
+                   self);
+
   desktop_multi_window_plugin_set_window_created_callback(
       [](FlPluginRegistry *registry)
       {
@@ -303,6 +419,7 @@ static void aqloss_dispose(GObject *obj)
   Aqloss *self = AQLOSS_APP(obj);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_object(&self->file_open_channel);
+  g_clear_object(&self->chrome_channel);
   G_OBJECT_CLASS(aqloss_parent_class)->dispose(obj);
 }
 

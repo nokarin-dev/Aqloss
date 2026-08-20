@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,7 @@ import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
-import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/widgets/shared/mini_album_art.dart';
 
 class TrackTile extends ConsumerWidget {
   final Track track;
@@ -181,10 +180,10 @@ class _TileBodyState extends ConsumerState<_TileBody> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
           child: Row(
             children: [
-              _ArtThumb(
+              MiniAlbumArt(
                 path: widget.track.path,
-                isPlaying: widget.isPlaying,
-                isLossless: widget.format.isLossless,
+                playing: widget.isPlaying,
+                lossless: widget.format.isLossless,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -357,10 +356,10 @@ class _M3TileBodyState extends ConsumerState<_M3TileBody> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           child: Row(
             children: [
-              _ArtThumb(
+              MiniAlbumArt(
                 path: widget.track.path,
-                isPlaying: widget.isPlaying,
-                isLossless: widget.format.isLossless,
+                playing: widget.isPlaying,
+                lossless: widget.format.isLossless,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -485,107 +484,6 @@ class _M3TileBodyState extends ConsumerState<_M3TileBody> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ArtThumb extends ConsumerStatefulWidget {
-  final String path;
-  final bool isPlaying;
-  final bool isLossless;
-
-  const _ArtThumb({
-    required this.path,
-    required this.isPlaying,
-    required this.isLossless,
-  });
-
-  @override
-  ConsumerState<_ArtThumb> createState() => _ArtThumbState();
-}
-
-class _ArtThumbState extends ConsumerState<_ArtThumb> {
-  Uint8List? _artBytes;
-  String? _loadedPath;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadArt(widget.path);
-  }
-
-  @override
-  void didUpdateWidget(_ArtThumb old) {
-    super.didUpdateWidget(old);
-    if (old.path != widget.path) _loadArt(widget.path);
-  }
-
-  Future<void> _loadArt(String path) async {
-    _loadedPath = path;
-    if (mounted) setState(() => _artBytes = null);
-    try {
-      final bytes = await backend.readAlbumArtThumbnail(path: path);
-      if (mounted && _loadedPath == path) {
-        setState(
-          () => _artBytes = bytes != null ? Uint8List.fromList(bytes) : null,
-        );
-      }
-    } catch (_) {
-      if (mounted && _loadedPath == path) setState(() => _artBytes = null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isM3 = context.isMaterial3Ui;
-    final cs = Theme.of(context).colorScheme;
-    final aq = context.aq;
-    final bg = isM3 ? cs.onSurface.withValues(alpha: 0.05) : aq.indicator;
-    final iconActive = isM3
-        ? ref.watch(accentColorProvider) ?? cs.onSurface.withValues(alpha: 0.54)
-        : ref.watch(accentColorProvider) ??
-              aq.onSurface.withValues(alpha: 0.54);
-    final iconIdle = isM3
-        ? cs.onSurface.withValues(alpha: 0.18)
-        : aq.onSurface.withValues(alpha: 0.18);
-    final losslessDot = isM3
-        ? cs.onSurface.withValues(alpha: 0.55)
-        : aq.onSurface.withValues(alpha: 0.55);
-
-    return SizedBox(
-      width: 36,
-      height: 36,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: Container(
-              width: 36,
-              height: 36,
-              color: bg,
-              child: widget.isPlaying
-                  ? Icon(Icons.equalizer_rounded, size: 14, color: iconActive)
-                  : _artBytes != null
-                  ? Image.memory(_artBytes!, fit: BoxFit.cover)
-                  : Icon(Icons.music_note_rounded, size: 14, color: iconIdle),
-            ),
-          ),
-          if (widget.isLossless)
-            Positioned(
-              top: 1,
-              right: 1,
-              child: Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: losslessDot,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

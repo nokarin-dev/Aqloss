@@ -1,9 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/shared/mini_album_art.dart';
 import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -18,11 +16,13 @@ class QueuePanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final open = ref.watch(queuePanelOpenProvider);
+    final narrow = MediaQuery.sizeOf(context).width < 1100;
+    final panelW = narrow ? 220.0 : 272.0;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeInOutCubic,
-      width: open ? 272.0 : 0.0,
+      width: open ? panelW : 0.0,
       child: open ? const _QueuePanelContent() : const SizedBox.shrink(),
     );
   }
@@ -241,7 +241,12 @@ class _QueueTileState extends ConsumerState<_QueueTile> {
             opacity: alpha,
             child: Row(
               children: [
-                _QueueArt(path: widget.track.path, isCurrent: widget.isCurrent),
+                MiniAlbumArt(
+                  path: widget.track.path,
+                  size: 32,
+                  playing: widget.isCurrent,
+                  radius: 4,
+                ),
                 const SizedBox(width: 9),
 
                 // Title + artist
@@ -297,94 +302,6 @@ class _QueueTileState extends ConsumerState<_QueueTile> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Art thumbnail
-class _QueueArt extends StatefulWidget {
-  final String path;
-  final bool isCurrent;
-  const _QueueArt({required this.path, required this.isCurrent});
-
-  @override
-  State<_QueueArt> createState() => _QueueArtState();
-}
-
-class _QueueArtState extends State<_QueueArt> {
-  Uint8List? _art;
-  bool _tried = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(_QueueArt old) {
-    super.didUpdateWidget(old);
-    if (old.path != widget.path) {
-      _art = null;
-      _tried = false;
-      _load();
-    }
-  }
-
-  Future<void> _load() async {
-    if (_tried) return;
-    _tried = true;
-    try {
-      final bytes = await backend.readAlbumArtThumbnail(path: widget.path);
-      if (mounted && bytes != null) setState(() => _art = bytes);
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isM3 = context.isMaterial3Ui;
-    final cs = Theme.of(context).colorScheme;
-    final aq = context.aq;
-    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
-    Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
-    final radius = BorderRadius.circular(4);
-
-    return SizedBox(
-      width: 32,
-      height: 32,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: onSurfaceAlpha(0.06),
-              borderRadius: radius,
-            ),
-            child: _art != null
-                ? ClipRRect(
-                    borderRadius: radius,
-                    child: Image.memory(_art!, fit: BoxFit.cover),
-                  )
-                : Icon(
-                    Icons.music_note_rounded,
-                    size: 13,
-                    color: onSurfaceAlpha(0.16),
-                  ),
-          ),
-          if (widget.isCurrent)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.42),
-                borderRadius: radius,
-              ),
-              child: const Icon(
-                Icons.equalizer_rounded,
-                size: 13,
-                color: Colors.white,
-              ),
-            ),
-        ],
       ),
     );
   }

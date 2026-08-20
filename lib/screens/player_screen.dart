@@ -15,6 +15,9 @@ import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
+// Cover layout breakpoint
+const _coverLayoutMaxWidth = 640.0;
+
 class PlayerScreen extends ConsumerWidget {
   const PlayerScreen({super.key});
 
@@ -26,214 +29,471 @@ class PlayerScreen extends ConsumerWidget {
 
     if (!isWide) return const MobileNowPlaying();
 
-    if (context.isMaterial3Ui) {
-      return _M3WideLayout(track: track, player: player);
-    }
-
-    return UiPage(
-      body: _WideLayout(track: track, player: player),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final body = _DesktopNowPlaying(
+          track: track,
+          maxWidth: constraints.maxWidth,
+          m3: context.isMaterial3Ui,
+        );
+        if (context.isMaterial3Ui) {
+          return ColoredBox(
+            color: Theme.of(context).colorScheme.surface,
+            child: body,
+          );
+        }
+        return UiPage(body: body);
+      },
     );
   }
 }
 
-class _M3WideLayout extends ConsumerWidget {
+class _DesktopNowPlaying extends ConsumerWidget {
   final Track? track;
-  final PlayerState player;
-  const _M3WideLayout({required this.track, required this.player});
+  final double maxWidth;
+  final bool m3;
+  const _DesktopNowPlaying({
+    required this.track,
+    required this.maxWidth,
+    required this.m3,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(lyricsProvider);
+    if (maxWidth < _coverLayoutMaxWidth) {
+      return _CoverNowPlaying(track: track, m3: m3);
+    }
+
+    final settings = ref.watch(settingsProvider);
+    final showLyrics = track != null;
+    final artPad = m3
+        ? const EdgeInsets.fromLTRB(28, 28, 14, 20)
+        : const EdgeInsets.fromLTRB(24, 26, 12, 18);
+    final mainPad = m3
+        ? const EdgeInsets.fromLTRB(16, 36, 36, 24)
+        : const EdgeInsets.fromLTRB(14, 30, 30, 22);
+    final leftW = showLyrics
+        ? (maxWidth * 0.36).clamp(260.0, 400.0)
+        : (maxWidth * 0.40).clamp(240.0, 420.0);
+
+    final artCard = _AlbumArtCard(
+      track: track,
+      showBackground: settings.showAlbumArtBackground,
+      m3: m3,
+    );
+
+    return Row(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          width: leftW,
+          child: Padding(
+            padding: artPad,
+            child: Column(
+              children: [
+                if (showLyrics) ...[
+                  Flexible(
+                    flex: 4,
+                    child: LayoutBuilder(
+                      builder: (context, c) {
+                        var side = c.maxWidth < c.maxHeight
+                            ? c.maxWidth
+                            : c.maxHeight;
+                        if (side > 380) side = 380;
+                        return Center(
+                          child: SizedBox(
+                            width: side,
+                            height: side,
+                            child: artCard,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(flex: 5, child: _LyricsPane(m3: m3)),
+                ] else
+                  AspectRatio(aspectRatio: 1, child: artCard),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: mainPad,
+            child: _PlaybackColumn(
+              track: track,
+              m3: m3,
+              spectrumEnabled: settings.spectrumEnabled,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LyricsPane extends StatelessWidget {
+  final bool m3;
+  const _LyricsPane({required this.m3});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!m3) {
+      return const ClipRRect(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        child: LyricsView(compact: true),
+      );
+    }
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: cs.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: const LyricsView(compact: true),
+    );
+  }
+}
+
+class _PlaybackColumn extends StatelessWidget {
+  final Track? track;
+  final bool m3;
+  final bool spectrumEnabled;
+  const _PlaybackColumn({
+    required this.track,
+    required this.m3,
+    required this.spectrumEnabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (m3)
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Column(
+              key: ValueKey(track?.path),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  track?.displayTitle ?? 'Nothing playing',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        () {
+                          final parts = [
+                            if (track?.artist != null) track!.artist!,
+                            if (track?.album != null) track!.album!,
+                          ];
+                          return parts.isEmpty ? '-' : parts.join(' · ');
+                        }(),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (track != null) _PlayerLoveBtn(track: track!),
+                  ],
+                ),
+              ],
+            ),
+          )
+        else ...[
+          _TrackInfo(track: track),
+          const SizedBox(height: 6),
+        ],
+        if (track != null) ...[
+          if (m3) const SizedBox(height: 12),
+          _FormatRow(track: track!, soft: m3),
+        ],
+        const Spacer(),
+        if (spectrumEnabled) ...[
+          SpectrumDisplay(
+            height: m3 ? 64 : 72,
+            barCount: 48,
+            color: m3
+                ? cs.primary.withValues(alpha: 0.14)
+                : cs.onSurface.withValues(alpha: 0.09),
+          ),
+          SizedBox(height: m3 ? 24 : 20),
+        ],
+        const PlayerControls(),
+      ],
+    );
+  }
+}
+
+class _CoverNowPlaying extends ConsumerStatefulWidget {
+  final Track? track;
+  final bool m3;
+  const _CoverNowPlaying({required this.track, required this.m3});
+
+  @override
+  ConsumerState<_CoverNowPlaying> createState() => _CoverNowPlayingState();
+}
+
+class _CoverNowPlayingState extends ConsumerState<_CoverNowPlaying> {
+  bool _lyricsOpen = false;
+
+  @override
+  void didUpdateWidget(_CoverNowPlaying old) {
+    super.didUpdateWidget(old);
+    if (old.track?.path != widget.track?.path) {
+      _lyricsOpen = false;
+    }
+  }
+
+  void _toggleLyrics() => setState(() => _lyricsOpen = !_lyricsOpen);
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final width = MediaQuery.sizeOf(context).width;
-    final showLyricsPanel = track != null;
+    final track = widget.track;
+    final pad = widget.m3
+        ? const EdgeInsets.fromLTRB(20, 16, 20, 14)
+        : const EdgeInsets.fromLTRB(16, 14, 16, 12);
 
-    return ColoredBox(
-      color: cs.surface,
-      child: Row(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeOutCubic,
-            width: showLyricsPanel ? width * 0.32 : width * 0.42,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(36, 36, 20, 28),
-              child: Column(
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1,
-                    child: _AlbumArtCard(
-                      track: track,
-                      showBackground: settings.showAlbumArtBackground,
-                      m3: true,
-                    ),
-                  ),
-                  if (showLyricsPanel) ...[
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: Card(
-                        elevation: 0,
-                        margin: EdgeInsets.zero,
-                        color: cs.surfaceContainerLow,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: const LyricsView(),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 40, 40, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: Column(
-                      key: ValueKey(track?.path),
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track?.displayTitle ?? 'Nothing playing',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: -0.3,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                () {
-                                  final parts = [
-                                    if (track?.artist != null) track!.artist!,
-                                    if (track?.album != null) track!.album!,
-                                  ];
-                                  return parts.isEmpty
-                                      ? '-'
-                                      : parts.join(' · ');
-                                }(),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: cs.onSurfaceVariant,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+    final subtitle = [
+      if (track?.artist != null) track!.artist!,
+      if (track?.album != null) track!.album!,
+    ].join(widget.m3 ? ' · ' : ' - ');
+
+    Widget artStage(double side) => SizedBox(
+      width: side,
+      height: side,
+      child: _ArtStage(
+        track: track,
+        m3: widget.m3,
+        showBackground: settings.showAlbumArtBackground,
+        lyricsOpen: _lyricsOpen,
+        onToggleLyrics: track == null ? null : _toggleLyrics,
+      ),
+    );
+
+    final meta = Column(
+      children: [
+        Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: track != null ? 32 : 0),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: Column(
+                  key: ValueKey(track?.path),
+                  children: [
+                    Text(
+                      track?.displayTitle ?? 'Nothing playing',
+                      textAlign: TextAlign.center,
+                      style: widget.m3
+                          ? theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: -0.3,
+                            )
+                          : TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w400,
+                              color: cs.onSurface,
+                              letterSpacing: -0.4,
                             ),
-                            if (track != null) _PlayerLoveBtn(track: track!),
-                          ],
-                        ),
-                      ],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  if (track != null) ...[
-                    const SizedBox(height: 12),
-                    _FormatRow(track: track!, soft: true),
-                  ],
-                  const Spacer(),
-                  if (settings.spectrumEnabled) ...[
-                    SpectrumDisplay(
-                      height: 64,
-                      barCount: 48,
-                      color: cs.primary.withValues(alpha: 0.14),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle.isEmpty ? '-' : subtitle,
+                      textAlign: TextAlign.center,
+                      style: widget.m3
+                          ? theme.textTheme.bodyMedium?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            )
+                          : TextStyle(
+                              fontSize: 12.5,
+                              color: cs.onSurface.withValues(alpha: 0.34),
+                              fontWeight: FontWeight.w300,
+                            ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 24),
                   ],
-                  const PlayerControls(),
-                ],
+                ),
               ),
             ),
+            if (track != null)
+              Positioned(right: 0, top: 0, child: _PlayerLoveBtn(track: track)),
+          ],
+        ),
+        if (track != null) ...[
+          const SizedBox(height: 8),
+          _FormatRow(
+            track: track,
+            soft: widget.m3,
+            alignment: WrapAlignment.center,
           ),
         ],
+      ],
+    );
+
+    const controls = PlayerControls(dense: true);
+
+    return Padding(
+      padding: pad,
+      child: LayoutBuilder(
+        builder: (context, c) {
+          const minArt = 128.0;
+          const reserved = 292.0;
+          final fits = c.maxHeight >= minArt + reserved;
+
+          if (!fits) {
+            final side = c.maxWidth > 240 ? 240.0 : c.maxWidth;
+            return SingleChildScrollView(
+              child: Column(
+                children: [
+                  artStage(side),
+                  const SizedBox(height: 14),
+                  meta,
+                  const SizedBox(height: 8),
+                  controls,
+                ],
+              ),
+            );
+          }
+
+          return Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, inner) {
+                    final side = inner.maxWidth < inner.maxHeight
+                        ? inner.maxWidth
+                        : inner.maxHeight;
+                    return Center(child: artStage(side));
+                  },
+                ),
+              ),
+              const SizedBox(height: 14),
+              meta,
+              const SizedBox(height: 8),
+              controls,
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-// Wide layout
-class _WideLayout extends ConsumerWidget {
+class _ArtStage extends StatelessWidget {
   final Track? track;
-  final PlayerState player;
-  const _WideLayout({required this.track, required this.player});
+  final bool m3;
+  final bool showBackground;
+  final bool lyricsOpen;
+  final VoidCallback? onToggleLyrics;
+
+  const _ArtStage({
+    required this.track,
+    required this.m3,
+    required this.showBackground,
+    required this.lyricsOpen,
+    required this.onToggleLyrics,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(lyricsProvider);
-    final settings = ref.watch(settingsProvider);
-    final cs = Theme.of(context).colorScheme;
-    final width = MediaQuery.of(context).size.width;
-    final showLyricsPanel = track != null;
-
-    return Row(
+  Widget build(BuildContext context) {
+    final radius = m3 ? 24.0 : 16.0;
+    return Stack(
       children: [
-        // Left
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 340),
-          curve: Curves.easeInOutCubic,
-          width: showLyricsPanel ? width * 0.28 : width * 0.44,
+        Positioned.fill(
+          child: _AlbumArtCard(
+            track: track,
+            showBackground: showBackground,
+            m3: m3,
+            compact: true,
+          ),
+        ),
+        if (lyricsOpen)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(radius),
+              child: const ColoredBox(
+                color: Color(0xD1000000),
+                child: LyricsView(onDark: true),
+              ),
+            ),
+          ),
+        if (onToggleLyrics != null)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: _LyricsChip(open: lyricsOpen, onTap: onToggleLyrics!),
+          ),
+      ],
+    );
+  }
+}
+
+class _LyricsChip extends StatelessWidget {
+  final bool open;
+  final VoidCallback onTap;
+  const _LyricsChip({required this.open, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: open ? 'Hide lyrics' : 'Lyrics',
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(30, 34, 18, 26),
-            child: Column(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                AspectRatio(
-                  aspectRatio: 1,
-                  child: _AlbumArtCard(
-                    track: track,
-                    showBackground: settings.showAlbumArtBackground,
+                Icon(
+                  open ? Icons.close_rounded : Icons.lyrics_rounded,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  open ? 'Close' : 'Lyrics',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (showLyricsPanel) ...[
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: const LyricsView(),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
         ),
-
-        // Right
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 34, 34, 26),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _TrackInfo(track: track),
-                const SizedBox(height: 6),
-                if (track != null) _FormatRow(track: track!),
-                const Spacer(),
-                // Spectrum
-                if (settings.spectrumEnabled) ...[
-                  SpectrumDisplay(
-                    height: 72,
-                    barCount: 48,
-                    color: cs.onSurface.withValues(alpha: 0.09),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                const PlayerControls(),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -243,10 +503,12 @@ class _AlbumArtCard extends ConsumerStatefulWidget {
   final Track? track;
   final bool showBackground;
   final bool m3;
+  final bool compact;
   const _AlbumArtCard({
     this.track,
     required this.showBackground,
     this.m3 = false,
+    this.compact = false,
   });
 
   @override
@@ -350,10 +612,18 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(
-                    alpha: widget.m3 ? 0.28 : 0.60,
+                    alpha: widget.compact
+                        ? 0.32
+                        : widget.m3
+                        ? 0.28
+                        : 0.60,
                   ),
-                  blurRadius: widget.m3 ? 28 : 50,
-                  offset: Offset(0, widget.m3 ? 12 : 20),
+                  blurRadius: widget.compact
+                      ? 18
+                      : widget.m3
+                      ? 28
+                      : 50,
+                  offset: Offset(0, widget.compact ? 8 : (widget.m3 ? 12 : 20)),
                 ),
               ],
             ),
@@ -363,7 +633,7 @@ class _AlbumArtCardState extends ConsumerState<_AlbumArtCard> {
                 : Center(
                     child: Icon(
                       Icons.music_note_rounded,
-                      size: 64,
+                      size: widget.compact ? 48 : 64,
                       color: cs.onSurface.withValues(alpha: 0.07),
                     ),
                   ),
@@ -443,7 +713,12 @@ class _TrackInfo extends ConsumerWidget {
 class _FormatRow extends StatelessWidget {
   final Track track;
   final bool soft;
-  const _FormatRow({required this.track, this.soft = false});
+  final WrapAlignment alignment;
+  const _FormatRow({
+    required this.track,
+    this.soft = false,
+    this.alignment = WrapAlignment.start,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -451,6 +726,7 @@ class _FormatRow extends StatelessWidget {
     return Wrap(
       spacing: 5,
       runSpacing: 4,
+      alignment: alignment,
       children: [
         _Badge(track.format, soft: soft),
         if (track.sampleRate > 0)

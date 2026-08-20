@@ -9,7 +9,8 @@ import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
 class PlayerControls extends ConsumerWidget {
-  const PlayerControls({super.key});
+  final bool dense;
+  const PlayerControls({super.key, this.dense = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,7 +21,6 @@ class PlayerControls extends ConsumerWidget {
     final duration = player.currentTrack?.duration ?? Duration.zero;
     final position = player.position;
     final cs = Theme.of(context).colorScheme;
-    final isMobile = MediaQuery.of(context).size.width < 700;
     final isM3 = context.isMaterial3Ui;
     final aq = context.aq;
     final onSurface = isM3 ? cs.onSurface : aq.onSurface;
@@ -33,170 +33,186 @@ class PlayerControls extends ConsumerWidget {
 
     final isExclusive = backend.isExclusiveMode();
 
-    return Column(
-      children: [
-        if (isM3)
-          M3SeekBar(
-            progress: progress,
-            position: position,
-            duration: duration,
-            enabled: player.currentTrack != null,
-            playing: isPlaying,
-            activeColor: ref.accentOrSurface(context),
-            onChanged: player.currentTrack == null
-                ? null
-                : (v) {
-                    if (duration.inMilliseconds > 0) {
-                      notifier.seekPreview(duration * v.clamp(0.0, 1.0));
-                    }
-                  },
-            onChangeEnd: player.currentTrack == null
-                ? null
-                : (v) {
-                    if (duration.inMilliseconds > 0) {
-                      notifier.seekCommit(duration * v.clamp(0.0, 1.0));
-                    }
-                  },
-          )
-        else ...[
-          CustomSlider(
-            value: progress,
-            trackHeight: 2.5,
-            thumbRadius: 5,
-            activeColor: ref.accentOrSurface(context),
-            inactiveColor: onSurfaceAlpha(0.10),
-            thumbColor: ref.accentOrSurface(context),
-            onChanged: player.currentTrack == null
-                ? null
-                : (v) {
-                    if (duration.inMilliseconds > 0) {
-                      notifier.seekPreview(duration * v.clamp(0.0, 1.0));
-                    }
-                  },
-            onChangeEnd: player.currentTrack == null
-                ? null
-                : (v) {
-                    if (duration.inMilliseconds > 0) {
-                      notifier.seekCommit(duration * v.clamp(0.0, 1.0));
-                    }
-                  },
-          ),
-          const SizedBox(height: 5),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _fmt(position),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: onSurfaceAlpha(0.30),
-                    letterSpacing: 0.3,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = dense || constraints.maxWidth < 480;
+        final playGap = compact ? 12.0 : 26.0;
+        final skipSize = compact ? 24.0 : 29.0;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isM3)
+              M3SeekBar(
+                progress: progress,
+                position: position,
+                duration: duration,
+                enabled: player.currentTrack != null,
+                playing: isPlaying,
+                activeColor: ref.accentOrSurface(context),
+                onChanged: player.currentTrack == null
+                    ? null
+                    : (v) {
+                        if (duration.inMilliseconds > 0) {
+                          notifier.seekPreview(duration * v.clamp(0.0, 1.0));
+                        }
+                      },
+                onChangeEnd: player.currentTrack == null
+                    ? null
+                    : (v) {
+                        if (duration.inMilliseconds > 0) {
+                          notifier.seekCommit(duration * v.clamp(0.0, 1.0));
+                        }
+                      },
+              )
+            else ...[
+              CustomSlider(
+                value: progress,
+                trackHeight: 2.5,
+                thumbRadius: 5,
+                activeColor: ref.accentOrSurface(context),
+                inactiveColor: onSurfaceAlpha(0.10),
+                thumbColor: ref.accentOrSurface(context),
+                onChanged: player.currentTrack == null
+                    ? null
+                    : (v) {
+                        if (duration.inMilliseconds > 0) {
+                          notifier.seekPreview(duration * v.clamp(0.0, 1.0));
+                        }
+                      },
+                onChangeEnd: player.currentTrack == null
+                    ? null
+                    : (v) {
+                        if (duration.inMilliseconds > 0) {
+                          notifier.seekCommit(duration * v.clamp(0.0, 1.0));
+                        }
+                      },
+              ),
+              const SizedBox(height: 5),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _fmt(position),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: onSurfaceAlpha(0.30),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    Text(
+                      _fmt(duration),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: onSurfaceAlpha(0.22),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  _fmt(duration),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: onSurfaceAlpha(0.22),
-                    letterSpacing: 0.3,
-                  ),
+              ),
+            ],
+
+            SizedBox(height: compact ? 10 : 20),
+
+            Row(
+              children: [
+                _IconToggle(
+                  icon: Icons.shuffle_rounded,
+                  active: player.shuffle,
+                  tooltip: 'Shuffle',
+                  onTap: notifier.toggleShuffle,
+                ),
+                const Spacer(),
+                if (isExclusive && !compact)
+                  _BitPerfectBadge(onSurface: onSurface),
+                const Spacer(),
+                _LoopButton(
+                  mode: player.loopMode,
+                  compact: compact,
+                  onTap: notifier.cycleLoopMode,
                 ),
               ],
             ),
-          ),
-        ],
 
-        SizedBox(height: isMobile ? 16 : 20),
+            SizedBox(height: compact ? 8 : 16),
 
-        // Shuffle / bit-perfect / loop row
-        Row(
-          children: [
-            _IconToggle(
-              icon: Icons.shuffle_rounded,
-              active: player.shuffle,
-              tooltip: 'Shuffle',
-              onTap: notifier.toggleShuffle,
-            ),
-            const Spacer(),
-            if (isExclusive) _BitPerfectBadge(onSurface: onSurface),
-            const Spacer(),
-            _LoopButton(mode: player.loopMode, onTap: notifier.cycleLoopMode),
-          ],
-        ),
-
-        SizedBox(height: isMobile ? 14 : 16),
-
-        // Transport controls
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _TransportButton(
-              icon: Icons.skip_previous_rounded,
-              size: isMobile ? 27 : 29,
-              enabled: player.currentTrack != null,
-              onTap: notifier.skipPrevious,
-            ),
-            SizedBox(width: isMobile ? 22 : 26),
-            _PlayButton(
-              isPlaying: isPlaying,
-              isLoading: isLoading,
-              hasTrack: player.currentTrack != null,
-              isMobile: isMobile,
-              progress: progress,
-              cs: cs,
-              aq: aq,
-              isM3: isM3,
-              accentColor: ref.watch(accentColorProvider),
-              onTap: player.currentTrack == null
-                  ? null
-                  : isPlaying
-                  ? notifier.pause
-                  : notifier.play,
-            ),
-            SizedBox(width: isMobile ? 22 : 26),
-            _TransportButton(
-              icon: Icons.skip_next_rounded,
-              size: isMobile ? 27 : 29,
-              enabled: player.currentTrack != null,
-              onTap: notifier.skipNext,
-            ),
-          ],
-        ),
-
-        SizedBox(height: isMobile ? 18 : 22),
-
-        // Volume
-        if (isM3) const UiDivider(margin: EdgeInsets.symmetric(vertical: 8)),
-
-        Row(
-          children: [
-            Icon(
-              Icons.volume_mute_rounded,
-              size: 14,
-              color: onSurfaceAlpha(0.20),
-            ),
-            Expanded(
-              child: CustomSlider(
-                value: player.volume.clamp(0.0, 1.0),
-                trackHeight: 1.5,
-                thumbRadius: 4,
-                activeColor: onSurfaceAlpha(0.38),
-                inactiveColor: onSurfaceAlpha(0.09),
-                thumbColor: onSurfaceAlpha(0.60),
-                onChanged: notifier.setVolume,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _TransportButton(
+                    icon: Icons.skip_previous_rounded,
+                    size: skipSize,
+                    enabled: player.currentTrack != null,
+                    onTap: notifier.skipPrevious,
+                  ),
+                  SizedBox(width: playGap),
+                  _PlayButton(
+                    isPlaying: isPlaying,
+                    isLoading: isLoading,
+                    hasTrack: player.currentTrack != null,
+                    isMobile: compact,
+                    progress: progress,
+                    cs: cs,
+                    aq: aq,
+                    isM3: isM3,
+                    accentColor: ref.watch(accentColorProvider),
+                    onTap: player.currentTrack == null
+                        ? null
+                        : isPlaying
+                        ? notifier.pause
+                        : notifier.play,
+                  ),
+                  SizedBox(width: playGap),
+                  _TransportButton(
+                    icon: Icons.skip_next_rounded,
+                    size: skipSize,
+                    enabled: player.currentTrack != null,
+                    onTap: notifier.skipNext,
+                  ),
+                ],
               ),
             ),
-            Icon(
-              Icons.volume_up_rounded,
-              size: 14,
-              color: onSurfaceAlpha(0.20),
+
+            SizedBox(height: compact ? 12 : 22),
+
+            if (isM3 && !compact)
+              const UiDivider(margin: EdgeInsets.symmetric(vertical: 8)),
+
+            Row(
+              children: [
+                Icon(
+                  Icons.volume_mute_rounded,
+                  size: 14,
+                  color: onSurfaceAlpha(0.20),
+                ),
+                Expanded(
+                  child: CustomSlider(
+                    value: player.volume.clamp(0.0, 1.0),
+                    trackHeight: 1.5,
+                    thumbRadius: 4,
+                    activeColor: onSurfaceAlpha(0.38),
+                    inactiveColor: onSurfaceAlpha(0.09),
+                    thumbColor: onSurfaceAlpha(0.60),
+                    onChanged: notifier.setVolume,
+                  ),
+                ),
+                Icon(
+                  Icons.volume_up_rounded,
+                  size: 14,
+                  color: onSurfaceAlpha(0.20),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -258,7 +274,7 @@ class _PlayButtonState extends State<_PlayButton>
 
   @override
   Widget build(BuildContext context) {
-    final sz = widget.isMobile ? 54.0 : 58.0;
+    final sz = widget.isMobile ? 46.0 : 58.0;
     final onSurface = widget.isM3 ? widget.cs.onSurface : widget.aq.onSurface;
     final surface = widget.isM3 ? widget.cs.surface : widget.aq.surface;
     final accent = widget.accentColor ?? onSurface;
@@ -299,7 +315,7 @@ class _PlayButtonState extends State<_PlayButton>
               color: widget.hasTrack
                   ? surface
                   : onSurface.withValues(alpha: 0.20),
-              size: widget.isMobile ? 27 : 30,
+              size: widget.isMobile ? 24 : 30,
             ),
     );
 
@@ -346,8 +362,13 @@ class _PlayButtonState extends State<_PlayButton>
 // Loop button
 class _LoopButton extends StatefulWidget {
   final LoopMode mode;
+  final bool compact;
   final VoidCallback onTap;
-  const _LoopButton({required this.mode, required this.onTap});
+  const _LoopButton({
+    required this.mode,
+    required this.onTap,
+    this.compact = false,
+  });
   @override
   State<_LoopButton> createState() => _LoopButtonState();
 }
@@ -367,40 +388,51 @@ class _LoopButtonState extends State<_LoopButton> {
       LoopMode.album => (Icons.repeat_rounded, 'Album', true),
       LoopMode.playlist => (Icons.repeat_rounded, 'All', true),
     };
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-          decoration: BoxDecoration(
-            color: _hovered ? onSurfaceAlpha(0.05) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: active ? onSurface : onSurfaceAlpha(0.20),
-              ),
-              if (label.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: active ? onSurfaceAlpha(0.68) : onSurfaceAlpha(0.20),
-                    fontWeight: FontWeight.w500,
-                  ),
+    final tooltip = switch (widget.mode) {
+      LoopMode.off => 'Repeat',
+      LoopMode.track => 'Repeat track',
+      LoopMode.album => 'Repeat album',
+      LoopMode.playlist => 'Repeat all',
+    };
+    return Tooltip(
+      message: tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+            decoration: BoxDecoration(
+              color: _hovered ? onSurfaceAlpha(0.05) : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: active ? onSurface : onSurfaceAlpha(0.20),
                 ),
+                if (!widget.compact && label.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: active
+                          ? onSurfaceAlpha(0.68)
+                          : onSurfaceAlpha(0.20),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

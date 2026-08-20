@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/history_provider.dart';
@@ -7,11 +6,11 @@ import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/lastfm_service.dart';
-import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
-import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/widgets/shared/mini_album_art.dart';
 import 'package:aqloss/widgets/shared/track_context_menu.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -296,7 +295,7 @@ class _HistoryTile extends ConsumerWidget {
         child: Row(
           children: [
             // Art
-            _MiniArt(path: track.path, size: 36, playing: isPlaying),
+            MiniAlbumArt(path: track.path, size: 36, playing: isPlaying),
             const SizedBox(width: 10),
 
             // Info
@@ -458,7 +457,7 @@ class _LovedTile extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         child: Row(
           children: [
-            _MiniArt(path: track.path, size: 36, playing: isPlaying),
+            MiniAlbumArt(path: track.path, size: 36, playing: isPlaying),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -779,103 +778,6 @@ class _HoverableTileState extends State<_HoverableTile> {
         ),
       ),
     );
-  }
-}
-
-class _MiniArt extends StatefulWidget {
-  final String path;
-  final double size;
-  final bool playing;
-  const _MiniArt({
-    required this.path,
-    required this.size,
-    required this.playing,
-  });
-
-  @override
-  State<_MiniArt> createState() => _MiniArtState();
-}
-
-class _MiniArtState extends State<_MiniArt> {
-  Uint8List? _art;
-  bool _tried = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(_MiniArt old) {
-    super.didUpdateWidget(old);
-    if (old.path != widget.path) {
-      _art = null;
-      _tried = false;
-      _load();
-    }
-  }
-
-  Future<void> _load() async {
-    if (_tried) return;
-    _tried = true;
-    try {
-      final bytes = await backend.readAlbumArtThumbnail(path: widget.path);
-      if (mounted && bytes != null) setState(() => _art = bytes);
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final radius = BorderRadius.circular(5);
-
-    Widget art = Container(
-      width: widget.size,
-      height: widget.size,
-      decoration: BoxDecoration(
-        color: cs.onSurface.withValues(alpha: 0.05),
-        borderRadius: radius,
-      ),
-      child: _art != null
-          ? ClipRRect(
-              borderRadius: radius,
-              child: Image.memory(
-                _art!,
-                fit: BoxFit.cover,
-                width: widget.size,
-                height: widget.size,
-              ),
-            )
-          : Icon(
-              Icons.music_note_rounded,
-              size: widget.size * 0.4,
-              color: cs.onSurface.withValues(alpha: 0.18),
-            ),
-    );
-
-    if (widget.playing) {
-      art = Stack(
-        children: [
-          art,
-          Container(
-            width: widget.size,
-            height: widget.size,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.40),
-              borderRadius: radius,
-            ),
-            child: const Icon(
-              Icons.equalizer_rounded,
-              size: 14,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return art;
   }
 }
 

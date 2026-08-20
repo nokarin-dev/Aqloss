@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.1",
-        "subtitle": "Opus, Apple launch fix, installer, queue actions, and a quieter header.",
+        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, and queue search.",
         "status": "in-progress",
         "items": [
             {
@@ -42,9 +42,15 @@
             },
             {
                 "title": "Half-screen layout",
-                "description": "Linux tiled/half-screen: window chrome still has padding, margin, and rounded corners so the app does not fill the tile. Expanded navbar plus the queue panel also crush Now Playing (codec badge overlaps the lyrics).",
-                "status": "in-progress",
+                "description": "Linux tiled/half-screen drops fake CSD padding and rounded corners so the app fills the tile. Narrow panes use a cover Now Playing layout; maximized panes keep lyrics under the cover with a reserved share of the column height.",
+                "status": "done",
                 "category": "Frontend · UI"
+            },
+            {
+                "title": "Queue search",
+                "description": "Filter the current queue to jump to a track. Shuffle should order the remaining queue instead of picking a random index, so Play Next stays next. Playing a library/search result should not replace the queue with the visible results.",
+                "status": "in-progress",
+                "category": "Frontend · Player"
             }
         ]
     },

@@ -5,7 +5,9 @@ import 'package:aqloss/providers/lyrics_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 
 class LyricsView extends ConsumerStatefulWidget {
-  const LyricsView({super.key});
+  final bool onDark;
+  final bool compact;
+  const LyricsView({super.key, this.onDark = false, this.compact = false});
 
   @override
   ConsumerState<LyricsView> createState() => _LyricsViewState();
@@ -28,13 +30,14 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     if (_userScrolling) return;
     if (!_scrollController.hasClients) return;
 
-    double offset = 40.0;
+    double offset = widget.compact ? 8.0 : 40.0;
     for (int i = 0; i < index; i++) {
       offset += _itemHeights[i] ?? 52.0;
     }
 
     final viewportHeight = _scrollController.position.viewportDimension;
-    final target = (offset - viewportHeight * 0.28).clamp(
+    final focus = widget.compact ? 0.38 : 0.28;
+    final target = (offset - viewportHeight * focus).clamp(
       0.0,
       _scrollController.position.maxScrollExtent,
     );
@@ -53,7 +56,10 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
     final aq = context.aq;
-    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    final onDark = widget.onDark;
+    final onSurface = onDark
+        ? Colors.white
+        : (isM3 ? cs.onSurface : aq.onSurface);
     Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
 
     if (lyrics.isLoading) {
@@ -74,7 +80,11 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lyrics_outlined, size: 32, color: onSurfaceAlpha(0.10)),
+            Icon(
+              Icons.lyrics_outlined,
+              size: onDark ? 28 : 32,
+              color: onSurfaceAlpha(0.10),
+            ),
             const SizedBox(height: 12),
             Text(
               'No lyrics found',
@@ -91,7 +101,10 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
       );
     }
 
-    final sourceBadge = _SourceBadge(source: lyrics.source);
+    final sourceBadge = _SourceBadge(
+      source: lyrics.source,
+      onSurface: onSurface,
+    );
 
     // Synced LRC
     if (lyrics.hasSynced) {
@@ -123,11 +136,19 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
               child: ListView.builder(
                 key: _listKey,
                 controller: _scrollController,
-                padding: const EdgeInsets.only(
-                  top: 40,
-                  bottom: 120,
-                  left: 16,
-                  right: 16,
+                padding: EdgeInsets.only(
+                  top: onDark
+                      ? 48
+                      : widget.compact
+                      ? 8
+                      : 40,
+                  bottom: onDark
+                      ? 24
+                      : widget.compact
+                      ? 36
+                      : 120,
+                  left: widget.compact ? 12 : 16,
+                  right: widget.compact ? 12 : 16,
                 ),
                 itemCount: doc.lines.length,
                 itemBuilder: (_, i) {
@@ -138,6 +159,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                     text: doc.lines[i].text,
                     isCurrent: isCurrent,
                     isPast: isPast,
+                    onSurface: onSurface,
                     onHeight: (h) => _itemHeights[i] = h,
                   );
                 },
@@ -154,7 +176,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         sourceBadge,
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(onDark ? 16 : 24),
             child: Text(
               lyrics.rawText!,
               style: TextStyle(
@@ -175,6 +197,7 @@ class _MeasuredLyricLine extends StatefulWidget {
   final String text;
   final bool isCurrent;
   final bool isPast;
+  final Color onSurface;
   final void Function(double) onHeight;
 
   const _MeasuredLyricLine({
@@ -182,6 +205,7 @@ class _MeasuredLyricLine extends StatefulWidget {
     required this.text,
     required this.isCurrent,
     required this.isPast,
+    required this.onSurface,
     required this.onHeight,
   });
 
@@ -211,10 +235,7 @@ class _MeasuredLyricLineState extends State<_MeasuredLyricLine> {
 
   @override
   Widget build(BuildContext context) {
-    final isM3 = context.isMaterial3Ui;
-    final cs = Theme.of(context).colorScheme;
-    final aq = context.aq;
-    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    final onSurface = widget.onSurface;
     final color = widget.isCurrent
         ? onSurface
         : widget.isPast
@@ -249,16 +270,13 @@ class _MeasuredLyricLineState extends State<_MeasuredLyricLine> {
 
 class _SourceBadge extends StatelessWidget {
   final LyricsSource source;
-  const _SourceBadge({required this.source});
+  final Color onSurface;
+  const _SourceBadge({required this.source, required this.onSurface});
 
   @override
   Widget build(BuildContext context) {
     if (source == LyricsSource.none) return const SizedBox.shrink();
 
-    final isM3 = context.isMaterial3Ui;
-    final cs = Theme.of(context).colorScheme;
-    final aq = context.aq;
-    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
     final (icon, label) = switch (source) {
       LyricsSource.embedded => (Icons.music_note, 'Embedded'),
       LyricsSource.lrcFile => (Icons.text_snippet_outlined, '.lrc file'),

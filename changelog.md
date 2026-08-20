@@ -8,25 +8,31 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
-Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, and queue context actions.
+Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, queue context actions, and a Linux half-screen layout pass.
 
 ### Added
 
-- [Backend|Audio] Opus playback (`.opus`) via libopus through the Symphonia adapter (#17)
 - [Frontend|Settings] Display toggle for the top now playing card; off by default (#16)
 - [Frontend|Player] Play next and Add to queue from track, album, and artist context menus (#18)
 - [Frontend|UI] Show album and Show artist from the queue and other track menus (#18)
+- [Backend|Audio] Opus playback (`.opus`) via libopus through the Symphonia adapter (#17)
 
 ### Fixed
 
+- [Frontend|UI] Duplicate drag handle on the left of queue rows (#18)
+- [Frontend|UI] Now Playing crushed when expanded nav and queue shared a half-screen: it now switches to a cover layout from the pane width, with lyrics behind a toggle on the art and controls sized under the cover
+- [Frontend|UI] Playing indicator replaced cover art with a solid tile; the cover stays visible under a light scrim
+- [Linux] Tiled/half-screen windows kept 14px CSD padding and rounded corners, so the app did not fill the tile
 - [macOS] Crash on launch on Sequoia: `_luaopen_base` missing because vendored Lua was left out of the CocoaPods staticlib (#19)
 - [Windows] SFX installer truncated to ~100 KB: `rcedit` rewrote the concatenated exe and dropped the 7z payload
-- [Frontend|UI] Duplicate drag handle on the left of queue rows (#18)
 
 ### Changed
 
 - [Frontend|UI] Mini player subtitle is `artist — album` so album is visible without the top card
 - [Frontend|UI] Album artist name and artist-page album headings open the matching page
+- [Frontend|UI] Queue panel narrows on windows narrower than 1100px
+- [Frontend|UI] Maximized Now Playing keeps lyrics under the cover and splits the column so lyrics keep a real share of the height
+- [Frontend|UI] Playlist rows show cover art instead of track numbers
 
 ---
 

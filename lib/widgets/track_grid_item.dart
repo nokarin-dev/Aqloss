@@ -7,6 +7,7 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/models/audio_format.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/widgets/shared/mini_album_art.dart';
 
 class TrackGridItem extends ConsumerStatefulWidget {
   final Track track;
@@ -186,17 +187,7 @@ class _GridContent extends StatelessWidget {
                           color: artIcon,
                         ),
                       ),
-                if (isPlaying)
-                  Container(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    child: Center(
-                      child: Icon(
-                        Icons.equalizer_rounded,
-                        size: 20,
-                        color: Colors.white.withValues(alpha: 0.80),
-                      ),
-                    ),
-                  ),
+                if (isPlaying) const PlayingArtScrim(iconSize: 22),
                 if (isM3 && hovered && !isPlaying)
                   AnimatedOpacity(
                     opacity: 1,
