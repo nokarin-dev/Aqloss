@@ -1,5 +1,6 @@
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:aqloss/widgets/shared/mini_album_art.dart';
 import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +15,18 @@ class M3QueueDrawer extends ConsumerStatefulWidget {
 
 class _M3QueueDrawerState extends ConsumerState<M3QueueDrawer> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    SearchFocusTracker.instance.register(_searchFocus);
+  }
 
   @override
   void dispose() {
+    SearchFocusTracker.instance.unregister(_searchFocus);
+    _searchFocus.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -86,6 +96,7 @@ class _M3QueueDrawerState extends ConsumerState<M3QueueDrawer> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: SearchBar(
                   controller: _search,
+                  focusNode: _searchFocus,
                   hintText: 'Search queue',
                   leading: const Icon(Icons.search_rounded, size: 20),
                   trailing: query.isNotEmpty

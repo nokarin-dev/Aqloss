@@ -1,6 +1,7 @@
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:aqloss/widgets/shared/mini_album_art.dart';
 import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
@@ -138,10 +139,30 @@ class _QueuePanelContentState extends ConsumerState<_QueuePanelContent> {
   }
 }
 
-class _QueueSearchField extends StatelessWidget {
+class _QueueSearchField extends StatefulWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   const _QueueSearchField({required this.controller, required this.onChanged});
+
+  @override
+  State<_QueueSearchField> createState() => _QueueSearchFieldState();
+}
+
+class _QueueSearchFieldState extends State<_QueueSearchField> {
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    SearchFocusTracker.instance.register(_focusNode);
+  }
+
+  @override
+  void dispose() {
+    SearchFocusTracker.instance.unregister(_focusNode);
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,8 +173,9 @@ class _QueueSearchField extends StatelessWidget {
     return SizedBox(
       height: 32,
       child: TextField(
-        controller: controller,
-        onChanged: onChanged,
+        controller: widget.controller,
+        focusNode: _focusNode,
+        onChanged: widget.onChanged,
         style: TextStyle(fontSize: 12.5, color: onSurface),
         cursorWidth: 1.2,
         decoration: InputDecoration(
@@ -171,7 +193,7 @@ class _QueueSearchField extends StatelessWidget {
             minWidth: 32,
             minHeight: 32,
           ),
-          suffixIcon: controller.text.isNotEmpty
+          suffixIcon: widget.controller.text.isNotEmpty
               ? IconButton(
                   icon: Icon(
                     Icons.close_rounded,
@@ -180,8 +202,8 @@ class _QueueSearchField extends StatelessWidget {
                   ),
                   visualDensity: VisualDensity.compact,
                   onPressed: () {
-                    controller.clear();
-                    onChanged('');
+                    widget.controller.clear();
+                    widget.onChanged('');
                   },
                 )
               : null,
