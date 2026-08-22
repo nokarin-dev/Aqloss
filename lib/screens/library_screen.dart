@@ -567,6 +567,7 @@ class _TrackListState extends ConsumerState<_TrackList> {
         ),
         itemCount: tracks.length,
         itemBuilder: (ctx, i) => TrackGridItem(
+          key: ValueKey(tracks[i].path),
           track: tracks[i],
           onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
           // mobile
