@@ -25,7 +25,7 @@ dependencies:
   json_annotation: ^4.9.0
 
   # File picking
-  file_picker: ^12.0.0-beta.3
+  file_picker: ^12.0.0
 
   # Audio focus / media keys (mobile)
   audio_service: ^0.18.13
@@ -37,21 +37,22 @@ dependencies:
   window_manager: ^0.5.1
   http: ^1.6.0
   crypto: ^3.0.7
-  open_file: ^3.5.11
+  open_file: ^4.0.0
   device_info_plus: ^13.1.0
-  permission_handler: ^12.0.1
+  permission_handler: ^13.0.1
   dbus: ^0.7.12
   smtc_windows: ^1.1.0
   collection: ^1.19.1
   desktop_multi_window: ^0.3.0
   archive: ^4.0.9
-  dynamic_color: ^1.8.1
+  dynamic_color: ^2.1.0
+  material_ui: ^1.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   build_runner: ^2.4.9
-  freezed: ^3.2.5
+  freezed: ^4.0.0
   json_serializable: ^6.8.0
   riverpod_generator: ^4.0.3
   drift_dev: ^2.18.0

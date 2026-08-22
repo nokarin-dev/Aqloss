@@ -48,27 +48,27 @@ class PlaylistIOService {
           .trim();
       final fileName = '$safeName.$_kExtension';
 
-      String? savePath;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        savePath = await FilePicker.saveFile(
+        final uri = await FilePicker.saveFile(
           bytes: utf8.encode(json),
           dialogTitle: 'Export playlist',
           fileName: fileName,
           type: FileType.custom,
           allowedExtensions: [_kExtension],
         );
-      } else {
-        final dir =
-            await getExternalStorageDirectory() ??
-            await getApplicationDocumentsDirectory();
-        savePath = p.join(dir.path, fileName);
+        if (uri == null) {
+          return const PlaylistExportResult.fail(null);
+        }
+        final savePath = uri.scheme == 'file'
+            ? uri.toFilePath()
+            : uri.toString();
+        return PlaylistExportResult.ok(savePath);
       }
 
-      if (savePath == null) {
-        // User cancelled
-        return const PlaylistExportResult.fail(null);
-      }
-
+      final dir =
+          await getExternalStorageDirectory() ??
+          await getApplicationDocumentsDirectory();
+      final savePath = p.join(dir.path, fileName);
       await File(savePath).writeAsString(json, flush: true);
       return PlaylistExportResult.ok(savePath);
     } catch (e) {
@@ -79,13 +79,12 @@ class PlaylistIOService {
   // Import
   static Future<PlaylistImportResult> import() async {
     try {
-      final result = await FilePicker.pickFiles(
+      final file = await FilePicker.pickFile(
         dialogTitle: 'Import playlist',
         type: FileType.custom,
         allowedExtensions: [_kExtension],
       );
 
-      final file = result?.files.firstOrNull;
       if (file == null) {
         return const PlaylistImportResult.fail(null);
       }

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/services/file_open_service.dart';
+import 'package:aqloss/theme/dynamic_scheme.dart';
 import 'package:aqloss/theme/material3_theme.dart';
 import 'package:aqloss/theme/standalone_theme.dart';
 import 'package:aqloss/theme/ui_framework.dart';
@@ -121,8 +122,8 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
           accent: accent,
           navKey: navKey,
           isWindowedLinux: isWindowedLinux,
-          lightDynamic: lightDynamic,
-          darkDynamic: darkDynamic,
+          lightDynamic: toFlutterColorScheme(lightDynamic),
+          darkDynamic: toFlutterColorScheme(darkDynamic),
         );
       },
     );

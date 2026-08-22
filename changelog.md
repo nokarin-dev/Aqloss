@@ -31,6 +31,7 @@ Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build c
 
 ### Changed
 
+- [Tooling] Major dependency update
 - [Frontend|UI] Mini player subtitle is `artist — album` so album is visible without the top card
 - [Frontend|UI] Album artist name and artist-page album headings open the matching page
 - [Frontend|UI] Queue panel narrows on windows narrower than 1100px
