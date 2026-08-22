@@ -88,6 +88,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ],
             ),
+            if (library.query.trim().isNotEmpty &&
+                library.filteredTracks.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.tonalIcon(
+                  onPressed: () => ref
+                      .read(playerProvider.notifier)
+                      .loadWithQueue(
+                        library.filteredTracks.first,
+                        library.filteredTracks,
+                      ),
+                  icon: const Icon(Icons.playlist_play_rounded, size: 18),
+                  label: const Text('Play all'),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             _M3SortBar(library: library),
           ],
@@ -144,6 +161,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ],
             ),
           ),
+
+          if (library.query.trim().isNotEmpty &&
+              library.filteredTracks.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _PlayAllBtn(
+                  onTap: () => ref
+                      .read(playerProvider.notifier)
+                      .loadWithQueue(
+                        library.filteredTracks.first,
+                        library.filteredTracks,
+                      ),
+                ),
+              ),
+            ),
 
           if (library.totalTracks > 0)
             Padding(
@@ -572,7 +606,9 @@ class _TrackListState extends ConsumerState<_TrackList> {
         itemBuilder: (ctx, i) => TrackGridItem(
           key: ValueKey(tracks[i].path),
           track: tracks[i],
-          onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
+          onTap: () => widget.library.query.trim().isEmpty
+              ? playerNotifier.loadWithQueue(tracks[i], tracks)
+              : playerNotifier.playKeepingQueue(tracks[i]),
           // mobile
           onLongPress: isDesktop
               ? null
@@ -598,7 +634,9 @@ class _TrackListState extends ConsumerState<_TrackList> {
         key: ValueKey(tracks[i].path),
         track: tracks[i],
         index: i,
-        onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
+        onTap: () => widget.library.query.trim().isEmpty
+            ? playerNotifier.loadWithQueue(tracks[i], tracks)
+            : playerNotifier.playKeepingQueue(tracks[i]),
         // mobile
         onLongPress: isDesktop
             ? null
@@ -785,6 +823,57 @@ class _PlaylistOptionRow extends StatelessWidget {
 }
 
 // View mode button
+class _PlayAllBtn extends StatefulWidget {
+  final VoidCallback onTap;
+  const _PlayAllBtn({required this.onTap});
+
+  @override
+  State<_PlayAllBtn> createState() => _PlayAllBtnState();
+}
+
+class _PlayAllBtnState extends State<_PlayAllBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: cs.onSurface.withValues(alpha: _hovered ? 0.08 : 0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.playlist_play_rounded,
+                size: 16,
+                color: cs.onSurface.withValues(alpha: 0.70),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Play all',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withValues(alpha: 0.70),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ViewModeButton extends StatelessWidget {
   final IconData icon;
   final bool active;

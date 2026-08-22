@@ -63,7 +63,7 @@ class ShortcutService {
     }
   }
 
-  /// Resolves the real Desktop folder (OneDrive redirect, renamed folder, etc.).
+  // Desktop folder (OneDrive / renamed)
   static Future<String?> resolveDesktopPath() async {
     if (!Platform.isWindows) return null;
 

@@ -28,11 +28,24 @@ class QueuePanel extends ConsumerWidget {
   }
 }
 
-class _QueuePanelContent extends ConsumerWidget {
+class _QueuePanelContent extends ConsumerStatefulWidget {
   const _QueuePanelContent();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_QueuePanelContent> createState() => _QueuePanelContentState();
+}
+
+class _QueuePanelContentState extends ConsumerState<_QueuePanelContent> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
     final aq = context.aq;
@@ -42,6 +55,11 @@ class _QueuePanelContent extends ConsumerWidget {
     final queue = player.queue;
     final curIdx = player.queueIndex;
     final notifier = ref.read(playerProvider.notifier);
+    final query = _search.text;
+    final visible = <int>[
+      for (var i = 0; i < queue.length; i++)
+        if (queue[i].matchesQuery(query)) i,
+    ];
 
     final panel = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,11 +96,27 @@ class _QueuePanelContent extends ConsumerWidget {
             ],
           ),
         ),
+        if (queue.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: _QueueSearchField(
+              controller: _search,
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
         if (isM3) const UiDivider(),
         Expanded(
           child: queue.isEmpty
               ? _EmptyQueue()
-              : _QueueList(queue: queue, curIdx: curIdx, notifier: notifier),
+              : visible.isEmpty
+              ? const _QueueNoMatches()
+              : _QueueList(
+                  queue: queue,
+                  visible: visible,
+                  curIdx: curIdx,
+                  filtering: query.trim().isNotEmpty,
+                  notifier: notifier,
+                ),
         ),
       ],
     );
@@ -104,14 +138,100 @@ class _QueuePanelContent extends ConsumerWidget {
   }
 }
 
+class _QueueSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  const _QueueSearchField({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
+    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    return SizedBox(
+      height: 32,
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: TextStyle(fontSize: 12.5, color: onSurface),
+        cursorWidth: 1.2,
+        decoration: InputDecoration(
+          hintText: 'Search queue',
+          hintStyle: TextStyle(
+            fontSize: 12.5,
+            color: onSurface.withValues(alpha: 0.28),
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 16,
+            color: onSurface.withValues(alpha: 0.32),
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 32,
+            minHeight: 32,
+          ),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: onSurface.withValues(alpha: 0.32),
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                )
+              : null,
+          isDense: true,
+          filled: true,
+          fillColor: onSurface.withValues(alpha: isM3 ? 0.06 : 0.04),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QueueNoMatches extends StatelessWidget {
+  const _QueueNoMatches();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Text(
+        'No matches',
+        style: TextStyle(
+          fontSize: 12,
+          color: cs.onSurface.withValues(alpha: 0.28),
+        ),
+      ),
+    );
+  }
+}
+
 class _QueueList extends StatefulWidget {
   final List<Track> queue;
+  final List<int> visible;
   final int curIdx;
+  final bool filtering;
   final PlayerNotifier notifier;
 
   const _QueueList({
     required this.queue,
+    required this.visible,
     required this.curIdx,
+    required this.filtering,
     required this.notifier,
   });
 
@@ -122,6 +242,8 @@ class _QueueList extends StatefulWidget {
 class _QueueListState extends State<_QueueList> {
   final _scroll = ScrollController();
   static const _kItemH = 52.0;
+
+  bool get _filtering => widget.filtering;
 
   @override
   void initState() {
@@ -145,8 +267,10 @@ class _QueueListState extends State<_QueueList> {
 
   void _scrollToCurrent() {
     if (!_scroll.hasClients || widget.curIdx < 0) return;
+    final vis = widget.visible.indexOf(widget.curIdx);
+    if (vis < 0) return;
     final viewportH = _scroll.position.viewportDimension;
-    final centered = widget.curIdx * _kItemH - viewportH / 2 + _kItemH / 2;
+    final centered = vis * _kItemH - viewportH / 2 + _kItemH / 2;
     final target = centered.clamp(0.0, _scroll.position.maxScrollExtent);
     _scroll.animateTo(
       target,
@@ -155,30 +279,40 @@ class _QueueListState extends State<_QueueList> {
     );
   }
 
+  Widget _tile(int qi) {
+    final track = widget.queue[qi];
+    return _QueueTile(
+      key: ValueKey('q_${qi}_${track.path}'),
+      track: track,
+      isCurrent: qi == widget.curIdx,
+      isPast: qi < widget.curIdx,
+      onTap: () => widget.notifier.jumpToQueue(qi),
+      onRemove: () => widget.notifier.removeFromQueue(qi),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_filtering) {
+      return ListView.builder(
+        controller: _scroll,
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: widget.visible.length,
+        itemBuilder: (context, i) => _tile(widget.visible[i]),
+      );
+    }
+
     return ReorderableListView.builder(
       scrollController: _scroll,
       padding: const EdgeInsets.only(bottom: 24),
       itemCount: widget.queue.length,
       proxyDecorator: (child, index, animation) =>
           Material(color: Colors.transparent, child: child),
-      onReorder: (oldIndex, newIndex) =>
-          widget.notifier.reorderQueue(oldIndex, newIndex),
-      itemBuilder: (context, i) {
-        final track = widget.queue[i];
-        final isCur = i == widget.curIdx;
-        final isPast = i < widget.curIdx;
-
-        return _QueueTile(
-          key: ValueKey('q_${i}_${track.path}'),
-          track: track,
-          isCurrent: isCur,
-          isPast: isPast,
-          onTap: () => widget.notifier.jumpToQueue(i),
-          onRemove: () => widget.notifier.removeFromQueue(i),
-        );
+      onReorderItem: (oldIndex, newIndex) {
+        final legacyNew = oldIndex < newIndex ? newIndex + 1 : newIndex;
+        widget.notifier.reorderQueue(oldIndex, legacyNew);
       },
+      itemBuilder: (context, i) => _tile(i),
     );
   }
 }

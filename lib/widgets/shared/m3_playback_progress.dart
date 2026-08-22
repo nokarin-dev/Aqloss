@@ -10,7 +10,7 @@ String m3FormatDuration(Duration d) {
   return '$m:$s';
 }
 
-/// M3 playback progress
+// M3 playback progress
 class M3WavyLinearProgress extends StatefulWidget {
   final double? value;
   final Color? color;

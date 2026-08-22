@@ -55,7 +55,7 @@
             {
                 "title": "Queue search",
                 "description": "Filter the current queue to jump to a track. Shuffle should order the remaining queue instead of picking a random index, so Play Next stays next. Playing a library/search result should not replace the queue with the visible results.",
-                "status": "in-progress",
+                "status": "done",
                 "category": "Frontend · Player"
             }
         ]

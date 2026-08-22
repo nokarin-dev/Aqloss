@@ -79,6 +79,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   double _lastPollPositionSecs = 0;
   SettingsState Function()? _readSettings;
   HistoryNotifier? _historyNotifier;
+  final _rng = math.Random();
 
   // Guards against concurrent device-change reinit
   bool _deviceReinitBusy = false;
@@ -201,7 +202,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       idx = queue.indexWhere((t) => t.path == track.path);
       if (idx < 0) idx = 0;
     }
-    state = state.copyWith(queue: queue, queueIndex: idx);
+    var q = List<Track>.from(queue);
+    if (state.shuffle) q = _shuffleUpcoming(q, idx);
+    state = state.copyWith(queue: q, queueIndex: idx);
     await _loadAndPlay(track);
   }
 
@@ -386,17 +389,17 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final s = state;
     if (s.queue.isEmpty) return;
     int idx;
-    if (s.shuffle) {
-      idx = _rand(s.queue.length, exclude: s.queueIndex);
-    } else if (s.hasNext) {
+    var q = s.queue;
+    if (s.hasNext) {
       idx = s.queueIndex + 1;
     } else if (s.loopMode == LoopMode.playlist) {
       idx = 0;
+      if (s.shuffle) q = _shuffleUpcoming(s.queue, 0);
     } else {
       return;
     }
-    state = state.copyWith(queueIndex: idx);
-    await _loadAndPlay(s.queue[idx], stopFirst: !_handlingTrackEnd);
+    state = state.copyWith(queue: q, queueIndex: idx);
+    await _loadAndPlay(q[idx], stopFirst: !_handlingTrackEnd);
   }
 
   Future<void> skipPrevious() async {
@@ -492,6 +495,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await _loadAndPlay(track);
   }
 
+  Future<void> playKeepingQueue(Track track) async {
+    final q = state.queue;
+    final existing = q.indexWhere((t) => t.path == track.path);
+    if (existing >= 0) {
+      await jumpToQueue(existing);
+      return;
+    }
+    if (q.isEmpty || state.currentTrack == null) {
+      await loadWithQueue(track, [track]);
+      return;
+    }
+    addAllToQueueNext([track]);
+    await jumpToQueue(state.queueIndex + 1);
+  }
+
   void cycleLoopMode() {
     state = state.copyWith(
       loopMode:
@@ -500,7 +518,26 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   void setLoopMode(LoopMode m) => state = state.copyWith(loopMode: m);
-  void toggleShuffle() => state = state.copyWith(shuffle: !state.shuffle);
+
+  void toggleShuffle() {
+    if (state.shuffle) {
+      state = state.copyWith(shuffle: false);
+      return;
+    }
+    state = state.copyWith(
+      shuffle: true,
+      queue: _shuffleUpcoming(state.queue, state.queueIndex),
+    );
+  }
+
+  List<Track> _shuffleUpcoming(List<Track> queue, int index) {
+    if (queue.length <= 1 || index < 0 || index >= queue.length - 1) {
+      return List<Track>.from(queue);
+    }
+    final head = queue.sublist(0, index + 1);
+    final rest = queue.sublist(index + 1)..shuffle(_rng);
+    return [...head, ...rest];
+  }
 
   void _startTimer() {
     _positionTimer?.cancel();
@@ -656,15 +693,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
     return pos.positionSecs >= pos.durationSecs - 1.5 ||
         _lastPollPositionSecs >= pos.durationSecs - 1.5;
-  }
-
-  int _rand(int length, {required int exclude}) {
-    if (length <= 1) return 0;
-    int i;
-    do {
-      i = math.Random().nextInt(length);
-    } while (i == exclude);
-    return i;
   }
 
   @override

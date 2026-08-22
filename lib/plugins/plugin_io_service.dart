@@ -204,7 +204,7 @@ class PluginIOService {
     return null;
   }
 
-  // Flatten single-root .aqx zips on extract.
+  // Flatten zip root
   static String? _commonRootPrefix(Archive archive) {
     String? root;
     for (final entry in archive) {

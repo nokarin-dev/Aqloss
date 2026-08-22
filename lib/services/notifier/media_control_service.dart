@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
-// Platform-specific imports via conditional compilation
+// Platform imports
 import 'media_control_linux.dart'
     if (dart.library.js_util) 'media_control_stub.dart'
     as linux;
@@ -14,7 +14,7 @@ import 'media_control_mobile.dart'
     if (dart.library.js_util) 'media_control_stub.dart'
     as mobile;
 
-/// Platform-agnostic facade. Driven by [update] each time PlayerState changes.
+// OS now-playing / media keys
 class MediaControlService {
   MediaControlService._();
 
@@ -77,7 +77,7 @@ class MediaControlService {
 
     final isPlaying = state.status == PlayerStatus.playing;
 
-    // Load art when track changes - capture path before await to avoid race
+    // Snapshot art path
     Uint8List? art;
     if (track.path != _lastArtPath) {
       final pathSnapshot = track.path;
@@ -85,7 +85,7 @@ class MediaControlService {
       _lastArtBytes = null;
       try {
         final bytes = await backend.readAlbumArt(path: pathSnapshot);
-        // Discard if track changed again while we were awaiting
+        // Stale fetch
         if (_lastArtPath == pathSnapshot && bytes != null) {
           _lastArtBytes = Uint8List.fromList(bytes);
         }
