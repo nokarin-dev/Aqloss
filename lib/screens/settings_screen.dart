@@ -13,7 +13,7 @@ import 'package:aqloss/widgets/eq_panel.dart';
 import 'package:aqloss/widgets/lastfm_auth_row.dart';
 import 'package:aqloss/widgets/listenbrainz_auth_row.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:aqloss/services/folder_picker.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -700,7 +700,9 @@ class _MusicFoldersPane extends ConsumerWidget {
         return;
       }
     }
-    final result = await FilePicker.getDirectoryPath(
+    if (!context.mounted) return;
+    final result = await pickDirectory(
+      context,
       dialogTitle: 'Select music folder',
     );
     if (result != null) {

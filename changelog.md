@@ -8,7 +8,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
-Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, queue context actions, and a Linux half-screen layout pass.
+Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, queue context actions, a Linux half-screen layout pass.
 
 ### Added
 
@@ -19,6 +19,7 @@ Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build c
 
 ### Fixed
 
+- [Linux] Add Folder did nothing on Hyprland; pick with zenity/kdialog, or from a dialog in the app
 - [Frontend|UI] Duplicate drag handle on the left of queue rows (#18)
 - [Frontend|UI] Now Playing crushed when expanded nav and queue shared a half-screen: it now switches to a cover layout from the pane width, with lyrics behind a toggle on the art and controls sized under the cover
 - [Frontend|UI] Playing indicator replaced cover art with a solid tile; the cover stays visible under a light scrim

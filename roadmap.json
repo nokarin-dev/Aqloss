@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.1",
-        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, and queue search.",
+        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, and Hyprland folder picker.",
         "status": "in-progress",
         "items": [
             {
@@ -45,6 +45,12 @@
                 "description": "Linux tiled/half-screen drops fake CSD padding and rounded corners so the app fills the tile. Narrow panes use a cover Now Playing layout; maximized panes keep lyrics under the cover with a reserved share of the column height.",
                 "status": "done",
                 "category": "Frontend · UI"
+            },
+            {
+                "title": "Hyprland folder picker",
+                "description": "Add Folder did nothing on Hyprland. Pick with zenity/kdialog, or from a dialog in the app.",
+                "status": "done",
+                "category": "Frontend · Linux"
             },
             {
                 "title": "Queue search",
