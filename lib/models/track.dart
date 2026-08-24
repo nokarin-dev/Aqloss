@@ -113,6 +113,14 @@ class Track {
   String get displayArtist => artist ?? 'Unknown Artist';
   String get displayAlbum => album ?? 'Unknown Album';
 
+  bool matchesQuery(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return displayTitle.toLowerCase().contains(q) ||
+        displayArtist.toLowerCase().contains(q) ||
+        (album?.toLowerCase().contains(q) ?? false);
+  }
+
   String get displayArtistAlbum {
     final albumName = album?.trim();
     if (albumName == null || albumName.isEmpty) return displayArtist;

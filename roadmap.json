@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.1",
-        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, and queue search.",
+        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, and Hyprland folder picker.",
         "status": "in-progress",
         "items": [
             {
@@ -47,9 +47,15 @@
                 "category": "Frontend · UI"
             },
             {
+                "title": "Hyprland folder picker",
+                "description": "Add Folder did nothing on Hyprland. Pick with zenity/kdialog, or from a dialog in the app. Adding a folder must not use a disposed Riverpod ref after the picker closes (#26).",
+                "status": "done",
+                "category": "Frontend · Linux"
+            },
+            {
                 "title": "Queue search",
                 "description": "Filter the current queue to jump to a track. Shuffle should order the remaining queue instead of picking a random index, so Play Next stays next. Playing a library/search result should not replace the queue with the visible results.",
-                "status": "in-progress",
+                "status": "done",
                 "category": "Frontend · Player"
             }
         ]

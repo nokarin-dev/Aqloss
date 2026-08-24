@@ -1,21 +1,50 @@
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:aqloss/widgets/shared/mini_album_art.dart';
 import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class M3QueueDrawer extends ConsumerWidget {
+class M3QueueDrawer extends ConsumerStatefulWidget {
   const M3QueueDrawer({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<M3QueueDrawer> createState() => _M3QueueDrawerState();
+}
+
+class _M3QueueDrawerState extends ConsumerState<M3QueueDrawer> {
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    SearchFocusTracker.instance.register(_searchFocus);
+  }
+
+  @override
+  void dispose() {
+    SearchFocusTracker.instance.unregister(_searchFocus);
+    _searchFocus.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final player = ref.watch(playerProvider);
     final queue = player.queue;
     final curIdx = player.queueIndex;
     final notifier = ref.read(playerProvider.notifier);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final query = _search.text;
+    final visible = <int>[
+      for (var i = 0; i < queue.length; i++)
+        if (queue[i].matchesQuery(query)) i,
+    ];
+    final filtering = query.trim().isNotEmpty;
 
     return Drawer(
       width: 340,
@@ -62,6 +91,36 @@ class M3QueueDrawer extends ConsumerWidget {
                 ],
               ),
             ),
+            if (queue.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: SearchBar(
+                  controller: _search,
+                  focusNode: _searchFocus,
+                  hintText: 'Search queue',
+                  leading: const Icon(Icons.search_rounded, size: 20),
+                  trailing: query.isNotEmpty
+                      ? [
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            onPressed: () {
+                              _search.clear();
+                              setState(() {});
+                            },
+                          ),
+                        ]
+                      : const [],
+                  onChanged: (_) => setState(() {}),
+                  elevation: const WidgetStatePropertyAll(0),
+                  backgroundColor: WidgetStatePropertyAll(
+                    cs.surfaceContainerHighest,
+                  ),
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  constraints: const BoxConstraints(minHeight: 40),
+                ),
+              ),
             Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
             Expanded(
               child: queue.isEmpty
@@ -90,6 +149,32 @@ class M3QueueDrawer extends ConsumerWidget {
                           ),
                         ],
                       ),
+                    )
+                  : visible.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No matches',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : filtering
+                  ? ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: visible.length,
+                      itemBuilder: (ctx, i) {
+                        final qi = visible[i];
+                        final track = queue[qi];
+                        return _QueueItem(
+                          key: ValueKey('${track.path}_$qi'),
+                          track: track,
+                          playing: qi == curIdx,
+                          reorderable: false,
+                          onTap: () => notifier.jumpToQueue(qi),
+                          onRemove: () => notifier.removeFromQueue(qi),
+                        );
+                      },
                     )
                   : ReorderableListView.builder(
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -123,6 +208,7 @@ class M3QueueDrawer extends ConsumerWidget {
 class _QueueItem extends ConsumerStatefulWidget {
   final Track track;
   final bool playing;
+  final bool reorderable;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -130,6 +216,7 @@ class _QueueItem extends ConsumerStatefulWidget {
     super.key,
     required this.track,
     required this.playing,
+    this.reorderable = true,
     required this.onTap,
     required this.onRemove,
   });
@@ -200,7 +287,8 @@ class _QueueItemState extends ConsumerState<_QueueItem> {
                       color: cs.onSurfaceVariant,
                     ),
                   ),
-                const Icon(Icons.drag_handle_rounded, size: 18),
+                if (widget.reorderable)
+                  const Icon(Icons.drag_handle_rounded, size: 18),
               ],
             ),
           ),

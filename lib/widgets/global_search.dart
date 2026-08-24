@@ -503,10 +503,7 @@ class _TrackTile extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     return _HoverRow(
       onTap: () {
-        final library = ref.read(libraryProvider);
-        ref
-            .read(playerProvider.notifier)
-            .loadWithQueue(result.tracks.first, library.tracks);
+        ref.read(playerProvider.notifier).playKeepingQueue(result.tracks.first);
         onClose();
       },
       onSecondaryTapDown: (d) => showTrackContextMenu(

@@ -135,7 +135,7 @@ impl StereoEnhancer {
     }
 }
 
-/// High-shelf biquad coefficients
+// High-shelf biquad
 fn shelf_coeffs(sample_rate: u32, fc: f32, gain_db: f32) -> ([f32; 3], [f32; 2]) {
     let a = 10.0_f32.powf(gain_db / 40.0);
     let w0 = 2.0 * std::f32::consts::PI * fc / sample_rate as f32;

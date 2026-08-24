@@ -113,9 +113,9 @@ class PluginIOService {
       _install(bytes);
 
   static Future<PluginPreviewResult> previewFromPicker() async {
-    FilePickerResult? picked;
+    PlatformFile? picked;
     try {
-      picked = await FilePicker.pickFiles(
+      picked = await FilePicker.pickFile(
         dialogTitle: 'Install plugin',
         type: FileType.custom,
         allowedExtensions: [_kExtension],
@@ -127,22 +127,13 @@ class PluginIOService {
       );
     }
 
-    final file = picked?.files.firstOrNull;
-    if (file == null) {
+    if (picked == null) {
       return const PluginPreviewResult._(status: PluginImportStatus.cancelled);
-    }
-
-    final path = file.path;
-    if (path == null) {
-      return const PluginPreviewResult._(
-        status: PluginImportStatus.extractError,
-        errorDetail: 'The file path is not available.',
-      );
     }
 
     Uint8List bytes;
     try {
-      bytes = await File(path).readAsBytes();
+      bytes = await picked.readAsBytes();
     } catch (e) {
       return PluginPreviewResult._(
         status: PluginImportStatus.extractError,
@@ -204,7 +195,7 @@ class PluginIOService {
     return null;
   }
 
-  // Flatten single-root .aqx zips on extract.
+  // Flatten zip root
   static String? _commonRootPrefix(Archive archive) {
     String? root;
     for (final entry in archive) {
@@ -373,7 +364,7 @@ class PluginIOService {
       encoder.close();
 
       final outBytes = await File(tmpPath).readAsBytes();
-      final savePath = await FilePicker.saveFile(
+      final saved = await FilePicker.saveFile(
         dialogTitle: 'Export plugin',
         fileName: '${_safeName(manifest.id)}.$_kExtension',
         type: FileType.custom,
@@ -382,7 +373,7 @@ class PluginIOService {
       );
 
       await File(tmpPath).delete();
-      return savePath != null;
+      return saved != null;
     } catch (e) {
       Logger.errorPlayerProvider('[plugins] export failed: $e');
       return false;

@@ -10,7 +10,7 @@ import audio_session
 import desktop_multi_window
 import device_info_plus
 import dynamic_color
-import file_picker
+import file_picker_darwin
 import open_file_mac
 import screen_retriever_macos
 import shared_preferences_foundation
