@@ -48,7 +48,7 @@
             },
             {
                 "title": "Hyprland folder picker",
-                "description": "Add Folder did nothing on Hyprland. Pick with zenity/kdialog, or from a dialog in the app.",
+                "description": "Add Folder did nothing on Hyprland. Pick with zenity/kdialog, or from a dialog in the app. Adding a folder must not use a disposed Riverpod ref after the picker closes (#26).",
                 "status": "done",
                 "category": "Frontend · Linux"
             },

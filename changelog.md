@@ -22,6 +22,7 @@ Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build c
 ### Fixed
 
 - [Linux] Add Folder did nothing on Hyprland; pick with zenity/kdialog, or from a dialog in the app
+- [Frontend] Add Folder crashed after the picker closed: Riverpod `ref` was used after the widget unmounted (#26)
 - [Frontend|UI] Duplicate drag handle on the left of queue rows (#18)
 - [Frontend|UI] Now Playing crushed when expanded nav and queue shared a half-screen: it now switches to a cover layout from the pane width, with lyrics behind a toggle on the art and controls sized under the cover
 - [Frontend|UI] Playing indicator replaced cover art with a solid tile; the cover stays visible under a light scrim

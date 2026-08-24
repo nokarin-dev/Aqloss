@@ -11,6 +11,7 @@ class FolderManagerDialog extends ConsumerWidget {
   const FolderManagerDialog({super.key});
 
   Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
+    final library = ref.read(libraryProvider.notifier);
     if (Platform.isAndroid) {
       final granted = await requestAndroidStoragePermission();
       if (!granted) {
@@ -31,10 +32,8 @@ class FolderManagerDialog extends ConsumerWidget {
       context,
       dialogTitle: 'Select music folder',
     );
-    if (result != null) {
-      final path = resolveAndroidPath(result);
-      ref.read(libraryProvider.notifier).addFolder(path);
-    }
+    if (result == null) return;
+    library.addFolder(resolveAndroidPath(result));
   }
 
   String _shortPath(String path) {
