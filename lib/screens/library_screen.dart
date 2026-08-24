@@ -454,10 +454,13 @@ class _TrackListState extends ConsumerState<_TrackList> {
   static const _kItemH = 56.0;
   String? _lastScrolledPath;
 
-  @override
+@override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToPlaying());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(libraryProvider.notifier).setQuery('');
+      _scrollToPlaying();
+    });
   }
 
   @override
@@ -567,6 +570,7 @@ class _TrackListState extends ConsumerState<_TrackList> {
         ),
         itemCount: tracks.length,
         itemBuilder: (ctx, i) => TrackGridItem(
+          key: ValueKey(tracks[i].path),
           track: tracks[i],
           onTap: () => playerNotifier.loadWithQueue(tracks[i], tracks),
           // mobile
