@@ -119,21 +119,50 @@ class PlayerControls extends ConsumerWidget {
 
             Row(
               children: [
-                _IconToggle(
-                  icon: Icons.shuffle_rounded,
-                  active: player.shuffle,
-                  tooltip: 'Shuffle',
-                  onTap: notifier.toggleShuffle,
-                ),
+                if (isM3)
+                  M3TransportIcon(
+                    icon: Icons.shuffle_rounded,
+                    selectedIcon: Icons.shuffle_rounded,
+                    selected: player.shuffle,
+                    tooltip: 'Shuffle',
+                    onPressed: notifier.toggleShuffle,
+                  )
+                else
+                  _IconToggle(
+                    icon: Icons.shuffle_rounded,
+                    active: player.shuffle,
+                    tooltip: 'Shuffle',
+                    onTap: notifier.toggleShuffle,
+                  ),
                 const Spacer(),
                 if (isExclusive && !compact)
                   _BitPerfectBadge(onSurface: onSurface),
                 const Spacer(),
-                _LoopButton(
-                  mode: player.loopMode,
-                  compact: compact,
-                  onTap: notifier.cycleLoopMode,
-                ),
+                if (isM3)
+                  M3TransportIcon(
+                    icon: switch (player.loopMode) {
+                      LoopMode.track => Icons.repeat_one_rounded,
+                      _ => Icons.repeat_rounded,
+                    },
+                    selectedIcon: switch (player.loopMode) {
+                      LoopMode.track => Icons.repeat_one_rounded,
+                      _ => Icons.repeat_rounded,
+                    },
+                    selected: player.loopMode != LoopMode.off,
+                    tooltip: switch (player.loopMode) {
+                      LoopMode.off => 'Repeat',
+                      LoopMode.track => 'Repeat track',
+                      LoopMode.album => 'Repeat album',
+                      LoopMode.playlist => 'Repeat all',
+                    },
+                    onPressed: notifier.cycleLoopMode,
+                  )
+                else
+                  _LoopButton(
+                    mode: player.loopMode,
+                    compact: compact,
+                    onTap: notifier.cycleLoopMode,
+                  ),
               ],
             ),
 
@@ -146,36 +175,66 @@ class PlayerControls extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _TransportButton(
-                    icon: Icons.skip_previous_rounded,
-                    size: skipSize,
-                    enabled: player.currentTrack != null,
-                    onTap: notifier.skipPrevious,
-                  ),
+                  if (isM3)
+                    M3TransportIcon(
+                      icon: Icons.skip_previous_rounded,
+                      tooltip: 'Previous',
+                      onPressed: player.currentTrack == null
+                          ? null
+                          : notifier.skipPrevious,
+                    )
+                  else
+                    _TransportButton(
+                      icon: Icons.skip_previous_rounded,
+                      size: skipSize,
+                      enabled: player.currentTrack != null,
+                      onTap: notifier.skipPrevious,
+                    ),
                   SizedBox(width: playGap),
-                  _PlayButton(
-                    isPlaying: isPlaying,
-                    isLoading: isLoading,
-                    hasTrack: player.currentTrack != null,
-                    isMobile: compact,
-                    progress: progress,
-                    cs: cs,
-                    aq: aq,
-                    isM3: isM3,
-                    accentColor: ref.watch(accentColorProvider),
-                    onTap: player.currentTrack == null
-                        ? null
-                        : isPlaying
-                        ? notifier.pause
-                        : notifier.play,
-                  ),
+                  if (isM3)
+                    M3PlayButton(
+                      isPlaying: isPlaying,
+                      isLoading: isLoading,
+                      hasTrack: player.currentTrack != null,
+                      progress: progress,
+                      size: compact ? 46 : 56,
+                      accentColor: ref.watch(accentColorProvider),
+                      onTap: player.currentTrack == null
+                          ? null
+                          : isPlaying
+                          ? notifier.pause
+                          : notifier.play,
+                    )
+                  else
+                    _PlayButton(
+                      isPlaying: isPlaying,
+                      isLoading: isLoading,
+                      hasTrack: player.currentTrack != null,
+                      isMobile: compact,
+                      aq: aq,
+                      accentColor: ref.watch(accentColorProvider),
+                      onTap: player.currentTrack == null
+                          ? null
+                          : isPlaying
+                          ? notifier.pause
+                          : notifier.play,
+                    ),
                   SizedBox(width: playGap),
-                  _TransportButton(
-                    icon: Icons.skip_next_rounded,
-                    size: skipSize,
-                    enabled: player.currentTrack != null,
-                    onTap: notifier.skipNext,
-                  ),
+                  if (isM3)
+                    M3TransportIcon(
+                      icon: Icons.skip_next_rounded,
+                      tooltip: 'Next',
+                      onPressed: player.currentTrack == null
+                          ? null
+                          : notifier.skipNext,
+                    )
+                  else
+                    _TransportButton(
+                      icon: Icons.skip_next_rounded,
+                      size: skipSize,
+                      enabled: player.currentTrack != null,
+                      onTap: notifier.skipNext,
+                    ),
                 ],
               ),
             ),
@@ -225,9 +284,7 @@ class PlayerControls extends ConsumerWidget {
 
 // Play button
 class _PlayButton extends StatefulWidget {
-  final bool isPlaying, isLoading, hasTrack, isMobile, isM3;
-  final double progress;
-  final ColorScheme cs;
+  final bool isPlaying, isLoading, hasTrack, isMobile;
   final AqlossTokens aq;
   final Color? accentColor;
   final VoidCallback? onTap;
@@ -236,10 +293,7 @@ class _PlayButton extends StatefulWidget {
     required this.isLoading,
     required this.hasTrack,
     required this.isMobile,
-    required this.progress,
-    required this.cs,
     required this.aq,
-    required this.isM3,
     this.accentColor,
     this.onTap,
   });
@@ -275,12 +329,9 @@ class _PlayButtonState extends State<_PlayButton>
   @override
   Widget build(BuildContext context) {
     final sz = widget.isMobile ? 46.0 : 58.0;
-    final onSurface = widget.isM3 ? widget.cs.onSurface : widget.aq.onSurface;
-    final surface = widget.isM3 ? widget.cs.surface : widget.aq.surface;
+    final onSurface = widget.aq.onSurface;
+    final surface = widget.aq.surface;
     final accent = widget.accentColor ?? onSurface;
-    final indicatorTheme = Theme.of(context).progressIndicatorTheme;
-
-    final showInnerSpinner = widget.isLoading && !widget.isM3;
 
     Widget button = AnimatedContainer(
       duration: const Duration(milliseconds: 130),
@@ -305,7 +356,7 @@ class _PlayButtonState extends State<_PlayButton>
               ]
             : null,
       ),
-      child: showInnerSpinner
+      child: widget.isLoading
           ? Padding(
               padding: EdgeInsets.all(sz * 0.28),
               child: CircularProgressIndicator(strokeWidth: 2, color: surface),
@@ -318,29 +369,6 @@ class _PlayButtonState extends State<_PlayButton>
               size: widget.isMobile ? 24 : 30,
             ),
     );
-
-    if (widget.isM3 && widget.hasTrack) {
-      button = M3PlaybackRing(
-        progress: widget.isLoading ? null : widget.progress,
-        loading: widget.isLoading,
-        size: sz + 12,
-        strokeWidth: 3.5,
-        color: widget.accentColor ?? widget.cs.primary,
-        child: button,
-      );
-    } else if (widget.isM3 && widget.isLoading) {
-      button = SizedBox(
-        width: sz + 8,
-        height: sz + 8,
-        child: CircularProgressIndicator(
-          strokeWidth: 3,
-          strokeCap: StrokeCap.round,
-          year2023: false,
-          color: indicatorTheme.color ?? widget.cs.primary,
-          backgroundColor: indicatorTheme.circularTrackColor,
-        ),
-      );
-    }
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,

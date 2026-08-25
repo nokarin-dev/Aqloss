@@ -47,6 +47,10 @@ dependencies:
   archive: ^4.0.9
   dynamic_color: ^2.1.0
   material_ui: ^1.0.1
+  material_3_expressive: ^1.0.8
+
+dependency_overrides:
+  dynamic_color: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -65,3 +69,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
+  shaders:
+    - shaders/m3_wave_track.frag
+    - shaders/m3_wave_ring.frag

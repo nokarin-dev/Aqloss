@@ -10,6 +10,7 @@ import 'package:aqloss/widgets/q_toast.dart';
 import 'package:aqloss/widgets/shared/input_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_3_expressive/material_3_expressive.dart';
 
 class M3DesktopNav extends ConsumerStatefulWidget {
   final int route;
@@ -181,10 +182,10 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               ),
               Padding(
                 padding: EdgeInsets.fromLTRB(
-                  collapsed ? 8 : 14,
-                  10,
+                  collapsed ? 8 : 16,
+                  12,
                   collapsed ? 8 : 8,
-                  4,
+                  6,
                 ),
                 child: collapsed
                     ? Tooltip(
@@ -200,23 +201,17 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
                           Expanded(
                             child: Text(
                               'Playlists',
-                              style: theme.textTheme.labelLarge?.copyWith(
+                              style: theme.textTheme.labelMedium?.copyWith(
                                 color: cs.onSurfaceVariant,
-                                fontSize: 11,
-                                letterSpacing: 0.6,
+                                letterSpacing: 0.8,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                          IconButton(
+                          IconButton.filledTonal(
                             icon: const Icon(Icons.add_rounded, size: 18),
                             tooltip: 'New playlist',
                             visualDensity: VisualDensity.compact,
-                            style: IconButton.styleFrom(
-                              backgroundColor: cs.secondaryContainer.withValues(
-                                alpha: 0.45,
-                              ),
-                            ),
                             onPressed: _createPlaylist,
                           ),
                         ],
@@ -333,7 +328,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
   }
 }
 
-class _CollapseHeader extends StatefulWidget {
+class _CollapseHeader extends StatelessWidget {
   final bool collapsed;
   final int trackCount;
   final VoidCallback onToggle;
@@ -345,92 +340,88 @@ class _CollapseHeader extends StatefulWidget {
   });
 
   @override
-  State<_CollapseHeader> createState() => _CollapseHeaderState();
-}
-
-class _CollapseHeaderState extends State<_CollapseHeader> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-        child: Material(
-          color: _hovered
-              ? cs.onSurface.withValues(alpha: 0.05)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: widget.onToggle,
-            borderRadius: BorderRadius.circular(14),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
+      child: M3ETappable(
+        onTap: onToggle,
+        pressedScale: 0.97,
+        haptic: M3EHapticFeedback.light,
+        semanticLabel: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+        builder: (context, state) {
+          final hovered = state.hovered;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.symmetric(
+              horizontal: collapsed ? 0 : 10,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: hovered
+                  ? cs.onSurface.withValues(alpha: 0.06)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Tooltip(
-              message: widget.collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+              message: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
               preferBelow: false,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: widget.collapsed ? 0 : 8,
-                  vertical: 8,
-                ),
-                child: widget.collapsed
-                    ? Center(
-                        child: Icon(
-                          Icons.menu_open_rounded,
+              child: collapsed
+                  ? Center(
+                      child: Icon(
+                        Icons.menu_open_rounded,
+                        size: 22,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Icon(
+                          Icons.menu_rounded,
+                          size: 22,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Aqloss',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              if (trackCount > 0)
+                                Text(
+                                  '$trackCount tracks',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_left_rounded,
                           size: 20,
                           color: cs.onSurfaceVariant,
                         ),
-                      )
-                    : Row(
-                        children: [
-                          Icon(
-                            Icons.menu_rounded,
-                            size: 20,
-                            color: cs.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Aqloss',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                                if (widget.trackCount > 0)
-                                  Text(
-                                    '${widget.trackCount} tracks',
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_left_rounded,
-                            size: 18,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
-              ),
+                      ],
+                    ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-class _NavDest extends StatefulWidget {
+class _NavDest extends StatelessWidget {
   final IconData icon;
   final IconData selectedIcon;
   final String label;
@@ -450,113 +441,91 @@ class _NavDest extends StatefulWidget {
   });
 
   @override
-  State<_NavDest> createState() => _NavDestState();
-}
-
-class _NavDestState extends State<_NavDest> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
-    if (widget.collapsed) {
-      return Tooltip(
-        message: widget.label,
-        preferBelow: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          child: Stack(
+    final dest = M3ETappable(
+      onTap: onTap,
+      pressedScale: 0.97,
+      haptic: M3EHapticFeedback.light,
+      semanticLabel: label,
+      builder: (context, state) {
+        final hovered = state.hovered;
+        final fill = selected
+            ? cs.secondaryContainer
+            : hovered
+            ? cs.onSurface.withValues(alpha: 0.06)
+            : Colors.transparent;
+        final iconColor = selected
+            ? cs.onSecondaryContainer
+            : cs.onSurfaceVariant;
+        final glyph = AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: Icon(
+            selected ? selectedIcon : icon,
+            key: ValueKey(selected),
+            size: 22,
+            color: iconColor,
+          ),
+        );
+
+        if (collapsed) {
+          return Stack(
             alignment: Alignment.center,
             children: [
-              IconButton(
-                isSelected: widget.selected,
-                icon: Icon(widget.icon, size: 20),
-                selectedIcon: Icon(widget.selectedIcon, size: 20),
-                onPressed: widget.onTap,
-                style: IconButton.styleFrom(
-                  backgroundColor: widget.selected
-                      ? cs.secondaryContainer
-                      : _hovered
-                      ? cs.onSurface.withValues(alpha: 0.05)
-                      : null,
-                  foregroundColor: widget.selected
-                      ? cs.onSecondaryContainer
-                      : cs.onSurfaceVariant,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: fill,
+                  borderRadius: BorderRadius.circular(selected ? 12 : 21),
+                ),
+                child: Center(child: glyph),
+              ),
+              if (trailing != null)
+                Positioned(right: 0, top: 0, child: trailing!),
+            ],
+          );
+        }
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Row(
+            children: [
+              glyph,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: selected ? cs.onSecondaryContainer : cs.onSurface,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (widget.trailing != null)
-                Positioned(right: 2, top: 2, child: widget.trailing!),
+              ?trailing,
             ],
           ),
-        ),
-      );
-    }
-
-    final bg = widget.selected
-        ? cs.secondaryContainer
-        : _hovered
-        ? cs.onSurface.withValues(alpha: 0.05)
-        : Colors.transparent;
+        );
+      },
+    );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: Material(
-          color: bg,
-          borderRadius: BorderRadius.circular(24),
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(24),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              child: Row(
-                children: [
-                  if (widget.selected)
-                    Container(
-                      width: 3,
-                      height: 16,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: cs.primary,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 13),
-                  Icon(
-                    widget.selected ? widget.selectedIcon : widget.icon,
-                    size: 20,
-                    color: widget.selected
-                        ? cs.onSecondaryContainer
-                        : cs.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.label,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontSize: 13,
-                        color: widget.selected
-                            ? cs.onSurface
-                            : cs.onSurfaceVariant,
-                        fontWeight: widget.selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (widget.trailing != null) widget.trailing!,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: collapsed
+          ? Tooltip(message: label, preferBelow: false, child: dest)
+          : dest,
     );
   }
 }
@@ -592,11 +561,11 @@ class _PlaylistRowState extends State<_PlaylistRow> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final bg = widget.highlighted
-        ? cs.primaryContainer.withValues(alpha: 0.4)
+        ? cs.primaryContainer.withValues(alpha: 0.45)
         : widget.selected
         ? cs.secondaryContainer
         : _hovered
-        ? cs.onSurface.withValues(alpha: 0.05)
+        ? cs.onSurface.withValues(alpha: 0.06)
         : Colors.transparent;
 
     return Padding(
@@ -604,88 +573,100 @@ class _PlaylistRowState extends State<_PlaylistRow> {
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
-        child: Material(
-          color: bg,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
+        child: GestureDetector(
+          onSecondaryTapDown: (d) => _showMenu(d.globalPosition),
+          child: M3ETappable(
             onTap: widget.onTap,
-            onSecondaryTapDown: (d) => _showMenu(d.globalPosition),
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
-              child: Row(
-                children: [
-                  PlaylistArtIcon(
-                    playlist: widget.playlist,
-                    size: 26,
-                    radius: 6,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.playlist.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontSize: 12.5,
-                            fontWeight: widget.selected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          '${widget.playlist.length} tracks',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
+            onLongPress: () {
+              final box = context.findRenderObject() as RenderBox?;
+              final pos = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+              _showMenu(pos + const Offset(120, 20));
+            },
+            pressedScale: 0.98,
+            haptic: M3EHapticFeedback.light,
+            builder: (context, state) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    PlaylistArtIcon(
+                      playlist: widget.playlist,
+                      size: 26,
+                      radius: 6,
                     ),
-                  ),
-                  if (_hovered) ...[
-                    if (widget.onPlay != null)
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.playlist.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontSize: 12.5,
+                              fontWeight: widget.selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            '${widget.playlist.length} tracks',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_hovered) ...[
+                      if (widget.onPlay != null)
+                        IconButton(
+                          icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                          tooltip: 'Play',
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints(
+                            minWidth: 28,
+                            minHeight: 28,
+                          ),
+                          onPressed: widget.onPlay,
+                        ),
                       IconButton(
-                        icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                        tooltip: 'Play',
+                        icon: const Icon(Icons.more_vert_rounded, size: 16),
+                        tooltip: 'More',
                         visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints(
                           minWidth: 28,
                           minHeight: 28,
                         ),
-                        onPressed: widget.onPlay,
+                        onPressed: () {
+                          final box = context.findRenderObject() as RenderBox?;
+                          final pos =
+                              box?.localToGlobal(Offset.zero) ?? Offset.zero;
+                          _showMenu(pos + const Offset(120, 20));
+                        },
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.more_vert_rounded, size: 16),
-                      tooltip: 'More',
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                      onPressed: () {
-                        final box = context.findRenderObject() as RenderBox?;
-                        final pos =
-                            box?.localToGlobal(Offset.zero) ?? Offset.zero;
-                        _showMenu(pos + const Offset(120, 20));
-                      },
-                    ),
-                  ] else
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Text(
-                        '${widget.playlist.length}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
+                    ] else
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Text(
+                          '${widget.playlist.length}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -721,14 +702,18 @@ class _PlayingDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: 7,
-      height: 7,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: playing
-            ? cs.primary
-            : cs.onSurfaceVariant.withValues(alpha: 0.4),
+    return AnimatedScale(
+      scale: playing ? 1 : 0.85,
+      duration: const Duration(milliseconds: 240),
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: playing
+              ? cs.primary
+              : cs.onSurfaceVariant.withValues(alpha: 0.4),
+        ),
       ),
     );
   }
@@ -743,20 +728,13 @@ class _QueueBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final label = count > 99 ? '99+' : '$count';
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: collapsed ? 4 : 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          color: cs.onPrimaryContainer,
-        ),
-      ),
+    return Badge(
+      isLabelVisible: true,
+      label: Text(label),
+      backgroundColor: cs.primaryContainer,
+      textColor: cs.onPrimaryContainer,
+      smallSize: collapsed ? 16 : 18,
+      padding: EdgeInsets.symmetric(horizontal: collapsed ? 4 : 5),
     );
   }
 }
@@ -779,17 +757,21 @@ class _PlaylistIconDest extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Material(
       color: highlighted
-          ? cs.primaryContainer.withValues(alpha: 0.4)
+          ? cs.primaryContainer.withValues(alpha: 0.45)
           : selected
           ? cs.secondaryContainer
           : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
+      shape: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(selected ? 12 : 16),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        customBorder: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(selected ? 12 : 16),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(5),
-          child: PlaylistArtIcon(playlist: playlist, size: 24, radius: 5),
+          padding: const EdgeInsets.all(6),
+          child: PlaylistArtIcon(playlist: playlist, size: 24, radius: 6),
         ),
       ),
     );

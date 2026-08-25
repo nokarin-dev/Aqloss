@@ -118,38 +118,52 @@ ThemeData buildMaterial3Theme({
         color: scheme.onSurfaceVariant,
       ),
     ),
-    hoverColor: scheme.onSurface.withValues(alpha: 0.05),
-    splashColor: scheme.primary.withValues(alpha: 0.08),
-    highlightColor: scheme.onSurface.withValues(alpha: 0.04),
+    hoverColor: scheme.onSurface.withValues(alpha: 0.06),
+    splashColor: scheme.primary.withValues(alpha: 0.10),
+    highlightColor: scheme.onSurface.withValues(alpha: 0.05),
+    splashFactory: InkRipple.splashFactory,
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {
+        for (final platform in TargetPlatform.values)
+          platform: const FadeForwardsPageTransitionsBuilder(),
+      },
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         elevation: 0,
+        animationDuration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
           horizontal: 16 * scale,
           vertical: 8 * scale,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         textStyle: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w500),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         elevation: 0,
+        animationDuration: const Duration(milliseconds: 200),
         side: BorderSide.none,
         backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
         padding: EdgeInsets.symmetric(
           horizontal: 14 * scale,
           vertical: 7 * scale,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         textStyle: TextStyle(fontSize: 13 * scale),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(textStyle: TextStyle(fontSize: 13 * scale)),
+      style: TextButton.styleFrom(
+        animationDuration: const Duration(milliseconds: 200),
+        textStyle: TextStyle(fontSize: 13 * scale),
+      ),
     ),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
+        animationDuration: const Duration(milliseconds: 200),
+        overlayColor: scheme.onSurface.withValues(alpha: 0.08),
         visualDensity: compactDesktop
             ? VisualDensity.compact
             : VisualDensity.standard,
@@ -176,13 +190,7 @@ ThemeData buildMaterial3Theme({
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
-    sliderTheme: SliderThemeData(
-      activeTrackColor: scheme.primary,
-      inactiveTrackColor: scheme.surfaceContainerHighest,
-      thumbColor: scheme.primary,
-      overlayColor: scheme.primary.withValues(alpha: 0.10),
-      trackHeight: 3,
-    ),
+    sliderTheme: const SliderThemeData(year2023: false),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected)
@@ -198,21 +206,36 @@ ThemeData buildMaterial3Theme({
     listTileTheme: ListTileThemeData(
       iconColor: scheme.onSurfaceVariant,
       textColor: scheme.onSurface,
+      selectedColor: scheme.onSecondaryContainer,
+      selectedTileColor: scheme.secondaryContainer.withValues(alpha: 0.55),
       dense: compactDesktop,
       minLeadingWidth: 28,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      mouseCursor: WidgetStateMouseCursor.clickable,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale),
     ),
     dividerTheme: DividerThemeData(
       color: scheme.outlineVariant.withValues(alpha: 0.5),
       thickness: 1,
     ),
-    progressIndicatorTheme: ProgressIndicatorThemeData(
-      color: scheme.primary,
-      linearTrackColor: scheme.surfaceContainerHighest,
-      circularTrackColor: scheme.surfaceContainerHighest,
-      strokeWidth: 3,
+    tooltipTheme: TooltipThemeData(
+      waitDuration: const Duration(milliseconds: 400),
+      decoration: BoxDecoration(
+        color: scheme.inverseSurface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: TextStyle(color: scheme.onInverseSurface, fontSize: 12 * scale),
     ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      elevation: 3,
+      highlightElevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      selectedColor: scheme.secondaryContainer,
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(year2023: false),
     popupMenuTheme: PopupMenuThemeData(
       color: scheme.surfaceContainerHigh,
       surfaceTintColor: Colors.transparent,

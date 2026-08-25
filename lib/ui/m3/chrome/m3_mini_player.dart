@@ -72,110 +72,112 @@ class _M3MiniPlayerBarState extends ConsumerState<M3MiniPlayerBar> {
           ? const BorderRadius.vertical(top: Radius.circular(16))
           : BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: widget.onTap,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: _art != null
-                          ? Image.memory(
-                              _art!,
-                              width: 52,
-                              height: 52,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              width: 52,
-                              height: 52,
-                              color: cs.surfaceContainerHighest,
-                              child: Icon(
-                                Icons.album_rounded,
-                                color: cs.onSurfaceVariant,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            track.displayTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            track.displayArtistAlbum,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
+      child: SafeArea(
+        top: false,
+        child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: widget.onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 4),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: _art != null
+                        ? Image.memory(
+                            _art!,
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            width: 52,
+                            height: 52,
+                            color: cs.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.album_rounded,
                               color: cs.onSurfaceVariant,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.skip_previous_rounded),
-                      onPressed: notifier.skipPrevious,
-                    ),
-                    M3PlayButton(
-                      isPlaying: playing,
-                      isLoading: loading,
-                      hasTrack: true,
-                      progress: progress,
-                      size: 42,
-                      onTap: playing ? notifier.pause : notifier.play,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.skip_next_rounded),
-                      onPressed: notifier.skipNext,
-                    ),
-                    if (widget.onOpenQueue != null)
-                      IconButton(
-                        icon: Badge(
-                          isLabelVisible: player.queue.isNotEmpty,
-                          label: Text('${player.queue.length}'),
-                          child: const Icon(Icons.queue_music_rounded),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          track.displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        tooltip: 'Queue',
-                        onPressed: widget.onOpenQueue,
+                        Text(
+                          track.displayArtistAlbum,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous_rounded),
+                    onPressed: notifier.skipPrevious,
+                  ),
+                  M3PlayButton(
+                    isPlaying: playing,
+                    isLoading: loading,
+                    hasTrack: true,
+                    progress: progress,
+                    size: 36,
+                    onTap: playing ? notifier.pause : notifier.play,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.skip_next_rounded),
+                    onPressed: notifier.skipNext,
+                  ),
+                  if (widget.onOpenQueue != null)
+                    IconButton(
+                      icon: Badge(
+                        isLabelVisible: player.queue.isNotEmpty,
+                        label: Text('${player.queue.length}'),
+                        child: const Icon(Icons.queue_music_rounded),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                M3MiniPlaybackProgress(
-                  progress: progress,
-                  position: player.position,
-                  duration: duration,
-                  playing: playing,
-                  onChanged: (v) {
-                    if (duration.inMilliseconds > 0) {
-                      notifier.seekPreview(duration * v);
-                    }
-                  },
-                  onChangeEnd: (v) {
-                    if (duration.inMilliseconds > 0) {
-                      notifier.seekCommit(duration * v);
-                    }
-                  },
-                ),
-              ],
+                      tooltip: 'Queue',
+                      onPressed: widget.onOpenQueue,
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+            child: M3MiniPlaybackProgress(
+              progress: progress,
+              position: player.position,
+              duration: duration,
+              playing: playing,
+              onChanged: (v) {
+                if (duration.inMilliseconds > 0) {
+                  notifier.seekPreview(duration * v);
+                }
+              },
+              onChangeEnd: (v) {
+                if (duration.inMilliseconds > 0) {
+                  notifier.seekCommit(duration * v);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
       ),
     );
 
