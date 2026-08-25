@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:aqloss/models/audio_format.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
@@ -202,6 +203,28 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 }
 
+class _ViewModeButton extends StatelessWidget {
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _ViewModeButton({
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return IconButton(
+      icon: Icon(icon, size: 20),
+      color: active ? cs.onSurface : cs.onSurface.withValues(alpha: 0.38),
+      onPressed: onTap,
+    );
+  }
+}
+
 // Stats row
 class _Stats extends StatelessWidget {
   final LibraryState library;
@@ -222,6 +245,154 @@ class _Stats extends StatelessWidget {
       '${library.totalTracks} tracks · $time'
       '${library.losslessTracks.isNotEmpty ? ' · ${library.losslessTracks.length} lossless' : ''}',
       style: style,
+    );
+  }
+}
+
+// Format Selection Dropdown Button for standard UI
+class _FormatMenuButton extends ConsumerWidget {
+  final LibraryState library;
+  const _FormatMenuButton({required this.library});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final n = ref.read(libraryProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
+    final selectedFormats = library.selectedFormats;
+    final isFormatSelected =
+        library.filter == LibraryFilter.format && selectedFormats.isNotEmpty;
+
+    final label = isFormatSelected
+        ? selectedFormats.length == 1
+            ? selectedFormats.first.name.toUpperCase()
+            : '${selectedFormats.length} Formats'
+        : 'Format';
+
+    return GestureDetector(
+      onTapDown: (TapDownDetails details) async {
+        final position = details.globalPosition;
+        await showMenu<void>(
+          context: context,
+          position: RelativeRect.fromLTRB(
+            position.dx,
+            position.dy,
+            position.dx,
+            position.dy,
+          ),
+          items: [
+            PopupMenuItem<void>(
+              enabled: false,
+              child: StatefulBuilder(
+                builder: (context, menuSetState) {
+                  final currentSelected =
+                      ref.watch(libraryProvider).selectedFormats;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Select Formats',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          if (currentSelected.isNotEmpty)
+                            InkWell(
+                              onTap: () {
+                                n.clearFormatFilters();
+                                menuSetState(() {});
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(4.0),
+                                child: Text(
+                                  'Clear',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blueAccent,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const Divider(),
+                      ...library.availableFormats.map((fmt) {
+                        final isSelected = currentSelected.contains(fmt);
+                        return InkWell(
+                          onTap: () {
+                            n.toggleFormatFilter(fmt);
+                            menuSetState(() {});
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6.0),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: isSelected,
+                                  onChanged: (_) {
+                                    n.toggleFormatFilter(fmt);
+                                    menuSetState(() {});
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                Text(fmt.name.toUpperCase()),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 130),
+        margin: const EdgeInsets.only(right: 5, top: 6, bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: isFormatSelected
+              ? cs.onSurface.withValues(alpha: 0.10)
+              : Colors.transparent,
+          border: Border.all(
+            color: isFormatSelected
+                ? cs.onSurface.withValues(alpha: 0.24)
+                : cs.onSurface.withValues(alpha: 0.12),
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isFormatSelected
+                    ? cs.onSurface
+                    : cs.onSurface.withValues(alpha: 0.38),
+                fontWeight:
+                    isFormatSelected ? FontWeight.w500 : FontWeight.w400,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              size: 14,
+              color: isFormatSelected
+                  ? cs.onSurface
+                  : cs.onSurface.withValues(alpha: 0.38),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -257,6 +428,8 @@ class _SortBar extends ConsumerWidget {
             selected: library.filter == LibraryFilter.hiRes,
             onTap: () => n.setFilter(LibraryFilter.hiRes),
           ),
+          if (library.availableFormats.isNotEmpty)
+            _FormatMenuButton(library: library),
           const SizedBox(width: 8),
           Container(
             width: 1,
@@ -298,6 +471,14 @@ class _M3SortBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final n = ref.read(libraryProvider.notifier);
     final theme = Theme.of(context);
+    final selectedFormats = library.selectedFormats;
+    final isFormatSelected = library.filter == LibraryFilter.format && selectedFormats.isNotEmpty;
+
+    final formatLabel = isFormatSelected
+        ? selectedFormats.length == 1
+            ? selectedFormats.first.name.toUpperCase()
+            : '${selectedFormats.length} Formats'
+        : 'Format';
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -321,6 +502,71 @@ class _M3SortBar extends ConsumerWidget {
             selected: library.filter == LibraryFilter.hiRes,
             onSelected: (_) => n.setFilter(LibraryFilter.hiRes),
           ),
+          if (library.availableFormats.isNotEmpty) ...[
+            const SizedBox(width: 6),
+            PopupMenuButton<AudioFormat>(
+              tooltip: 'Filter by format',
+              onSelected: (format) {
+                n.toggleFormatFilter(format);
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem<AudioFormat>(
+                  enabled: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Select Formats',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      if (selectedFormats.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            n.clearFormatFilters();
+                          },
+                          child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                        ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                ...library.availableFormats.map(
+                  (fmt) {
+                    final isSelected = selectedFormats.contains(fmt);
+                    return PopupMenuItem<AudioFormat>(
+                      value: fmt,
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: isSelected,
+                            onChanged: null,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(fmt.name.toUpperCase())),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+              child: FilterChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(formatLabel),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_drop_down_rounded, size: 18),
+                  ],
+                ),
+                selected: isFormatSelected,
+                onSelected: null,
+              ),
+            ),
+          ],
           const SizedBox(width: 12),
           Text('Sort', style: theme.textTheme.labelMedium),
           const SizedBox(width: 8),
@@ -488,7 +734,7 @@ class _TrackListState extends ConsumerState<_TrackList> {
   static const _kItemH = 56.0;
   String? _lastScrolledPath;
 
-@override
+  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -609,11 +855,9 @@ class _TrackListState extends ConsumerState<_TrackList> {
           onTap: () => widget.library.query.trim().isEmpty
               ? playerNotifier.loadWithQueue(tracks[i], tracks)
               : playerNotifier.playKeepingQueue(tracks[i]),
-          // mobile
           onLongPress: isDesktop
               ? null
               : () => _showOptions(ctx, tracks[i], playlists, playlistNotifier),
-          // desktop
           onSecondaryTapDown: isDesktop
               ? (d) => showTrackContextMenu(
                   context: ctx,
@@ -637,11 +881,9 @@ class _TrackListState extends ConsumerState<_TrackList> {
         onTap: () => widget.library.query.trim().isEmpty
             ? playerNotifier.loadWithQueue(tracks[i], tracks)
             : playerNotifier.playKeepingQueue(tracks[i]),
-        // mobile
         onLongPress: isDesktop
             ? null
             : () => _showOptions(ctx, tracks[i], playlists, playlistNotifier),
-        // desktop
         onSecondaryTapDown: isDesktop
             ? (d) => showTrackContextMenu(
                 context: ctx,
@@ -822,7 +1064,6 @@ class _PlaylistOptionRow extends StatelessWidget {
   }
 }
 
-// View mode button
 class _PlayAllBtn extends StatefulWidget {
   final VoidCallback onTap;
   const _PlayAllBtn({required this.onTap});
@@ -845,71 +1086,32 @@ class _PlayAllBtnState extends State<_PlayAllBtn> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: cs.onSurface.withValues(alpha: _hovered ? 0.08 : 0.05),
-            borderRadius: BorderRadius.circular(8),
+            color: _hovered
+                ? cs.onSurface.withValues(alpha: 0.08)
+                : cs.onSurface.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.playlist_play_rounded,
-                size: 16,
+                Icons.play_arrow_rounded,
+                size: 14,
                 color: cs.onSurface.withValues(alpha: 0.70),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Text(
                 'Play all',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: cs.onSurface.withValues(alpha: 0.70),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ViewModeButton extends StatelessWidget {
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
-  const _ViewModeButton({
-    required this.icon,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: active
-              ? cs.onSurface.withValues(alpha: 0.10)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: active
-                ? cs.onSurface.withValues(alpha: 0.20)
-                : cs.onSurface.withValues(alpha: 0.08),
-          ),
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: active
-              ? cs.onSurface.withValues(alpha: 0.70)
-              : cs.onSurface.withValues(alpha: 0.28),
         ),
       ),
     );

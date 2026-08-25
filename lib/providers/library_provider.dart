@@ -18,7 +18,7 @@ enum SortField { title, artist, album, duration, format, dateAdded }
 
 enum SortOrder { ascending, descending }
 
-enum LibraryFilter { all, lossless, hiRes }
+enum LibraryFilter { all, lossless, hiRes, format }
 
 class LibraryState {
   final List<Track> tracks;
@@ -30,6 +30,7 @@ class LibraryState {
   final SortField sortField;
   final SortOrder sortOrder;
   final LibraryFilter filter;
+  final Set<AudioFormat> selectedFormats;
 
   const LibraryState({
     this.tracks = const [],
@@ -41,9 +42,13 @@ class LibraryState {
     this.sortField = SortField.artist,
     this.sortOrder = SortOrder.ascending,
     this.filter = LibraryFilter.all,
+    this.selectedFormats = const {},
   }) : _cachedFiltered = cachedFiltered;
 
   List<Track> get filteredTracks => _cachedFiltered;
+
+  AudioFormat? get formatFilter =>
+      selectedFormats.length == 1 ? selectedFormats.first : null;
 
   LibraryState copyWith({
     List<Track>? tracks,
@@ -55,6 +60,7 @@ class LibraryState {
     SortField? sortField,
     SortOrder? sortOrder,
     LibraryFilter? filter,
+    Set<AudioFormat>? selectedFormats,
   }) => LibraryState(
     tracks: tracks ?? this.tracks,
     cachedFiltered: cachedFiltered ?? _cachedFiltered,
@@ -65,11 +71,21 @@ class LibraryState {
     sortField: sortField ?? this.sortField,
     sortOrder: sortOrder ?? this.sortOrder,
     filter: filter ?? this.filter,
+    selectedFormats: selectedFormats ?? this.selectedFormats,
   );
 
   List<Track> get losslessTracks => tracks
       .where((t) => AudioFormat.fromExtension(t.format).isLossless)
       .toList();
+
+  /// Gets all distinct `AudioFormat`s available in the scanned library
+  List<AudioFormat> get availableFormats =>
+      tracks
+          .map((t) => AudioFormat.fromExtension(t.format))
+          .where((f) => f != AudioFormat.unknown)
+          .toSet()
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
 
   List<String> get allAlbums =>
       tracks
@@ -103,9 +119,21 @@ List<Track> _computeFiltered(_FilterParams p) {
           .where(
             (t) =>
                 t.sampleRate >= 88200 ||
-                (t.bitDepth != null && t.bitDepth! >= 24),
+                (t.bitDepth != null && t.bitDepth! >= 24) ||
+                AudioFormat.fromExtension(t.format).isHiRes,
           )
           .toList();
+      break;
+    case LibraryFilter.format:
+      if (p.selectedFormats.isNotEmpty) {
+        result = result
+            .where(
+              (t) => p.selectedFormats.contains(
+                AudioFormat.fromExtension(t.format),
+              ),
+            )
+            .toList();
+      }
       break;
     case LibraryFilter.all:
       break;
@@ -168,12 +196,15 @@ List<Track> _computeFiltered(_FilterParams p) {
 class _FilterParams {
   final List<Track> tracks;
   final LibraryFilter filter;
+  final Set<AudioFormat> selectedFormats;
   final String query;
   final SortField sortField;
   final SortOrder sortOrder;
+
   const _FilterParams(
     this.tracks,
     this.filter,
+    this.selectedFormats,
     this.query,
     this.sortField,
     this.sortOrder,
@@ -424,7 +455,14 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   ) {
     return compute(
       _computeFiltered,
-      _FilterParams(tracks, s.filter, s.query, s.sortField, s.sortOrder),
+      _FilterParams(
+        tracks,
+        s.filter,
+        s.selectedFormats,
+        s.query,
+        s.sortField,
+        s.sortOrder,
+      ),
     );
   }
 
@@ -453,8 +491,50 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   }
 
   void setFilter(LibraryFilter f) {
-    state = state.copyWith(filter: f);
+    state = state.copyWith(filter: f, selectedFormats: const {});
     _applyFilter();
+  }
+
+  void toggleFormatFilter(AudioFormat format) {
+    final updatedFormats = Set<AudioFormat>.from(state.selectedFormats);
+    if (updatedFormats.contains(format)) {
+      updatedFormats.remove(format);
+    } else {
+      updatedFormats.add(format);
+    }
+
+    if (updatedFormats.isEmpty) {
+      state = state.copyWith(
+        filter: LibraryFilter.all,
+        selectedFormats: const {},
+      );
+    } else {
+      state = state.copyWith(
+        filter: LibraryFilter.format,
+        selectedFormats: updatedFormats,
+      );
+    }
+    _applyFilter();
+  }
+
+  void clearFormatFilters() {
+    state = state.copyWith(
+      filter: LibraryFilter.all,
+      selectedFormats: const {},
+    );
+    _applyFilter();
+  }
+
+  void setFormatFilter(AudioFormat? format) {
+    if (format == null) {
+      clearFormatFilters();
+    } else {
+      state = state.copyWith(
+        filter: LibraryFilter.format,
+        selectedFormats: {format},
+      );
+      _applyFilter();
+    }
   }
 
   void clearAll() {
