@@ -6,8 +6,6 @@ import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/lyrics_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/providers/settings_provider.dart';
-import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
@@ -70,21 +68,7 @@ class _MobileNowPlayingState extends ConsumerState<MobileNowPlaying> {
   }
 
   Future<void> _toggleLove(Track track) async {
-    final newLoved = await ref.read(historyProvider.notifier).toggleLove(track);
-    final settings = ref.read(settingsProvider);
-    if (settings.scrobbleReady) {
-      final creds = LastFmService.resolve(
-        userApiKey: settings.lastFmApiKey,
-        userApiSecret: settings.lastFmApiSecret,
-      );
-      LastFmService.setLoved(
-        sessionKey: settings.lastFmSessionKey!,
-        creds: creds,
-        artist: track.displayArtist,
-        track: track.displayTitle,
-        loved: newLoved,
-      );
-    }
+    await ref.read(historyProvider.notifier).toggleLove(track);
   }
 
   @override

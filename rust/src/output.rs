@@ -14,6 +14,7 @@ pub struct AudioOutput {
     _stream: AudioStream,
     pub producer: SharedProducer,
     pub draining: Arc<AtomicBool>,
+    pub paused: Arc<AtomicBool>,
     pub sample_rate: u32,
     pub channels: u32,
     pub exclusive: bool,
@@ -60,12 +61,14 @@ impl AudioOutput {
     fn from_exclusive(exc: wasapi_exclusive::ExclusiveStream) -> Self {
         let producer = exc.producer.clone();
         let draining = exc.draining.clone();
+        let paused = exc.paused.clone();
         let sample_rate = exc.sample_rate;
         let channels = exc.channels;
         Self {
             _stream: AudioStream::WasapiExclusive(exc),
             producer,
             draining,
+            paused,
             sample_rate,
             channels,
             exclusive: true,
@@ -144,22 +147,15 @@ impl AudioOutput {
 
         let producer: SharedProducer = Arc::new(std::sync::Mutex::new(prod));
         let draining = Arc::new(AtomicBool::new(false));
+        let paused = Arc::new(AtomicBool::new(false));
         let draining_cb = draining.clone();
+        let paused_cb = paused.clone();
 
         let stream = device
             .build_output_stream(
                 &config,
                 move |output: &mut [f32], _info| {
-                    if draining_cb.load(Ordering::Relaxed) {
-                        let avail = cons.occupied_len();
-                        let mut tmp = vec![0f32; avail];
-                        cons.pop_slice(&mut tmp);
-                        output.fill(0.0);
-                    } else {
-                        let n = cons.occupied_len().min(output.len());
-                        cons.pop_slice(&mut output[..n]);
-                        output[n..].fill(0.0);
-                    }
+                    fill_output(output, &mut cons, &draining_cb, &paused_cb);
                 },
                 |err| crate::logger::error_output(format!("[cpal] stream error: {err}")),
                 None,
@@ -186,6 +182,7 @@ impl AudioOutput {
             _stream: AudioStream::Cpal(stream),
             producer,
             draining,
+            paused,
             sample_rate,
             channels,
             exclusive: false,
@@ -207,6 +204,32 @@ impl AudioOutput {
 
     pub fn stop_drain(&self) {
         self.draining.store(false, Ordering::SeqCst);
+    }
+
+    pub fn set_paused(&self, paused: bool) {
+        self.paused.store(paused, Ordering::SeqCst);
+    }
+}
+
+fn fill_output<C>(
+    output: &mut [f32],
+    cons: &mut C,
+    draining: &AtomicBool,
+    paused: &AtomicBool,
+) where
+    C: Consumer<Item = f32> + Observer,
+{
+    if draining.load(Ordering::Relaxed) {
+        let avail = cons.occupied_len();
+        let mut tmp = vec![0f32; avail];
+        cons.pop_slice(&mut tmp);
+        output.fill(0.0);
+    } else if paused.load(Ordering::Relaxed) {
+        output.fill(0.0);
+    } else {
+        let n = cons.occupied_len().min(output.len());
+        cons.pop_slice(&mut output[..n]);
+        output[n..].fill(0.0);
     }
 }
 
@@ -390,6 +413,7 @@ pub mod wasapi_exclusive {
     pub struct ExclusiveStream {
         pub producer: SharedProducer,
         pub draining: Arc<AtomicBool>,
+        pub paused: Arc<AtomicBool>,
         pub sample_rate: u32,
         pub channels: u32,
         _thread: Option<thread::JoinHandle<()>>,
@@ -460,18 +484,29 @@ pub mod wasapi_exclusive {
             let producer: SharedProducer = Arc::new(Mutex::new(prod));
             let alive = Arc::new(AtomicBool::new(true));
             let draining = Arc::new(AtomicBool::new(false));
+            let paused = Arc::new(AtomicBool::new(false));
 
             let alive_cb = alive.clone();
             let draining_cb = draining.clone();
+            let paused_cb = paused.clone();
             let id = device_id.to_owned();
 
             let _thread = thread::spawn(move || {
-                run_audio_thread(id, chosen_sr, chosen_ch as u32, cons, alive_cb, draining_cb);
+                run_audio_thread(
+                    id,
+                    chosen_sr,
+                    chosen_ch as u32,
+                    cons,
+                    alive_cb,
+                    draining_cb,
+                    paused_cb,
+                );
             });
 
             Ok(Self {
                 producer,
                 draining,
+                paused,
                 sample_rate: chosen_sr,
                 channels: chosen_ch as u32,
                 _thread: Some(_thread),
@@ -494,6 +529,7 @@ pub mod wasapi_exclusive {
         mut cons: ringbuf::HeapCons<f32>,
         alive: Arc<AtomicBool>,
         draining: Arc<AtomicBool>,
+        paused: Arc<AtomicBool>,
     ) {
         crate::logger::info_output(format!(
             "[wasapi-exclusive] audio thread started for {}",
@@ -537,6 +573,8 @@ pub mod wasapi_exclusive {
                     let avail = cons.occupied_len();
                     let mut tmp = vec![0f32; avail];
                     cons.pop_slice(&mut tmp);
+                    output.fill(0.0);
+                } else if paused.load(Ordering::Relaxed) {
                     output.fill(0.0);
                 } else {
                     let n = cons.occupied_len().min(samples_per_cb);

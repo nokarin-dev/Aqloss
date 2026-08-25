@@ -9,7 +9,6 @@ import 'package:aqloss/screens/mobile_now_playing.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/player_controls.dart';
 import 'package:aqloss/providers/history_provider.dart';
-import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/widgets/spectrum_display.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
@@ -834,23 +833,7 @@ class _PlayerLoveBtnState extends ConsumerState<_PlayerLoveBtn>
     _busy = true;
     await _anim.forward();
     await _anim.reverse();
-    final newLoved = await ref
-        .read(historyProvider.notifier)
-        .toggleLove(widget.track);
-    final settings = ref.read(settingsProvider);
-    if (settings.scrobbleReady) {
-      final creds = LastFmService.resolve(
-        userApiKey: settings.lastFmApiKey,
-        userApiSecret: settings.lastFmApiSecret,
-      );
-      LastFmService.setLoved(
-        sessionKey: settings.lastFmSessionKey!,
-        creds: creds,
-        artist: widget.track.displayArtist,
-        track: widget.track.displayTitle,
-        loved: newLoved,
-      );
-    }
+    await ref.read(historyProvider.notifier).toggleLove(widget.track);
     _busy = false;
   }
 

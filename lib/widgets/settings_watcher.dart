@@ -1,13 +1,15 @@
+import 'package:aqloss/providers/accent_provider.dart';
+import 'package:aqloss/providers/library_provider.dart';
+import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/services/audio_service.dart';
+import 'package:aqloss/services/lastfm_service.dart';
+import 'package:aqloss/services/loved_sync.dart';
+import 'package:aqloss/services/notifier/media_control_service.dart';
+import 'package:aqloss/services/scrobble_controller.dart';
+import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:aqloss/providers/settings_provider.dart';
-import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/providers/accent_provider.dart';
-import 'package:aqloss/services/audio_service.dart';
-import 'package:aqloss/services/scrobble_controller.dart';
-import 'package:aqloss/services/lastfm_service.dart';
-import 'package:aqloss/services/notifier/media_control_service.dart';
-import 'package:aqloss/src/rust/api.dart' as backend;
 
 class SettingsWatcher extends ConsumerStatefulWidget {
   final Widget child;
@@ -21,6 +23,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   SettingsState? _prev;
   PlayerState? _prevPlayer;
   bool _mediaInitialized = false;
+  bool _lovedPullStarted = false;
   AccentMode? _prevAccentMode;
   int? _prevAccentColor;
   String? _prevAccentPath;
@@ -55,11 +58,13 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
     final player = ref.watch(playerProvider);
+    final library = ref.watch(libraryProvider);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _apply(s);
       _applyMediaControls(player);
       _applyAccent(s, player);
+      _pullLoved(s, library.tracks.isNotEmpty);
     });
 
     return widget.child;
@@ -126,6 +131,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     if (!s.loaded) return;
     final prev = _prev;
     _prev = s;
+    _configureLoved(s);
 
     if (prev?.notchFilter != s.notchFilter) {
       await backend.setSoftClip(enabled: s.notchFilter).catchError((_) {});
@@ -187,5 +193,30 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
         listenBrainzToken: s.listenBrainzReady ? s.listenBrainzToken : null,
       );
     }
+  }
+
+  void _configureLoved(SettingsState s) {
+    LastFmCredentials? creds;
+    if (s.scrobbleReady) {
+      creds = LastFmService.resolve(
+        userApiKey: s.lastFmApiKey,
+        userApiSecret: s.lastFmApiSecret,
+      );
+    }
+    LovedSync.configure(
+      lastFmCreds: creds,
+      lastFmSession: s.scrobbleReady ? s.lastFmSessionKey : null,
+      lastFmUser: s.scrobbleReady ? s.lastFmUsername : null,
+      listenBrainzToken: s.listenBrainzReady ? s.listenBrainzToken : null,
+      listenBrainzUser: s.listenBrainzReady ? s.listenBrainzUsername : null,
+    );
+  }
+
+  void _pullLoved(SettingsState s, bool hasLibrary) {
+    if (_lovedPullStarted || !hasLibrary || !s.loaded) return;
+    if (!s.scrobbleReady && !s.listenBrainzReady) return;
+    _lovedPullStarted = true;
+    _configureLoved(s);
+    LovedSync.importInto(ref);
   }
 }

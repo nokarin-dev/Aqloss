@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
+import 'package:aqloss/services/loved_sync.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -180,6 +181,7 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     PluginRegistry.instance.dispatchTrackLoved(
       TrackLovedEvent(track: track, loved: !wasLoved),
     );
+    LovedSync.push(track, loved: !wasLoved);
     return !wasLoved;
   }
 
@@ -197,6 +199,7 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
       PluginRegistry.instance.dispatchTrackLoved(
         TrackLovedEvent(track: track, loved: loved),
       );
+      LovedSync.push(track, loved: loved);
     }
   }
 

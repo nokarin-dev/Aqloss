@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/services/discord_service.dart';
+import 'package:aqloss/services/loved_sync.dart';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/eq_panel.dart';
 import 'package:aqloss/widgets/lastfm_auth_row.dart';
@@ -179,41 +180,65 @@ class _SettingsSidebar extends ConsumerWidget {
     if (context.isMaterial3Ui) {
       final theme = Theme.of(context);
       final cs = theme.colorScheme;
-      return Container(
-        width: 196,
+      return Material(
         color: cs.surfaceContainerLow,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 12, 8),
-              child: Text(
-                'Settings',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              right: BorderSide(
+                color: cs.outlineVariant.withValues(alpha: 0.45),
               ),
             ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-                children: [
-                  for (final entry in sections.entries) ...[
-                    _SidebarSectionLabel(entry.key),
-                    for (final page in entry.value)
-                      _SidebarNavItem(
-                        page: page,
-                        isActive: current == page,
-                        isScanning:
-                            page == _SettingsPage.musicFolders && isScanning,
-                        onTap: () => onSelect(page),
+          ),
+          child: SizedBox(
+            width: 220,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Settings',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    const SizedBox(height: 6),
-                  ],
-                ],
-              ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Playback, library, and appearance',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 20),
+                    children: [
+                      for (final entry in sections.entries) ...[
+                        _SidebarSectionLabel(entry.key),
+                        for (final page in entry.value)
+                          _SidebarNavItem(
+                            page: page,
+                            isActive: current == page,
+                            isScanning:
+                                page == _SettingsPage.musicFolders &&
+                                isScanning,
+                            onTap: () => onSelect(page),
+                          ),
+                        const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       );
     }
@@ -285,12 +310,13 @@ class _SidebarSectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (context.isMaterial3Ui) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(8, 10, 8, 2),
+        padding: const EdgeInsets.fromLTRB(12, 14, 8, 6),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
-            letterSpacing: 0.6,
+            letterSpacing: 0.8,
+            fontWeight: FontWeight.w600,
           ),
         ),
       );
@@ -338,39 +364,65 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
 
     if (context.isMaterial3Ui) {
       final cs = Theme.of(context).colorScheme;
+      final theme = Theme.of(context);
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 1),
-        child: Material(
-          color: Colors.transparent,
-          child: ListTile(
-            dense: true,
-            selected: active,
-            selectedTileColor: cs.secondaryContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-            leading: Icon(
-              widget.page.icon,
-              size: 18,
-              color: active ? cs.onSecondaryContainer : cs.onSurfaceVariant,
-            ),
-            title: Text(
-              widget.page.label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: active ? cs.onSecondaryContainer : cs.onSurface,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(28),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: active
+                      ? cs.secondaryContainer
+                      : _hovered
+                      ? cs.onSurface.withValues(alpha: 0.06)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.page.icon,
+                      size: 20,
+                      color: active
+                          ? cs.onSecondaryContainer
+                          : cs.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.page.label,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: active
+                              ? cs.onSecondaryContainer
+                              : cs.onSurface,
+                          fontWeight: active
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (widget.isScanning)
+                      QSpinner(
+                        size: 12,
+                        color: cs.onSurfaceVariant,
+                        strokeWidth: 1.4,
+                      ),
+                  ],
+                ),
               ),
             ),
-            trailing: widget.isScanning
-                ? QSpinner(
-                    size: 12,
-                    color: cs.onSurfaceVariant,
-                    strokeWidth: 1.4,
-                  )
-                : null,
-            onTap: widget.onTap,
           ),
         ),
       );
@@ -467,38 +519,57 @@ class _NarrowSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pages = isDesktop
-        ? _SettingsPage.values
-        : _SettingsPage.values
-              .where((p) => p != _SettingsPage.shortcuts)
-              .toList();
-
     if (context.isMaterial3Ui) {
+      final pages = isDesktop
+          ? _SettingsPage.values
+          : _SettingsPage.values
+                .where((p) => p != _SettingsPage.shortcuts)
+                .toList();
+      final theme = Theme.of(context);
+      final cs = theme.colorScheme;
+      final sections = <String, List<_SettingsPage>>{};
+      for (final p in pages) {
+        sections.putIfAbsent(p.section, () => []).add(p);
+      }
+
       return Scaffold(
-        appBar: AppBar(title: Text(page.label)),
-        drawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                margin: EdgeInsets.zero,
-                child: Text(
-                  'Settings',
-                  style: Theme.of(context).textTheme.headlineSmall,
+        backgroundColor: cs.surface,
+        appBar: AppBar(title: Text(page.label), scrolledUnderElevation: 0),
+        drawer: NavigationDrawer(
+          selectedIndex: pages.indexOf(page),
+          onDestinationSelected: (i) {
+            onSelect(pages[i]);
+            Navigator.pop(context);
+          },
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 24, 16, 8),
+              child: Text(
+                'Settings',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              for (final p in pages)
-                ListTile(
-                  leading: Icon(p.icon),
-                  title: Text(p.label),
-                  selected: p == page,
-                  onTap: () {
-                    onSelect(p);
-                    Navigator.pop(context);
-                  },
+            ),
+            for (final entry in sections.entries) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(28, 16, 16, 8),
+                child: Text(
+                  entry.key,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    letterSpacing: 0.8,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              for (final p in entry.value)
+                NavigationDrawerDestination(
+                  icon: Icon(p.icon),
+                  label: Text(p.label),
                 ),
             ],
-          ),
+          ],
         ),
         body: _SettingsContent(page: page, isDesktop: isDesktop),
       );
@@ -627,7 +698,43 @@ class _Pane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    if (context.isMaterial3Ui) {
+      return CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 28, 28, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    page.label,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    page.subtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(28, 8, 28, 48),
+            sliver: SliverList(delegate: SliverChildListDelegate(children)),
+          ),
+        ],
+      );
+    }
 
     return CustomScrollView(
       slivers: [
@@ -1309,6 +1416,15 @@ class _DisplayPane extends ConsumerWidget {
                 onChanged: (_) => n.toggleMaterialYou(),
               ),
             ],
+            _Div(),
+            _ToggleRow(
+              icon: Icons.speed_rounded,
+              title: 'Hardware acceleration',
+              subtitle:
+                  'GPU rendering for the interface. Turn off if the UI glitches or looks jagged; restart Aqloss after changing.',
+              value: s.hardwareAcceleration,
+              onChanged: (_) => n.toggleHardwareAcceleration(),
+            ),
             _Div(),
             _ToggleRow(
               icon: Icons.image_outlined,
@@ -2440,9 +2556,107 @@ class _IntegrationsPane extends ConsumerWidget {
               _Div(),
               const ListenBrainzAuthRow(),
             ],
+            if (s.scrobbleReady || s.listenBrainzReady) ...[
+              _Div(),
+              const _SyncLovedRow(),
+            ],
           ],
         ),
       ],
+    );
+  }
+}
+
+class _SyncLovedRow extends ConsumerStatefulWidget {
+  const _SyncLovedRow();
+
+  @override
+  ConsumerState<_SyncLovedRow> createState() => _SyncLovedRowState();
+}
+
+class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final result = await LovedSync.importInto(ref);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final msg = result.remoteCount == 0
+        ? 'No loved tracks found on Last.fm or ListenBrainz.'
+        : 'Loved ${result.imported} library tracks from ${result.remoteCount} remote likes.';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.isMaterial3Ui) {
+      return ListTile(
+        leading: const Icon(Icons.favorite_outline_rounded),
+        title: const Text('Sync loved tracks'),
+        subtitle: const Text(
+          'Mark local files as loved when they match likes on Last.fm or ListenBrainz.',
+        ),
+        trailing: _busy
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : TextButton(onPressed: _run, child: const Text('Sync')),
+        onTap: _busy ? null : _run,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.favorite_outline_rounded,
+              size: 16,
+              color: context.stOnSurface(0.34),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sync loved tracks',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: context.stOnSurface(0.80),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Mark local files as loved when they match likes on Last.fm or ListenBrainz.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.stMuted(),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          if (_busy)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 1.5),
+            )
+          else
+            _HoverTextBtn(label: 'Sync', onTap: _run),
+        ],
+      ),
     );
   }
 }

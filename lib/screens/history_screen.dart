@@ -4,8 +4,6 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
-import 'package:aqloss/providers/settings_provider.dart';
-import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/shared/mini_album_art.dart';
@@ -619,25 +617,7 @@ class _LoveButtonState extends ConsumerState<_LoveButton>
     await _anim.forward();
     await _anim.reverse();
 
-    final newLoved = await ref
-        .read(historyProvider.notifier)
-        .toggleLove(widget.track);
-
-    // Sync to Last.fm
-    final settings = ref.read(settingsProvider);
-    if (settings.scrobbleReady) {
-      final creds = LastFmService.resolve(
-        userApiKey: settings.lastFmApiKey,
-        userApiSecret: settings.lastFmApiSecret,
-      );
-      LastFmService.setLoved(
-        sessionKey: settings.lastFmSessionKey!,
-        creds: creds,
-        artist: widget.track.displayArtist,
-        track: widget.track.displayTitle,
-        loved: newLoved,
-      );
-    }
+    await ref.read(historyProvider.notifier).toggleLove(widget.track);
 
     _busy = false;
   }

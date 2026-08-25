@@ -538,6 +538,7 @@ impl AudioEngine {
             logger::warn_audio("play() called with no track loaded");
             return Err(anyhow!("No track loaded"));
         }
+        self.output.set_paused(false);
         self.output.stop_drain();
         if self.flags.alive.load(Ordering::SeqCst) {
             logger::debug_audio("play() - thread alive, resuming");
@@ -545,6 +546,7 @@ impl AudioEngine {
                 self.smooth_volume = 0.0;
             }
             self.flags.playing.store(true, Ordering::SeqCst);
+            self.output.set_paused(false);
             self.output.stop_drain();
             return Ok(());
         }
@@ -573,7 +575,7 @@ impl AudioEngine {
     pub fn pause(&mut self) -> Result<()> {
         logger::info_audio("pause()");
         self.flags.playing.store(false, Ordering::SeqCst);
-        self.output.start_drain();
+        self.output.set_paused(true);
         Ok(())
     }
 
@@ -598,6 +600,7 @@ impl AudioEngine {
             .clone();
         let was_playing = self.flags.playing.load(Ordering::SeqCst);
         self.flags.playing.store(false, Ordering::SeqCst);
+        self.output.set_paused(false);
         self.output.start_drain();
         self.flags.seek_pending.store(true, Ordering::SeqCst);
         thread::sleep(Duration::from_millis(20));
@@ -613,9 +616,12 @@ impl AudioEngine {
 
         self.smooth_volume = 0.0;
         self.flags.seek_pending.store(false, Ordering::SeqCst);
+        self.output.stop_drain();
         if was_playing {
-            self.output.stop_drain();
+            self.output.set_paused(false);
             self.flags.playing.store(true, Ordering::SeqCst);
+        } else {
+            self.output.set_paused(true);
         }
         Ok(())
     }
@@ -633,8 +639,13 @@ impl AudioEngine {
             .as_ref()
             .ok_or_else(|| anyhow!("No track loaded"))?;
         let d = dec.lock().unwrap();
+        let raw = d.position_secs();
+        let occupied = self.output.ring_occupied_samples() as f64;
+        let ch = self.output.channels.max(1) as f64;
+        let sr = self.output.sample_rate.max(1) as f64;
+        let buffered = occupied / ch / sr;
         Ok(PlaybackPosition {
-            position_secs: d.position_secs(),
+            position_secs: (raw - buffered).max(0.0),
             duration_secs: d.duration_secs(),
             sample_rate: d.sample_rate(),
             bit_depth: d.bit_depth(),

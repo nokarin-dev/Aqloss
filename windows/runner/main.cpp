@@ -1,13 +1,34 @@
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
+#include <shlobj.h>
+#include <cstdio>
+#include <string>
 
 #include "flutter_window.h"
 #include "utils.h"
 
+static void ApplyHwAccelPref() {
+  wchar_t appdata[MAX_PATH];
+  if (FAILED(SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, appdata))) {
+    return;
+  }
+  std::wstring path = std::wstring(appdata) + L"\\aqloss\\hw_accel";
+  FILE *f = _wfopen(path.c_str(), L"rb");
+  if (!f) return;
+  char c = 0;
+  if (fread(&c, 1, 1, f) == 1 && c == '0') {
+    _putenv_s("FLUTTER_ENGINE_SWITCHES", "2");
+    _putenv_s("FLUTTER_ENGINE_SWITCH_1", "enable-software-rendering");
+    _putenv_s("FLUTTER_ENGINE_SWITCH_2", "disable-impeller");
+  }
+  fclose(f);
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command)
 {
+  ApplyHwAccelPref();
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent())
   {
     CreateAndAttachConsole();

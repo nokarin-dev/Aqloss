@@ -8,11 +8,13 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
-Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, queue context actions, a Linux half-screen layout pass, and queue search.
+Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, queue context actions, a Linux half-screen layout pass, queue search, smoother Material 3 progress, Last.fm loved-track sync, and a pause/resume skip fix.
 
 ### Added
 
 - [Frontend|Settings] Display toggle for the top now playing card; off by default (#16)
+- [Frontend|Settings] Hardware acceleration toggle for GPU vs software UI rendering; restart to apply
+- [Frontend|Player] Import loved tracks from Last.fm and ListenBrainz onto matching library files
 - [Frontend|Player] Search the current queue and jump to a match (#24)
 - [Frontend|Library] Play all button when the library is filtered, to replace the queue with the visible results (#24)
 - [Frontend|Player] Play next and Add to queue from track, album, and artist context menus (#18)
@@ -23,6 +25,8 @@ Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build c
 
 - [Linux] Add Folder did nothing on Hyprland; pick with zenity/kdialog, or from a dialog in the app
 - [Frontend] Add Folder crashed after the picker closed: Riverpod `ref` was used after the widget unmounted (#26)
+- [Frontend|UI] Material 3 seek stays wavy for the whole track, click-seeks without snapping back, pauses as a flat bar, and draws the wave and play ring with a per-pixel shader so curves stay smooth; the unused part of the play ring waves in sync in the inactive colour (#28)
+- [Frontend|Player] Pause no longer skips ahead on resume by discarding buffered audio
 - [Frontend|UI] Duplicate drag handle on the left of queue rows (#18)
 - [Frontend|UI] Now Playing crushed when expanded nav and queue shared a half-screen: it now switches to a cover layout from the pane width, with lyrics behind a toggle on the art and controls sized under the cover
 - [Frontend|UI] Playing indicator replaced cover art with a solid tile; the cover stays visible under a light scrim
