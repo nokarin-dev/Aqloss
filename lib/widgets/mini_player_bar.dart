@@ -296,12 +296,22 @@ class _DesktopBarContent extends StatelessWidget {
                       onTap: notifier.skipPrevious,
                     ),
                     const SizedBox(width: 6),
-                    _MiniPlayBtn(
-                      isPlaying: isPlaying,
-                      isLoading: isLoading,
-                      colors: colors,
-                      onTap: isPlaying ? notifier.pause : notifier.play,
-                    ),
+                    if (context.isMaterial3Ui)
+                      M3PlayButton(
+                        isPlaying: isPlaying,
+                        isLoading: isLoading,
+                        hasTrack: true,
+                        progress: progress,
+                        size: 34,
+                        onTap: isPlaying ? notifier.pause : notifier.play,
+                      )
+                    else
+                      _MiniPlayBtn(
+                        isPlaying: isPlaying,
+                        isLoading: isLoading,
+                        colors: colors,
+                        onTap: isPlaying ? notifier.pause : notifier.play,
+                      ),
                     const SizedBox(width: 6),
                     _MiniBtn(
                       icon: Icons.skip_next_rounded,
@@ -462,6 +472,7 @@ class _MobileBar extends ConsumerWidget {
     final notifier = ref.read(playerProvider.notifier);
     final track = player.currentTrack!;
     final isPlaying = player.status == PlayerStatus.playing;
+    final isLoading = player.status == PlayerStatus.loading;
     final duration = track.duration;
     final progress = duration.inMilliseconds > 0
         ? (player.position.inMilliseconds / duration.inMilliseconds).clamp(
@@ -566,13 +577,23 @@ class _MobileBar extends ConsumerWidget {
                     tooltip: '',
                     onTap: notifier.skipPrevious,
                   ),
-                  _MiniPlayBtn(
-                    isPlaying: isPlaying,
-                    isLoading: false,
-                    colors: colors,
-                    small: true,
-                    onTap: isPlaying ? notifier.pause : notifier.play,
-                  ),
+                  if (isM3)
+                    M3PlayButton(
+                      isPlaying: isPlaying,
+                      isLoading: isLoading,
+                      hasTrack: true,
+                      progress: progress,
+                      size: 32,
+                      onTap: isPlaying ? notifier.pause : notifier.play,
+                    )
+                  else
+                    _MiniPlayBtn(
+                      isPlaying: isPlaying,
+                      isLoading: isLoading,
+                      colors: colors,
+                      small: true,
+                      onTap: isPlaying ? notifier.pause : notifier.play,
+                    ),
                   _MiniBtn(
                     icon: Icons.skip_next_rounded,
                     size: 20,

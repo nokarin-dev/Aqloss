@@ -240,7 +240,7 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
     final showMini = hasTrack && _route != M3Route.player;
-    final contentBottom = 72.0 + bottom + (showMini ? 58.0 : 0.0);
+    final contentBottom = 80.0 + bottom + (showMini ? 58.0 : 0.0);
 
     return SafeArea(
       bottom: false,

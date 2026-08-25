@@ -1,4 +1,5 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/ui/m3/m3_pressable.dart';
 import 'package:flutter/material.dart';
 
 class UiPage extends StatelessWidget {
@@ -134,14 +135,16 @@ class UiListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.isMaterial3Ui) {
-      return ListTile(
-        leading: leading,
-        title: Text(title),
-        subtitle: subtitle != null ? Text(subtitle!) : null,
-        trailing: trailing,
+      return M3Pressable(
         onTap: onTap,
         onLongPress: onLongPress,
-        selected: selected,
+        child: ListTile(
+          leading: leading,
+          title: Text(title),
+          subtitle: subtitle != null ? Text(subtitle!) : null,
+          trailing: trailing,
+          selected: selected,
+        ),
       );
     }
 

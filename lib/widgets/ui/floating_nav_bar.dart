@@ -1,5 +1,9 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:flutter/material.dart';
+import 'package:material_3_expressive/components/navigation_bar/enums/m3e_nav_bar_enums.dart';
+import 'package:material_3_expressive/components/navigation_bar/models/m3e_navigation_bar_destination.dart';
+import 'package:material_3_expressive/material_3_expressive.dart';
 
 class FloatingNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -30,17 +34,40 @@ class FloatingNavBar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final aq = context.aq;
 
-    final bg = isM3 ? cs.surfaceContainerHigh : aq.surfaceVariant;
-    final shadow = isM3
-        ? cs.shadow.withValues(alpha: 0.22)
-        : Colors.black.withValues(alpha: 0.35);
-    final indicator = isM3
-        ? cs.secondaryContainer.withValues(alpha: 0.72)
-        : aq.onSurface.withValues(alpha: 0.10);
-    final selected = isM3 ? cs.onSecondaryContainer : aq.onSurface;
-    final unselected = isM3
-        ? cs.onSurfaceVariant
-        : aq.onSurface.withValues(alpha: 0.32);
+    if (isM3) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(12, 0, 12, 8 + bottom),
+        child: m3eScope(
+          context,
+          M3ENavigationBar(
+            destinations: [
+              for (final d in _destinations)
+                M3ENavigationBarDestination(
+                  icon: Icon(d.$1),
+                  selectedIcon: Icon(d.$2),
+                  label: d.$3,
+                ),
+            ],
+            selectedIndex: selectedIndex,
+            onDestinationSelected: onSelected,
+            labelBehavior: M3ENavBarLabelBehavior.alwaysHide,
+            size: M3ENavBarSize.small,
+            density: M3ENavBarDensity.compact,
+            shapeFamily: M3ENavBarShapeFamily.round,
+            indicatorStyle: M3ENavBarIndicatorStyle.pill,
+            backgroundColor: cs.surfaceContainerHigh,
+            elevation: 3,
+            safeArea: false,
+          ),
+        ),
+      );
+    }
+
+    final bg = aq.surfaceVariant;
+    final shadow = Colors.black.withValues(alpha: 0.35);
+    final indicator = aq.onSurface.withValues(alpha: 0.10);
+    final selected = aq.onSurface;
+    final unselected = aq.onSurface.withValues(alpha: 0.32);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(14, 0, 14, 10 + bottom),
@@ -48,7 +75,7 @@ class FloatingNavBar extends StatelessWidget {
         elevation: 6,
         shadowColor: shadow,
         color: bg,
-        surfaceTintColor: isM3 ? cs.surfaceTint : Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         borderRadius: BorderRadius.circular(22),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
