@@ -1141,6 +1141,20 @@ class _AudioDeviceSection extends ConsumerWidget {
                 ? null
                 : () => ref.read(audioDeviceProvider.notifier).scan(),
           ),
+          if (Platform.isLinux) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Exclusive / bit-perfect is only available on ALSA hardware devices (hw:). PipeWire and other mixer outputs stay in shared mode.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurface.withValues(alpha: 0.38),
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1208,10 +1222,17 @@ class _PlaybackPane extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(settingsProvider);
     final n = ref.read(settingsProvider.notifier);
+    final bitPerfect = ref.watch(exclusiveModeProvider);
 
     return _Pane(
       page: _SettingsPage.playback,
       children: [
+        if (bitPerfect) ...[
+          const _ExclusiveLockBanner(
+            'Exclusive mode is on. Crossfade, ReplayGain, and skip silence can\'t be used.',
+          ),
+          const SizedBox(height: 16),
+        ],
         _SettingsCard(
           children: [
             _ToggleRow(
@@ -1231,8 +1252,10 @@ class _PlaybackPane extends ConsumerWidget {
               options: const ['Off', '2s', '4s', '8s'],
               selected: s.crossfade.index,
               onChanged: (i) => n.setCrossfade(CrossfadeMode.values[i]),
-              disabled: s.gaplessPlayback,
-              disabledHint: 'Disabled while gapless is on',
+              disabled: s.gaplessPlayback || bitPerfect,
+              disabledHint: bitPerfect
+                  ? kBitPerfectUnavailableHint
+                  : 'Disabled while gapless is on',
             ),
             _Div(),
             _PickerRow(
@@ -1242,6 +1265,8 @@ class _PlaybackPane extends ConsumerWidget {
               options: const ['Off', 'Track', 'Album', 'Auto'],
               selected: s.replayGainMode.index,
               onChanged: (i) => n.setReplayGainMode(ReplayGainMode.values[i]),
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
             ),
             if (s.replayGainEnabled) ...[
               _Div(),
@@ -1256,6 +1281,8 @@ class _PlaybackPane extends ConsumerWidget {
                 divisions: 24,
                 label: (v) => '${v >= 0 ? '+' : ''}${v.toStringAsFixed(1)} dB',
                 onChanged: n.setReplayGainPreamp,
+                disabled: bitPerfect,
+                disabledHint: kBitPerfectUnavailableHint,
               ),
             ],
             _Div(),
@@ -1266,6 +1293,8 @@ class _PlaybackPane extends ConsumerWidget {
                   'Skips leading/trailing silence at track boundaries. Useful for live recordings.',
               value: s.skipSilence,
               onChanged: (_) => n.toggleSkipSilence(),
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
             ),
             _Div(),
             _PickerRow(
@@ -1292,21 +1321,29 @@ class _DspPane extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(settingsProvider);
     final n = ref.read(settingsProvider.notifier);
+    final bitPerfect = ref.watch(exclusiveModeProvider);
 
     return _Pane(
       page: _SettingsPage.dsp,
       children: [
+        if (bitPerfect) ...[
+          const _ExclusiveLockBanner(
+            'Exclusive mode is on. EQ, soft-clip, stereo width, and Haas delay can\'t be used.',
+          ),
+          const SizedBox(height: 16),
+        ],
         _SettingsCard(
           children: [
             _ToggleRow(
               icon: Icons.bar_chart_rounded,
               title: '10-band Equalizer',
-              subtitle:
-                  'Per-frequency gain ±12 dB using peaking EQ filters. No effect in WASAPI Exclusive.',
+              subtitle: 'Per-frequency gain ±12 dB using peaking EQ filters.',
               value: s.eqEnabled,
               onChanged: (_) => n.toggleEq(),
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
             ),
-            if (s.eqEnabled) ...[_Div(), const EqPanel()],
+            if (s.eqEnabled && !bitPerfect) ...[_Div(), const EqPanel()],
             _Div(),
             _ToggleRow(
               icon: Icons.compress_rounded,
@@ -1315,6 +1352,8 @@ class _DspPane extends ConsumerWidget {
                   'Prevents digital clipping above 0 dBFS. Recommended with ReplayGain pre-amp or EQ boosts.',
               value: s.notchFilter,
               onChanged: (_) => n.toggleNotchFilter(),
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
             ),
           ],
         ),
@@ -1338,6 +1377,8 @@ class _DspPane extends ConsumerWidget {
                 n.setStereoWidth(v);
                 AudioService.setStereoWidth(v);
               },
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
             ),
             _Div(),
             _LiveSliderRow(
@@ -1354,6 +1395,8 @@ class _DspPane extends ConsumerWidget {
                 n.setHaasMs(v);
                 AudioService.setHaasMs(v);
               },
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
             ),
           ],
         ),
@@ -2828,17 +2871,125 @@ class _IconBtn26State extends State<_IconBtn26> {
 }
 
 // Row types
+class _ExclusiveLockBanner extends StatelessWidget {
+  final String text;
+  const _ExclusiveLockBanner(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.isMaterial3Ui) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.lock_outline_rounded,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: context.stOnSurface(0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: context.stBorder()),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.lock_outline_rounded,
+              size: 14,
+              color: context.stOnSurface(0.45),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: context.stOnSurface(0.55),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnavailableNote extends StatelessWidget {
+  final String text;
+  const _UnavailableNote(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.isMaterial3Ui) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            height: 1.35,
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          height: 1.35,
+          color: context.stOnSurface(0.50),
+        ),
+      ),
+    );
+  }
+}
+
 class _ToggleRow extends StatefulWidget {
   final IconData icon;
   final String title, subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final bool disabled;
+  final String? disabledHint;
   const _ToggleRow({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.disabled = false,
+    this.disabledHint,
   });
 
   @override
@@ -2854,22 +3005,34 @@ class _ToggleRowState extends State<_ToggleRow> {
       return SwitchListTile(
         secondary: Icon(widget.icon),
         title: Text(widget.title),
-        subtitle: Text(widget.subtitle),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.subtitle),
+            if (widget.disabled && widget.disabledHint != null)
+              _UnavailableNote(widget.disabledHint!),
+          ],
+        ),
         value: widget.value,
-        onChanged: widget.onChanged,
+        onChanged: widget.disabled ? null : widget.onChanged,
       );
     }
 
+    final fade = widget.disabled ? 0.42 : 1.0;
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor: widget.disabled
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () => widget.onChanged(!widget.value),
+        onTap: widget.disabled ? null : () => widget.onChanged(!widget.value),
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 110),
-          color: _hovered ? context.stOnSurface(0.025) : Colors.transparent,
+          color: _hovered && !widget.disabled
+              ? context.stOnSurface(0.025)
+              : Colors.transparent,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             child: Row(
@@ -2880,7 +3043,7 @@ class _ToggleRowState extends State<_ToggleRow> {
                   child: Icon(
                     widget.icon,
                     size: 16,
-                    color: context.stOnSurface(0.34),
+                    color: context.stOnSurface(0.34 * fade),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -2892,7 +3055,7 @@ class _ToggleRowState extends State<_ToggleRow> {
                         widget.title,
                         style: TextStyle(
                           fontSize: 13,
-                          color: context.stOnSurface(0.80),
+                          color: context.stOnSurface(0.80 * fade),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -2900,19 +3063,26 @@ class _ToggleRowState extends State<_ToggleRow> {
                         widget.subtitle,
                         style: TextStyle(
                           fontSize: 11,
-                          color: context.stMuted(),
+                          color: widget.disabled
+                              ? context.stOnSurface(0.32)
+                              : context.stMuted(),
                           height: 1.4,
                         ),
                       ),
+                      if (widget.disabled && widget.disabledHint != null)
+                        _UnavailableNote(widget.disabledHint!),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
                 Padding(
                   padding: const EdgeInsets.only(top: 1),
-                  child: _MiniSwitch(
-                    value: widget.value,
-                    onChanged: widget.onChanged,
+                  child: IgnorePointer(
+                    ignoring: widget.disabled,
+                    child: _MiniSwitch(
+                      value: widget.value,
+                      onChanged: widget.disabled ? null : widget.onChanged,
+                    ),
                   ),
                 ),
               ],
@@ -2947,35 +3117,34 @@ class _PickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.isMaterial3Ui) {
-      return Opacity(
-        opacity: disabled ? 0.40 : 1.0,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(icon),
-                title: Text(title),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(subtitle),
-                    if (disabled && disabledHint != null)
-                      Text(
-                        disabledHint!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                  ],
-                ),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(icon),
+              title: Text(title),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(subtitle),
+                  if (disabled && disabledHint != null)
+                    _UnavailableNote(disabledHint!),
+                ],
               ),
-              SegmentedButton<int>(
+            ),
+            IgnorePointer(
+              ignoring: disabled,
+              child: SegmentedButton<int>(
                 segments: [
                   for (var i = 0; i < options.length; i++)
-                    ButtonSegment<int>(value: i, label: Text(options[i])),
+                    ButtonSegment<int>(
+                      value: i,
+                      label: Text(options[i]),
+                      enabled: !disabled,
+                    ),
                 ],
                 selected: {selected},
                 showSelectedIcon: false,
@@ -2983,79 +3152,77 @@ class _PickerRow extends StatelessWidget {
                     ? null
                     : (selection) => onChanged(selection.first),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
     final narrow = MediaQuery.of(context).size.width < 500;
+    final fade = disabled ? 0.42 : 1.0;
 
-    Widget picker = _SegmentedPicker(
-      options: options,
-      selected: selected,
-      onChanged: disabled ? (_) {} : onChanged,
-      disabled: disabled,
+    Widget picker = IgnorePointer(
+      ignoring: disabled,
+      child: _SegmentedPicker(
+        options: options,
+        selected: selected,
+        onChanged: onChanged,
+        disabled: disabled,
+      ),
     );
 
-    return Opacity(
-      opacity: disabled ? 0.40 : 1.0,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 1),
-                  child: Icon(icon, size: 16, color: context.stOnSurface(0.34)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: context.stOnSurface(0.34 * fade),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: context.stOnSurface(0.80),
-                        ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: context.stOnSurface(0.80 * fade),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: context.stMuted(),
-                          height: 1.4,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: disabled
+                            ? context.stOnSurface(0.32)
+                            : context.stMuted(),
+                        height: 1.4,
                       ),
-                      if (disabled && disabledHint != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          disabledHint!,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: context.stOnSurface(0.20),
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    if (disabled && disabledHint != null)
+                      _UnavailableNote(disabledHint!),
+                  ],
                 ),
-                if (!narrow) ...[const SizedBox(width: 12), picker],
-              ],
-            ),
-            if (narrow) ...[
-              const SizedBox(height: 9),
-              Padding(padding: const EdgeInsets.only(left: 28), child: picker),
+              ),
+              if (!narrow) ...[const SizedBox(width: 12), picker],
             ],
+          ),
+          if (narrow) ...[
+            const SizedBox(height: 9),
+            Padding(padding: const EdgeInsets.only(left: 28), child: picker),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -3069,6 +3236,8 @@ class _SliderRow extends StatelessWidget {
   final String Function(double) label;
   final ValueChanged<double> onChanged;
   final ValueChanged<double>? onChangeEnd;
+  final bool disabled;
+  final String? disabledHint;
 
   const _SliderRow({
     required this.icon,
@@ -3080,6 +3249,8 @@ class _SliderRow extends StatelessWidget {
     required this.divisions,
     required this.label,
     required this.onChanged,
+    this.disabled = false,
+    this.disabledHint,
   }) : onChangeEnd = null;
 
   @override
@@ -3094,7 +3265,14 @@ class _SliderRow extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               leading: Icon(icon),
               title: Text(title),
-              subtitle: Text(subtitle),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(subtitle),
+                  if (disabled && disabledHint != null)
+                    _UnavailableNote(disabledHint!),
+                ],
+              ),
               trailing: Text(
                 label(value),
                 style: Theme.of(context).textTheme.bodyMedium,
@@ -3106,13 +3284,14 @@ class _SliderRow extends StatelessWidget {
               max: max,
               divisions: divisions,
               label: label(value),
-              onChanged: onChanged,
+              onChanged: disabled ? null : onChanged,
             ),
           ],
         ),
       );
     }
 
+    final fade = disabled ? 0.42 : 1.0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 7),
       child: Column(
@@ -3123,7 +3302,11 @@ class _SliderRow extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 1),
-                child: Icon(icon, size: 16, color: context.stOnSurface(0.34)),
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: context.stOnSurface(0.34 * fade),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -3136,7 +3319,7 @@ class _SliderRow extends StatelessWidget {
                           title,
                           style: TextStyle(
                             fontSize: 13,
-                            color: context.stOnSurface(0.80),
+                            color: context.stOnSurface(0.80 * fade),
                           ),
                         ),
                         const Spacer(),
@@ -3145,7 +3328,7 @@ class _SliderRow extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: context.stOnSurface(0.58),
+                            color: context.stOnSurface(0.58 * fade),
                           ),
                         ),
                       ],
@@ -3155,10 +3338,14 @@ class _SliderRow extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 11,
-                        color: context.stMuted(),
+                        color: disabled
+                            ? context.stOnSurface(0.32)
+                            : context.stMuted(),
                         height: 1.4,
                       ),
                     ),
+                    if (disabled && disabledHint != null)
+                      _UnavailableNote(disabledHint!),
                   ],
                 ),
               ),
@@ -3167,13 +3354,16 @@ class _SliderRow extends StatelessWidget {
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 28),
-            child: _RangeSlider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
-              onChangeEnd: onChangeEnd,
+            child: IgnorePointer(
+              ignoring: disabled,
+              child: _RangeSlider(
+                value: value,
+                min: min,
+                max: max,
+                divisions: divisions,
+                onChanged: disabled ? null : onChanged,
+                onChangeEnd: disabled ? null : onChangeEnd,
+              ),
             ),
           ),
         ],
@@ -3189,6 +3379,8 @@ class _LiveSliderRow extends StatefulWidget {
   final int divisions;
   final String Function(double) label;
   final ValueChanged<double> onCommit;
+  final bool disabled;
+  final String? disabledHint;
 
   const _LiveSliderRow({
     required this.icon,
@@ -3200,6 +3392,8 @@ class _LiveSliderRow extends StatefulWidget {
     required this.divisions,
     required this.label,
     required this.onCommit,
+    this.disabled = false,
+    this.disabledHint,
   });
 
   @override
@@ -3244,7 +3438,14 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
               contentPadding: EdgeInsets.zero,
               leading: Icon(widget.icon),
               title: Text(widget.title),
-              subtitle: Text(widget.subtitle),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.subtitle),
+                  if (widget.disabled && widget.disabledHint != null)
+                    _UnavailableNote(widget.disabledHint!),
+                ],
+              ),
               trailing: Text(
                 widget.label(_display),
                 style: Theme.of(context).textTheme.bodyMedium,
@@ -3256,12 +3457,22 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
               max: widget.max,
               divisions: widget.divisions,
               label: widget.label(_display),
-              onChanged: (v) => _onDrag(
-                ((v - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0),
-              ),
-              onChangeEnd: (v) => _onCommit(
-                ((v - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0),
-              ),
+              onChanged: widget.disabled
+                  ? null
+                  : (v) => _onDrag(
+                      ((v - widget.min) / (widget.max - widget.min)).clamp(
+                        0.0,
+                        1.0,
+                      ),
+                    ),
+              onChangeEnd: widget.disabled
+                  ? null
+                  : (v) => _onCommit(
+                      ((v - widget.min) / (widget.max - widget.min)).clamp(
+                        0.0,
+                        1.0,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -3270,6 +3481,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
 
     final normalised = ((_display - widget.min) / (widget.max - widget.min))
         .clamp(0.0, 1.0);
+    final fade = widget.disabled ? 0.42 : 1.0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 7),
@@ -3284,7 +3496,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                 child: Icon(
                   widget.icon,
                   size: 16,
-                  color: context.stOnSurface(0.34),
+                  color: context.stOnSurface(0.34 * fade),
                 ),
               ),
               const SizedBox(width: 12),
@@ -3298,7 +3510,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                           widget.title,
                           style: TextStyle(
                             fontSize: 13,
-                            color: context.stOnSurface(0.80),
+                            color: context.stOnSurface(0.80 * fade),
                           ),
                         ),
                         const Spacer(),
@@ -3307,7 +3519,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: context.stOnSurface(0.58),
+                            color: context.stOnSurface(0.58 * fade),
                           ),
                         ),
                       ],
@@ -3317,10 +3529,14 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                       widget.subtitle,
                       style: TextStyle(
                         fontSize: 11,
-                        color: context.stMuted(),
+                        color: widget.disabled
+                            ? context.stOnSurface(0.32)
+                            : context.stMuted(),
                         height: 1.4,
                       ),
                     ),
+                    if (widget.disabled && widget.disabledHint != null)
+                      _UnavailableNote(widget.disabledHint!),
                   ],
                 ),
               ),
@@ -3329,15 +3545,18 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 28),
-            child: CustomSlider(
-              value: normalised,
-              trackHeight: 2,
-              thumbRadius: 6,
-              activeColor: context.stOnSurface(0.58),
-              inactiveColor: context.stOnSurface(0.10),
-              thumbColor: context.stOnSurface(0.80),
-              onChanged: _onDrag,
-              onChangeEnd: _onCommit,
+            child: IgnorePointer(
+              ignoring: widget.disabled,
+              child: CustomSlider(
+                value: normalised,
+                trackHeight: 2,
+                thumbRadius: 6,
+                activeColor: context.stOnSurface(0.58 * fade),
+                inactiveColor: context.stOnSurface(0.10),
+                thumbColor: context.stOnSurface(0.80 * fade),
+                onChanged: widget.disabled ? null : _onDrag,
+                onChangeEnd: widget.disabled ? null : _onCommit,
+              ),
             ),
           ),
         ],
@@ -3349,14 +3568,14 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
 class _RangeSlider extends StatefulWidget {
   final double value, min, max;
   final int divisions;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
   final ValueChanged<double>? onChangeEnd;
   const _RangeSlider({
     required this.value,
     required this.min,
     required this.max,
     required this.divisions,
-    required this.onChanged,
+    this.onChanged,
     this.onChangeEnd,
   });
   @override
@@ -3384,7 +3603,7 @@ class _RangeSliderState extends State<_RangeSlider> {
     if (widget.onChangeEnd != null) {
       widget.onChangeEnd!(v);
     } else {
-      widget.onChanged(v);
+      widget.onChanged?.call(v);
     }
   }
 
@@ -3402,8 +3621,8 @@ class _RangeSliderState extends State<_RangeSlider> {
       activeColor: context.stOnSurface(0.58),
       inactiveColor: context.stOnSurface(0.10),
       thumbColor: context.stOnSurface(0.80),
-      onChanged: _onDragChanged,
-      onChangeEnd: _onDragEnd,
+      onChanged: widget.onChanged == null ? null : _onDragChanged,
+      onChangeEnd: widget.onChanged == null ? null : _onDragEnd,
     );
   }
 }
@@ -3479,8 +3698,8 @@ class _SegmentedPicker extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
                 color: isSel
-                    ? context.stOnSurface()
-                    : context.stOnSurface(0.34),
+                    ? context.stOnSurface(disabled ? 0.40 : 1.0)
+                    : context.stOnSurface(disabled ? 0.22 : 0.34),
               ),
             ),
           ),
@@ -3492,8 +3711,8 @@ class _SegmentedPicker extends StatelessWidget {
 
 class _MiniSwitch extends StatelessWidget {
   final bool value;
-  final ValueChanged<bool> onChanged;
-  const _MiniSwitch({required this.value, required this.onChanged});
+  final ValueChanged<bool>? onChanged;
+  const _MiniSwitch({required this.value, this.onChanged});
   @override
   Widget build(BuildContext context) {
     if (context.isMaterial3Ui) {
@@ -3501,13 +3720,15 @@ class _MiniSwitch extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: () => onChanged(!value),
+      onTap: onChanged == null ? null : () => onChanged!(!value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         width: 34,
         height: 19,
         decoration: BoxDecoration(
-          color: value ? context.stOnSurface(0.85) : context.stOnSurface(0.10),
+          color: value
+              ? context.stOnSurface(onChanged == null ? 0.28 : 0.85)
+              : context.stOnSurface(onChanged == null ? 0.06 : 0.10),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Padding(

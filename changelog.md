@@ -8,7 +8,13 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
-Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, queue context actions, a Linux half-screen layout pass, queue search, smoother Material 3 progress, Last.fm loved-track sync, and a pause/resume skip fix.
+No Changes Yet.
+
+---
+
+## [1.0.1] - 2026-08-27
+
+Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build channel, a quieter library header, queue context actions, a Linux half-screen layout pass, queue search, smoother Material 3 progress, Last.fm loved-track sync, a pause/resume skip fix, and native-rate exclusive output.
 
 ### Added
 
@@ -20,19 +26,27 @@ Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build c
 - [Frontend|Player] Play next and Add to queue from track, album, and artist context menus (#18)
 - [Frontend|UI] Show album and Show artist from the queue and other track menus (#18)
 - [Backend|Audio] Opus playback (`.opus`) via libopus through the Symphonia adapter (#17)
+- [Linux|Audio] ALSA hardware devices in the output list for exclusive-style exact-rate playback; default output uses PipeWire
 
 ### Fixed
 
-- [Linux] Add Folder did nothing on Hyprland; pick with zenity/kdialog, or from a dialog in the app
+- [Backend|Audio] Shared mode keeps the mixer sample rate and resamples hi-res tracks, so 48 kHz+ files no longer play too fast
+- [Backend|Audio] Large FLAC frames no longer play about twice as fast: leftover samples are written instead of dropped
+- [Backend|Audio] App no longer freezes with no log: playback, seek, and the spectrum analyser no longer wait on the same locks as the decode thread
+- [Linux] UI no longer goes Not Responding after playback starts: Flutter 3.47 Impeller GLES is off; the interface uses Skia GL instead
+- [Frontend|Audio] Volume, ReplayGain, skip silence, EQ, soft-clip, stereo width, Haas, and crossfade are unclickable in exclusive mode, with on-screen text that they can't be used
 - [Frontend] Add Folder crashed after the picker closed: Riverpod `ref` was used after the widget unmounted (#26)
 - [Frontend|UI] Material 3 seek stays wavy for the whole track, click-seeks without snapping back, pauses as a flat bar, and draws the wave and play ring with a per-pixel shader so curves stay smooth; the unused part of the play ring waves in sync in the inactive colour (#28)
 - [Frontend|Player] Pause no longer skips ahead on resume by discarding buffered audio
+- [Windows|Audio] Shared mode no longer reopens the device through WASAPI Exclusive when matching a track sample rate
 - [Frontend|UI] Duplicate drag handle on the left of queue rows (#18)
 - [Frontend|UI] Now Playing crushed when expanded nav and queue shared a half-screen: it now switches to a cover layout from the pane width, with lyrics behind a toggle on the art and controls sized under the cover
 - [Frontend|UI] Playing indicator replaced cover art with a solid tile; the cover stays visible under a light scrim
+- [Linux|Audio] Exclusive is only listed for ALSA `hw:` devices; PipeWire and mixer outputs stay shared
 - [Linux] Tiled/half-screen windows kept 14px CSD padding and rounded corners, so the app did not fill the tile
 - [macOS] Crash on launch on Sequoia: `_luaopen_base` missing because vendored Lua was left out of the CocoaPods staticlib (#19)
 - [Windows] SFX installer truncated to ~100 KB: `rcedit` rewrote the concatenated exe and dropped the 7z payload
+- [Linux] Add Folder did nothing on Hyprland; pick with zenity/kdialog, or from a dialog in the app
 
 ### Changed
 
@@ -44,6 +58,8 @@ Opus playback, macOS launch fix, Windows installer repair, rolling Apple Build c
 - [Frontend|UI] Playlist rows show cover art instead of track numbers
 - [Frontend|Player] Shuffle rearranges upcoming tracks instead of jumping to a random index, so Play Next stays next (#24)
 - [Frontend|Library] Playing a library or global search result keeps the current queue; jump if the track is already queued
+- [Windows|Audio] WASAPI Exclusive opens at the track sample rate and uses integer PCM (16/24/32-bit) when the device allows it; 16-bit exclusive uses TPDF dither
+- [Backend|Audio] Shorter output buffer for lower latency
 
 ---
 

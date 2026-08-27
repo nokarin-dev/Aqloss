@@ -10,6 +10,7 @@ import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
+import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/widgets/q_toast.dart';
 
 class _BarColors {
@@ -130,7 +131,7 @@ class _DesktopBar extends ConsumerWidget {
             1.0,
           )
         : 0.0;
-    final isExclusive = backend.isExclusiveMode();
+    final isExclusive = ref.watch(exclusiveModeProvider);
     final isIslands = ref.watch(settingsProvider).appStyle == AppStyle.islands;
 
     final content = _DesktopBarContent(
@@ -416,27 +417,46 @@ class _DesktopBarContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Icon(
-                Icons.volume_down_rounded,
-                size: 15,
-                color: colors.onSurfaceAlpha(0.20),
-              ),
-              SizedBox(
-                width: 110,
-                child: CustomSlider(
-                  value: player.volume.clamp(0.0, 1.0),
-                  trackHeight: 1.5,
-                  thumbRadius: 4,
-                  activeColor: colors.onSurfaceAlpha(0.36),
-                  inactiveColor: colors.onSurfaceAlpha(0.08),
-                  thumbColor: colors.onSurfaceAlpha(0.58),
-                  onChanged: notifier.setVolume,
-                ),
-              ),
-              Icon(
-                Icons.volume_up_rounded,
-                size: 15,
-                color: colors.onSurfaceAlpha(0.20),
+              Builder(
+                builder: (context) {
+                  Widget row = Opacity(
+                    opacity: isExclusive ? 0.40 : 1.0,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.volume_down_rounded,
+                          size: 15,
+                          color: colors.onSurfaceAlpha(0.20),
+                        ),
+                        SizedBox(
+                          width: 110,
+                          child: CustomSlider(
+                            value: player.volume.clamp(0.0, 1.0),
+                            trackHeight: 1.5,
+                            thumbRadius: 4,
+                            activeColor: colors.onSurfaceAlpha(0.36),
+                            inactiveColor: colors.onSurfaceAlpha(0.08),
+                            thumbColor: colors.onSurfaceAlpha(0.58),
+                            onChanged: isExclusive ? null : notifier.setVolume,
+                          ),
+                        ),
+                        Icon(
+                          Icons.volume_up_rounded,
+                          size: 15,
+                          color: colors.onSurfaceAlpha(0.20),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (isExclusive) {
+                    row = Tooltip(
+                      message: kBitPerfectUnavailableHint,
+                      child: row,
+                    );
+                  }
+                  return row;
+                },
               ),
             ],
           ),

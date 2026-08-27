@@ -32,16 +32,14 @@ pub fn recover_engine() -> Result<()> {
 }
 #[frb(sync)]
 pub fn is_decode_thread_dead() -> bool {
-    AudioEngine::global_opt()
-        .map(|a| a.lock().unwrap().is_decode_thread_dead())
-        .unwrap_or(false)
+    AudioEngine::decode_dead_now()
 }
 
 // Device enumeration
 pub fn enumerate_audio_devices() -> Result<Vec<AudioDeviceInfo>> {
     #[cfg(target_os = "windows")]
     {
-        use crate::output::wasapi_exclusive;
+        use crate::wasapi_exclusive;
         return Ok(wasapi_exclusive::enumerate_devices()?
             .into_iter()
             .map(|d| AudioDeviceInfo {
@@ -53,12 +51,18 @@ pub fn enumerate_audio_devices() -> Result<Vec<AudioDeviceInfo>> {
             .collect());
     }
     #[cfg(not(target_os = "windows"))]
-    Ok(vec![AudioDeviceInfo {
-        id: "default".into(),
-        name: "System default".into(),
-        is_default: true,
-        supports_exclusive: false,
-    }])
+    {
+        use crate::output::enumerate_cpal_devices;
+        return Ok(enumerate_cpal_devices()?
+            .into_iter()
+            .map(|d| AudioDeviceInfo {
+                id: d.id,
+                name: d.name,
+                is_default: d.is_default,
+                supports_exclusive: d.supports_exclusive,
+            })
+            .collect());
+    }
 }
 
 // Helper
@@ -69,39 +73,35 @@ fn engine() -> Result<std::sync::Arc<std::sync::Mutex<AudioEngine>>> {
 // Playback
 pub fn load_track(path: String) -> Result<TrackInfo> {
     let info = metadata::read_track_info(&path)?;
-    engine()?.lock().unwrap().load(&path)?;
+    AudioEngine::load_path(&path)?;
     Ok(info)
 }
 pub fn play() -> Result<()> {
-    engine()?.lock().unwrap().play()
+    AudioEngine::play_now()
 }
 pub fn pause() -> Result<()> {
     engine()?.lock().unwrap().pause()
 }
 pub fn stop() -> Result<()> {
-    engine()?.lock().unwrap().stop()
+    AudioEngine::stop_now()
 }
 pub fn seek(position_secs: f64) -> Result<()> {
-    engine()?.lock().unwrap().seek(position_secs)
+    AudioEngine::seek_now(position_secs)
 }
 pub fn set_volume(volume: f32) -> Result<()> {
     engine()?.lock().unwrap().set_volume(volume)
 }
 pub fn get_position() -> Result<PlaybackPosition> {
-    engine()?.lock().unwrap().get_position()
+    AudioEngine::position_now()
 }
 
 #[frb(sync)]
 pub fn is_playing() -> bool {
-    AudioEngine::global_opt()
-        .map(|a| a.lock().unwrap().is_playing())
-        .unwrap_or(false)
+    AudioEngine::playing_now()
 }
 #[frb(sync)]
 pub fn is_exclusive_mode() -> bool {
-    AudioEngine::global_opt()
-        .map(|a| a.lock().unwrap().is_exclusive())
-        .unwrap_or(false)
+    AudioEngine::exclusive_now()
 }
 
 // DSP
@@ -170,9 +170,7 @@ pub fn get_haas_ms() -> f32 {
         .unwrap_or(0.0)
 }
 pub fn get_spectrum_data(bucket_count: u32) -> Vec<f32> {
-    AudioEngine::global_opt()
-        .map(|a| a.lock().unwrap().get_spectrum_data(bucket_count as usize))
-        .unwrap_or_default()
+    AudioEngine::spectrum_bars(bucket_count as usize)
 }
 
 // Metadata

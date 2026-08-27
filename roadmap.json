@@ -1,8 +1,8 @@
 [
     {
         "title": "v1.0.1",
-        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, Hyprland folder picker, and M3 progress.",
-        "status": "in-progress",
+        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, Hyprland folder picker, M3 progress, and native-rate exclusive output.",
+        "status": "done",
         "items": [
             {
                 "title": "Opus Playback",
@@ -81,6 +81,18 @@
                 "description": "Settings toggle for GPU vs software UI rendering. Restart the app after changing it.",
                 "status": "done",
                 "category": "Frontend · Settings"
+            },
+            {
+                "title": "Native-rate exclusive output",
+                "description": "WASAPI Exclusive follows the track sample rate and uses integer PCM with TPDF dither on 16-bit. Linux lists ALSA hardware endpoints for exclusive-style exact-rate output; default playback uses PipeWire.",
+                "status": "done",
+                "category": "Audio · Output"
+            },
+            {
+                "title": "Lower output latency",
+                "description": "Shorter playback ring and callback size so exclusive and shared output start with less buffering.",
+                "status": "done",
+                "category": "Audio · Playback"
             }
         ]
     },

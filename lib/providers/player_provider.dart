@@ -413,6 +413,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> setVolume(double volume) async {
+    if (backend.isExclusiveMode()) return;
     final v = volume.clamp(0.0, 1.0);
     await AudioService.setVolume(v);
     state = state.copyWith(volume: v);

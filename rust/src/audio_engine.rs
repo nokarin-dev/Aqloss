@@ -1,10 +1,17 @@
 use crate::{
-    decoder::Decoder, eq::Equalizer, logger, output::AudioOutput, resampler::Resampler,
-    stereo_enhance::StereoEnhancer, PlaybackPosition,
+    audio_io::{ring_cap, SharedProducer},
+    convert::{adapt_channels_into, apply_gain},
+    decoder::Decoder,
+    eq::Equalizer,
+    logger,
+    output::{AudioOutput, FormatHint},
+    resampler::Resampler,
+    stereo_enhance::StereoEnhancer,
+    PlaybackPosition,
 };
 use anyhow::{anyhow, Result};
 use realfft::RealFftPlanner;
-use ringbuf::traits::Producer;
+use ringbuf::traits::{Observer, Producer};
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Mutex, OnceLock,
@@ -13,7 +20,32 @@ use std::thread;
 use std::time::Duration;
 
 static ENGINE: OnceLock<Arc<Mutex<AudioEngine>>> = OnceLock::new();
+static EXCLUSIVE: AtomicBool = AtomicBool::new(false);
+static PLAYING: AtomicBool = AtomicBool::new(false);
 static FFT_PLAN: OnceLock<Arc<dyn realfft::RealToComplex<f32>>> = OnceLock::new();
+
+fn set_playing_flag(flags: &PlayFlags, playing: bool) {
+    flags.playing.store(playing, Ordering::SeqCst);
+    PLAYING.store(playing, Ordering::SeqCst);
+}
+
+fn wait_stopped(flags: &PlayFlags) {
+    let mut waited = 0u32;
+    while flags.alive.load(Ordering::SeqCst) && waited < 500 {
+        thread::sleep(Duration::from_millis(5));
+        waited += 5;
+    }
+    logger::debug_audio(format!("decode thread stopped (waited {waited}ms)"));
+}
+
+fn decoder_hint(dec: &Option<Arc<Mutex<Decoder>>>) -> Option<FormatHint> {
+    let d = dec.as_ref()?.lock().unwrap();
+    Some(FormatHint {
+        sample_rate: d.sample_rate(),
+        channels: d.channels(),
+        bit_depth: d.bit_depth(),
+    })
+}
 
 fn fft_plan() -> &'static Arc<dyn realfft::RealToComplex<f32>> {
     FFT_PLAN.get_or_init(|| {
@@ -73,11 +105,13 @@ pub struct AudioEngine {
     output: AudioOutput,
     decoder: Option<Arc<Mutex<Decoder>>>,
     next_decoder: Option<Arc<Mutex<Decoder>>>,
-    resampler: Option<Resampler>,
+    resampler: Arc<Mutex<Option<Resampler>>>,
+    next_resampler: Arc<Mutex<Option<Resampler>>>,
     volume: f32,
     smooth_volume: f32,
     dec_sample_rate: u32,
     dec_channels: u32,
+    dec_bit_depth: u32,
     flags: Arc<PlayFlags>,
     spectrum_buf: Arc<Mutex<Vec<f32>>>,
     spectrum_pos: Arc<AtomicU64>,
@@ -85,8 +119,8 @@ pub struct AudioEngine {
     eq: Arc<Mutex<Equalizer>>,
     stereo_enhance: Arc<Mutex<StereoEnhancer>>,
     pub decode_thread_died: Arc<AtomicBool>,
-    prev_output: Mutex<Vec<f32>>,
-    dynamic_ceil: Mutex<f32>,
+    prev_output: Arc<Mutex<Vec<f32>>>,
+    dynamic_ceil: Arc<Mutex<f32>>,
 }
 
 unsafe impl Send for AudioEngine {}
@@ -115,27 +149,38 @@ impl AudioEngine {
         let arc = ENGINE
             .get()
             .ok_or_else(|| anyhow!("Engine not initialized"))?;
+        let (wait, dec) = {
+            let mut e = arc.lock().unwrap();
+            let wait = e.signal_stop();
+            e.output.start_drain();
+            (wait, e.decoder.clone())
+        };
+        if let Some(f) = wait {
+            wait_stopped(&f);
+        }
+        let hint = decoder_hint(&dec);
+        let new_out = AudioOutput::open(Some(device_id), exclusive, hint)?;
+        let (sr, ch) = if let Some(ref d) = dec {
+            let g = d.lock().unwrap();
+            (g.sample_rate(), g.channels())
+        } else {
+            (new_out.sample_rate, new_out.channels)
+        };
         let mut e = arc.lock().unwrap();
-        e.stop_thread();
-        e.output.start_drain();
-        let new_out = AudioOutput::new_with_device(device_id, exclusive)?;
-        if let Some(ref dec) = e.decoder {
-            let sr = dec.lock().unwrap().sample_rate();
-            let ch = dec.lock().unwrap().channels();
-            e.resampler = if sr != new_out.sample_rate {
-                Some(Resampler::new(sr, new_out.sample_rate, ch)?)
-            } else {
-                None
-            };
-        }
-        {
-            let mut eq = e.eq.lock().unwrap();
-            eq.reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
-        }
+        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != new_out.sample_rate {
+            Some(Resampler::new(sr, new_out.sample_rate, ch)?)
+        } else {
+            None
+        };
+        e.eq
+            .lock()
+            .unwrap()
+            .reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
         e.stereo_enhance
             .lock()
             .unwrap()
             .reset_sample_rate(new_out.sample_rate);
+        EXCLUSIVE.store(new_out.exclusive, Ordering::Release);
         e.output = new_out;
         e.smooth_volume = e.volume;
         e.decode_thread_died.store(false, Ordering::SeqCst);
@@ -148,30 +193,47 @@ impl AudioEngine {
         let arc = ENGINE
             .get()
             .ok_or_else(|| anyhow!("Engine not initialized"))?;
+        let (wait, exclusive, id, dec) = {
+            let mut e = arc.lock().unwrap();
+            let wait = e.signal_stop();
+            e.output.start_drain();
+            (
+                wait,
+                e.output.exclusive,
+                e.output.device_id.clone(),
+                e.decoder.clone(),
+            )
+        };
+        if let Some(f) = wait {
+            wait_stopped(&f);
+        }
+        let hint = decoder_hint(&dec);
+        let new_out = AudioOutput::open(id.as_deref(), exclusive, hint)?;
+        let (sr, ch) = if let Some(ref d) = dec {
+            let g = d.lock().unwrap();
+            (g.sample_rate(), g.channels())
+        } else {
+            (new_out.sample_rate, new_out.channels)
+        };
         let mut e = arc.lock().unwrap();
-        e.stop_thread();
-        e.output.start_drain();
-        let new_out = AudioOutput::new_default()?;
-        if let Some(ref dec) = e.decoder {
-            let sr = dec.lock().unwrap().sample_rate();
-            let ch = dec.lock().unwrap().channels();
-            e.resampler = if sr != new_out.sample_rate {
-                Some(Resampler::new(sr, new_out.sample_rate, ch)?)
-            } else {
-                None
-            };
-        }
-        {
-            let mut eq = e.eq.lock().unwrap();
-            eq.reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
-        }
+        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != new_out.sample_rate {
+            Some(Resampler::new(sr, new_out.sample_rate, ch)?)
+        } else {
+            None
+        };
+        e.eq
+            .lock()
+            .unwrap()
+            .reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
         e.stereo_enhance
             .lock()
             .unwrap()
             .reset_sample_rate(new_out.sample_rate);
+        EXCLUSIVE.store(new_out.exclusive, Ordering::Release);
         e.output = new_out;
         e.smooth_volume = e.volume;
         e.flags = PlayFlags::new();
+        PLAYING.store(false, Ordering::Release);
         e.decode_thread_died.store(false, Ordering::SeqCst);
         logger::info_audio("AudioEngine::recover_engine - output re-opened");
         Ok(())
@@ -180,19 +242,21 @@ impl AudioEngine {
     fn store(output: AudioOutput) -> Result<()> {
         let sr = output.sample_rate;
         let ch = output.channels as usize;
+        let exclusive = output.exclusive;
         logger::info_audio(format!(
-            "AudioOutput opened: {}Hz {}ch exclusive={}",
-            sr, ch, output.exclusive
+            "AudioOutput opened: {sr}Hz {ch}ch exclusive={exclusive}"
         ));
         let engine = Self {
             output,
             decoder: None,
             next_decoder: None,
-            resampler: None,
+            resampler: Arc::new(Mutex::new(None)),
+            next_resampler: Arc::new(Mutex::new(None)),
             volume: 1.0,
             smooth_volume: 1.0,
             dec_sample_rate: 44100,
             dec_channels: 2,
+            dec_bit_depth: 16,
             flags: PlayFlags::new(),
             spectrum_buf: Arc::new(Mutex::new(vec![0.0f32; SPECTRUM_BUF])),
             spectrum_pos: Arc::new(AtomicU64::new(0)),
@@ -200,9 +264,11 @@ impl AudioEngine {
             eq: Arc::new(Mutex::new(Equalizer::new(sr, ch))),
             stereo_enhance: Arc::new(Mutex::new(StereoEnhancer::new(sr))),
             decode_thread_died: Arc::new(AtomicBool::new(false)),
-            prev_output: Mutex::new(Vec::new()),
-            dynamic_ceil: Mutex::new(-12.0),
+            prev_output: Arc::new(Mutex::new(Vec::new())),
+            dynamic_ceil: Arc::new(Mutex::new(-12.0)),
         };
+        EXCLUSIVE.store(exclusive, Ordering::Release);
+        PLAYING.store(false, Ordering::Release);
         let arc = Arc::new(Mutex::new(engine));
         if ENGINE.set(arc.clone()).is_err() {
             if let Some(existing) = ENGINE.get() {
@@ -234,6 +300,21 @@ impl AudioEngine {
     }
     pub fn is_exclusive(&self) -> bool {
         self.output.exclusive
+    }
+    pub fn exclusive_now() -> bool {
+        EXCLUSIVE.load(Ordering::Acquire)
+    }
+    pub fn playing_now() -> bool {
+        PLAYING.load(Ordering::Acquire)
+    }
+    pub fn decode_dead_now() -> bool {
+        Self::global_opt()
+            .map(|a| {
+                a.try_lock()
+                    .map(|e| e.decode_thread_died.load(Ordering::Relaxed))
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
     }
     pub fn is_decode_thread_dead(&self) -> bool {
         self.decode_thread_died.load(Ordering::SeqCst)
@@ -300,44 +381,46 @@ impl AudioEngine {
         self.stereo_enhance.lock().unwrap().haas_ms
     }
 
-    pub fn get_spectrum_data(&self, n: usize) -> Vec<f32> {
+    pub fn spectrum_bars(n: usize) -> Vec<f32> {
         if n == 0 {
             return vec![];
         }
-
-        let buf = self.spectrum_buf.lock().unwrap();
-        let ch = self.output.channels as usize;
-        let sample_rate = self.output.sample_rate as f32;
-
-        let total_frames = buf.len() / ch;
-        if total_frames < FFT_SIZE {
+        let Some(arc) = Self::global_opt() else {
             return vec![0.0; n];
-        }
-
-        let ring_occupied_samples = self.output.ring_occupied_samples();
-        let cpal_latency_samples = 4096 * ch;
-        let latency_samples = ring_occupied_samples + cpal_latency_samples;
-        let latency_frames = latency_samples / ch;
-
-        let write_sample = self.spectrum_pos.load(Ordering::Relaxed) as usize;
-        let write_frame = write_sample / ch;
-
-        let ideal_lookback = latency_frames + FFT_SIZE;
-        let lookback = ideal_lookback.min(total_frames - 1);
-
-        let start_frame = (write_frame + total_frames - lookback) % total_frames;
+        };
+        let (spec_buf, spec_pos, ch, sample_rate, prev_output, dynamic_ceil) = {
+            let e = arc.lock().unwrap();
+            (
+                e.spectrum_buf.clone(),
+                e.spectrum_pos.clone(),
+                e.output.channels.max(1) as usize,
+                e.output.sample_rate as f32,
+                e.prev_output.clone(),
+                e.dynamic_ceil.clone(),
+            )
+        };
 
         let mut mono = vec![0.0f32; FFT_SIZE];
-        for i in 0..FFT_SIZE {
-            let frame_idx = (start_frame + i) % total_frames;
-            let base = frame_idx * ch;
-            mono[i] = buf[base..base + ch].iter().sum::<f32>() / ch as f32;
+        {
+            let buf = spec_buf.lock().unwrap();
+            let total_frames = buf.len() / ch;
+            if total_frames < FFT_SIZE {
+                return vec![0.0; n];
+            }
+            let write_sample = spec_pos.load(Ordering::Relaxed) as usize;
+            let write_frame = write_sample / ch;
+            let lookback = (FFT_SIZE + 4096).min(total_frames - 1);
+            let start_frame = (write_frame + total_frames - lookback) % total_frames;
+            for i in 0..FFT_SIZE {
+                let frame_idx = (start_frame + i) % total_frames;
+                let base = frame_idx * ch;
+                mono[i] = buf[base..base + ch].iter().sum::<f32>() / ch as f32;
+            }
         }
 
-        // Gate on signal energy
         let rms = (mono.iter().map(|s| s * s).sum::<f32>() / FFT_SIZE as f32).sqrt();
         if rms < 5e-6 {
-            if let Ok(mut prev_out) = self.prev_output.lock() {
+            if let Ok(mut prev_out) = prev_output.lock() {
                 if prev_out.len() == n {
                     prev_out.fill(0.0);
                 } else {
@@ -347,7 +430,6 @@ impl AudioEngine {
             return vec![0.0; n];
         }
 
-        // Hann window
         let scale = 2.0 / FFT_SIZE as f32;
         for (i, s) in mono.iter_mut().enumerate() {
             let w = 0.5 * (1.0 - (std::f32::consts::TAU * i as f32 / FFT_SIZE as f32).cos());
@@ -361,7 +443,6 @@ impl AudioEngine {
         let num_bins = spectrum.len();
         let bin_hz = sample_rate / FFT_SIZE as f32;
 
-        // Precompute magnitudes in dB
         let mag_db: Vec<f32> = spectrum
             .iter()
             .map(|c| {
@@ -370,9 +451,8 @@ impl AudioEngine {
             })
             .collect();
 
-        // Dynamic Autogain
         let frame_max_db = mag_db.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        let mut db_ceil = *self.dynamic_ceil.lock().unwrap();
+        let mut db_ceil = *dynamic_ceil.lock().unwrap();
 
         if frame_max_db > db_ceil {
             db_ceil = db_ceil * 0.3 + frame_max_db * 0.7;
@@ -380,7 +460,7 @@ impl AudioEngine {
             db_ceil = db_ceil * 0.995 + (-12.0 * 0.005);
         }
         db_ceil = db_ceil.clamp(-42.0, -6.0);
-        *self.dynamic_ceil.lock().unwrap() = db_ceil;
+        *dynamic_ceil.lock().unwrap() = db_ceil;
 
         let hz_to_mel = |hz: f32| 2595.0 * (1.0 + hz / 700.0).log10();
         let mel_to_hz = |mel: f32| 700.0 * (10.0_f32.powf(mel / 2595.0) - 1.0);
@@ -392,8 +472,7 @@ impl AudioEngine {
 
         const DB_FLOOR: f32 = -80.0;
 
-        // Prepare for temporal smoothing
-        let mut prev_out = self.prev_output.lock().unwrap();
+        let mut prev_out = prev_output.lock().unwrap();
         if prev_out.len() != n {
             *prev_out = vec![0.0; n];
         }
@@ -412,7 +491,6 @@ impl AudioEngine {
                 let b0 = ((hz0 / bin_hz) as usize).clamp(1, num_bins - 1);
                 let b1 = ((hz1 / bin_hz) as usize).clamp(b0 + 1, num_bins);
 
-                // Energy averaging
                 let sum_db: f32 = mag_db[b0..b1].iter().cloned().sum();
                 let count = (b1 - b0) as f32;
                 let energy_db = if count > 0.0 {
@@ -425,7 +503,6 @@ impl AudioEngine {
             })
             .collect();
 
-        // Temporal Smoothing
         let decay_factor = 0.82;
         for i in 0..n {
             let current_val = current_frame_bars[i];
@@ -442,186 +519,257 @@ impl AudioEngine {
     }
 
     // Playback
-    pub fn load(&mut self, path: &str) -> Result<()> {
+    pub fn load_path(path: &str) -> Result<()> {
         logger::info_audio(format!("load: {path}"));
-        let gapless = self.dsp.lock().unwrap().gapless;
-        let crossfade_secs = self.dsp.lock().unwrap().crossfade_secs;
+        let arc = Self::global_safe()?;
+        let (gapless, crossfade_secs, playing, has_decoder) = {
+            let e = arc.lock().unwrap();
+            let dsp = e.dsp.lock().unwrap();
+            (
+                dsp.gapless,
+                dsp.crossfade_secs,
+                e.flags.playing.load(Ordering::SeqCst),
+                e.decoder.is_some(),
+            )
+        };
 
-        if crossfade_secs > 0.0
-            && self.decoder.is_some()
-            && self.flags.playing.load(Ordering::SeqCst)
-        {
+        if crossfade_secs > 0.0 && has_decoder && playing {
             logger::debug_audio(format!(
                 "crossfade queued next track ({crossfade_secs:.2}s)"
             ));
             let next = Decoder::open(path, gapless)?;
+            let nsr = next.sample_rate();
+            let nch = next.channels();
+            let mut e = arc.lock().unwrap();
+            *e.next_resampler.lock().unwrap() = if nsr != e.output.sample_rate {
+                Some(Resampler::new(nsr, e.output.sample_rate, nch)?)
+            } else {
+                None
+            };
             let shared_next = Arc::new(Mutex::new(next));
-            *self.next_decoder.get_or_insert_with(|| shared_next.clone()) = shared_next.clone();
+            *e.next_decoder.get_or_insert_with(|| shared_next.clone()) = shared_next.clone();
             return Ok(());
         }
 
-        self.stop_thread();
-        self.flags = PlayFlags::new();
-        self.output.stop_drain();
-        self.next_decoder = None;
-        self.decode_thread_died.store(false, Ordering::SeqCst);
+        let wait = {
+            let mut e = arc.lock().unwrap();
+            e.signal_stop()
+        };
+        if let Some(f) = wait {
+            wait_stopped(&f);
+        }
 
         let dec = Decoder::open(path, gapless)?;
         let src_rate = dec.sample_rate();
         let src_ch = dec.channels();
+        let src_bits = dec.bit_depth();
 
-        if src_rate != self.output.sample_rate && !self.output.exclusive {
-            logger::debug_audio(format!(
-                "stream rate mismatch ({} → {}Hz), reopening output",
-                self.output.sample_rate, src_rate
-            ));
-            match AudioOutput::new_default_with_rate(Some(src_rate)) {
-                Ok(new_out) => {
-                    self.output = new_out;
-                    self.smooth_volume = self.volume;
-                    self.decode_thread_died.store(false, Ordering::SeqCst);
-                    self.eq
-                        .lock()
-                        .unwrap()
-                        .reset_sample_rate(self.output.sample_rate, self.output.channels as usize);
-                    logger::info_audio(format!(
-                        "output reopened at {}Hz (no resampling needed)",
-                        src_rate
-                    ));
-                }
-                Err(e) => {
+        let reopen = {
+            let e = arc.lock().unwrap();
+            if e.output.exclusive
+                && (e.output.sample_rate != src_rate || e.output.channels != src_ch)
+            {
+                Some((e.output.exclusive, e.output.device_id.clone()))
+            } else {
+                None
+            }
+        };
+        let new_out = if let Some((exclusive, id)) = reopen {
+            match AudioOutput::open(
+                id.as_deref(),
+                exclusive,
+                Some(FormatHint {
+                    sample_rate: src_rate,
+                    channels: src_ch,
+                    bit_depth: src_bits,
+                }),
+            ) {
+                Ok(o) => Some(o),
+                Err(err) => {
                     logger::warn_audio(format!(
-                        "could not reopen at {src_rate}Hz ({e}), keeping current stream"
+                        "could not reopen at {src_rate}Hz ({err}), keeping current stream"
                     ));
+                    None
                 }
             }
-        }
-
-        logger::debug_audio(format!(
-            "decoder opened: {src_rate}Hz {src_ch}ch → output {}Hz {}ch",
-            self.output.sample_rate, self.output.channels
-        ));
-
-        if src_ch != self.output.channels {
-            logger::warn_audio(format!(
-                "channel mismatch: decoder {}ch → output {}ch, adapt_channels will upmix",
-                src_ch, self.output.channels
-            ));
-        }
-
-        self.dec_sample_rate = src_rate;
-        self.dec_channels = src_ch;
-        self.resampler = if src_rate != self.output.sample_rate {
-            logger::debug_audio(format!(
-                "resampler: {}→{}Hz",
-                src_rate, self.output.sample_rate
-            ));
-            Some(Resampler::new(src_rate, self.output.sample_rate, src_ch)?)
         } else {
             None
         };
 
-        {
-            let mut eq = self.eq.lock().unwrap();
-            eq.reset_sample_rate(self.output.sample_rate, self.output.channels as usize);
+        let mut e = arc.lock().unwrap();
+        e.flags = PlayFlags::new();
+        PLAYING.store(false, Ordering::Release);
+        e.output.stop_drain();
+        e.next_decoder = None;
+        *e.next_resampler.lock().unwrap() = None;
+        e.decode_thread_died.store(false, Ordering::SeqCst);
+        if let Some(out) = new_out {
+            EXCLUSIVE.store(out.exclusive, Ordering::Release);
+            e.output = out;
+            e.eq
+                .lock()
+                .unwrap()
+                .reset_sample_rate(e.output.sample_rate, e.output.channels as usize);
+            e.stereo_enhance
+                .lock()
+                .unwrap()
+                .reset_sample_rate(e.output.sample_rate);
+            logger::info_audio(format!(
+                "output reopened at {}Hz {}ch",
+                e.output.sample_rate, e.output.channels
+            ));
         }
-        self.spectrum_buf.lock().unwrap().fill(0.0);
-        self.spectrum_pos.store(0, Ordering::Relaxed);
-        self.smooth_volume = self.volume;
-        self.decoder = Some(Arc::new(Mutex::new(dec)));
+
+        logger::debug_audio(format!(
+            "decoder opened: {src_rate}Hz {src_ch}ch {src_bits}bit → output {}Hz {}ch",
+            e.output.sample_rate, e.output.channels
+        ));
+        if src_ch != e.output.channels {
+            logger::warn_audio(format!(
+                "channel mismatch: decoder {}ch → output {}ch, adapt_channels will upmix",
+                src_ch, e.output.channels
+            ));
+        }
+
+        e.dec_sample_rate = src_rate;
+        e.dec_channels = src_ch;
+        e.dec_bit_depth = src_bits;
+        *e.resampler.lock().unwrap() = if src_rate != e.output.sample_rate {
+            logger::debug_audio(format!(
+                "resampler: {}→{}Hz",
+                src_rate, e.output.sample_rate
+            ));
+            Some(Resampler::new(src_rate, e.output.sample_rate, src_ch)?)
+        } else {
+            None
+        };
+        e.eq
+            .lock()
+            .unwrap()
+            .reset_sample_rate(e.output.sample_rate, e.output.channels as usize);
+        e.spectrum_buf.lock().unwrap().fill(0.0);
+        e.spectrum_pos.store(0, Ordering::Relaxed);
+        e.smooth_volume = e.volume;
+        e.decoder = Some(Arc::new(Mutex::new(dec)));
         logger::info_audio("load: OK");
         Ok(())
     }
 
-    pub fn play(&mut self) -> Result<()> {
-        if self.decoder.is_none() {
-            logger::warn_audio("play() called with no track loaded");
-            return Err(anyhow!("No track loaded"));
-        }
-        self.output.set_paused(false);
-        self.output.stop_drain();
-        if self.flags.alive.load(Ordering::SeqCst) {
-            logger::debug_audio("play() - thread alive, resuming");
-            if !self.flags.playing.load(Ordering::SeqCst) {
-                self.smooth_volume = 0.0;
+    pub fn play_now() -> Result<()> {
+        let arc = Self::global_safe()?;
+        let (producer, cap, spawned) = {
+            let mut e = arc.lock().unwrap();
+            if e.decoder.is_none() {
+                logger::warn_audio("play() called with no track loaded");
+                return Err(anyhow!("No track loaded"));
             }
-            self.flags.playing.store(true, Ordering::SeqCst);
-            self.output.set_paused(false);
-            self.output.stop_drain();
-            return Ok(());
-        }
-        logger::info_audio("play() - starting decode thread");
-        self.flags.alive.store(true, Ordering::SeqCst);
-        self.flags.playing.store(true, Ordering::SeqCst);
-        let flags = self.flags.clone();
-        let died_flag = self.decode_thread_died.clone();
-        logger::debug_audio("spawning decode thread");
-        let arc = Self::global();
-        thread::spawn(move || decode_loop(arc, flags, died_flag));
-
-        let ring_cap = self.output.sample_rate as usize * self.output.channels as usize + 4096;
-        let prefill_target = ring_cap / 4;
-        let deadline = std::time::Instant::now() + Duration::from_millis(300);
-        while std::time::Instant::now() < deadline {
-            if self.output.ring_vacant() <= ring_cap - prefill_target {
-                break;
+            e.output.set_paused(false);
+            e.output.stop_drain();
+            if e.flags.alive.load(Ordering::SeqCst) {
+                logger::debug_audio("play() - thread alive, resuming");
+                if !e.flags.playing.load(Ordering::SeqCst) {
+                    e.smooth_volume = 0.0;
+                }
+                set_playing_flag(&e.flags, true);
+                e.output.set_paused(false);
+                e.output.stop_drain();
+                return Ok(());
             }
-            thread::sleep(Duration::from_millis(4));
+            logger::info_audio("play() - starting decode thread");
+            e.flags.alive.store(true, Ordering::SeqCst);
+            set_playing_flag(&e.flags, true);
+            let flags = e.flags.clone();
+            let died_flag = e.decode_thread_died.clone();
+            let producer = e.output.producer.clone();
+            let cap = e.output.ring_capacity();
+            logger::debug_audio("spawning decode thread");
+            thread::spawn(move || decode_loop(Self::global(), flags, died_flag));
+            (producer, cap, true)
+        };
+        if spawned {
+            let prefill_target = cap / 4;
+            let deadline = std::time::Instant::now() + Duration::from_millis(300);
+            while std::time::Instant::now() < deadline {
+                if producer.lock().unwrap().vacant_len() <= cap - prefill_target {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(4));
+            }
+            logger::debug_audio("pre-fill done, audio output active");
         }
-        logger::debug_audio("pre-fill done, audio output active");
         Ok(())
     }
 
     pub fn pause(&mut self) -> Result<()> {
         logger::info_audio("pause()");
-        self.flags.playing.store(false, Ordering::SeqCst);
+        set_playing_flag(&self.flags, false);
         self.output.set_paused(true);
         Ok(())
     }
 
-    pub fn stop(&mut self) -> Result<()> {
+    pub fn stop_now() -> Result<()> {
         logger::info_audio("stop()");
-        self.stop_thread();
-        self.output.stop_drain();
-        self.decoder = None;
-        self.next_decoder = None;
-        self.resampler = None;
-        self.decode_thread_died.store(false, Ordering::SeqCst);
-        self.spectrum_buf.lock().unwrap().fill(0.0);
+        let arc = Self::global_safe()?;
+        let wait = {
+            let mut e = arc.lock().unwrap();
+            e.signal_stop()
+        };
+        if let Some(f) = wait {
+            wait_stopped(&f);
+        }
+        let mut e = arc.lock().unwrap();
+        e.output.stop_drain();
+        e.decoder = None;
+        e.next_decoder = None;
+        *e.resampler.lock().unwrap() = None;
+        *e.next_resampler.lock().unwrap() = None;
+        e.decode_thread_died.store(false, Ordering::SeqCst);
+        e.spectrum_buf.lock().unwrap().fill(0.0);
+        PLAYING.store(false, Ordering::Release);
         Ok(())
     }
 
-    pub fn seek(&mut self, position_secs: f64) -> Result<()> {
+    pub fn seek_now(position_secs: f64) -> Result<()> {
         logger::info_audio(format!("seek({position_secs:.3}s)"));
-        let dec = self
-            .decoder
-            .as_ref()
-            .ok_or_else(|| anyhow!("No track loaded"))?
-            .clone();
-        let was_playing = self.flags.playing.load(Ordering::SeqCst);
-        self.flags.playing.store(false, Ordering::SeqCst);
-        self.output.set_paused(false);
-        self.output.start_drain();
-        self.flags.seek_pending.store(true, Ordering::SeqCst);
+        let arc = Self::global_safe()?;
+        let (dec, resampler, spec_buf, prev_output, was_playing) = {
+            let e = arc.lock().unwrap();
+            let dec = e
+                .decoder
+                .as_ref()
+                .ok_or_else(|| anyhow!("No track loaded"))?
+                .clone();
+            let was_playing = e.flags.playing.load(Ordering::SeqCst);
+            set_playing_flag(&e.flags, false);
+            e.output.set_paused(false);
+            e.output.start_drain();
+            e.flags.seek_pending.store(true, Ordering::SeqCst);
+            (
+                dec,
+                e.resampler.clone(),
+                e.spectrum_buf.clone(),
+                e.prev_output.clone(),
+                was_playing,
+            )
+        };
         thread::sleep(Duration::from_millis(20));
         dec.lock().unwrap().seek(position_secs)?;
-        if let Some(rs) = self.resampler.as_mut() {
+        if let Some(rs) = resampler.lock().unwrap().as_mut() {
             rs.reset();
         }
-        self.spectrum_buf.lock().unwrap().fill(0.0);
-
-        if let Ok(mut prev_out) = self.prev_output.lock() {
+        spec_buf.lock().unwrap().fill(0.0);
+        if let Ok(mut prev_out) = prev_output.lock() {
             prev_out.fill(0.0);
         }
-
-        self.smooth_volume = 0.0;
-        self.flags.seek_pending.store(false, Ordering::SeqCst);
-        self.output.stop_drain();
+        let mut e = arc.lock().unwrap();
+        e.smooth_volume = 0.0;
+        e.flags.seek_pending.store(false, Ordering::SeqCst);
+        e.output.stop_drain();
         if was_playing {
-            self.output.set_paused(false);
-            self.flags.playing.store(true, Ordering::SeqCst);
+            e.output.set_paused(false);
+            set_playing_flag(&e.flags, true);
         } else {
-            self.output.set_paused(true);
+            e.output.set_paused(true);
         }
         Ok(())
     }
@@ -633,16 +781,24 @@ impl AudioEngine {
         Ok(())
     }
 
-    pub fn get_position(&self) -> Result<PlaybackPosition> {
-        let dec = self
-            .decoder
-            .as_ref()
-            .ok_or_else(|| anyhow!("No track loaded"))?;
+    pub fn position_now() -> Result<PlaybackPosition> {
+        let arc = Self::global_safe()?;
+        let (dec, occupied, ch, sr) = {
+            let e = arc.lock().unwrap();
+            let dec = e
+                .decoder
+                .as_ref()
+                .ok_or_else(|| anyhow!("No track loaded"))?
+                .clone();
+            (
+                dec,
+                e.output.ring_occupied_samples() as f64,
+                e.output.channels.max(1) as f64,
+                e.output.sample_rate.max(1) as f64,
+            )
+        };
         let d = dec.lock().unwrap();
         let raw = d.position_secs();
-        let occupied = self.output.ring_occupied_samples() as f64;
-        let ch = self.output.channels.max(1) as f64;
-        let sr = self.output.sample_rate.max(1) as f64;
         let buffered = occupied / ch / sr;
         Ok(PlaybackPosition {
             position_secs: (raw - buffered).max(0.0),
@@ -656,32 +812,68 @@ impl AudioEngine {
         self.flags.playing.load(Ordering::SeqCst)
     }
 
-    // Thread
-    fn stop_thread(&mut self) {
-        if self.flags.alive.load(Ordering::SeqCst) {
-            logger::debug_audio("stopping decode thread...");
-            self.flags.playing.store(false, Ordering::SeqCst);
-            self.flags.alive.store(false, Ordering::SeqCst);
-            let mut waited = 0u32;
-            while self.flags.alive.load(Ordering::SeqCst) && waited < 500 {
-                thread::sleep(Duration::from_millis(5));
-                waited += 5;
-            }
-            logger::debug_audio(format!("decode thread stopped (waited {waited}ms)"));
+    fn signal_stop(&mut self) -> Option<Arc<PlayFlags>> {
+        if !self.flags.alive.load(Ordering::SeqCst) {
+            return None;
+        }
+        logger::debug_audio("stopping decode thread...");
+        set_playing_flag(&self.flags, false);
+        self.flags.alive.store(false, Ordering::SeqCst);
+        Some(self.flags.clone())
+    }
+}
+
+fn push_pcm(producer: &SharedProducer, pcm: &[f32], channels: u32, flags: &PlayFlags) {
+    let ch = channels.max(1) as usize;
+    let mut offset = 0;
+    while offset < pcm.len() {
+        if !flags.alive.load(Ordering::Acquire) || flags.seek_pending.load(Ordering::Acquire) {
+            return;
+        }
+        let vacant = producer.lock().unwrap().vacant_len();
+        let n = vacant - vacant % ch;
+        if n == 0 {
+            thread::sleep(Duration::from_millis(1));
+            continue;
+        }
+        let take = (pcm.len() - offset).min(n);
+        let take = take - take % ch;
+        if take == 0 {
+            thread::sleep(Duration::from_millis(1));
+            continue;
+        }
+        let wrote = producer.lock().unwrap().push_slice(&pcm[offset..offset + take]);
+        offset += wrote;
+        if wrote == 0 {
+            thread::sleep(Duration::from_millis(1));
         }
     }
 }
 
-#[inline(always)]
-fn soft_clip(x: f32) -> f32 {
-    if x >= 3.0 {
-        return 1.0;
+fn ensure_resampler(
+    slot: &std::sync::Arc<Mutex<Option<Resampler>>>,
+    src_rate: u32,
+    dst_rate: u32,
+    ch: u32,
+) -> Result<()> {
+    let ch = ch.max(1);
+    let src_rate = src_rate.max(1);
+    let dst_rate = dst_rate.max(1);
+    let mut g = slot.lock().unwrap();
+    let aligned = match g.as_ref() {
+        None => src_rate == dst_rate,
+        Some(rs) => src_rate != dst_rate && rs.matches(src_rate, dst_rate, ch),
+    };
+    if aligned {
+        return Ok(());
     }
-    if x <= -3.0 {
-        return -1.0;
-    }
-    let x2 = x * x;
-    x * (27.0 + x2) / (27.0 + 9.0 * x2)
+    *g = if src_rate == dst_rate {
+        None
+    } else {
+        logger::debug_audio(format!("resampler: {src_rate}→{dst_rate}Hz {ch}ch"));
+        Some(Resampler::new(src_rate, dst_rate, ch)?)
+    };
+    Ok(())
 }
 
 fn decode_loop(
@@ -691,14 +883,27 @@ fn decode_loop(
 ) {
     logger::info_audio("decode_loop: started");
 
-    let (out_ch, out_sr, is_exclusive, spec_buf, spec_pos, dec_arc, dsp_arc, eq_arc, se_arc) = {
+    let (
+        out_ch,
+        out_sr,
+        is_exclusive,
+        spec_buf,
+        spec_pos,
+        dec_arc,
+        dsp_arc,
+        eq_arc,
+        se_arc,
+        producer,
+        resampler,
+        next_resampler,
+    ) = {
         let e = engine_arc.lock().unwrap();
         let dec = match e.decoder.as_ref() {
             Some(d) => d.clone(),
             None => {
                 logger::error_audio("decode_loop: no decoder - aborting");
                 died_flag.store(true, Ordering::Release);
-                flags.playing.store(false, Ordering::Release);
+                set_playing_flag(&flags, false);
                 flags.alive.store(false, Ordering::Release);
                 return;
             }
@@ -713,30 +918,39 @@ fn decode_loop(
             e.dsp.clone(),
             e.eq.clone(),
             e.stereo_enhance.clone(),
+            e.output.producer.clone(),
+            e.resampler.clone(),
+            e.next_resampler.clone(),
         )
     };
 
-    let ring_cap = out_sr * out_ch as usize + 4096;
-    let throttle_threshold = ring_cap / 4;
-    let underrun_threshold = (out_sr as usize * out_ch as usize * 50) / 1000;
+    let cap = ring_cap(out_sr as u32, out_ch);
+    let throttle_threshold = cap / 4;
+    let underrun_threshold = (out_sr * out_ch as usize * 50) / 1000;
     let mut leading_silent = 0usize;
     let mut leading_done = false;
-
-    // Crossfade state
     let mut fade_in_dec: Option<Arc<Mutex<Decoder>>> = None;
+    let mut fade_in_ch = out_ch;
     let mut crossfade_ramp = 0usize;
     let crossfade_total_frames = {
         let secs = dsp_arc.lock().unwrap().crossfade_secs;
         (secs * out_sr as f32) as usize
     };
-
     let mut underrun_count = 0u32;
     let mut last_underrun_log = std::time::Instant::now();
+    let mut smooth = { engine_arc.lock().unwrap().smooth_volume };
+
+    let mut raw = Vec::new();
+    let mut resampled = Vec::new();
+    let mut work = Vec::new();
+    let mut next_raw = Vec::new();
+    let mut next_resampled = Vec::new();
+    let mut next_work = Vec::new();
 
     loop {
         if !flags.alive.load(Ordering::Acquire) {
             logger::info_audio("decode_loop: clean exit (alive=false)");
-            flags.playing.store(false, Ordering::Release);
+            set_playing_flag(&flags, false);
             break;
         }
         if !flags.playing.load(Ordering::Acquire) {
@@ -744,9 +958,9 @@ fn decode_loop(
             continue;
         }
 
-        let vacant = engine_arc.lock().unwrap().output.ring_vacant();
+        let vacant = producer.lock().unwrap().vacant_len();
 
-        if vacant > ring_cap.saturating_sub(underrun_threshold) {
+        if vacant > cap.saturating_sub(underrun_threshold) {
             underrun_count += 1;
             if last_underrun_log.elapsed().as_secs() >= 1 {
                 if underrun_count > 5 {
@@ -765,53 +979,65 @@ fn decode_loop(
             continue;
         }
 
-        // Check if a next decoder was queued for crossfade
-        if fade_in_dec.is_none() && crossfade_total_frames > 0 {
+        if !is_exclusive && fade_in_dec.is_none() && crossfade_total_frames > 0 {
             let next = engine_arc.lock().unwrap().next_decoder.clone();
-            if next.is_some() {
+            if let Some(n) = next {
                 logger::info_audio("decode_loop: crossfade starting");
-                fade_in_dec = next;
+                fade_in_dec = Some(n);
                 crossfade_ramp = crossfade_total_frames;
             }
         }
 
-        let decode_result = dec_arc.lock().unwrap().next_packet();
+        let decode_ok = dec_arc.lock().unwrap().next_packet_into(&mut raw);
 
-        match decode_result {
-            Ok(Some(raw)) => {
-                let mut e = engine_arc.lock().unwrap();
-                if !flags.playing.load(Ordering::Acquire) {
-                    continue;
-                }
-                if flags.seek_pending.load(Ordering::Acquire) {
+        match decode_ok {
+            Ok(true) => {
+                if !flags.playing.load(Ordering::Acquire)
+                    || flags.seek_pending.load(Ordering::Acquire)
+                {
                     continue;
                 }
 
-                let dec_ch = e.dec_channels;
-                let target_vol = e.volume;
+                let (dec_ch, dec_rate) = {
+                    let d = dec_arc.lock().unwrap();
+                    (d.channels().max(1), d.sample_rate().max(1))
+                };
+                let target_vol = {
+                    let mut e = engine_arc.lock().unwrap();
+                    e.dec_channels = dec_ch;
+                    e.dec_sample_rate = dec_rate;
+                    e.volume
+                };
+                if let Err(err) = ensure_resampler(&resampler, dec_rate, out_sr as u32, dec_ch) {
+                    logger::error_audio(format!("resampler: {err}"));
+                    continue;
+                }
                 let dsp = dsp_arc.lock().unwrap().clone();
 
-                // Resample
-                let resampled = if let Some(rs) = e.resampler.as_mut() {
-                    match rs.process(&raw) {
-                        Ok(r) if !r.is_empty() => r,
-                        Ok(_) => continue,
-                        Err(err) => {
-                            logger::error_audio(format!("resampler error: {err}"));
-                            continue;
+                let use_rs = {
+                    let mut rs = resampler.lock().unwrap();
+                    if let Some(rs) = rs.as_mut() {
+                        match rs.process_into(&raw, &mut resampled) {
+                            Ok(()) => true,
+                            Err(err) => {
+                                logger::error_audio(format!("resampler error: {err}"));
+                                continue;
+                            }
                         }
+                    } else {
+                        false
                     }
-                } else {
-                    raw
                 };
+                if use_rs && resampled.is_empty() {
+                    continue;
+                }
+                let pcm: &[f32] = if use_rs { &resampled } else { &raw };
+                adapt_channels_into(pcm, dec_ch, out_ch, &mut work);
 
-                let mut converted = adapt_channels(&resampled, dec_ch, out_ch);
-
-                // Skip leading silence
-                if dsp.skip_silence && !leading_done {
-                    let silent = converted.iter().all(|s| s.abs() < SILENCE_THR);
+                if !is_exclusive && dsp.skip_silence && !leading_done {
+                    let silent = work.iter().all(|s| s.abs() < SILENCE_THR);
                     if silent {
-                        leading_silent += converted.len();
+                        leading_silent += work.len();
                         if leading_silent < SILENCE_MIN * out_ch as usize {
                             continue;
                         }
@@ -820,22 +1046,47 @@ fn decode_loop(
                     }
                 }
 
-                // Crossfade blend with next track
                 if crossfade_ramp > 0 {
                     if let Some(ref next_dec) = fade_in_dec {
-                        if let Ok(Some(next_raw)) = next_dec.lock().unwrap().next_packet() {
-                            let next_conv = adapt_channels(&next_raw, dec_ch, out_ch);
+                        if let Ok(true) = next_dec.lock().unwrap().next_packet_into(&mut next_raw) {
+                            let (fade_ch, fade_rate) = {
+                                let n = next_dec.lock().unwrap();
+                                (n.channels().max(1), n.sample_rate().max(1))
+                            };
+                            fade_in_ch = fade_ch;
+                            if ensure_resampler(
+                                &next_resampler,
+                                fade_rate,
+                                out_sr as u32,
+                                fade_ch,
+                            )
+                            .is_err()
+                            {
+                                continue;
+                            }
+                            let use_nrs = {
+                                let mut nrs = next_resampler.lock().unwrap();
+                                if let Some(rs) = nrs.as_mut() {
+                                    rs.process_into(&next_raw, &mut next_resampled).is_ok()
+                                        && !next_resampled.is_empty()
+                                } else {
+                                    false
+                                }
+                            };
+                            let next_pcm: &[f32] =
+                                if use_nrs { &next_resampled } else { &next_raw };
+                            adapt_channels_into(next_pcm, fade_in_ch, out_ch, &mut next_work);
                             let total = crossfade_total_frames;
                             let pos = total - crossfade_ramp;
-                            let frames = converted.len() / out_ch as usize;
+                            let frames = work.len() / out_ch as usize;
                             for f in 0..frames {
                                 let t = ((pos + f) as f32 / total as f32).clamp(0.0, 1.0);
                                 let phase = t * std::f32::consts::FRAC_PI_2;
                                 let (fade_in, fade_out) = (phase.sin(), phase.cos());
                                 for c in 0..out_ch as usize {
                                     let i = f * out_ch as usize + c;
-                                    let next_s = next_conv.get(i).copied().unwrap_or(0.0);
-                                    converted[i] = converted[i] * fade_out + next_s * fade_in;
+                                    let next_s = next_work.get(i).copied().unwrap_or(0.0);
+                                    work[i] = work[i] * fade_out + next_s * fade_in;
                                 }
                             }
                             crossfade_ramp = crossfade_ramp.saturating_sub(frames);
@@ -843,112 +1094,77 @@ fn decode_loop(
                     }
                 }
 
-                // Spectrum
                 {
                     let mut sb = spec_buf.lock().unwrap();
                     let len = sb.len();
                     let pos = spec_pos.load(Ordering::Relaxed) as usize;
-                    for (k, &s) in converted.iter().enumerate() {
+                    for (k, &s) in work.iter().enumerate() {
                         sb[(pos + k) % len] = s;
                     }
-                    spec_pos.store(((pos + converted.len()) % len) as u64, Ordering::Relaxed);
+                    spec_pos.store(((pos + work.len()) % len) as u64, Ordering::Relaxed);
                 }
 
-                // EQ
-                eq_arc.lock().unwrap().process_interleaved(&mut converted);
-
-                // Stereo enhance
-                se_arc
-                    .lock()
-                    .unwrap()
-                    .process(&mut converted, out_ch as usize);
-
-                // Volume & ReplayGain & soft-clip
-                let mut smooth = e.smooth_volume;
-                {
-                    let mut prod = e.output.producer.lock().unwrap();
-                    if is_exclusive {
-                        prod.push_slice(&converted);
-                    } else {
-                        let mut tmp = Vec::with_capacity(converted.len());
-                        for s in &converted {
-                            let diff = target_vol - smooth;
-                            if diff.abs() > VOL_RAMP {
-                                smooth += diff.signum() * VOL_RAMP;
-                            } else {
-                                smooth = target_vol;
-                            }
-                            let gained = s * smooth * dsp.replay_gain;
-                            tmp.push(if dsp.soft_clip {
-                                soft_clip(gained)
-                            } else {
-                                gained.clamp(-1.0, 1.0)
-                            });
-                        }
-                        prod.push_slice(&tmp);
-                    }
+                if !is_exclusive {
+                    eq_arc.lock().unwrap().process_interleaved(&mut work);
+                    se_arc.lock().unwrap().process(&mut work, out_ch as usize);
+                    apply_gain(
+                        &mut work,
+                        target_vol,
+                        &mut smooth,
+                        dsp.replay_gain,
+                        dsp.soft_clip,
+                        VOL_RAMP,
+                    );
                 }
-                e.smooth_volume = smooth;
+                push_pcm(&producer, &work, out_ch, &flags);
+                engine_arc.lock().unwrap().smooth_volume = smooth;
             }
 
-            Ok(None) => {
+            Ok(false) => {
                 logger::info_audio("decode_loop: end of stream, flushing tail");
+                let (dec_ch, target_vol) = {
+                    let e = engine_arc.lock().unwrap();
+                    (e.dec_channels.max(1), e.volume)
+                };
+                let dsp = dsp_arc.lock().unwrap().clone();
                 {
-                    let mut e = engine_arc.lock().unwrap();
-                    let dec_ch = e.dec_channels;
-                    let target_vol = e.volume;
-                    let mut smooth = e.smooth_volume;
-                    let dsp = dsp_arc.lock().unwrap().clone();
-                    let raw_tail = e
-                        .resampler
-                        .as_mut()
-                        .and_then(|rs| rs.flush().ok())
-                        .unwrap_or_default();
-                    if !raw_tail.is_empty() {
-                        let mut converted = adapt_channels(&raw_tail, dec_ch, out_ch);
-                        eq_arc.lock().unwrap().process_interleaved(&mut converted);
-                        se_arc
-                            .lock()
-                            .unwrap()
-                            .process(&mut converted, out_ch as usize);
-                        let mut prod = e.output.producer.lock().unwrap();
-                        if is_exclusive {
-                            prod.push_slice(&converted);
-                        } else {
-                            let mut tmp = Vec::with_capacity(converted.len());
-                            for s in &converted {
-                                let diff = target_vol - smooth;
-                                if diff.abs() > VOL_RAMP {
-                                    smooth += diff.signum() * VOL_RAMP;
-                                } else {
-                                    smooth = target_vol;
-                                }
-                                let gained = s * smooth * dsp.replay_gain;
-                                tmp.push(if dsp.soft_clip {
-                                    soft_clip(gained)
-                                } else {
-                                    gained.clamp(-1.0, 1.0)
-                                });
-                            }
-                            prod.push_slice(&tmp);
-                        }
-                        drop(prod);
-                        e.smooth_volume = smooth;
+                    let mut rs = resampler.lock().unwrap();
+                    if let Some(rs) = rs.as_mut() {
+                        let _ = rs.flush_into(&mut resampled);
+                    } else {
+                        resampled.clear();
                     }
+                }
+                if !resampled.is_empty() {
+                    adapt_channels_into(&resampled, dec_ch, out_ch, &mut work);
+                    if !is_exclusive {
+                        eq_arc.lock().unwrap().process_interleaved(&mut work);
+                        se_arc.lock().unwrap().process(&mut work, out_ch as usize);
+                        apply_gain(
+                            &mut work,
+                            target_vol,
+                            &mut smooth,
+                            dsp.replay_gain,
+                            dsp.soft_clip,
+                            VOL_RAMP,
+                        );
+                    }
+                    push_pcm(&producer, &work, out_ch, &flags);
+                    engine_arc.lock().unwrap().smooth_volume = smooth;
                 }
                 let mut waited = 0u32;
                 while waited < 1000 {
                     if !flags.alive.load(Ordering::Acquire) {
                         break;
                     }
-                    if engine_arc.lock().unwrap().output.ring_vacant() >= ring_cap {
+                    if producer.lock().unwrap().vacant_len() >= cap {
                         break;
                     }
                     thread::sleep(Duration::from_millis(5));
                     waited += 5;
                 }
                 logger::info_audio("decode_loop: track finished - clean exit");
-                flags.playing.store(false, Ordering::Release);
+                set_playing_flag(&flags, false);
                 flags.alive.store(false, Ordering::Release);
                 break;
             }
@@ -956,69 +1172,10 @@ fn decode_loop(
             Err(e) => {
                 logger::error_audio(format!("decode_loop: fatal decoder error: {e}"));
                 died_flag.store(true, Ordering::Release);
-                flags.playing.store(false, Ordering::Release);
+                set_playing_flag(&flags, false);
                 flags.alive.store(false, Ordering::Release);
                 break;
             }
         }
-    }
-}
-
-fn adapt_channels(input: &[f32], src: u32, dst: u32) -> Vec<f32> {
-    if src == dst || input.is_empty() {
-        return input.to_vec();
-    }
-    let src = src as usize;
-    let dst = dst as usize;
-    match (src, dst) {
-        (1, d) => {
-            // mono → any
-            let frames = input.len();
-            let mut out = Vec::with_capacity(frames * d);
-            for &s in input {
-                for _ in 0..d {
-                    out.push(s);
-                }
-            }
-            out
-        }
-        (2, 1) => input
-            .chunks_exact(2)
-            .map(|c| (c[0] + c[1]) * std::f32::consts::FRAC_1_SQRT_2)
-            .collect(),
-        (2, d) => {
-            // stereo → any
-            let frames = input.len() / 2;
-            let mut out = vec![0f32; frames * d];
-            for (f, chunk) in input.chunks_exact(2).enumerate() {
-                out[f * d] = chunk[0];
-                if d > 1 {
-                    out[f * d + 1] = chunk[1];
-                }
-            }
-            out
-        }
-        (s, 2) if s > 2 => {
-            // surround → stereo
-            input
-                .chunks_exact(s)
-                .flat_map(|frame| {
-                    let l = frame.iter().step_by(2).sum::<f32>() / (s as f32 / 2.0);
-                    let r = frame.iter().skip(1).step_by(2).sum::<f32>() / (s as f32 / 2.0);
-                    [l, r]
-                })
-                .collect()
-        }
-        (s, d) if s > 2 && d > 2 => {
-            // surround → surround
-            let frames = input.len() / s;
-            let mut out = vec![0f32; frames * d];
-            for f in 0..frames {
-                let copy = s.min(d);
-                out[f * d..f * d + copy].copy_from_slice(&input[f * s..f * s + copy]);
-            }
-            out
-        }
-        _ => input.to_vec(),
     }
 }

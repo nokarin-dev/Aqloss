@@ -33,9 +33,9 @@ static void apply_hw_accel_pref(void)
   if (g_file_get_contents(path, &contents, &len, nullptr) && len > 0 &&
       contents[0] == '0')
   {
-    g_setenv("FLUTTER_ENGINE_SWITCHES", "2", TRUE);
+    // Debug/profile only; release ignores FLUTTER_ENGINE_SWITCHES.
+    g_setenv("FLUTTER_ENGINE_SWITCHES", "1", TRUE);
     g_setenv("FLUTTER_ENGINE_SWITCH_1", "enable-software-rendering", TRUE);
-    g_setenv("FLUTTER_ENGINE_SWITCH_2", "disable-impeller", TRUE);
   }
   g_free(contents);
   g_free(path);
@@ -305,6 +305,8 @@ static void aqloss_activate(GApplication *application)
   gtk_window_set_decorated(window, FALSE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // Flutter 3.47 defaults to Impeller GLES SDF, which freezes the UI on Mesa/Hyprland.
+  fl_dart_project_set_enable_impeller(project, FALSE);
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 

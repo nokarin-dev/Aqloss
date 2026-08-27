@@ -145,3 +145,12 @@ final audioDeviceProvider =
     AsyncNotifierProvider<AudioDeviceNotifier, AudioDeviceState>(
       AudioDeviceNotifier.new,
     );
+
+const kBitPerfectUnavailableHint =
+    "Can't be used while exclusive mode is on. Audio is sent to the DAC unchanged.";
+
+final exclusiveModeProvider = Provider<bool>((ref) {
+  ref.watch(audioDeviceProvider);
+  ref.watch(settingsProvider.select((s) => (s.outputMode, s.selectedDeviceId)));
+  return backend.isExclusiveMode();
+});

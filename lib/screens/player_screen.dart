@@ -13,6 +13,7 @@ import 'package:aqloss/widgets/spectrum_display.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/providers/audio_device_provider.dart';
 
 // Cover layout breakpoint
 const _coverLayoutMaxWidth = 640.0;
@@ -709,7 +710,7 @@ class _TrackInfo extends ConsumerWidget {
 }
 
 // Format row
-class _FormatRow extends StatelessWidget {
+class _FormatRow extends ConsumerWidget {
   final Track track;
   final bool soft;
   final WrapAlignment alignment;
@@ -720,8 +721,8 @@ class _FormatRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isExclusive = backend.isExclusiveMode();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isExclusive = ref.watch(exclusiveModeProvider);
     return Wrap(
       spacing: 5,
       runSpacing: 4,

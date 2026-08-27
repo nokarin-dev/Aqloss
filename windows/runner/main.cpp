@@ -14,8 +14,10 @@ static void ApplyHwAccelPref() {
     return;
   }
   std::wstring path = std::wstring(appdata) + L"\\aqloss\\hw_accel";
-  FILE *f = _wfopen(path.c_str(), L"rb");
-  if (!f) return;
+  FILE *f = nullptr;
+  if (_wfopen_s(&f, path.c_str(), L"rb") != 0 || !f) {
+    return;
+  }
   char c = 0;
   if (fread(&c, 1, 1, f) == 1 && c == '0') {
     _putenv_s("FLUTTER_ENGINE_SWITCHES", "2");

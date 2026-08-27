@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
+import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
-import 'package:aqloss/src/rust/api.dart' as backend;
 
 class PlayerControls extends ConsumerWidget {
   final bool dense;
@@ -31,7 +31,7 @@ class PlayerControls extends ConsumerWidget {
         ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
         : 0.0;
 
-    final isExclusive = backend.isExclusiveMode();
+    final isExclusive = ref.watch(exclusiveModeProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -244,30 +244,44 @@ class PlayerControls extends ConsumerWidget {
             if (isM3 && !compact)
               const UiDivider(margin: EdgeInsets.symmetric(vertical: 8)),
 
-            Row(
-              children: [
-                Icon(
-                  Icons.volume_mute_rounded,
-                  size: 14,
-                  color: onSurfaceAlpha(0.20),
-                ),
-                Expanded(
-                  child: CustomSlider(
-                    value: player.volume.clamp(0.0, 1.0),
-                    trackHeight: 1.5,
-                    thumbRadius: 4,
-                    activeColor: onSurfaceAlpha(0.38),
-                    inactiveColor: onSurfaceAlpha(0.09),
-                    thumbColor: onSurfaceAlpha(0.60),
-                    onChanged: notifier.setVolume,
+            Builder(
+              builder: (context) {
+                Widget row = Opacity(
+                  opacity: isExclusive ? 0.40 : 1.0,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.volume_mute_rounded,
+                        size: 14,
+                        color: onSurfaceAlpha(0.20),
+                      ),
+                      Expanded(
+                        child: CustomSlider(
+                          value: player.volume.clamp(0.0, 1.0),
+                          trackHeight: 1.5,
+                          thumbRadius: 4,
+                          activeColor: onSurfaceAlpha(0.38),
+                          inactiveColor: onSurfaceAlpha(0.09),
+                          thumbColor: onSurfaceAlpha(0.60),
+                          onChanged: isExclusive ? null : notifier.setVolume,
+                        ),
+                      ),
+                      Icon(
+                        Icons.volume_up_rounded,
+                        size: 14,
+                        color: onSurfaceAlpha(0.20),
+                      ),
+                    ],
                   ),
-                ),
-                Icon(
-                  Icons.volume_up_rounded,
-                  size: 14,
-                  color: onSurfaceAlpha(0.20),
-                ),
-              ],
+                );
+                if (isExclusive) {
+                  row = Tooltip(
+                    message: kBitPerfectUnavailableHint,
+                    child: row,
+                  );
+                }
+                return row;
+              },
             ),
           ],
         );
@@ -582,7 +596,7 @@ class _BitPerfectBadge extends StatelessWidget {
   const _BitPerfectBadge({required this.onSurface});
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'WASAPI Exclusive – bit-perfect output',
+    message: 'Exclusive / bit-perfect — audio is sent to the DAC unchanged',
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
