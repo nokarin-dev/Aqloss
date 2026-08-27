@@ -7,13 +7,16 @@ sudo apt-get update -y
 
 case "${profile}" in
   audio)
-    sudo apt-get install -y libasound2-dev libpulse-dev pkg-config
+    # clang/libclang: bindgen for cpal's pipewire/libspa-sys
+    sudo apt-get install -y \
+      pkg-config clang libclang-dev \
+      libasound2-dev libpulse-dev libpipewire-0.3-dev
     ;;
   desktop)
     sudo apt-get install -y \
-      clang cmake ninja-build pkg-config \
+      clang cmake ninja-build pkg-config libclang-dev \
       libgtk-3-dev liblzma-dev libstdc++-12-dev \
-      libasound2-dev libpulse-dev \
+      libasound2-dev libpulse-dev libpipewire-0.3-dev \
       dpkg-dev fakeroot wget file
     ;;
   *)

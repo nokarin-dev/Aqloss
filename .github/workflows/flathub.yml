@@ -1,0 +1,40 @@
+name: Flathub
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: publish on Flathub.
+        required: false
+        type: string
+
+concurrency:
+  group: flathub-${{ github.event.inputs.tag || github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  open-pr:
+    name: Open Flathub PR
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'release' &&
+        !github.event.release.prerelease &&
+        startsWith(github.event.release.tag_name, 'v') &&
+        !contains(github.event.release.tag_name, 'apple')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Open or update Flathub PR
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: bash .github/scripts/open-flathub-pr.sh

@@ -22,6 +22,7 @@ dnf install -y \
   libstdc++-devel \
   alsa-lib-devel \
   pulseaudio-libs-devel \
+  pipewire-devel \
   mesa-libGL-devel \
   rpm-build \
   desktop-file-utils \
