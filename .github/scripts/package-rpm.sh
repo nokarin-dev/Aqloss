@@ -34,7 +34,7 @@ Summary:        High-quality local music player
 License:        GPLv3
 URL:            https://github.com/nokarin-dev/aqloss
 BuildArch:      x86_64
-Requires:       gtk3, xz-libs, alsa-lib, pipewire-libs
+Requires:       gtk3, xz-libs, alsa-lib
 
 %description
 Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback.

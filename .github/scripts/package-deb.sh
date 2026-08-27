@@ -42,7 +42,7 @@ Version: ${VERSION}
 Architecture: amd64
 Maintainer: nokarin <contact@nokarin.my.id>
 Description: High-quality local music player powered by a Rust audio engine.
-Depends: libgtk-3-0, libblkid1, liblzma5, libasound2, libpipewire-0.3-0
+Depends: libgtk-3-0, libblkid1, liblzma5, libasound2
 Section: sound
 Priority: optional
 Homepage: https://github.com/nokarin-dev/aqloss
