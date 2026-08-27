@@ -7,6 +7,7 @@ FLATHUB_REPO="${FLATHUB_REPO:-flathub/xyz.nokarin.aqloss}"
 FLATHUB_BASE="${FLATHUB_BASE:-master}"
 AQLOSS_GIT="${AQLOSS_GIT:-https://github.com/nokarin-dev/Aqloss.git}"
 FLATPAK_FLUTTER_IMAGE="${FLATPAK_FLUTTER_IMAGE:-theappgineer/flatpak-flutter:0.15.0}"
+FLUTTER_TAG="${FLUTTER_TAG:-3.47.1}"
 
 if [ -z "${GH_TOKEN:-}" ]; then
   echo "GH_TOKEN is required (a PAT that can push to ${FLATHUB_REPO})." >&2
@@ -50,11 +51,46 @@ cd "${WORKDIR}"
 
 git checkout -B "${BRANCH}" "${FLATHUB_BASE}"
 
-python3 - "${AQLOSS_GIT}" "${TAG}" <<'PY'
+python3 - "${AQLOSS_GIT}" "${TAG}" "${FLUTTER_TAG}" <<'PY'
 import sys
 from pathlib import Path
 
-url, tag = sys.argv[1], sys.argv[2]
+aqloss_url, aqloss_tag, flutter_tag = sys.argv[1], sys.argv[2], sys.argv[3]
+path = Path("flatpak-flutter.yaml")
+text = path.read_text()
+
+
+def upsert_tag(text: str, url: str, tag: str) -> str:
+    needle = f"url: {url}"
+    idx = text.find(needle)
+    if idx < 0:
+        raise SystemExit(f"git url not found in flatpak-flutter.yaml: {url}")
+    after = idx + len(needle)
+    rest = text[after:]
+    if rest.startswith("\n        tag:"):
+        end = rest.find("\n", 1)
+        return text[:after] + f"\n        tag: {tag}" + rest[end:]
+    return text[:after] + f"\n        tag: {tag}" + rest
+
+
+text = upsert_tag(text, aqloss_url, aqloss_tag)
+text = upsert_tag(text, "https://github.com/flutter/flutter.git", flutter_tag)
+path.write_text(text)
+print(f"generate from {aqloss_url} {aqloss_tag}, Flutter {flutter_tag}")
+PY
+
+echo "Running ${FLATPAK_FLUTTER_IMAGE} ..."
+docker run --rm \
+  -v "${WORKDIR}:/usr/src/flatpak" \
+  -u "$(id -u):$(id -g)" \
+  "${FLATPAK_FLUTTER_IMAGE}" \
+  flatpak-flutter.yaml
+
+python3 - "${AQLOSS_GIT}" <<'PY'
+import sys
+from pathlib import Path
+
+url = sys.argv[1]
 path = Path("flatpak-flutter.yaml")
 text = path.read_text()
 needle = f"url: {url}"
@@ -65,25 +101,14 @@ after = idx + len(needle)
 rest = text[after:]
 if rest.startswith("\n        tag:"):
     end = rest.find("\n", 1)
-    text = text[:after] + f"\n        tag: {tag}" + rest[end:]
-else:
-    text = text[:after] + f"\n        tag: {tag}" + rest
-path.write_text(text)
-print(f"generate from {url} {tag}")
+    text = text[:after] + rest[end:]
+    path.write_text(text)
 PY
 
-echo "Running ${FLATPAK_FLUTTER_IMAGE} ..."
-docker run --rm \
-  -v "${WORKDIR}:/usr/src/flatpak" \
-  -u "$(id -u):$(id -g)" \
-  "${FLATPAK_FLUTTER_IMAGE}" \
-  flatpak-flutter.yaml
-
-git checkout -- flatpak-flutter.yaml
 find generated -name '*.orig' -delete
 find generated -name '*.rej' -delete
 
-git add xyz.nokarin.aqloss.yaml generated
+git add xyz.nokarin.aqloss.yaml flatpak-flutter.yaml generated
 if git diff --cached --quiet; then
   echo "Flathub repo already matches ${TAG}; nothing to commit."
   existing="$(gh pr list --repo "${FLATHUB_REPO}" --head "${BRANCH}" --json url --jq '.[0].url // empty')"

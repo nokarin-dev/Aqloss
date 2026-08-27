@@ -37,4 +37,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+          FLUTTER_TAG: "3.47.1"
         run: bash .github/scripts/open-flathub-pr.sh
