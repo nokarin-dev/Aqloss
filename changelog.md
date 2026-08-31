@@ -10,6 +10,8 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
+- [Library] Drop tracks whose files were moved or deleted, with a toast
+- [Frontend|Playlists] Missing files are marked; Remove clears them, and play skips them
 - [Frontend|UI] Toast when a library scan finishes, a scrobble fails, or a new version is available
 - [Frontend|Player] Track info sheet: tags, codec, path, ReplayGain, and play count
 - [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus named user presets

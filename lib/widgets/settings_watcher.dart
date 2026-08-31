@@ -34,6 +34,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   int? _prevAccentColor;
   String? _prevAccentPath;
   LibraryStatus? _prevLibraryStatus;
+  int _prevMissingRemoved = 0;
   bool _updateCheckStarted = false;
 
   static const _kUpdateNotified = 'aqloss_update_notified';
@@ -84,6 +85,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _showPlaybackError(player);
       _restoreSession(library);
       _showLibraryScan(library);
+      _showMissingRemoved(library);
       _checkUpdateToast(s);
     });
 
@@ -275,6 +277,14 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     } else if (library.status == LibraryStatus.error) {
       _notice(kLibraryScanFailedMessage);
     }
+  }
+
+  void _showMissingRemoved(LibraryState library) {
+    final n = library.missingRemoved;
+    if (n > 0 && n != _prevMissingRemoved) {
+      _notice(missingFilesRemovedMessage(n));
+    }
+    _prevMissingRemoved = n;
   }
 
   void _checkUpdateToast(SettingsState s) {

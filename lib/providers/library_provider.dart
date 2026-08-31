@@ -12,6 +12,7 @@ import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/src/rust/lib.dart' show TrackInfo;
+import 'package:aqloss/util/missing_files.dart';
 
 enum LibraryStatus { idle, scanning, done, error }
 
@@ -31,6 +32,7 @@ class LibraryState {
   final SortField sortField;
   final SortOrder sortOrder;
   final LibraryFilter filter;
+  final int missingRemoved;
 
   const LibraryState({
     this.tracks = const [],
@@ -42,6 +44,7 @@ class LibraryState {
     this.sortField = SortField.artist,
     this.sortOrder = SortOrder.ascending,
     this.filter = LibraryFilter.all,
+    this.missingRemoved = 0,
   }) : _cachedFiltered = cachedFiltered;
 
   List<Track> get filteredTracks => _cachedFiltered;
@@ -56,6 +59,7 @@ class LibraryState {
     SortField? sortField,
     SortOrder? sortOrder,
     LibraryFilter? filter,
+    int? missingRemoved,
   }) => LibraryState(
     tracks: tracks ?? this.tracks,
     cachedFiltered: cachedFiltered ?? _cachedFiltered,
@@ -66,6 +70,7 @@ class LibraryState {
     sortField: sortField ?? this.sortField,
     sortOrder: sortOrder ?? this.sortOrder,
     filter: filter ?? this.filter,
+    missingRemoved: missingRemoved ?? this.missingRemoved,
   );
 
   List<Track> get losslessTracks => tracks
@@ -283,23 +288,39 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     if (saved.isEmpty) return;
 
     final cached = await _loadCache();
-    if (cached.isNotEmpty) {
-      final filtered = await _rebuildFiltered(cached, state);
-      if (mounted) {
-        state = state.copyWith(
-          folders: saved,
-          tracks: cached,
-          cachedFiltered: filtered,
-          status: LibraryStatus.done,
-        );
-      }
-    } else {
-      if (mounted) {
-        state = state.copyWith(folders: saved, status: LibraryStatus.scanning);
+    final changed = await _foldersChanged(saved);
+
+    var tracks = cached;
+    var missingRemoved = 0;
+    if (cached.isNotEmpty && !changed) {
+      final kept = (await compute(existingPathsOnDisk, [
+        for (final t in cached) t.path,
+      ])).toSet();
+      if (kept.length != cached.length) {
+        tracks = [
+          for (final t in cached)
+            if (kept.contains(t.path)) t,
+        ];
+        missingRemoved = cached.length - tracks.length;
+        await _writeCache(tracks);
       }
     }
 
-    final changed = await _foldersChanged(saved);
+    if (cached.isNotEmpty) {
+      final filtered = await _rebuildFiltered(tracks, state);
+      if (mounted) {
+        state = state.copyWith(
+          folders: saved,
+          tracks: tracks,
+          cachedFiltered: filtered,
+          status: LibraryStatus.done,
+          missingRemoved: missingRemoved,
+        );
+      }
+    } else if (mounted) {
+      state = state.copyWith(folders: saved, status: LibraryStatus.scanning);
+    }
+
     if (!changed && cached.isNotEmpty) return;
 
     _scanAll(saved, background: cached.isNotEmpty);

@@ -11,4 +11,11 @@ void main() {
   test('update available names the version', () {
     expect(updateAvailableMessage('1.0.2'), 'Version 1.0.2 is available');
   });
+
+  test('missing file copy names the count', () {
+    expect(missingFilesRemovedMessage(1), 'Removed 1 missing file');
+    expect(missingFilesRemovedMessage(3), 'Removed 3 missing files');
+    expect(missingPlaylistFilesMessage(1), '1 file missing');
+    expect(missingPlaylistFilesMessage(4), '4 files missing');
+  });
 }

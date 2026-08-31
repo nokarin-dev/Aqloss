@@ -16,6 +16,7 @@ import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
 import 'package:aqloss/services/position_store.dart';
+import 'package:aqloss/util/missing_files.dart';
 import 'package:aqloss/util/playback.dart';
 import 'package:aqloss/util/sleep_timer.dart';
 import 'package:aqloss/util/track_positions.dart';
@@ -355,17 +356,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     List<Track> queue, {
     int? atIndex,
   }) async {
-    int idx;
-    if (atIndex != null && atIndex >= 0 && atIndex < queue.length) {
-      idx = atIndex;
-    } else {
-      idx = queue.indexWhere((t) => t.path == track.path);
-      if (idx < 0) idx = 0;
+    final pick = playableQueue(
+      preferred: track,
+      queue: queue,
+      exists: (p) => File(p).existsSync(),
+      atIndex: atIndex,
+    );
+    if (pick == null) {
+      if (mounted) state = state.copyWith(status: PlayerStatus.error);
+      return;
     }
-    var q = List<Track>.from(queue);
+    var q = List<Track>.from(pick.queue);
+    var idx = pick.index;
     if (state.shuffle) q = _shuffleUpcoming(q, idx);
     state = state.copyWith(queue: q, queueIndex: idx);
-    await _loadAndPlay(track);
+    await _loadAndPlay(pick.track);
   }
 
   Future<void> load(Track track) async {
@@ -412,6 +417,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     );
     try {
       if (stopFirst) await AudioService.stop();
+      if (!File(track.path).existsSync()) {
+        if (mounted) state = state.copyWith(status: PlayerStatus.error);
+        return;
+      }
       await AudioService.loadTrack(track.path);
       if (!mounted) return;
       final s = _readSettings?.call();
@@ -699,10 +708,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   void addAllToQueueNext(List<Track> tracks) {
-    if (tracks.isEmpty) return;
+    final playable = keepExistingTracks(tracks, (p) => File(p).existsSync());
+    if (playable.isEmpty) return;
     final q = List<Track>.from(state.queue);
     var insertAt = (state.queueIndex + 1).clamp(0, q.length);
-    for (final track in tracks) {
+    for (final track in playable) {
       q.insert(insertAt, track);
       insertAt++;
     }
@@ -710,19 +720,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   void addAllToQueueLast(List<Track> tracks) {
-    if (tracks.isEmpty) return;
-    state = state.copyWith(queue: [...state.queue, ...tracks]);
+    final playable = keepExistingTracks(tracks, (p) => File(p).existsSync());
+    if (playable.isEmpty) return;
+    state = state.copyWith(queue: [...state.queue, ...playable]);
   }
 
   Future<void> playNext(Track track) => playAllNext([track]);
 
   Future<void> playAllNext(List<Track> tracks) async {
-    if (tracks.isEmpty) return;
+    final playable = keepExistingTracks(tracks, (p) => File(p).existsSync());
+    if (playable.isEmpty) return;
     if (state.currentTrack == null) {
-      await loadWithQueue(tracks.first, tracks);
+      await loadWithQueue(playable.first, playable);
       return;
     }
-    addAllToQueueNext(tracks);
+    addAllToQueueNext(playable);
   }
 
   void removeFromQueue(int index) {

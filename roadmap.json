@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.2",
-        "subtitle": "Sleep timer, restore position, EQ presets, track info, scan/scrobble/update toasts, exclusive DAC takeover, Android lock-screen playback, Support links, and AUR.",
+        "subtitle": "Sleep timer, restore position, EQ presets, track info, scan/scrobble/update toasts, missing-file cleanup, exclusive DAC takeover, Android lock-screen playback, Support links, and AUR.",
         "status": "in-progress",
         "items": [
             {
@@ -87,6 +87,12 @@
                 "description": "A notification when a folder has finished scanning, a scrobble has failed, or an update is available.",
                 "status": "done",
                 "category": "Frontend · UI"
+            },
+            {
+                "title": "Missing file detection",
+                "description": "Drop library tracks whose files were moved or deleted. Playlists can remove missing rows. Playback skips them.",
+                "status": "done",
+                "category": "Library · Organization"
             }
         ]
     },
@@ -176,12 +182,6 @@
             {
                 "title": "Settings backup",
                 "description": "Export or import all settings and playlists as a single JSON file.",
-                "status": "planned",
-                "category": "System · Platform"
-            },
-            {
-                "title": "Missing file detection",
-                "description": "Detect tracks in the library whose files have been moved or deleted, then offer to remove or relocate them.",
                 "status": "planned",
                 "category": "System · Platform"
             },

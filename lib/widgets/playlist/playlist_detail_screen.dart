@@ -1,17 +1,21 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:aqloss/providers/history_provider.dart';
+import 'dart:io';
+
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
+import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
-import 'package:aqloss/widgets/shared/now_playing_header.dart';
-import 'package:aqloss/widgets/shared/track_context_menu.dart';
+import 'package:aqloss/services/playlist_io_service.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
-import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/util/missing_files.dart';
+import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/widgets/shared/mini_album_art.dart';
-import 'package:aqloss/services/playlist_io_service.dart';
+import 'package:aqloss/widgets/shared/now_playing_header.dart';
+import 'package:aqloss/widgets/shared/track_context_menu.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
@@ -26,6 +30,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   final _scroll = ScrollController();
   static const _kItemH = 56.0;
   String? _lastScrolledPath;
+  List<Track>? _missingSource;
+  Set<String> _missing = const {};
 
   @override
   void initState() {
@@ -56,6 +62,54 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     );
   }
 
+  Set<String> _missingFor(List<Track> tracks) {
+    if (identical(tracks, _missingSource)) return _missing;
+    _missingSource = tracks;
+    _missing = missingTrackPaths(tracks, (p) => File(p).existsSync());
+    return _missing;
+  }
+
+  Widget _buildTrackList(
+    Playlist current,
+    Set<String> missing,
+    PlaylistNotifier notifier,
+    PlayerNotifier playerNotifier,
+  ) {
+    return ReorderableListView.builder(
+      scrollController: _scroll,
+      onReorderItem: (old, newIdx) {
+        final legacy = old < newIdx ? newIdx + 1 : newIdx;
+        notifier.reorderTrack(current.id, old, legacy);
+      },
+      itemCount: current.tracks.length,
+      itemBuilder: (ctx, i) {
+        final t = current.tracks[i];
+        return Dismissible(
+          key: ValueKey('${current.id}_${t.path}_$i'),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            color: const Color(0xFFFF6B6B).withValues(alpha: 0.10),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(
+              Icons.delete_outline_rounded,
+              color: Color(0xFFFF6B6B),
+              size: 18,
+            ),
+          ),
+          onDismissed: (_) => notifier.removeTrack(current.id, i),
+          child: PlaylistTrackTile(
+            key: ValueKey('tile_${t.path}_$i'),
+            track: t,
+            index: i,
+            missing: missing.contains(t.path),
+            onTap: () => playerNotifier.loadWithQueue(t, current.tracks),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlists = ref.watch(playlistProvider);
@@ -75,39 +129,15 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       );
     }
 
+    final missing = _missingFor(current.tracks);
     final list = current.tracks.isEmpty
         ? _EmptyPlaylist(cs: cs)
-        : ReorderableListView.builder(
-            scrollController: _scroll,
-            onReorderItem: (old, newIdx) {
-              final legacy = old < newIdx ? newIdx + 1 : newIdx;
-              notifier.reorderTrack(current.id, old, legacy);
-            },
-            itemCount: current.tracks.length,
-            itemBuilder: (ctx, i) {
-              final t = current.tracks[i];
-              return Dismissible(
-                key: ValueKey('${current.id}_${t.path}_$i'),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.10),
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Color(0xFFFF6B6B),
-                    size: 18,
-                  ),
-                ),
-                onDismissed: (_) => notifier.removeTrack(current.id, i),
-                child: PlaylistTrackTile(
-                  key: ValueKey('tile_${t.path}_$i'),
-                  track: t,
-                  index: i,
-                  onTap: () => playerNotifier.loadWithQueue(t, current.tracks),
-                ),
-              );
-            },
+        : _buildTrackList(current, missing, notifier, playerNotifier);
+    final missingBar = missing.isEmpty
+        ? null
+        : _MissingFilesBar(
+            count: missing.length,
+            onRemove: () => notifier.removeTracksByPath(current.id, missing),
           );
 
     if (context.isMaterial3Ui) {
@@ -149,7 +179,14 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               label: const Text('Play'),
             ),
         ],
-        body: list,
+        body: missingBar == null
+            ? list
+            : Column(
+                children: [
+                  missingBar,
+                  Expanded(child: list),
+                ],
+              ),
       );
     }
 
@@ -247,45 +284,43 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           ),
           const UiDivider(),
           if (!context.isMaterial3Ui) const NowPlayingHeader(),
-          Expanded(
-            child: current.tracks.isEmpty
-                ? _EmptyPlaylist(cs: cs)
-                : ReorderableListView.builder(
-                    scrollController: _scroll,
-                    onReorderItem: (old, newIdx) {
-                      final legacy = old < newIdx ? newIdx + 1 : newIdx;
-                      notifier.reorderTrack(current.id, old, legacy);
-                    },
-                    itemCount: current.tracks.length,
-                    itemBuilder: (ctx, i) {
-                      final t = current.tracks[i];
-                      return Dismissible(
-                        key: ValueKey('${current.id}_${t.path}_$i'),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: const Color(
-                            0xFFFF6B6B,
-                          ).withValues(alpha: 0.10),
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          child: const Icon(
-                            Icons.delete_outline_rounded,
-                            color: Color(0xFFFF6B6B),
-                            size: 18,
-                          ),
-                        ),
-                        onDismissed: (_) => notifier.removeTrack(current.id, i),
-                        child: PlaylistTrackTile(
-                          key: ValueKey('tile_${t.path}_$i'),
-                          track: t,
-                          index: i,
-                          onTap: () =>
-                              playerNotifier.loadWithQueue(t, current.tracks),
-                        ),
-                      );
-                    },
-                  ),
+          ?missingBar,
+          Expanded(child: list),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissingFilesBar extends StatelessWidget {
+  final int count;
+  final VoidCallback onRemove;
+
+  const _MissingFilesBar({required this.count, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: 16,
+            color: cs.onSurface.withValues(alpha: 0.46),
           ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              missingPlaylistFilesMessage(count),
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onSurface.withValues(alpha: 0.56),
+              ),
+            ),
+          ),
+          TextButton(onPressed: onRemove, child: const Text('Remove')),
         ],
       ),
     );
@@ -332,12 +367,14 @@ class _EmptyPlaylist extends StatelessWidget {
 class PlaylistTrackTile extends ConsumerStatefulWidget {
   final Track track;
   final int index;
+  final bool missing;
   final VoidCallback onTap;
 
   const PlaylistTrackTile({
     super.key,
     required this.track,
     required this.index,
+    this.missing = false,
     required this.onTap,
   });
 
@@ -391,7 +428,9 @@ class _PlaylistTrackTileState extends ConsumerState<PlaylistTrackTile> {
                       style: TextStyle(
                         color: isPlaying
                             ? cs.onSurface
-                            : cs.onSurface.withValues(alpha: 0.68),
+                            : cs.onSurface.withValues(
+                                alpha: widget.missing ? 0.36 : 0.68,
+                              ),
                         fontSize: 13,
                         fontWeight: isPlaying
                             ? FontWeight.w500
@@ -402,9 +441,11 @@ class _PlaylistTrackTileState extends ConsumerState<PlaylistTrackTile> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      widget.track.displayArtist,
+                      widget.missing ? 'Missing' : widget.track.displayArtist,
                       style: TextStyle(
-                        color: cs.onSurface.withValues(alpha: 0.28),
+                        color: cs.onSurface.withValues(
+                          alpha: widget.missing ? 0.40 : 0.28,
+                        ),
                         fontSize: 11,
                       ),
                       maxLines: 1,
