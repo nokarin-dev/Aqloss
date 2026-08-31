@@ -381,6 +381,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
               channels: info.channels,
               format: info.format,
               fileSizeBytes: info.fileSizeBytes.toInt(),
+              replayGainTrack: info.replayGainTrack,
+              replayGainAlbum: info.replayGainAlbum,
             ),
           );
         } catch (_) {}

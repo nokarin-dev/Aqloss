@@ -19,6 +19,12 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Fixed
 
+- [Frontend] ReplayGain tags are kept when scanning the library (rescan to pick them up)
+- [Audio] Crossfade starts at the fade length instead of 0.1s before the end
+- [Frontend] Playback errors show a snackbar
+- [Library] DSD (`.dsf` / `.dff`) is no longer scanned
+- [Android] Release builds can use the network (update check, Last.fm, lyrics)
+- [Frontend|Settings] Update check no longer dumps a socket exception when offline
 - [Audio] Exclusive mode could not take the DAC: the shared mixer stream stayed open, so ALSA `hw:` reported busy and WASAPI returned device-in-use
 - [Linux|Audio] A pinned ALSA device is no longer replaced when PipeWire's default sink list refreshes
 - [Linux|Audio] Output device list no longer clones the same card for every ALSA PCM (`plughw`, `surround`, `hdmi`, …)

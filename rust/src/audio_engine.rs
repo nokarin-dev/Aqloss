@@ -546,7 +546,7 @@ impl AudioEngine {
     pub fn load_path(path: &str) -> Result<()> {
         logger::info_audio(format!("load: {path}"));
         let arc = Self::global_safe()?;
-        let (gapless, crossfade_secs, playing, has_decoder) = {
+        let (gapless, crossfade_secs, playing, has_decoder, exclusive) = {
             let e = arc.lock().unwrap();
             let dsp = e.dsp.lock().unwrap();
             (
@@ -554,10 +554,11 @@ impl AudioEngine {
                 dsp.crossfade_secs,
                 e.flags.playing.load(Ordering::SeqCst),
                 e.decoder.is_some(),
+                e.output.exclusive,
             )
         };
 
-        if crossfade_secs > 0.0 && has_decoder && playing {
+        if !exclusive && crossfade_secs > 0.0 && has_decoder && playing {
             logger::debug_audio(format!(
                 "crossfade queued next track ({crossfade_secs:.2}s)"
             ));
@@ -961,6 +962,7 @@ fn decode_loop(
             e.next_resampler.clone(),
         )
     };
+    let mut dec_arc = dec_arc;
 
     let cap = ring_cap(out_sr as u32, out_ch);
     let throttle_threshold = cap / 4;
@@ -1159,6 +1161,22 @@ fn decode_loop(
             }
 
             Ok(false) => {
+                let next = engine_arc.lock().unwrap().next_decoder.take();
+                if let Some(n) = next {
+                    logger::info_audio("decode_loop: taking next decoder");
+                    {
+                        let mut e = engine_arc.lock().unwrap();
+                        e.decoder = Some(n.clone());
+                        let nr = e.next_resampler.lock().unwrap().take();
+                        *e.resampler.lock().unwrap() = nr;
+                    }
+                    dec_arc = n;
+                    fade_in_dec = None;
+                    crossfade_ramp = 0;
+                    leading_silent = 0;
+                    leading_done = false;
+                    continue;
+                }
                 logger::info_audio("decode_loop: end of stream, flushing tail");
                 let (dec_ch, target_vol) = {
                     let e = engine_arc.lock().unwrap();

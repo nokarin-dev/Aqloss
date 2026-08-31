@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:aqloss/app_version.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
+import 'package:aqloss/util/update_check.dart';
 import 'package:aqloss/screens/plugin_pane.dart';
 import 'package:http/http.dart' as http;
 
@@ -2201,7 +2202,7 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
     } catch (e) {
       setState(() {
         _status = _UpdateStatus.error;
-        _errorMsg = e.toString().replaceFirst('Exception: ', '');
+        _errorMsg = formatUpdateCheckError(e);
       });
     }
   }

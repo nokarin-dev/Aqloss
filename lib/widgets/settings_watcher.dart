@@ -8,7 +8,7 @@ import 'package:aqloss/services/loved_sync.dart';
 import 'package:aqloss/services/notifier/media_control_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SettingsWatcher extends ConsumerStatefulWidget {
@@ -22,6 +22,7 @@ class SettingsWatcher extends ConsumerStatefulWidget {
 class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   SettingsState? _prev;
   PlayerState? _prevPlayer;
+  PlayerStatus? _prevPlayerStatus;
   bool _mediaInitialized = false;
   bool _lovedPullStarted = false;
   AccentMode? _prevAccentMode;
@@ -65,6 +66,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _applyMediaControls(player);
       _applyAccent(s, player);
       _pullLoved(s, library.tracks.isNotEmpty);
+      _showPlaybackError(player);
     });
 
     return widget.child;
@@ -218,5 +220,15 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     _lovedPullStarted = true;
     _configureLoved(s);
     LovedSync.importInto(ref);
+  }
+
+  void _showPlaybackError(PlayerState player) {
+    final prev = _prevPlayerStatus;
+    _prevPlayerStatus = player.status;
+    if (player.status != PlayerStatus.error || prev == PlayerStatus.error) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(const SnackBar(content: Text('Playback failed')));
   }
 }

@@ -15,6 +15,7 @@ import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
+import 'package:aqloss/util/playback.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _kVolumeKey = 'aqloss_volume';
@@ -74,6 +75,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _positionTimer;
   bool _disposed = false;
   bool _handlingTrackEnd = false;
+  bool _crossfadeQueued = false;
   bool _playPauseBusy = false;
   bool _seeking = false;
   Duration? _seekHoldPosition;
@@ -235,6 +237,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> _loadAndPlay(Track track, {bool stopFirst = true}) async {
     _stopTimer();
     _handlingTrackEnd = false;
+    if (stopFirst) _crossfadeQueued = false;
     _lastPollPositionSecs = 0;
     _stallTicks = 0;
     _lastAdvancingPositionSecs = 0;
@@ -270,6 +273,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       _historyNotifier?.recordPlay(track);
       _startTimer();
     } catch (e) {
+      Logger.errorPlayerProvider('load failed: $e');
       if (mounted) state = state.copyWith(status: PlayerStatus.error);
     }
   }
@@ -681,6 +685,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     PluginRegistry.instance.dispatchTrackStop(TrackStopEvent(s.currentTrack));
 
     if (stopAfter == StopAfterMode.track) {
+      _crossfadeQueued = false;
       state = state.copyWith(
         status: PlayerStatus.paused,
         position: s.currentTrack?.duration ?? Duration.zero,
@@ -700,6 +705,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           position: s.currentTrack?.duration ?? Duration.zero,
         );
         DiscordService.update(state);
+        _crossfadeQueued = false;
         return;
       }
     }
@@ -728,6 +734,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         if (s.hasNext) {
           await skipNext();
         } else {
+          _crossfadeQueued = false;
           state = state.copyWith(
             status: PlayerStatus.paused,
             position: s.currentTrack?.duration ?? Duration.zero,
@@ -737,11 +744,33 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  double _trackEndLead() {
+    final s = _readSettings?.call();
+    return trackEndLeadSecs(
+      crossfadeSecs: s?.crossfadeSecs ?? 0,
+      exclusive: s?.outputMode == AudioOutputMode.exclusive,
+      hasSuccessor: state.loopMode != LoopMode.track &&
+          (state.hasNext || state.loopMode == LoopMode.playlist),
+      stopAfter: s != null && s.stopAfter != StopAfterMode.off,
+    );
+  }
+
   bool _shouldHandleTrackEnd(backend.PlaybackPosition pos) {
     if (pos.durationSecs <= 0) return false;
 
-    final nearEnd = pos.positionSecs >= pos.durationSecs - 0.1;
-    if (nearEnd) return true;
+    final lead = _trackEndLead();
+    if (_crossfadeQueued) {
+      if (pos.positionSecs + lead + 0.5 < pos.durationSecs) {
+        _crossfadeQueued = false;
+      }
+      return false;
+    }
+
+    final nearEnd = pos.positionSecs >= pos.durationSecs - lead;
+    if (nearEnd) {
+      if (lead > 0.15) _crossfadeQueued = true;
+      return true;
+    }
 
     final backendStopped =
         state.status == PlayerStatus.playing &&

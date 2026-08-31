@@ -16,6 +16,7 @@ optdepends=(
 provides=('aqloss')
 conflicts=('aqloss')
 options=('!strip' '!debug')
+noextract=("Aqloss-linux-installer-${pkgver}.deb")
 source=("Aqloss-linux-installer-${pkgver}.deb::https://github.com/nokarin-dev/Aqloss/releases/download/v${pkgver}/Aqloss-linux-installer.deb")
 sha256sums=('444805e87126a118882b7be30e62b43a2f735195c73e10fba0efbd9f7038eebf')
 

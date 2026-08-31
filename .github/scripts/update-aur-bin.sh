@@ -52,4 +52,4 @@ else
 fi
 
 echo "Updated ${PKGDIR} for ${TAG}"
-echo "Publish: copy PKGBUILD and .SRCINFO into ssh://aur@aur.archlinux.org/aqloss-bin.git and push"
+echo "Publish: .github/scripts/publish-aur-bin.sh then git -C \$AUR_DIR push origin master"

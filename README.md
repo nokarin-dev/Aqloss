@@ -35,6 +35,7 @@ DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm no
 | AAC | `.aac` `.m4a` | |
 | Vorbis | `.ogg` | |
 | Opus | `.opus` | libopus via Symphonia adapter |
+| WavPack | `.wv` | lossless |
 
 ---
 
