@@ -27,7 +27,7 @@ class AudioDeviceState {
   const AudioDeviceState({
     this.devices = const [],
     this.selectedId,
-    this.outputMode = AudioOutputMode.exclusive,
+    this.outputMode = AudioOutputMode.system,
     this.isSwitching = false,
   });
 

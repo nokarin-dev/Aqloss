@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:http/http.dart' as http;
@@ -198,17 +197,6 @@ class DiscordService {
   ) async {
     if (_artCache.containsKey(filePath)) return _artCache[filePath]!;
 
-    try {
-      final artBytes = await backend.readAlbumArt(path: filePath);
-      if (artBytes != null && artBytes.isNotEmpty) {
-        final uploaded = await _uploadImageBytes(Uint8List.fromList(artBytes));
-        if (uploaded.isNotEmpty) {
-          _artCache[filePath] = uploaded;
-          return uploaded;
-        }
-      }
-    } catch (_) {}
-
     final cacheKey = '${artist.toLowerCase()}||${album.toLowerCase()}';
     if (_onlineArtCache.containsKey(cacheKey)) {
       final url = _onlineArtCache[cacheKey]!;
@@ -220,45 +208,6 @@ class DiscordService {
     _onlineArtCache[cacheKey] = onlineUrl;
     _artCache[filePath] = onlineUrl;
     return onlineUrl;
-  }
-
-  static Future<String> _uploadImageBytes(Uint8List bytes) async {
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('https://catbox.moe/user/api.php'),
-      );
-      request.fields['reqtype'] = 'fileupload';
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'fileToUpload',
-          bytes,
-          filename: 'cover.jpg',
-        ),
-      );
-      final response = await request.send().timeout(const Duration(seconds: 8));
-      final body = await response.stream.bytesToString();
-      if (response.statusCode == 200 && body.startsWith('https://')) {
-        return body.trim();
-      }
-    } catch (_) {}
-
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('https://0x0.st'),
-      );
-      request.files.add(
-        http.MultipartFile.fromBytes('file', bytes, filename: 'cover.jpg'),
-      );
-      final response = await request.send().timeout(const Duration(seconds: 8));
-      final body = await response.stream.bytesToString();
-      if (response.statusCode == 200 && body.trim().startsWith('https://')) {
-        return body.trim();
-      }
-    } catch (_) {}
-
-    return '';
   }
 
   static Future<String> _fetchOnlineArtUrl(String artist, String album) async {

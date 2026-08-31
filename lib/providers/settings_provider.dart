@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
+
 import 'package:aqloss/services/gpu_pref.dart';
 import 'package:aqloss/theme/ui_framework.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -64,6 +66,11 @@ extension ShortcutActionX on ShortcutAction {
 }
 
 enum AudioOutputMode { system, exclusive }
+
+AudioOutputMode platformDefaultOutputMode({bool? windows}) {
+  if (windows ?? Platform.isWindows) return AudioOutputMode.exclusive;
+  return AudioOutputMode.system;
+}
 
 enum ThemeMode { dark, light, system }
 
@@ -159,7 +166,7 @@ class SettingsState {
   final bool loaded;
 
   const SettingsState({
-    this.outputMode = AudioOutputMode.exclusive,
+    this.outputMode = AudioOutputMode.system,
     this.selectedDeviceId,
     this.volume = 1.0,
     this.gaplessPlayback = true,
@@ -345,7 +352,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(
       outputMode:
           AudioOutputMode.values[(p.getInt(_kOutputMode) ??
-                  AudioOutputMode.exclusive.index)
+                  platformDefaultOutputMode().index)
               .clamp(0, AudioOutputMode.values.length - 1)],
       selectedDeviceId: p.getString(_kSelectedDeviceId),
       gaplessPlayback: p.getBool(_kGapless) ?? true,

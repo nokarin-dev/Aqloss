@@ -11,6 +11,7 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/src/rust/lib.dart' show TrackInfo;
 
 enum LibraryStatus { idle, scanning, done, error }
 
@@ -205,8 +206,9 @@ Map<String, int> _collectDirMtimes(List<String> roots) {
 
 // Persistence helpers
 const _kFoldersKey = 'aqloss_music_folders';
-const _kCacheFile = 'aqloss_library_cache.json';
+const _kCacheFile = 'aqloss_library_cache.v2.json';
 const _kMtimeFile = 'aqloss_library_mtimes.json';
+const _kMetaConcurrency = 8;
 
 Future<File> _appFile(String name) async {
   final dir = await getApplicationSupportDirectory();
@@ -363,30 +365,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
           .where((p) => seen.add(p))
           .toList();
 
-      final tracks = <Track>[];
-      for (final path in allPaths) {
-        try {
-          final info = await backend.readMetadata(path: path);
-          tracks.add(
-            Track(
-              path: info.path,
-              title: info.title,
-              artist: info.artist,
-              album: info.album,
-              albumArtist: info.albumArtist,
-              trackNumber: info.trackNumber?.toInt(),
-              durationSecs: info.durationSecs,
-              sampleRate: info.sampleRate,
-              bitDepth: info.bitDepth?.toInt(),
-              channels: info.channels,
-              format: info.format,
-              fileSizeBytes: info.fileSizeBytes.toInt(),
-              replayGainTrack: info.replayGainTrack,
-              replayGainAlbum: info.replayGainAlbum,
-            ),
-          );
-        } catch (_) {}
-      }
+      final tracks = await _readTracks(allPaths);
 
       final snapshot = await compute(_collectDirMtimes, folders);
       await Future.wait([_writeCache(tracks), _writeMtimeSnapshot(snapshot)]);
@@ -464,6 +443,43 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     _deletePersistedState();
     state = const LibraryState();
   }
+}
+
+Track _trackFromInfo(TrackInfo info) => Track(
+  path: info.path,
+  title: info.title,
+  artist: info.artist,
+  album: info.album,
+  albumArtist: info.albumArtist,
+  trackNumber: info.trackNumber?.toInt(),
+  durationSecs: info.durationSecs,
+  sampleRate: info.sampleRate,
+  bitDepth: info.bitDepth?.toInt(),
+  channels: info.channels,
+  format: info.format,
+  fileSizeBytes: info.fileSizeBytes.toInt(),
+  replayGainTrack: info.replayGainTrack,
+  replayGainAlbum: info.replayGainAlbum,
+);
+
+Future<List<Track>> _readTracks(List<String> paths) async {
+  final tracks = <Track>[];
+  for (var i = 0; i < paths.length; i += _kMetaConcurrency) {
+    final end = i + _kMetaConcurrency > paths.length
+        ? paths.length
+        : i + _kMetaConcurrency;
+    final chunk = await Future.wait(
+      paths.sublist(i, end).map((path) async {
+        try {
+          return _trackFromInfo(await backend.readMetadata(path: path));
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
+    tracks.addAll(chunk.whereType<Track>());
+  }
+  return tracks;
 }
 
 final libraryProvider = StateNotifierProvider<LibraryNotifier, LibraryState>(

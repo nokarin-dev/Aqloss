@@ -16,6 +16,9 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 ### Changed
 
 - [Linux|Audio] Exclusive ALSA pauses PipeWire/Pulse so the hardware device can be opened
+- [Audio] Default output is Shared except on Windows (Exclusive)
+- [Library] Metadata scan reads several files at a time
+- [Frontend] Discord Rich Presence uses public cover URLs only; local files are not uploaded
 
 ### Fixed
 
