@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class MediaControlPlatform {
   static const _channel = MethodChannel('xyz.nokarin.aqloss/media_controls');
@@ -38,10 +41,14 @@ class MediaControlPlatform {
       }
     });
 
+    if (Platform.isAndroid) {
+      await Permission.notification.request();
+    }
+
     try {
       await _channel.invokeMethod('init');
     } on MissingPluginException {
-      // Not yet registered in native
+      // iOS/macOS register later in some embeds
     } catch (_) {}
   }
 

@@ -22,6 +22,9 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Fixed
 
+- [Android] Lock screen and notification playback use a media foreground service
+- [iOS] Background audio so lock-screen controls can stay up
+
 - [Frontend] ReplayGain tags are kept when scanning the library (rescan to pick them up)
 - [Audio] Crossfade starts at the fade length instead of 0.1s before the end
 - [Frontend] Playback errors show a snackbar

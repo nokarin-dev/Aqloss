@@ -1,6 +1,5 @@
 package xyz.nokarin.aqloss
 
-import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -23,162 +22,226 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 
 object MediaControlsPlugin : MethodCallHandler {
+    const val NOTIF_ID = 1001
 
-    private const val CHANNEL   = "xyz.nokarin.aqloss/media_controls"
-    private const val NOTIF_ID  = 1001
-    private const val NOTIF_CH  = "aqloss_playback"
-
-    // Broadcast actions for notification buttons
-    private const val ACTION_PLAY     = "xyz.nokarin.aqloss.PLAY"
-    private const val ACTION_PAUSE    = "xyz.nokarin.aqloss.PAUSE"
-    private const val ACTION_NEXT     = "xyz.nokarin.aqloss.NEXT"
+    private const val CHANNEL = "xyz.nokarin.aqloss/media_controls"
+    private const val NOTIF_CH = "aqloss_playback"
+    private const val ACTION_PLAY = "xyz.nokarin.aqloss.PLAY"
+    private const val ACTION_PAUSE = "xyz.nokarin.aqloss.PAUSE"
+    private const val ACTION_NEXT = "xyz.nokarin.aqloss.NEXT"
     private const val ACTION_PREVIOUS = "xyz.nokarin.aqloss.PREVIOUS"
 
-    private lateinit var activity: Activity
+    private var appContext: Context? = null
     private lateinit var methodChannel: MethodChannel
     private var mediaSession: MediaSessionCompat? = null
     private var notifManager: NotificationManager? = null
     private var receiver: BroadcastReceiver? = null
+    private var lastNotification: Notification? = null
+    private var serviceStarted = false
+    private var title = ""
+    private var artist = ""
+    private var album = ""
+    private var isPlaying = false
+    private var posMs = 0L
+    private var durMs = 0L
+    private var art: Bitmap? = null
 
-    fun register(activity: Activity, messenger: BinaryMessenger) {
-        this.activity = activity
+    fun register(activity: android.app.Activity, messenger: BinaryMessenger) {
+        appContext = activity.applicationContext
         methodChannel = MethodChannel(messenger, CHANNEL)
         methodChannel.setMethodCallHandler(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "init"   -> { initSession(); result.success(null) }
-            "update" -> { update(call); result.success(null) }
-            "clear"  -> { clear(); result.success(null) }
-            else     -> result.notImplemented()
+            "init" -> {
+                appContext?.let { ensureSession(it) }
+                result.success(null)
+            }
+            "update" -> {
+                update(call)
+                result.success(null)
+            }
+            "clear" -> {
+                clear()
+                result.success(null)
+            }
+            else -> result.notImplemented()
         }
     }
 
-    // Init
-    private fun initSession() {
+    fun ensureSession(ctx: Context) {
         if (mediaSession != null) return
+        val app = ctx.applicationContext
+        appContext = app
 
-        val ctx = activity.applicationContext
-
-        // Notification channel
+        val mgr = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notifManager = mgr
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(
-                NOTIF_CH, "Playback", NotificationManager.IMPORTANCE_LOW
-            ).apply { description = "Music playback controls" }
-            notifManager = ctx.getSystemService(NotificationManager::class.java)
-            notifManager?.createNotificationChannel(ch)
-        } else {
-            notifManager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            mgr.createNotificationChannel(
+                NotificationChannel(NOTIF_CH, "Playback", NotificationManager.IMPORTANCE_LOW)
+                    .apply { description = "Music playback controls" },
+            )
         }
 
-        // MediaSession
-        mediaSession = MediaSessionCompat(ctx, "AqlossMediaSession").apply {
+        mediaSession = MediaSessionCompat(app, "AqlossMediaSession").apply {
             setCallback(object : MediaSessionCompat.Callback() {
-                override fun onPlay()     { methodChannel.invokeMethod("onPlay", null) }
-                override fun onPause()    { methodChannel.invokeMethod("onPause", null) }
-                override fun onSkipToNext()     { methodChannel.invokeMethod("onNext", null) }
-                override fun onSkipToPrevious() { methodChannel.invokeMethod("onPrevious", null) }
-                override fun onSeekTo(pos: Long) {
-                    methodChannel.invokeMethod("onSeek", pos)
-                }
+                override fun onPlay() { emit("onPlay") }
+                override fun onPause() { emit("onPause") }
+                override fun onSkipToNext() { emit("onNext") }
+                override fun onSkipToPrevious() { emit("onPrevious") }
+                override fun onSeekTo(pos: Long) { emit("onSeek", pos) }
             })
             isActive = true
         }
 
-        // Broadcast receiver
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
-                    ACTION_PLAY     -> methodChannel.invokeMethod("onPlay", null)
-                    ACTION_PAUSE    -> methodChannel.invokeMethod("onPause", null)
-                    ACTION_NEXT     -> methodChannel.invokeMethod("onNext", null)
-                    ACTION_PREVIOUS -> methodChannel.invokeMethod("onPrevious", null)
+                    ACTION_PLAY -> emit("onPlay")
+                    ACTION_PAUSE -> emit("onPause")
+                    ACTION_NEXT -> emit("onNext")
+                    ACTION_PREVIOUS -> emit("onPrevious")
                 }
             }
         }
         val filter = IntentFilter().apply {
-            addAction(ACTION_PLAY); addAction(ACTION_PAUSE)
-            addAction(ACTION_NEXT); addAction(ACTION_PREVIOUS)
+            addAction(ACTION_PLAY)
+            addAction(ACTION_PAUSE)
+            addAction(ACTION_NEXT)
+            addAction(ACTION_PREVIOUS)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ctx.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            app.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            ctx.registerReceiver(receiver, filter)
+            app.registerReceiver(receiver, filter)
         }
     }
 
-    // Update
+    fun notification(ctx: Context): Notification {
+        lastNotification?.let { return it }
+        return placeholder(ctx)
+    }
+
+    fun onServiceStopped() {
+        lastNotification = null
+        serviceStarted = false
+    }
+
     private fun update(call: MethodCall) {
+        val ctx = appContext ?: return
+        ensureSession(ctx)
         val session = mediaSession ?: return
-        val ctx = activity.applicationContext
 
-        val title      = call.argument<String>("title")  ?: ""
-        val artist     = call.argument<String>("artist") ?: ""
-        val album      = call.argument<String>("album")  ?: ""
-        val isPlaying  = call.argument<Boolean>("isPlaying") ?: false
-        val posMs      = call.argument<Int>("positionMs")?.toLong() ?: 0L
-        val durMs      = call.argument<Int>("durationMs")?.toLong() ?: 0L
-        val artBytes   = call.argument<ByteArray>("artBytes")
+        title = call.argument<String>("title") ?: ""
+        artist = call.argument<String>("artist") ?: ""
+        album = call.argument<String>("album") ?: ""
+        isPlaying = call.argument<Boolean>("isPlaying") ?: false
+        posMs = call.argument<Int>("positionMs")?.toLong() ?: 0L
+        durMs = call.argument<Int>("durationMs")?.toLong() ?: 0L
+        art = decodeArt(call.argument<ByteArray>("artBytes"))
 
-        // Decode album art
-        val art: Bitmap? = artBytes?.let {
-            BitmapFactory.decodeByteArray(it, 0, it.size)
-        }
-
-        // Update MediaSession metadata
-        val metaBuilder = MediaMetadataCompat.Builder()
+        val meta = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
             .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durMs)
-        if (art != null) metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art)
-        session.setMetadata(metaBuilder.build())
+        art?.let { meta.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it) }
+        session.setMetadata(meta.build())
 
-        // Update playback state
         val state = if (isPlaying) PlaybackStateCompat.STATE_PLAYING
-                    else           PlaybackStateCompat.STATE_PAUSED
+        else PlaybackStateCompat.STATE_PAUSED
         session.setPlaybackState(
             PlaybackStateCompat.Builder()
                 .setState(state, posMs, 1f)
                 .setActions(
                     PlaybackStateCompat.ACTION_PLAY or
-                    PlaybackStateCompat.ACTION_PAUSE or
-                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                    PlaybackStateCompat.ACTION_SEEK_TO
+                        PlaybackStateCompat.ACTION_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                        PlaybackStateCompat.ACTION_SEEK_TO,
                 )
-                .build()
+                .build(),
         )
 
-        // Build and post notification
-        val notif = buildNotification(ctx, title, artist, album, isPlaying, art, session)
-        notifManager?.notify(NOTIF_ID, notif)
+        lastNotification = buildNotification(ctx, session)
+        if (!serviceStarted) {
+            serviceStarted = true
+            ContextCompat.startForegroundService(ctx, Intent(ctx, PlaybackService::class.java))
+        } else {
+            notifManager?.notify(NOTIF_ID, lastNotification)
+        }
     }
 
-    // Notification builder
-    private fun buildNotification(
-        ctx: Context,
-        title: String,
-        artist: String,
-        album: String,
-        isPlaying: Boolean,
-        art: Bitmap?,
-        session: MediaSessionCompat,
-    ): Notification {
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        else PendingIntent.FLAG_UPDATE_CURRENT
+    private fun clear() {
+        val ctx = appContext ?: return
+        notifManager?.cancel(NOTIF_ID)
+        mediaSession?.setPlaybackState(
+            PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_STOPPED, 0, 1f)
+                .build(),
+        )
+        lastNotification = null
+        ctx.stopService(Intent(ctx, PlaybackService::class.java))
+    }
+
+    private fun emit(method: String, arg: Any? = null) {
+        if (::methodChannel.isInitialized) methodChannel.invokeMethod(method, arg)
+    }
+
+    private fun decodeArt(bytes: ByteArray?): Bitmap? {
+        if (bytes == null || bytes.isEmpty()) return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        var sample = 1
+        while (bounds.outWidth / sample > 256 || bounds.outHeight / sample > 256) {
+            sample *= 2
+        }
+        return BitmapFactory.decodeByteArray(
+            bytes,
+            0,
+            bytes.size,
+            BitmapFactory.Options().apply { inSampleSize = sample },
+        )
+    }
+
+    private fun placeholder(ctx: Context): Notification {
+        ensureChannel(ctx)
+        return NotificationCompat.Builder(ctx, NOTIF_CH)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentTitle("Aqloss")
+            .setSilent(true)
+            .setOngoing(true)
+            .build()
+    }
+
+    private fun ensureChannel(ctx: Context) {
+        if (notifManager == null) {
+            notifManager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            notifManager?.createNotificationChannel(
+                NotificationChannel(NOTIF_CH, "Playback", NotificationManager.IMPORTANCE_LOW),
+            )
+        }
+    }
+
+    private fun buildNotification(ctx: Context, session: MediaSessionCompat): Notification {
+        val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
 
         fun actionIntent(action: String) = PendingIntent.getBroadcast(
-            ctx, action.hashCode(), Intent(action), flags
+            ctx,
+            action.hashCode(),
+            Intent(action).setPackage(ctx.packageName),
+            flags,
         )
 
         val openIntent = PendingIntent.getActivity(
-            ctx, 0,
+            ctx,
+            0,
             ctx.packageManager.getLaunchIntentForPackage(ctx.packageName),
-            flags
+            flags,
         )
 
         return NotificationCompat.Builder(ctx, NOTIF_CH)
@@ -194,32 +257,24 @@ object MediaControlsPlugin : MethodCallHandler {
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(session.sessionToken)
-                    .setShowActionsInCompactView(0, 1, 2) // prev, play/pause, next
+                    .setShowActionsInCompactView(0, 1, 2),
             )
             .addAction(
-                android.R.drawable.ic_media_previous, "Previous",
-                actionIntent(ACTION_PREVIOUS)
+                android.R.drawable.ic_media_previous,
+                "Previous",
+                actionIntent(ACTION_PREVIOUS),
             )
             .addAction(
                 if (isPlaying) android.R.drawable.ic_media_pause
                 else android.R.drawable.ic_media_play,
                 if (isPlaying) "Pause" else "Play",
-                actionIntent(if (isPlaying) ACTION_PAUSE else ACTION_PLAY)
+                actionIntent(if (isPlaying) ACTION_PAUSE else ACTION_PLAY),
             )
             .addAction(
-                android.R.drawable.ic_media_next, "Next",
-                actionIntent(ACTION_NEXT)
+                android.R.drawable.ic_media_next,
+                "Next",
+                actionIntent(ACTION_NEXT),
             )
             .build()
-    }
-
-    // Clear
-    private fun clear() {
-        notifManager?.cancel(NOTIF_ID)
-        mediaSession?.setPlaybackState(
-            PlaybackStateCompat.Builder()
-                .setState(PlaybackStateCompat.STATE_STOPPED, 0, 1f)
-                .build()
-        )
     }
 }

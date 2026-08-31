@@ -31,6 +31,9 @@
     native <methods>;
 }
 
+# Playback service / media session
+-keep class xyz.nokarin.aqloss.** { *; }
+
 # Kotlin
 -keep class kotlin.** { *; }
 -dontwarn kotlin.**
