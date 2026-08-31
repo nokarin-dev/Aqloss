@@ -10,6 +10,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
+- [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus named user presets
 - [Frontend|Player] Sleep timer from the player: 15–60 minutes or end of track
 - [Frontend|Player] Resume each track from its last position, and restore the last queue on launch (paused)
 - [Linux] Arch Linux AUR package `aqloss-bin` (`yay -S aqloss-bin`)

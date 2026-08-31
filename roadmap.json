@@ -176,7 +176,7 @@
             {
                 "title": "EQ presets",
                 "description": "Save/load EQ settings as named presets. Includes several default presets (Rock, Classical, Vocal).",
-                "status": "planned",
+                "status": "done",
                 "category": "Audio · DSP"
             },
             {

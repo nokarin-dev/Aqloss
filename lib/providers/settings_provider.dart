@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:aqloss/services/gpu_pref.dart';
 import 'package:aqloss/theme/ui_framework.dart';
+import 'package:aqloss/util/eq_presets.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -111,6 +112,7 @@ const _kListenBrainzToken = 'aqloss_listenbrainz_token';
 const _kListenBrainzUser = 'aqloss_listenbrainz_user';
 const _kEqEnabled = 'aqloss_eq_enabled';
 const _kEqGains = 'aqloss_eq_gains';
+const _kEqUserPresets = 'aqloss_eq_user_presets';
 const _kNotchFilter = 'aqloss_notch_filter';
 const _kSkipSilence = 'aqloss_skip_silence';
 const _kShowAlbumArtBg = 'aqloss_album_art_bg';
@@ -136,6 +138,7 @@ class SettingsState {
   final StopAfterMode stopAfter;
   final bool eqEnabled;
   final List<double> eqGains;
+  final List<EqPreset> eqUserPresets;
   final bool notchFilter;
   final ThemeMode themeMode;
   final AppStyle appStyle;
@@ -177,6 +180,7 @@ class SettingsState {
     this.stopAfter = StopAfterMode.off,
     this.eqEnabled = false,
     this.eqGains = const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    this.eqUserPresets = const [],
     this.notchFilter = true,
     this.themeMode = ThemeMode.dark,
     this.appStyle = AppStyle.legacy,
@@ -254,6 +258,7 @@ class SettingsState {
     StopAfterMode? stopAfter,
     bool? eqEnabled,
     List<double>? eqGains,
+    List<EqPreset>? eqUserPresets,
     bool? notchFilter,
     ThemeMode? themeMode,
     AppStyle? appStyle,
@@ -299,6 +304,7 @@ class SettingsState {
     stopAfter: stopAfter ?? this.stopAfter,
     eqEnabled: eqEnabled ?? this.eqEnabled,
     eqGains: eqGains ?? this.eqGains,
+    eqUserPresets: eqUserPresets ?? this.eqUserPresets,
     notchFilter: notchFilter ?? this.notchFilter,
     themeMode: themeMode ?? this.themeMode,
     appStyle: appStyle ?? this.appStyle,
@@ -363,7 +369,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       skipSilence: p.getBool(_kSkipSilence) ?? false,
       stopAfter: StopAfterMode.values[(p.getInt(_kStopAfter) ?? 0).clamp(0, 2)],
       eqEnabled: p.getBool(_kEqEnabled) ?? false,
-      eqGains: eqGains,
+      eqGains: normalizeEqGains(eqGains),
+      eqUserPresets: decodeEqUserPresets(p.getString(_kEqUserPresets)),
       notchFilter: p.getBool(_kNotchFilter) ?? true,
       themeMode: ThemeMode.values[(p.getInt(_kTheme) ?? 0).clamp(0, 2)],
       appStyle:
@@ -432,6 +439,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         _kEqGains,
         state.eqGains.map((g) => g.toString()).toList(),
       ),
+      p.setString(_kEqUserPresets, encodeEqUserPresets(state.eqUserPresets)),
       p.setBool(_kNotchFilter, state.notchFilter),
       p.setInt(_kTheme, state.themeMode.index),
       p.setInt(_kAppStyle, state.appStyle.index),
@@ -702,6 +710,39 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void resetEq() {
     state = state.copyWith(eqGains: List.filled(10, 0.0));
+    _save();
+  }
+
+  void applyEqPreset(EqPreset preset) {
+    state = state.copyWith(
+      eqGains: normalizeEqGains(preset.gains),
+      eqEnabled: true,
+    );
+    _save();
+  }
+
+  EqPresetSaveResult saveEqPreset(String rawName) {
+    final name = sanitizeEqPresetName(rawName);
+    if (name == null) return EqPresetSaveResult.emptyName;
+    if (isBuiltInEqPresetName(name)) return EqPresetSaveResult.builtInName;
+    final next = upsertEqUserPreset(
+      state.eqUserPresets,
+      name: name,
+      gains: state.eqGains,
+    );
+    if (next == null) return EqPresetSaveResult.full;
+    state = state.copyWith(eqUserPresets: next);
+    _save();
+    return EqPresetSaveResult.ok;
+  }
+
+  void deleteEqUserPreset(String name) {
+    final next = [
+      for (final p in state.eqUserPresets)
+        if (p.name.toLowerCase() != name.toLowerCase()) p,
+    ];
+    if (next.length == state.eqUserPresets.length) return;
+    state = state.copyWith(eqUserPresets: next);
     _save();
   }
 
