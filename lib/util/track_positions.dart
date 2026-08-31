@@ -15,6 +15,19 @@ double? resumePositionSecs(double saved, double duration) {
 bool shouldSavePosition(double secs, double duration) =>
     resumePositionSecs(secs, duration) != null;
 
+double playbackStartSecs({
+  required bool resumeOnOpen,
+  required double duration,
+  double? reopenSecs,
+  double? storedSecs,
+}) {
+  if (!resumeOnOpen) return 0;
+  if (reopenSecs != null) {
+    return resumePositionSecs(reopenSecs, duration) ?? 0;
+  }
+  return resumePositionSecs(storedSecs ?? 0, duration) ?? 0;
+}
+
 Map<String, double> upsertPosition(
   Map<String, double> current,
   String path,

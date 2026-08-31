@@ -40,6 +40,7 @@ void main() {
       lastFmSessionKey: 'sess',
       listenBrainzToken: 'tok',
       hardwareAcceleration: false,
+      closeToTray: false,
       loaded: true,
     );
     final playlists = [
@@ -75,6 +76,7 @@ void main() {
     expect(restored.lastFmSessionKey, 'sess');
     expect(restored.listenBrainzToken, 'tok');
     expect(restored.hardwareAcceleration, isFalse);
+    expect(restored.closeToTray, isFalse);
     expect(restored.uiFramework, UiFramework.material3);
   });
 
@@ -113,5 +115,6 @@ void main() {
     expect(restored.crossfade, CrossfadeMode.off);
     expect(restored.eqGains.first, 12.0);
     expect(restored.eqGains[1], -12.0);
+    expect(restored.closeToTray, isTrue);
   });
 }

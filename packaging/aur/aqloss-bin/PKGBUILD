@@ -7,7 +7,7 @@ pkgdesc="Music player with a Rust audio engine for bit-perfect and hi-res playba
 arch=('x86_64')
 url="https://github.com/nokarin-dev/Aqloss"
 license=('GPL-3.0-or-later')
-depends=('gtk3' 'alsa-lib' 'xz' 'hicolor-icon-theme')
+depends=('gtk3' 'alsa-lib' 'xz' 'hicolor-icon-theme' 'libayatana-appindicator')
 optdepends=(
   'pipewire-pulse: shared-mode playback through PipeWire'
   'zenity: folder picker on Hyprland and other compositors'

@@ -64,7 +64,7 @@ flutter run -d windows
 
 ```bash
 sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
-  libasound2-dev libpulse-dev
+  libasound2-dev libpulse-dev libayatana-appindicator3-dev
 flutter run -d linux
 ```
 

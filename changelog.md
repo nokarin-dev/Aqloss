@@ -8,6 +8,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ### Added
 
+- [Frontend|Player] Minimize to the system tray and control playback from the tray menu
 - [Frontend|Player] A-B loop: set two points on the current track and repeat that section
 - [Frontend|Settings] Export and restore settings, playlists, and music folders as one file
 - [Frontend|Library] Tracks whose files were moved or deleted leave the library, with a notice
@@ -16,7 +17,7 @@ What changed in each Aqloss release, written for people who use the app.
 - [Frontend|Player] Track info: tags, format, path, ReplayGain, and play count
 - [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus your own named presets
 - [Frontend|Player] Sleep timer: 15–60 minutes, or stop at the end of the track
-- [Frontend|Player] Resume each track where you left off, and restore the last queue on launch (paused)
+- [Frontend|Player] Resume the last track where you left off when you reopen the app, and restore the last queue on launch (paused)
 - [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
 

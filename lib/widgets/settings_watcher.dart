@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:aqloss/app_version.dart';
 import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -8,6 +11,7 @@ import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/services/loved_sync.dart';
 import 'package:aqloss/services/notifier/media_control_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
+import 'package:aqloss/services/tray_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/util/update_check.dart';
@@ -36,6 +40,9 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   LibraryStatus? _prevLibraryStatus;
   int _prevMissingRemoved = 0;
   bool _updateCheckStarted = false;
+  bool _trayStarted = false;
+  String? _trayTrack;
+  bool? _trayPlaying;
 
   static const _kUpdateNotified = 'aqloss_update_notified';
 
@@ -87,6 +94,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _showLibraryScan(library);
       _showMissingRemoved(library);
       _checkUpdateToast(s);
+      _syncTray(s, player);
     });
 
     return widget.child;
@@ -299,5 +307,45 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       await prefs.setString(_kUpdateNotified, ver);
       if (mounted) _notice(updateAvailableMessage(ver));
     });
+  }
+
+  void _syncTray(SettingsState s, PlayerState player) {
+    if (!s.loaded) return;
+    if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) return;
+
+    if (!_trayStarted) {
+      _trayStarted = true;
+      final n = ref.read(playerProvider.notifier);
+      final tray = TrayService.instance;
+      tray.onShow = () {
+        unawaited(tray.showWindow());
+      };
+      tray.onPlayPause = () {
+        if (ref.read(playerProvider).status == PlayerStatus.playing) {
+          n.pause();
+        } else {
+          n.play();
+        }
+      };
+      tray.onNext = n.skipNext;
+      tray.onPrevious = n.skipPrevious;
+      tray.onQuit = () {
+        n.persistPlayback();
+        unawaited(tray.quitApp());
+      };
+    }
+
+    final playing = player.status == PlayerStatus.playing;
+    final path = player.currentTrack?.path;
+    if (path == _trayTrack && playing == _trayPlaying) return;
+    _trayTrack = path;
+    _trayPlaying = playing;
+    unawaited(
+      TrayService.instance.sync(
+        playing: playing,
+        title: player.currentTrack?.displayTitle,
+        artist: player.currentTrack?.displayArtist,
+      ),
+    );
   }
 }

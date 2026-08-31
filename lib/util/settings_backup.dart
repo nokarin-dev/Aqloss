@@ -67,6 +67,7 @@ Map<String, dynamic> settingsToJson(SettingsState s) => {
   'discordRpc': s.discordRpc,
   'materialYou': s.materialYou,
   'hardwareAcceleration': s.hardwareAcceleration,
+  'closeToTray': s.closeToTray,
 };
 
 SettingsState settingsFromJson(
@@ -170,6 +171,7 @@ SettingsState settingsFromJson(
     discordRpc: json['discordRpc'] as bool? ?? true,
     materialYou: json['materialYou'] as bool? ?? false,
     hardwareAcceleration: json['hardwareAcceleration'] as bool? ?? true,
+    closeToTray: json['closeToTray'] as bool? ?? true,
     loaded: true,
   );
 }

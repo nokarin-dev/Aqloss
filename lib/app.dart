@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/services/file_open_service.dart';
+import 'package:aqloss/services/tray_service.dart';
 import 'package:aqloss/theme/dynamic_scheme.dart';
 import 'package:aqloss/theme/material3_theme.dart';
 import 'package:aqloss/theme/standalone_theme.dart';
@@ -20,6 +22,8 @@ import 'package:window_manager/window_manager.dart';
 import 'screens/home_screen.dart';
 
 bool get _isLinux => Platform.isLinux;
+bool get _isDesktop =>
+    Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
 class AqlossApp extends ConsumerStatefulWidget {
   const AqlossApp({super.key});
@@ -36,8 +40,10 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_isLinux) {
+    if (_isDesktop) {
       windowManager.addListener(this);
+    }
+    if (_isLinux) {
       bindWindowChromeChannel((flush) {
         if (!mounted) return;
         if (ref.read(windowFlushProvider) == flush) return;
@@ -50,7 +56,7 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (_isLinux) windowManager.removeListener(this);
+    if (_isDesktop) windowManager.removeListener(this);
     super.dispose();
   }
 
@@ -67,7 +73,18 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
 
   @override
   void onWindowClose() {
+    unawaited(_handleWindowClose());
+  }
+
+  Future<void> _handleWindowClose() async {
     ref.read(playerProvider.notifier).persistPlayback();
+    if (!_isDesktop) return;
+    if (TrayService.instance.isQuitting) return;
+    if (ref.read(settingsProvider).closeToTray) {
+      await TrayService.instance.hideToTray();
+      return;
+    }
+    await TrayService.instance.quitApp();
   }
 
   Future<void> _checkMaximize() async {

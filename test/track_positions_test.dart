@@ -17,6 +17,30 @@ void main() {
     expect(resumePositionSecs(4, 0), isNull);
   });
 
+  test('skip and play start at zero; reopen can resume', () {
+    expect(
+      playbackStartSecs(resumeOnOpen: false, duration: 180, storedSecs: 20),
+      0,
+    );
+    expect(
+      playbackStartSecs(resumeOnOpen: true, duration: 180, reopenSecs: 20),
+      20,
+    );
+    expect(
+      playbackStartSecs(resumeOnOpen: true, duration: 180, reopenSecs: 3),
+      0,
+    );
+    expect(
+      playbackStartSecs(
+        resumeOnOpen: true,
+        duration: 180,
+        reopenSecs: 20,
+        storedSecs: 90,
+      ),
+      20,
+    );
+  });
+
   test('upsert drops the oldest when over cap', () {
     var map = <String, double>{};
     for (var i = 0; i < 201; i++) {

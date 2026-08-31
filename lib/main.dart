@@ -54,6 +54,7 @@ void main(List<String> args) async {
         await windowManager.focus();
       },
     );
+    await windowManager.setPreventClose(true);
   }
 
   await AqlossCore.init();
@@ -93,13 +94,17 @@ Future<(String?, bool, double)> _loadStartupPrefs() async {
   try {
     final p = await SharedPreferences.getInstance();
     final deviceId = p.getString('aqloss_selected_device_id');
-    final modeIdx = p.getInt('aqloss_output_mode') ??
-        platformDefaultOutputMode().index;
+    final modeIdx =
+        p.getInt('aqloss_output_mode') ?? platformDefaultOutputMode().index;
     final exclusive = modeIdx == AudioOutputMode.exclusive.index;
     final volume = (p.getDouble('aqloss_volume') ?? 1.0).clamp(0.0, 1.0);
     return (deviceId, exclusive, volume);
   } catch (_) {
-    return (null, platformDefaultOutputMode() == AudioOutputMode.exclusive, 1.0);
+    return (
+      null,
+      platformDefaultOutputMode() == AudioOutputMode.exclusive,
+      1.0,
+    );
   }
 }
 

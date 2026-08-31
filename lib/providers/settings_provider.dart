@@ -125,6 +125,7 @@ const _kHaasMs = 'aqloss_haas_ms';
 const _kDiscordRpc = 'aqloss_discord_rpc';
 const _kMaterialYou = 'aqloss_material_you';
 const _kHwAccel = 'aqloss_hw_accel';
+const _kCloseToTray = 'aqloss_close_to_tray';
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -166,6 +167,7 @@ class SettingsState {
   final bool discordRpc;
   final bool materialYou;
   final bool hardwareAcceleration;
+  final bool closeToTray;
   final bool loaded;
 
   const SettingsState({
@@ -208,6 +210,7 @@ class SettingsState {
     this.discordRpc = true,
     this.materialYou = false,
     this.hardwareAcceleration = true,
+    this.closeToTray = true,
     this.loaded = false,
   });
 
@@ -289,6 +292,7 @@ class SettingsState {
     bool? discordRpc,
     bool? materialYou,
     bool? hardwareAcceleration,
+    bool? closeToTray,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -339,6 +343,7 @@ class SettingsState {
     discordRpc: discordRpc ?? this.discordRpc,
     materialYou: materialYou ?? this.materialYou,
     hardwareAcceleration: hardwareAcceleration ?? this.hardwareAcceleration,
+    closeToTray: closeToTray ?? this.closeToTray,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -416,6 +421,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       discordRpc: p.getBool(_kDiscordRpc) ?? true,
       materialYou: p.getBool(_kMaterialYou) ?? false,
       hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
+      closeToTray: p.getBool(_kCloseToTray) ?? true,
       loaded: true,
     );
     GpuPref.write(state.hardwareAcceleration);
@@ -481,6 +487,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setBool(_kDiscordRpc, state.discordRpc),
       p.setBool(_kMaterialYou, state.materialYou),
       p.setBool(_kHwAccel, state.hardwareAcceleration),
+      p.setBool(_kCloseToTray, state.closeToTray),
     ]);
   }
 
@@ -771,6 +778,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(hardwareAcceleration: !state.hardwareAcceleration);
     _save();
     GpuPref.write(state.hardwareAcceleration);
+  }
+
+  void toggleCloseToTray() {
+    state = state.copyWith(closeToTray: !state.closeToTray);
+    _save();
   }
 
   Future<void> applyBackup(SettingsState next) async {

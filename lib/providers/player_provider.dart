@@ -241,6 +241,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       await _loadAndPlay(
         queue[idx],
         autoplay: false,
+        resume: true,
         resumeSecsOverride: snap.positionSecs,
       );
     } finally {
@@ -415,7 +416,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     Track track, {
     bool stopFirst = true,
     bool autoplay = true,
-    bool resume = true,
+    bool resume = false,
     double? resumeSecsOverride,
   }) async {
     final prev = state.currentTrack;
@@ -466,18 +467,16 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       await PositionStore.instance.ensureLoaded();
       double start = 0;
       if (resume) {
-        var saved = PositionStore.instance.resumeSecs(
-          track.path,
-          track.durationSecs,
+        start = playbackStartSecs(
+          resumeOnOpen: true,
+          duration: track.durationSecs,
+          reopenSecs: resumeSecsOverride,
+          storedSecs: PositionStore.instance.resumeSecs(
+            track.path,
+            track.durationSecs,
+          ),
         );
-        saved ??= resumePositionSecs(
-          resumeSecsOverride ?? 0,
-          track.durationSecs,
-        );
-        if (saved != null) {
-          await AudioService.seek(saved);
-          start = saved;
-        }
+        if (start > 0) await AudioService.seek(start);
       } else {
         PositionStore.instance.clearPath(track.path);
       }

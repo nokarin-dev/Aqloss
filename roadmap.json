@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.2",
-        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
+        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
         "status": "in-progress",
         "items": [
             {
@@ -12,7 +12,7 @@
             },
             {
                 "title": "Restore position",
-                "description": "Resume each track where you left off when you reopen the app.",
+                "description": "When you reopen the app, the last track continues where you left off. Skip and previous start from the beginning.",
                 "status": "done",
                 "category": "Player"
             },
@@ -105,6 +105,12 @@
                 "description": "Repeat a section of the current track between two points you set.",
                 "status": "done",
                 "category": "Player"
+            },
+            {
+                "title": "System tray",
+                "description": "Minimize to the tray and control playback from a small panel without opening the full window.",
+                "status": "done",
+                "category": "Player"
             }
         ]
     },
@@ -178,12 +184,6 @@
                 "description": "Fill in extra details such as genre, year, and label from MusicBrainz.",
                 "status": "planned",
                 "category": "Library"
-            },
-            {
-                "title": "System tray",
-                "description": "Minimize to the tray and control playback from a small panel without opening the full window.",
-                "status": "planned",
-                "category": "Player"
             },
             {
                 "title": "Android folders",

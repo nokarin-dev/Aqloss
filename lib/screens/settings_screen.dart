@@ -1508,6 +1508,17 @@ class _DisplayPane extends ConsumerWidget {
               value: s.hardwareAcceleration,
               onChanged: (_) => n.toggleHardwareAcceleration(),
             ),
+            if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
+              _Div(),
+              _ToggleRow(
+                icon: Icons.desktop_windows_outlined,
+                title: 'Close to tray',
+                subtitle:
+                    'Closing the window keeps music playing. Quit from the tray icon to exit.',
+                value: s.closeToTray,
+                onChanged: (_) => n.toggleCloseToTray(),
+              ),
+            ],
             _Div(),
             _ToggleRow(
               icon: Icons.image_outlined,
