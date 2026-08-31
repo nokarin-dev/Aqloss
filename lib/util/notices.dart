@@ -19,3 +19,13 @@ String missingPlaylistFilesMessage(int count) {
   if (count == 1) return '1 file missing';
   return '$count files missing';
 }
+
+const kBackupSavedMessage = 'Backup saved';
+
+const kBackupRestoredMessage = 'Backup restored';
+
+const kBackupSaveFailedMessage = 'Could not save backup';
+
+const kBackupFailedMessage = 'Could not restore backup';
+
+const kBackupInvalidMessage = 'This is not an Aqloss backup';

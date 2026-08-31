@@ -1,8 +1,6 @@
 # Changelog
 
-All notable changes to Aqloss are documented here.
-
-This project loosely follows Keep a Changelog and uses Semantic Versioning.
+What changed in each Aqloss release, written for people who use the app.
 
 ---
 
@@ -10,38 +8,38 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
-- [Library] Drop tracks whose files were moved or deleted, with a toast
-- [Frontend|Playlists] Missing files are marked; Remove clears them, and play skips them
-- [Frontend|UI] Toast when a library scan finishes, a scrobble fails, or a new version is available
-- [Frontend|Player] Track info sheet: tags, codec, path, ReplayGain, and play count
-- [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus named user presets
-- [Frontend|Player] Sleep timer from the player: 15–60 minutes or end of track
-- [Frontend|Player] Resume each track from its last position, and restore the last queue on launch (paused)
-- [Linux] Arch Linux AUR package `aqloss-bin` (`yay -S aqloss-bin`)
+- [Frontend|Settings] Export and restore settings, playlists, and music folders as one file
+- [Frontend|Library] Tracks whose files were moved or deleted leave the library, with a notice
+- [Frontend|Playlists] Missing files are marked so you can remove them; play skips them
+- [Frontend|UI] A notice when a folder scan finishes, a scrobble fails, or a new version is available
+- [Frontend|Player] Track info: tags, format, path, ReplayGain, and play count
+- [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus your own named presets
+- [Frontend|Player] Sleep timer: 15–60 minutes, or stop at the end of the track
+- [Frontend|Player] Resume each track where you left off, and restore the last queue on launch (paused)
+- [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
 
 ### Changed
 
-- [Linux|Audio] Exclusive ALSA pauses PipeWire/Pulse so the hardware device can be opened
-- [Audio] Default output is Shared except on Windows (Exclusive)
-- [Library] Metadata scan reads several files at a time
-- [Frontend] Discord Rich Presence uses public cover URLs only; local files are not uploaded
+- [Linux|Audio] Exclusive mode can take over your DAC
+- [Audio] New installs use Shared output, except on Windows (Exclusive)
+- [Frontend|Library] Large folders scan faster
+- [Frontend] Discord status uses public cover art only; your local files stay on this computer
 
 ### Fixed
 
-- [Android] Lock screen and notification playback use a media foreground service
-- [iOS] Background audio so lock-screen controls can stay up
-
-- [Frontend] ReplayGain tags are kept when scanning the library (rescan to pick them up)
-- [Audio] Crossfade starts at the fade length instead of 0.1s before the end
-- [Frontend] Playback errors show a snackbar
-- [Library] DSD (`.dsf` / `.dff`) is no longer scanned
-- [Android] Release builds can use the network (update check, Last.fm, lyrics)
-- [Frontend|Settings] Update check no longer dumps a socket exception when offline
-- [Audio] Exclusive mode could not take the DAC: the shared mixer stream stayed open, so ALSA `hw:` reported busy and WASAPI returned device-in-use
-- [Linux|Audio] A pinned ALSA device is no longer replaced when PipeWire's default sink list refreshes
-- [Linux|Audio] Output device list no longer clones the same card for every ALSA PCM (`plughw`, `surround`, `hdmi`, …)
-- [Linux|Audio] Saved system-default output is found again instead of warning that the device is missing
+- [Android] Lock screen, notification, and headset controls work while music plays
+- [iOS] Lock-screen controls stay available in the background
+- [Frontend|Library] ReplayGain tags in your files are used after a scan (rescan to pick them up)
+- [Audio] Crossfade uses the full length you picked
+- [Frontend] Playback errors show a message
+- [Library] DSD files (`.dsf` / `.dff`) are no longer added to the library
+- [Android] Update check, Last.fm, and lyrics work in the release app
+- [Frontend|Settings] Offline update check shows a short message instead of a network error
+- [Backend|Audio] Exclusive mode can take the DAC instead of failing silently
+- [Linux|Audio] The output you picked stays selected when devices refresh
+- [Linux|Audio] Each sound card appears once in the output list
+- [Linux|Audio] The saved system-default output is found again
 
 ---
 

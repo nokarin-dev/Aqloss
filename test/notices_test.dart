@@ -18,4 +18,10 @@ void main() {
     expect(missingPlaylistFilesMessage(1), '1 file missing');
     expect(missingPlaylistFilesMessage(4), '4 files missing');
   });
+
+  test('backup copy is short', () {
+    expect(kBackupSavedMessage, 'Backup saved');
+    expect(kBackupRestoredMessage, 'Backup restored');
+    expect(kBackupInvalidMessage, 'This is not an Aqloss backup');
+  });
 }

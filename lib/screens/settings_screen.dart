@@ -17,15 +17,19 @@ import 'package:aqloss/services/folder_picker.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:aqloss/providers/settings_provider.dart';
-import 'package:aqloss/theme/aqloss_tokens.dart';
-import 'package:aqloss/theme/ui_framework.dart';
-import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
+import 'package:aqloss/providers/playlist_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/services/settings_backup_service.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/android_path_helper.dart';
+import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/util/open_url.dart';
+import 'package:aqloss/util/settings_backup.dart';
 import 'package:aqloss/util/support_links.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -61,8 +65,7 @@ extension _SettingsPageX on _SettingsPage {
   };
 
   String get subtitle => switch (this) {
-    _SettingsPage.musicFolders =>
-      'Directories that Shiranami watches for audio files',
+    _SettingsPage.musicFolders => 'Folders Aqloss scans for audio files',
     _SettingsPage.audioOutput => 'Device and output mode selection',
     _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
     _SettingsPage.dsp => 'Equalizer, soft-clip, stereo width and depth',
@@ -73,7 +76,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.plugins => 'Installed third-party and built-in plugins',
     _SettingsPage.updates => 'Check for new releases',
     _SettingsPage.support => 'Ko-fi, Trakteer, and other ways to help',
-    _SettingsPage.about => 'Version info and logs',
+    _SettingsPage.about => 'Version, logs, and backup',
   };
 
   IconData get icon => switch (this) {
@@ -2691,12 +2694,67 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
 }
 
 // About pane
-class _AboutPane extends StatelessWidget {
+class _AboutPane extends ConsumerWidget {
   final VoidCallback onOpenSupport;
   const _AboutPane({required this.onOpenSupport});
 
+  void _snack(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _export(BuildContext context, WidgetRef ref) async {
+    final result = await SettingsBackupService.export(
+      settings: ref.read(settingsProvider),
+      playlists: ref.read(playlistProvider),
+      folders: ref.read(libraryProvider).folders,
+    );
+    if (!context.mounted) return;
+    if (result.success) {
+      _snack(context, kBackupSavedMessage);
+    } else if (result.error != null) {
+      _snack(context, result.error!);
+    }
+  }
+
+  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+    final picked = await SettingsBackupService.import();
+    if (!context.mounted) return;
+    if (!picked.success) {
+      if (picked.error != null) _snack(context, picked.error!);
+      return;
+    }
+    final payload = picked.payload;
+    if (payload == null) return;
+    final confirmed = await showUiDialog<bool>(
+      context: context,
+      title: 'Restore backup?',
+      content: const Text('This replaces your current settings and playlists.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Restore'),
+        ),
+      ],
+    );
+    if (confirmed != true || !context.mounted) return;
+    final settings = settingsFromJson(
+      payload.settings,
+      defaultOutputMode: platformDefaultOutputMode(),
+    );
+    await ref.read(settingsProvider.notifier).applyBackup(settings);
+    await ref.read(playlistProvider.notifier).replaceAll(payload.playlists);
+    await ref.read(libraryProvider.notifier).restoreFolders(payload.folders);
+    if (context.mounted) _snack(context, kBackupRestoredMessage);
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return _Pane(
       page: _SettingsPage.about,
       children: [
@@ -2760,6 +2818,42 @@ class _AboutPane extends StatelessWidget {
                       final logDirPath = p.join(appDir.path, 'logs');
                       OpenFile.open(logDirPath);
                     },
+                  ),
+                ],
+              ),
+            ),
+            _Div(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.backup_rounded,
+                    size: 15,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Backup',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.42),
+                      ),
+                    ),
+                  ),
+                  _HoverTextBtn(
+                    label: 'Export',
+                    onTap: () => _export(context, ref),
+                  ),
+                  const SizedBox(width: 8),
+                  _HoverTextBtn(
+                    label: 'Restore',
+                    onTap: () => _restore(context, ref),
                   ),
                 ],
               ),

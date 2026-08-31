@@ -772,6 +772,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _save();
     GpuPref.write(state.hardwareAcceleration);
   }
+
+  Future<void> applyBackup(SettingsState next) async {
+    state = next.copyWith(loaded: true);
+    await _save();
+    GpuPref.write(state.hardwareAcceleration);
+  }
 }
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(

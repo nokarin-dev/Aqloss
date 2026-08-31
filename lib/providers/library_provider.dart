@@ -464,6 +464,27 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     _deletePersistedState();
     state = const LibraryState();
   }
+
+  Future<void> restoreFolders(List<String> folders) async {
+    final updated = [
+      for (final f in folders)
+        if (f.trim().isNotEmpty) f.trim(),
+    ];
+    await _saveFolders(updated);
+    if (updated.isEmpty) {
+      await _deletePersistedState();
+      if (mounted) state = const LibraryState();
+      return;
+    }
+    if (mounted) {
+      state = state.copyWith(
+        folders: updated,
+        status: LibraryStatus.scanning,
+        missingRemoved: 0,
+      );
+    }
+    await _scanAll(updated);
+  }
 }
 
 Track _trackFromInfo(TrackInfo info) => Track(
