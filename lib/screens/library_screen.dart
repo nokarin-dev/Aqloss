@@ -5,6 +5,7 @@ import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/q_sheet.dart';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -488,7 +489,7 @@ class _TrackListState extends ConsumerState<_TrackList> {
   static const _kItemH = 56.0;
   String? _lastScrolledPath;
 
-@override
+  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -776,6 +777,13 @@ class _TrackOptions extends ConsumerWidget {
             onTap: () {
               Navigator.pop(context);
               requestShowArtist(context, ref, artist: libraryArtistOf(track));
+            },
+          ),
+          UiListTile(
+            title: 'Track info',
+            onTap: () {
+              Navigator.pop(context);
+              showTrackInfoSheet(context, track);
             },
           ),
           if (playlists.isNotEmpty) ...[

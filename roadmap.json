@@ -1,98 +1,86 @@
 [
     {
-        "title": "v1.0.1",
-        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, Hyprland folder picker, M3 progress, and native-rate exclusive output.",
-        "status": "done",
+        "title": "v1.0.2",
+        "subtitle": "Sleep timer, restore position, EQ presets, track info, exclusive DAC takeover, Android lock-screen playback, Support links, and AUR.",
+        "status": "in-progress",
         "items": [
             {
-                "title": "Opus Playback",
-                "description": "Decode typical .opus (Ogg Opus) files through libopus and the Symphonia adapter.",
+                "title": "Sleep timer",
+                "description": "Automatically stop playback after a specified time.",
                 "status": "done",
-                "category": "Core · Audio"
+                "category": "Player · Playback"
             },
             {
-                "title": "macOS Sequoia Launch Crash",
-                "description": "Link vendored Lua into the macOS/iOS staticlib so the app no longer dies on missing _luaopen_base at launch.",
+                "title": "Restore position",
+                "description": "Remember the last position of each track when the app is closed and reopened.",
                 "status": "done",
-                "category": "System · Platform"
+                "category": "Player · Playback"
             },
             {
-                "title": "Windows SFX Installer",
-                "description": "Patch the 7z SFX stub before concatenating the payload so rcedit cannot truncate the installer to ~100 KB.",
+                "title": "EQ presets",
+                "description": "Save/load EQ settings as named presets. Includes several default presets (Rock, Classical, Vocal).",
                 "status": "done",
-                "category": "Frontend · Windows"
+                "category": "Audio · DSP"
             },
             {
-                "title": "Rolling Apple Build",
-                "description": "Unsigned macOS and iOS builds live on a single Apple Build prerelease, overwritten on each stable tag. Stable v* releases stay Windows, Linux, and Android.",
-                "status": "done",
-                "category": "Tooling · CI"
-            },
-            {
-                "title": "Now Playing Card Toggle",
-                "description": "Hide the top now playing card by default; opt in from Settings → Display. Mini player shows artist and album.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Queue improvements",
-                "description": "Play next and add to queue from track/album context menus, jump to album or artist from the queue, and drop the duplicate drag handle on queue rows.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Half-screen layout",
-                "description": "Linux tiled/half-screen drops fake CSD padding and rounded corners so the app fills the tile. Narrow panes use a cover Now Playing layout; maximized panes keep lyrics under the cover with a reserved share of the column height.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Hyprland folder picker",
-                "description": "Add Folder did nothing on Hyprland. Pick with zenity/kdialog, or from a dialog in the app. Adding a folder must not use a disposed Riverpod ref after the picker closes (#26).",
-                "status": "done",
-                "category": "Frontend · Linux"
-            },
-            {
-                "title": "Queue search",
-                "description": "Filter the current queue to jump to a track. Shuffle should order the remaining queue instead of picking a random index, so Play Next stays next. Playing a library/search result should not replace the queue with the visible results.",
-                "status": "done",
-                "category": "Frontend · Player"
-            },
-            {
-                "title": "M3 playback progress",
-                "description": "Material 3 seek stays wavy for the whole track, click-seeks without snapping back, pauses as a flat bar, and draws the wave and play ring with a per-pixel shader so curves stay smooth. The unused part of the play ring waves in sync in the inactive colour.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Pause resume skip",
-                "description": "Pausing no longer discards the output buffer, which skipped the track forward on play.",
-                "status": "done",
-                "category": "Audio · Playback"
-            },
-            {
-                "title": "Loved track sync",
-                "description": "Import Last.fm and ListenBrainz likes onto matching local files. Heart toggles in the app also update those services.",
-                "status": "done",
-                "category": "Frontend · Integrations"
-            },
-            {
-                "title": "Hardware acceleration",
-                "description": "Settings toggle for GPU vs software UI rendering. Restart the app after changing it.",
-                "status": "done",
-                "category": "Frontend · Settings"
-            },
-            {
-                "title": "Native-rate exclusive output",
-                "description": "WASAPI Exclusive follows the track sample rate and uses integer PCM with TPDF dither on 16-bit. Linux lists ALSA hardware endpoints for exclusive-style exact-rate output; default playback uses PipeWire.",
+                "title": "Exclusive DAC takeover",
+                "description": "Exclusive ALSA pauses PipeWire/Pulse so hw: can open. WASAPI exclusive drops the shared mixer first. Failed exclusive switches show an error instead of falling back silently.",
                 "status": "done",
                 "category": "Audio · Output"
             },
             {
-                "title": "Lower output latency",
-                "description": "Shorter playback ring and callback size so exclusive and shared output start with less buffering.",
+                "title": "Android lock screen playback",
+                "description": "Foreground media session so lock screen, notification, and headset controls work.",
+                "status": "done",
+                "category": "System · Android"
+            },
+            {
+                "title": "Support page",
+                "description": "Settings Support links: Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako.",
+                "status": "done",
+                "category": "Frontend · Settings"
+            },
+            {
+                "title": "AUR aqloss-bin",
+                "description": "Arch Linux binary package aqloss-bin for yay/paru.",
+                "status": "done",
+                "category": "Tooling · Linux"
+            },
+            {
+                "title": "ReplayGain on scan",
+                "description": "Library scan keeps ReplayGain track and album tags from the file.",
+                "status": "done",
+                "category": "Library · Audio"
+            },
+            {
+                "title": "Crossfade timing",
+                "description": "Crossfade starts at the fade length instead of 0.1s before the end, and the engine can swap to a queued decoder.",
                 "status": "done",
                 "category": "Audio · Playback"
+            },
+            {
+                "title": "Faster library scan",
+                "description": "Metadata scan reads several files at a time.",
+                "status": "done",
+                "category": "Library · Performance"
+            },
+            {
+                "title": "Shared output default",
+                "description": "Default output is Shared except on Windows (Exclusive). Saved prefs are not overwritten.",
+                "status": "done",
+                "category": "Audio · Output"
+            },
+            {
+                "title": "Discord public covers",
+                "description": "Rich Presence uses public cover URLs only. Local files are not uploaded.",
+                "status": "done",
+                "category": "Frontend · Integrations"
+            },
+            {
+                "title": "Track info modal",
+                "description": "Track details: all tags, codec information, file path, ReplayGain values, play count.",
+                "status": "done",
+                "category": "Frontend · UI"
             }
         ]
     },
@@ -132,21 +120,9 @@
                 "category": "Player · Playback"
             },
             {
-                "title": "Sleep timer",
-                "description": "Automatically stop playback after a specified time.",
-                "status": "done",
-                "category": "Player · Playback"
-            },
-            {
                 "title": "Playback speed",
                 "description": "Adjust the playback speed of audio files.",
                 "status": "planned",
-                "category": "Player · Playback"
-            },
-            {
-                "title": "Restore position",
-                "description": "Remember the last position of each track when the app is closed and reopened.",
-                "status": "done",
                 "category": "Player · Playback"
             },
             {
@@ -174,12 +150,6 @@
                 "category": "Library · Organization"
             },
             {
-                "title": "EQ presets",
-                "description": "Save/load EQ settings as named presets. Includes several default presets (Rock, Classical, Vocal).",
-                "status": "done",
-                "category": "Audio · DSP"
-            },
-            {
                 "title": "Loudness normalisation",
                 "description": "EBU R128 / LUFS-based loudness normalization as an alternative to ReplayGain.",
                 "status": "planned",
@@ -190,12 +160,6 @@
                 "description": "Automatic metadata enrichment via MusicBrainz: genre, year, ISRC, label.",
                 "status": "planned",
                 "category": "Frontend · Integration"
-            },
-            {
-                "title": "Track info modal",
-                "description": "Track details: all tags, codec information, file path, ReplayGain values, play count.",
-                "status": "planned",
-                "category": "Frontend · UI"
             },
             {
                 "title": "Notification toast",
@@ -223,7 +187,7 @@
             },
             {
                 "title": "Android improvements",
-                "description": "Improved notification controls, lock screen art, and scoped storage handling in Android 13 and later.",
+                "description": "Scoped storage and remaining Android 13+ folder access.",
                 "status": "planned",
                 "category": "System · Platform"
             }

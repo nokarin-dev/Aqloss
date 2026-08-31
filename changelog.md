@@ -10,6 +10,7 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ### Added
 
+- [Frontend|Player] Track info sheet: tags, codec, path, ReplayGain, and play count
 - [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus named user presets
 - [Frontend|Player] Sleep timer from the player: 15–60 minutes or end of track
 - [Frontend|Player] Resume each track from its last position, and restore the last queue on launch (paused)
