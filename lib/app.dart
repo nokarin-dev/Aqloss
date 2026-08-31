@@ -12,6 +12,7 @@ import 'package:flutter/material.dart' as theme;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
+import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/window_chrome_provider.dart';
 import 'package:aqloss/widgets/settings_watcher.dart';
 import 'package:aqloss/widgets/mini_player_window.dart';
@@ -57,7 +58,16 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       PluginRegistry.instance.dispatchAppForeground(const AppForegroundEvent());
+    } else if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      ref.read(playerProvider.notifier).persistPlayback();
     }
+  }
+
+  @override
+  void onWindowClose() {
+    ref.read(playerProvider.notifier).persistPlayback();
   }
 
   Future<void> _checkMaximize() async {

@@ -11,6 +11,8 @@ import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
+import 'package:aqloss/widgets/sleep_timer_sheet.dart';
+import 'package:aqloss/util/sleep_timer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -223,11 +225,14 @@ class _MobileNowPlayingState extends ConsumerState<MobileNowPlaying> {
                     progress: progress,
                     shuffle: player.shuffle,
                     loopMode: player.loopMode,
+                    sleepMode: player.sleepMode,
+                    sleepUntil: player.sleepUntil,
                     accent: accent,
                     onSurface: onSurface,
                     muted: muted,
                     surface: surface,
                     onShuffle: notifier.toggleShuffle,
+                    onSleep: () => showSleepTimerSheet(context),
                     onPrev: track == null ? null : notifier.skipPrevious,
                     onPlayPause: track == null
                         ? null
@@ -467,7 +472,10 @@ class _Transport extends StatelessWidget {
   final Color onSurface;
   final Color muted;
   final Color surface;
+  final SleepTimerMode sleepMode;
+  final DateTime? sleepUntil;
   final VoidCallback onShuffle;
+  final VoidCallback onSleep;
   final VoidCallback? onPrev;
   final VoidCallback? onPlayPause;
   final VoidCallback? onNext;
@@ -485,7 +493,10 @@ class _Transport extends StatelessWidget {
     required this.onSurface,
     required this.muted,
     required this.surface,
+    required this.sleepMode,
+    required this.sleepUntil,
     required this.onShuffle,
+    required this.onSleep,
     required this.onPrev,
     required this.onPlayPause,
     required this.onNext,
@@ -508,6 +519,14 @@ class _Transport extends StatelessWidget {
         IconButton(
           onPressed: onShuffle,
           icon: Icon(Icons.shuffle_rounded, color: shuffle ? active : muted),
+        ),
+        IconButton(
+          onPressed: onSleep,
+          tooltip: sleepTimerTooltip(mode: sleepMode, until: sleepUntil),
+          icon: Icon(
+            Icons.bedtime_rounded,
+            color: sleepMode != SleepTimerMode.off ? active : muted,
+          ),
         ),
         IconButton(
           onPressed: onPrev,

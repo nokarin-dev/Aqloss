@@ -134,7 +134,7 @@
             {
                 "title": "Sleep timer",
                 "description": "Automatically stop playback after a specified time.",
-                "status": "planned",
+                "status": "done",
                 "category": "Player · Playback"
             },
             {
@@ -146,7 +146,7 @@
             {
                 "title": "Restore position",
                 "description": "Remember the last position of each track when the app is closed and reopened.",
-                "status": "planned",
+                "status": "done",
                 "category": "Player · Playback"
             },
             {

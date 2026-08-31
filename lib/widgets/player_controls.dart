@@ -7,6 +7,8 @@ import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
+import 'package:aqloss/widgets/sleep_timer_sheet.dart';
+import 'package:aqloss/util/sleep_timer.dart';
 
 class PlayerControls extends ConsumerWidget {
   final bool dense;
@@ -134,6 +136,11 @@ class PlayerControls extends ConsumerWidget {
                     tooltip: 'Shuffle',
                     onTap: notifier.toggleShuffle,
                   ),
+                _SleepTransportButton(
+                  isM3: isM3,
+                  player: player,
+                  onTap: () => showSleepTimerSheet(context),
+                ),
                 const Spacer(),
                 if (isExclusive && !compact)
                   _BitPerfectBadge(onSurface: onSurface),
@@ -293,6 +300,52 @@ class PlayerControls extends ConsumerWidget {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+}
+
+class _SleepTransportButton extends StatelessWidget {
+  final bool isM3;
+  final PlayerState player;
+  final VoidCallback onTap;
+
+  const _SleepTransportButton({
+    required this.isM3,
+    required this.player,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = player.sleepActive;
+    Widget button(String tooltip) {
+      if (isM3) {
+        return M3TransportIcon(
+          icon: Icons.bedtime_rounded,
+          selectedIcon: Icons.bedtime_rounded,
+          selected: active,
+          tooltip: tooltip,
+          onPressed: onTap,
+        );
+      }
+      return _IconToggle(
+        icon: Icons.bedtime_rounded,
+        active: active,
+        tooltip: tooltip,
+        onTap: onTap,
+      );
+    }
+
+    if (!active || player.sleepMode == SleepTimerMode.endOfTrack) {
+      return button(
+        sleepTimerTooltip(mode: player.sleepMode, until: player.sleepUntil),
+      );
+    }
+    return StreamBuilder(
+      stream: Stream.periodic(const Duration(seconds: 1)),
+      builder: (_, _) => button(
+        sleepTimerTooltip(mode: player.sleepMode, until: player.sleepUntil),
+      ),
+    );
   }
 }
 

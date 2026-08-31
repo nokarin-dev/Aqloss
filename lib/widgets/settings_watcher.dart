@@ -67,6 +67,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _applyAccent(s, player);
       _pullLoved(s, library.tracks.isNotEmpty);
       _showPlaybackError(player);
+      _restoreSession(library);
     });
 
     return widget.child;
@@ -230,5 +231,10 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     }
     final messenger = ScaffoldMessenger.maybeOf(context);
     messenger?.showSnackBar(const SnackBar(content: Text('Playback failed')));
+  }
+
+  void _restoreSession(LibraryState library) {
+    if (library.tracks.isEmpty) return;
+    ref.read(playerProvider.notifier).restoreSession(library.tracks);
   }
 }
