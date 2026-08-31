@@ -25,6 +25,8 @@ import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/util/android_path_helper.dart';
+import 'package:aqloss/util/open_url.dart';
+import 'package:aqloss/util/support_links.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -40,6 +42,7 @@ enum _SettingsPage {
   integrations,
   plugins,
   updates,
+  support,
   about,
 }
 
@@ -54,6 +57,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts => 'Shortcuts',
     _SettingsPage.plugins => 'Plugins',
     _SettingsPage.updates => 'Updates',
+    _SettingsPage.support => 'Support',
     _SettingsPage.about => 'About',
   };
 
@@ -69,6 +73,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts => 'Global keyboard shortcuts',
     _SettingsPage.plugins => 'Installed third-party and built-in plugins',
     _SettingsPage.updates => 'Check for new releases',
+    _SettingsPage.support => 'Ko-fi, Trakteer, and other ways to help',
     _SettingsPage.about => 'Version info and logs',
   };
 
@@ -82,6 +87,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts => Icons.keyboard_outlined,
     _SettingsPage.plugins => Icons.widgets_outlined,
     _SettingsPage.updates => Icons.system_update_alt_rounded,
+    _SettingsPage.support => Icons.favorite_border_rounded,
     _SettingsPage.about => Icons.info_outline_rounded,
   };
 
@@ -92,6 +98,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts ||
     _SettingsPage.plugins ||
     _SettingsPage.updates ||
+    _SettingsPage.support ||
     _SettingsPage.about => 'SYSTEM',
   };
 }
@@ -142,7 +149,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // Right content pane
         Expanded(
-          child: _SettingsContent(page: _page, isDesktop: isDesktop),
+          child: _SettingsContent(
+            page: _page,
+            isDesktop: isDesktop,
+            onOpenSupport: () => setState(() => _page = _SettingsPage.support),
+          ),
         ),
       ],
     );
@@ -485,8 +496,13 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
 class _SettingsContent extends StatelessWidget {
   final _SettingsPage page;
   final bool isDesktop;
+  final VoidCallback onOpenSupport;
 
-  const _SettingsContent({required this.page, required this.isDesktop});
+  const _SettingsContent({
+    required this.page,
+    required this.isDesktop,
+    required this.onOpenSupport,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +516,8 @@ class _SettingsContent extends StatelessWidget {
       _SettingsPage.shortcuts => const _ShortcutsPane(),
       _SettingsPage.plugins => const PluginsPane(),
       _SettingsPage.updates => const _UpdatesPane(),
-      _SettingsPage.about => const _AboutPane(),
+      _SettingsPage.support => const _SupportPane(),
+      _SettingsPage.about => _AboutPane(onOpenSupport: onOpenSupport),
     };
   }
 }
@@ -571,7 +588,11 @@ class _NarrowSettings extends StatelessWidget {
             ],
           ],
         ),
-        body: _SettingsContent(page: page, isDesktop: isDesktop),
+        body: _SettingsContent(
+          page: page,
+          isDesktop: isDesktop,
+          onOpenSupport: () => onSelect(_SettingsPage.support),
+        ),
       );
     }
 
@@ -591,7 +612,11 @@ class _NarrowSettings extends StatelessWidget {
           color: aq.border,
         ),
         Expanded(
-          child: _SettingsContent(page: page, isDesktop: isDesktop),
+          child: _SettingsContent(
+            page: page,
+            isDesktop: isDesktop,
+            onOpenSupport: () => onSelect(_SettingsPage.support),
+          ),
         ),
       ],
     );
@@ -1127,9 +1152,19 @@ class _AudioDeviceSection extends ConsumerWidget {
                     isSelected: state.devices[i].id == state.selectedId,
                     currentMode: state.outputMode,
                     isSwitching: state.isSwitching,
-                    onSelect: (mode) => ref
-                        .read(audioDeviceProvider.notifier)
-                        .selectDevice(state.devices[i].id, mode),
+                    onSelect: (mode) async {
+                      try {
+                        await ref
+                            .read(audioDeviceProvider.notifier)
+                            .selectDevice(state.devices[i].id, mode);
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        final text = e.toString().replaceFirst('Exception: ', '');
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(text)));
+                      }
+                    },
                   ),
                 ],
               ],
@@ -1146,7 +1181,7 @@ class _AudioDeviceSection extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                'Exclusive / bit-perfect is only available on ALSA hardware devices (hw:). PipeWire and other mixer outputs stay in shared mode.',
+                'Exclusive / bit-perfect is only available on ALSA hardware devices (hw:). PipeWire and other mixer outputs stay in shared mode. Switching to exclusive pauses other apps on the sound card.',
                 style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurface.withValues(alpha: 0.38),
@@ -2706,7 +2741,8 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
 
 // About pane
 class _AboutPane extends StatelessWidget {
-  const _AboutPane();
+  final VoidCallback onOpenSupport;
+  const _AboutPane({required this.onOpenSupport});
 
   @override
   Widget build(BuildContext context) {
@@ -2715,6 +2751,34 @@ class _AboutPane extends StatelessWidget {
       children: [
         _SettingsCard(
           children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.favorite_border_rounded,
+                    size: 15,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Support the project',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.42),
+                      ),
+                    ),
+                  ),
+                  _HoverTextBtn(label: 'Open', onTap: onOpenSupport),
+                ],
+              ),
+            ),
+            _Div(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               child: Row(
@@ -2770,6 +2834,155 @@ class _AboutPane extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _SupportPane extends StatelessWidget {
+  const _SupportPane();
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = View.of(context).platformDispatcher.locale;
+    final groups = supportGroups(
+      indonesiaFirst: preferIndonesianSupport(locale),
+    );
+
+    return _Pane(
+      page: _SettingsPage.support,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            'Aqloss is free software. If you want to help keep development going, pick a platform below.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: context.stOnSurface(0.42),
+            ),
+          ),
+        ),
+        for (int i = 0; i < groups.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _SupportGroupCard(group: groups[i]),
+        ],
+      ],
+    );
+  }
+}
+
+class _SupportGroupCard extends StatelessWidget {
+  final SupportGroup group;
+  const _SupportGroupCard({required this.group});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = group.links.firstWhere((l) => l.primary);
+    final rest = group.links.where((l) => !l.primary).toList();
+
+    return _SettingsCard(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                group.title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: context.stOnSurface(0.78),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                group.subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: context.stOnSurface(0.34),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _SupportPrimaryBtn(link: primary),
+          ),
+        ),
+        if (rest.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final link in rest)
+                  _HoverTextBtn(
+                    label: link.name,
+                    onTap: () => openExternalUrl(link.url),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SupportPrimaryBtn extends StatefulWidget {
+  final SupportLink link;
+  const _SupportPrimaryBtn({required this.link});
+
+  @override
+  State<_SupportPrimaryBtn> createState() => _SupportPrimaryBtnState();
+}
+
+class _SupportPrimaryBtnState extends State<_SupportPrimaryBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () => openExternalUrl(widget.link.url),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 130),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? context.stOnSurface(0.12)
+                : context.stOnSurface(0.07),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: context.stOnSurface(0.10)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 13,
+                color: context.stOnSurface(0.60),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.link.name,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.stOnSurface(0.78),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

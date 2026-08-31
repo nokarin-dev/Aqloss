@@ -149,41 +149,39 @@ impl AudioEngine {
         let arc = ENGINE
             .get()
             .ok_or_else(|| anyhow!("Engine not initialized"))?;
-        let (wait, dec) = {
+        let (wait, dec, old_out, prev_id, prev_excl) = {
             let mut e = arc.lock().unwrap();
             let wait = e.signal_stop();
             e.output.start_drain();
-            (wait, e.decoder.clone())
+            let prev_id = e.output.device_id.clone();
+            let prev_excl = e.output.exclusive;
+            let old_out = std::mem::replace(&mut e.output, AudioOutput::closed());
+            (wait, e.decoder.clone(), old_out, prev_id, prev_excl)
         };
         if let Some(f) = wait {
             wait_stopped(&f);
         }
+        drop(old_out);
+        #[cfg(target_os = "windows")]
+        if exclusive {
+            thread::sleep(Duration::from_millis(50));
+        }
         let hint = decoder_hint(&dec);
-        let new_out = AudioOutput::open(Some(device_id), exclusive, hint)?;
-        let (sr, ch) = if let Some(ref d) = dec {
-            let g = d.lock().unwrap();
-            (g.sample_rate(), g.channels())
-        } else {
-            (new_out.sample_rate, new_out.channels)
+        let new_out = match AudioOutput::open(Some(device_id), exclusive, hint) {
+            Ok(o) => o,
+            Err(err) => {
+                logger::error_audio(format!("reinit open failed: {err}"));
+                let fallback = AudioOutput::open(prev_id.as_deref(), prev_excl, hint)
+                    .or_else(|_| AudioOutput::open(prev_id.as_deref(), false, hint))
+                    .or_else(|_| AudioOutput::new_default())
+                    .map_err(|_| anyhow!("{err}"))?;
+                let mut e = arc.lock().unwrap();
+                Self::apply_output(&mut e, fallback, &dec)?;
+                return Err(err);
+            }
         };
         let mut e = arc.lock().unwrap();
-        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != new_out.sample_rate {
-            Some(Resampler::new(sr, new_out.sample_rate, ch)?)
-        } else {
-            None
-        };
-        e.eq
-            .lock()
-            .unwrap()
-            .reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
-        e.stereo_enhance
-            .lock()
-            .unwrap()
-            .reset_sample_rate(new_out.sample_rate);
-        EXCLUSIVE.store(new_out.exclusive, Ordering::Release);
-        e.output = new_out;
-        e.smooth_volume = e.volume;
-        e.decode_thread_died.store(false, Ordering::SeqCst);
+        Self::apply_output(&mut e, new_out, &dec)?;
         logger::info_audio("AudioEngine::reinit complete");
         Ok(())
     }
@@ -193,29 +191,58 @@ impl AudioEngine {
         let arc = ENGINE
             .get()
             .ok_or_else(|| anyhow!("Engine not initialized"))?;
-        let (wait, exclusive, id, dec) = {
+        let (wait, exclusive, id, dec, old_out) = {
             let mut e = arc.lock().unwrap();
             let wait = e.signal_stop();
             e.output.start_drain();
-            (
-                wait,
-                e.output.exclusive,
-                e.output.device_id.clone(),
-                e.decoder.clone(),
-            )
+            let exclusive = e.output.exclusive;
+            let id = e.output.device_id.clone();
+            let dec = e.decoder.clone();
+            let old_out = std::mem::replace(&mut e.output, AudioOutput::closed());
+            (wait, exclusive, id, dec, old_out)
         };
         if let Some(f) = wait {
             wait_stopped(&f);
         }
+        drop(old_out);
+        #[cfg(target_os = "windows")]
+        if exclusive {
+            thread::sleep(Duration::from_millis(50));
+        }
         let hint = decoder_hint(&dec);
-        let new_out = AudioOutput::open(id.as_deref(), exclusive, hint)?;
-        let (sr, ch) = if let Some(ref d) = dec {
+        let new_out = match AudioOutput::open(id.as_deref(), exclusive, hint) {
+            Ok(o) => o,
+            Err(err) => {
+                logger::error_audio(format!("recover open failed: {err}"));
+                let fallback = AudioOutput::open(id.as_deref(), false, hint)
+                    .or_else(|_| AudioOutput::new_default())
+                    .map_err(|_| anyhow!("{err}"))?;
+                let mut e = arc.lock().unwrap();
+                Self::apply_output(&mut e, fallback, &dec)?;
+                e.flags = PlayFlags::new();
+                PLAYING.store(false, Ordering::Release);
+                return Err(err);
+            }
+        };
+        let mut e = arc.lock().unwrap();
+        Self::apply_output(&mut e, new_out, &dec)?;
+        e.flags = PlayFlags::new();
+        PLAYING.store(false, Ordering::Release);
+        logger::info_audio("AudioEngine::recover_engine - output re-opened");
+        Ok(())
+    }
+
+    fn apply_output(
+        e: &mut Self,
+        new_out: AudioOutput,
+        dec: &Option<Arc<Mutex<Decoder>>>,
+    ) -> Result<()> {
+        let (sr, ch) = if let Some(d) = dec {
             let g = d.lock().unwrap();
             (g.sample_rate(), g.channels())
         } else {
             (new_out.sample_rate, new_out.channels)
         };
-        let mut e = arc.lock().unwrap();
         *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != new_out.sample_rate {
             Some(Resampler::new(sr, new_out.sample_rate, ch)?)
         } else {
@@ -232,10 +259,7 @@ impl AudioEngine {
         EXCLUSIVE.store(new_out.exclusive, Ordering::Release);
         e.output = new_out;
         e.smooth_volume = e.volume;
-        e.flags = PlayFlags::new();
-        PLAYING.store(false, Ordering::Release);
         e.decode_thread_died.store(false, Ordering::SeqCst);
-        logger::info_audio("AudioEngine::recover_engine - output re-opened");
         Ok(())
     }
 
@@ -575,6 +599,11 @@ impl AudioEngine {
             }
         };
         let new_out = if let Some((exclusive, id)) = reopen {
+            let old = {
+                let mut e = arc.lock().unwrap();
+                std::mem::replace(&mut e.output, AudioOutput::closed())
+            };
+            drop(old);
             match AudioOutput::open(
                 id.as_deref(),
                 exclusive,
@@ -587,9 +616,18 @@ impl AudioEngine {
                 Ok(o) => Some(o),
                 Err(err) => {
                     logger::warn_audio(format!(
-                        "could not reopen at {src_rate}Hz ({err}), keeping current stream"
+                        "could not reopen at {src_rate}Hz ({err}), restoring previous rate"
                     ));
-                    None
+                    match AudioOutput::open(id.as_deref(), exclusive, None)
+                        .or_else(|_| AudioOutput::open(id.as_deref(), false, None))
+                        .or_else(|_| AudioOutput::new_default())
+                    {
+                        Ok(o) => Some(o),
+                        Err(e2) => {
+                            logger::error_audio(format!("could not restore output: {e2}"));
+                            None
+                        }
+                    }
                 }
             }
         } else {

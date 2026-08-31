@@ -49,7 +49,12 @@ gh auth setup-git
 gh repo clone "${FLATHUB_REPO}" "${WORKDIR}" -- --branch "${FLATHUB_BASE}" --single-branch
 cd "${WORKDIR}"
 
-git checkout -B "${BRANCH}" "${FLATHUB_BASE}"
+if git ls-remote --exit-code origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
+  git fetch origin "${BRANCH}"
+  git checkout -B "${BRANCH}" "origin/${BRANCH}"
+else
+  git checkout -B "${BRANCH}" "${FLATHUB_BASE}"
+fi
 
 python3 - "${AQLOSS_GIT}" "${TAG}" "${FLUTTER_TAG}" <<'PY'
 import sys
@@ -77,6 +82,39 @@ text = upsert_tag(text, aqloss_url, aqloss_tag)
 text = upsert_tag(text, "https://github.com/flutter/flutter.git", flutter_tag)
 path.write_text(text)
 print(f"generate from {aqloss_url} {aqloss_tag}, Flutter {flutter_tag}")
+PY
+
+# sqlite3 3.5.2 dest is download-<sha8>; skip the 3.3.0 registry patch.
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("foreign.json")
+data = json.loads(path.read_text()) if path.exists() else {}
+data["sqlite3"] = {
+    "manifest": {
+        "sources": [
+            {
+                "type": "file",
+                "only-arches": ["x86_64"],
+                "url": "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-3.5.2/libsqlite3.x64.linux.so",
+                "sha256": "b17729184e5a2818055ecbddd5ed6642521bfe6e56aafa472330e483c0e2e0d2",
+                "dest": "$APP/.dart_tool/hooks_runner/shared/sqlite3/build/download-b1772918",
+                "dest-filename": "libsqlite3.so",
+            },
+            {
+                "type": "file",
+                "only-arches": ["aarch64"],
+                "url": "https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-3.5.2/libsqlite3.arm64.linux.so",
+                "sha256": "7f0db19fdb987298ab8def51431aba5cec28a81685e8b62cebbc7402df090a16",
+                "dest": "$APP/.dart_tool/hooks_runner/shared/sqlite3/build/download-7f0db19f",
+                "dest-filename": "libsqlite3.so",
+            },
+        ]
+    }
+}
+path.write_text(json.dumps(data, indent=2) + "\n")
+print("injected sqlite3 3.5.2 offline sources into foreign.json")
 PY
 
 echo "Running ${FLATPAK_FLUTTER_IMAGE} ..."
@@ -108,7 +146,7 @@ PY
 find generated -name '*.orig' -delete
 find generated -name '*.rej' -delete
 
-git add xyz.nokarin.aqloss.yaml flatpak-flutter.yaml generated
+git add xyz.nokarin.aqloss.yaml flatpak-flutter.yaml generated foreign.json
 if git diff --cached --quiet; then
   echo "Flathub repo already matches ${TAG}; nothing to commit."
   existing="$(gh pr list --repo "${FLATHUB_REPO}" --head "${BRANCH}" --json url --jq '.[0].url // empty')"

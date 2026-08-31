@@ -122,6 +122,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     String? newDefaultDeviceId,
   ]) async {
     if (!mounted || _deviceReinitBusy) return;
+
+    _deviceNotifier?.refreshAfterDeviceChange(newDefaultDeviceId);
+
+    final settings = _readSettings?.call();
+    final pinned = settings?.selectedDeviceId;
+    if (pinned != null &&
+        newDefaultDeviceId != null &&
+        pinned != newDefaultDeviceId) {
+      Logger.debugPlayerProvider(
+        'output route changed → $newDefaultDeviceId (ignored, pinned $pinned)',
+      );
+      return;
+    }
+
     _deviceReinitBusy = true;
     _stallTicks = 0;
 
@@ -137,10 +151,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     Logger.warnPlayerProvider(
       'output route changed → $newDefaultDeviceId  wasPlaying=$wasPlaying',
     );
-    _deviceNotifier?.refreshAfterDeviceChange(newDefaultDeviceId);
 
     try {
-      final settings = _readSettings?.call();
       final exclusive =
           !Platform.isAndroid &&
           !Platform.isIOS &&
@@ -150,7 +162,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (!mounted) return;
 
       final ok = await AudioService.reinitToDevice(
-        deviceId: newDefaultDeviceId ?? 'default',
+        deviceId: pinned ?? newDefaultDeviceId ?? 'default',
         exclusive: exclusive,
       );
 

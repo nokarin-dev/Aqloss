@@ -1,0 +1,30 @@
+# Maintainer: nokarin <github@nokarin.xyz>
+
+pkgname=aqloss-bin
+pkgver=1.0.1
+pkgrel=1
+pkgdesc="Music player with a Rust audio engine for bit-perfect and hi-res playback"
+arch=('x86_64')
+url="https://github.com/nokarin-dev/Aqloss"
+license=('GPL-3.0-or-later')
+depends=('gtk3' 'alsa-lib' 'xz' 'hicolor-icon-theme')
+optdepends=(
+  'pipewire-pulse: shared-mode playback through PipeWire'
+  'zenity: folder picker on Hyprland and other compositors'
+  'kdialog: folder picker on KDE'
+)
+provides=('aqloss')
+conflicts=('aqloss')
+options=('!strip' '!debug')
+source=("Aqloss-linux-installer-${pkgver}.deb::https://github.com/nokarin-dev/Aqloss/releases/download/v${pkgver}/Aqloss-linux-installer.deb")
+sha256sums=('444805e87126a118882b7be30e62b43a2f735195c73e10fba0efbd9f7038eebf')
+
+package() {
+  bsdtar -xOf "Aqloss-linux-installer-${pkgver}.deb" data.tar.zst \
+    | bsdtar -xf - -C "${pkgdir}"
+
+  # desktop Exec=Aqloss, binary is aqloss
+  sed -i 's/^Exec=Aqloss/Exec=aqloss/' \
+    "${pkgdir}/usr/share/applications/xyz.nokarin.aqloss.desktop"
+  chmod 755 "${pkgdir}/opt/aqloss/aqloss"
+}

@@ -106,7 +106,13 @@ class AudioDeviceNotifier extends AsyncNotifier<AudioDeviceState> {
         deviceId: deviceId,
         exclusive: exclusive,
       );
-      if (!ok) throw Exception('reinitToDevice returned false');
+      if (!ok) {
+        throw Exception(
+          exclusive
+              ? 'Could not open exclusive output. The device is in use by another app.'
+              : 'Could not switch output device.',
+        );
+      }
 
       ref.read(settingsProvider.notifier).setAudioDevice(deviceId, mode);
 

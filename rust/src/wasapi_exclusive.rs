@@ -9,9 +9,10 @@ use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
+    mpsc, Arc, Mutex,
 };
 use std::thread;
+use std::time::Duration;
 use windows::{
     core::PCWSTR,
     Win32::{
@@ -152,6 +153,7 @@ impl ExclusiveStream {
         let paused_cb = paused.clone();
         let id = device_id.to_owned();
 
+        let (ready_tx, ready_rx) = mpsc::channel();
         let _thread = thread::spawn(move || {
             run_audio_thread(
                 id,
@@ -162,26 +164,42 @@ impl ExclusiveStream {
                 alive_cb,
                 draining_cb,
                 paused_cb,
+                ready_tx,
             );
         });
 
-        Ok(Self {
-            producer,
-            draining,
-            paused,
-            sample_rate: sr,
-            channels: ch as u32,
-            pcm,
-            device_id: device_id.to_owned(),
-            _thread: Some(_thread),
-            alive,
-        })
+        match ready_rx.recv_timeout(Duration::from_secs(4)) {
+            Ok(Ok(())) => Ok(Self {
+                producer,
+                draining,
+                paused,
+                sample_rate: sr,
+                channels: ch as u32,
+                pcm,
+                device_id: device_id.to_owned(),
+                _thread: Some(_thread),
+                alive,
+            }),
+            Ok(Err(e)) => {
+                alive.store(false, Ordering::SeqCst);
+                let _ = _thread.join();
+                Err(e)
+            }
+            Err(_) => {
+                alive.store(false, Ordering::SeqCst);
+                let _ = _thread.join();
+                Err(anyhow!("WASAPI exclusive start timed out"))
+            }
+        }
     }
 }
 
 impl Drop for ExclusiveStream {
     fn drop(&mut self) {
         self.alive.store(false, Ordering::SeqCst);
+        if let Some(t) = self._thread.take() {
+            let _ = t.join();
+        }
     }
 }
 
@@ -321,6 +339,7 @@ fn run_audio_thread(
     alive: Arc<AtomicBool>,
     draining: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
+    ready: mpsc::Sender<Result<()>>,
 ) {
     crate::logger::info_output(format!(
         "[wasapi-exclusive] audio thread {device_id} {pcm:?} {sample_rate}Hz"
@@ -329,9 +348,13 @@ fn run_audio_thread(
         let _ = CoInitializeEx(None, COINIT_MULTITHREADED).ok();
         let result = setup_wasapi(&device_id, sample_rate, channels, pcm);
         let (audio_client, render_client, buffer_frames, event) = match result {
-            Ok(r) => r,
+            Ok(r) => {
+                let _ = ready.send(Ok(()));
+                r
+            }
             Err(e) => {
                 crate::logger::error_output(format!("[wasapi-exclusive] thread setup failed: {e}"));
+                let _ = ready.send(Err(e));
                 CoUninitialize();
                 return;
             }
@@ -438,7 +461,12 @@ unsafe fn setup_wasapi(
             )?;
             ac2
         }
-        Err(e) => return Err(e.into()),
+        Err(e) => {
+            let code = e.code().0 as u32;
+            return Err(anyhow!(
+                "wasapi exclusive Initialize failed: {e} (0x{code:08x})"
+            ));
+        }
     };
 
     let event = CreateEventW(None, false, false, None)?;

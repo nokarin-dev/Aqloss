@@ -8,7 +8,21 @@ This project loosely follows Keep a Changelog and uses Semantic Versioning.
 
 ## [Unreleased]
 
-No Changes Yet.
+### Added
+
+- [Linux] Arch Linux AUR package `aqloss-bin` (`yay -S aqloss-bin`)
+- [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
+
+### Changed
+
+- [Linux|Audio] Exclusive ALSA pauses PipeWire/Pulse so the hardware device can be opened
+
+### Fixed
+
+- [Audio] Exclusive mode could not take the DAC: the shared mixer stream stayed open, so ALSA `hw:` reported busy and WASAPI returned device-in-use
+- [Linux|Audio] A pinned ALSA device is no longer replaced when PipeWire's default sink list refreshes
+- [Linux|Audio] Output device list no longer clones the same card for every ALSA PCM (`plughw`, `surround`, `hdmi`, …)
+- [Linux|Audio] Saved system-default output is found again instead of warning that the device is missing
 
 ---
 
