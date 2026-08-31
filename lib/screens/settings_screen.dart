@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:aqloss/app_version.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:aqloss/util/update_check.dart';
 import 'package:aqloss/screens/plugin_pane.dart';
-import 'package:http/http.dart' as http;
 
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/services/discord_service.dart';
@@ -1160,7 +1158,10 @@ class _AudioDeviceSection extends ConsumerWidget {
                             .selectDevice(state.devices[i].id, mode);
                       } catch (e) {
                         if (!context.mounted) return;
-                        final text = e.toString().replaceFirst('Exception: ', '');
+                        final text = e.toString().replaceFirst(
+                          'Exception: ',
+                          '',
+                        );
                         ScaffoldMessenger.of(
                           context,
                         ).showSnackBar(SnackBar(content: Text(text)));
@@ -2160,82 +2161,31 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
     });
 
     try {
-      final uri = Uri.parse(
-        'https://api.github.com/repos/nokarin-dev/aqloss/releases/latest',
-      );
-      final resp = await http
-          .get(
-            uri,
-            headers: {
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28',
-            },
-          )
-          .timeout(const Duration(seconds: 12));
-
-      if (resp.statusCode == 404) {
-        setState(() => _status = _UpdateStatus.upToDate);
-        return;
+      final result = await checkGithubLatest(currentVersion: kAppVersion);
+      if (!mounted) return;
+      switch (result.status) {
+        case UpdateCheckStatus.upToDate:
+          setState(() => _status = _UpdateStatus.upToDate);
+        case UpdateCheckStatus.available:
+          setState(() {
+            _latestVersion = result.latestVersion;
+            _releaseNotes = result.notes;
+            _releaseUrl = result.url;
+            _status = _UpdateStatus.available;
+          });
+        case UpdateCheckStatus.error:
+          setState(() {
+            _status = _UpdateStatus.error;
+            _errorMsg = result.error;
+          });
       }
-
-      if (resp.statusCode != 200) {
-        setState(() {
-          _status = _UpdateStatus.error;
-          _errorMsg = 'GitHub responded with ${resp.statusCode}';
-        });
-        return;
-      }
-
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final tag = (data['tag_name'] as String? ?? '').replaceFirst('v', '');
-      final notes = _stripDownloads(data['body'] as String? ?? '');
-      final url = data['html_url'] as String? ?? '';
-
-      setState(() {
-        _latestVersion = tag;
-        _releaseNotes = notes.trim().isEmpty ? null : notes.trim();
-        _releaseUrl = url;
-        _status = _isNewer(tag, kAppVersion)
-            ? _UpdateStatus.available
-            : _UpdateStatus.upToDate;
-      });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _status = _UpdateStatus.error;
         _errorMsg = formatUpdateCheckError(e);
       });
     }
-  }
-
-  bool _isNewer(String remote, String local) {
-    List<int> parse(String v) => v
-        .split('.')
-        .map((s) => int.tryParse(s.replaceAll(RegExp(r'[^\d]'), '')) ?? 0)
-        .toList();
-    final r = parse(remote), l = parse(local);
-    final len = r.length > l.length ? r.length : l.length;
-    for (int i = 0; i < len; i++) {
-      final rv = i < r.length ? r[i] : 0;
-      final lv = i < l.length ? l[i] : 0;
-      if (rv > lv) return true;
-      if (rv < lv) return false;
-    }
-    return false;
-  }
-
-  String _stripDownloads(String raw) {
-    final hrIdx = raw.indexOf('\n---');
-    final trimmed = hrIdx != -1 ? raw.substring(0, hrIdx) : raw;
-    return trimmed
-        .split('\n')
-        .where((line) {
-          final t = line.trim();
-          if (t.startsWith('[![')) return false;
-          if (RegExp(r'^https?://').hasMatch(t)) return false;
-          return true;
-        })
-        .join('\n')
-        .trim();
   }
 
   @override

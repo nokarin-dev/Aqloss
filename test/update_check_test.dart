@@ -20,6 +20,23 @@ void main() {
   });
 
   test('other errors stay generic', () {
-    expect(formatUpdateCheckError('FormatException'), 'Could not check for updates.');
+    expect(
+      formatUpdateCheckError('FormatException'),
+      'Could not check for updates.',
+    );
+  });
+
+  test('isNewerVersion compares dotted versions', () {
+    expect(isNewerVersion('1.0.2', '1.0.1'), isTrue);
+    expect(isNewerVersion('1.0.1', '1.0.1'), isFalse);
+    expect(isNewerVersion('1.0.0', '1.0.1'), isFalse);
+    expect(isNewerVersion('2.0.0', '1.9.9'), isTrue);
+  });
+
+  test('stripReleaseDownloads drops the download block', () {
+    expect(
+      stripReleaseDownloads('Fixed seek.\n\n---\nhttps://github.com/x/y'),
+      'Fixed seek.',
+    );
   });
 }

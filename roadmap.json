@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.2",
-        "subtitle": "Sleep timer, restore position, EQ presets, track info, exclusive DAC takeover, Android lock-screen playback, Support links, and AUR.",
+        "subtitle": "Sleep timer, restore position, EQ presets, track info, scan/scrobble/update toasts, exclusive DAC takeover, Android lock-screen playback, Support links, and AUR.",
         "status": "in-progress",
         "items": [
             {
@@ -79,6 +79,12 @@
             {
                 "title": "Track info modal",
                 "description": "Track details: all tags, codec information, file path, ReplayGain values, play count.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Notification toast",
+                "description": "A notification when a folder has finished scanning, a scrobble has failed, or an update is available.",
                 "status": "done",
                 "category": "Frontend · UI"
             }
@@ -160,12 +166,6 @@
                 "description": "Automatic metadata enrichment via MusicBrainz: genre, year, ISRC, label.",
                 "status": "planned",
                 "category": "Frontend · Integration"
-            },
-            {
-                "title": "Notification toast",
-                "description": "A notification when a folder has finished scanning, a scrobble has failed, or an update is available.",
-                "status": "planned",
-                "category": "Frontend · UI"
             },
             {
                 "title": "System tray",

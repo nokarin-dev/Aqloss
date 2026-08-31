@@ -1,3 +1,4 @@
+import 'package:aqloss/app_version.dart';
 import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
@@ -8,8 +9,12 @@ import 'package:aqloss/services/loved_sync.dart';
 import 'package:aqloss/services/notifier/media_control_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/util/notices.dart';
+import 'package:aqloss/util/update_check.dart';
+import 'package:aqloss/widgets/q_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsWatcher extends ConsumerStatefulWidget {
   final Widget child;
@@ -28,11 +33,27 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   AccentMode? _prevAccentMode;
   int? _prevAccentColor;
   String? _prevAccentPath;
+  LibraryStatus? _prevLibraryStatus;
+  bool _updateCheckStarted = false;
+
+  static const _kUpdateNotified = 'aqloss_update_notified';
 
   @override
   void initState() {
     super.initState();
+    ScrobbleController.instance.onFailed = (msg) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _notice(msg);
+      });
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) => _initMediaControls());
+  }
+
+  @override
+  void dispose() {
+    ScrobbleController.instance.onFailed = null;
+    MediaControlService.dispose();
+    super.dispose();
   }
 
   Future<void> _initMediaControls() async {
@@ -50,12 +71,6 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   }
 
   @override
-  void dispose() {
-    MediaControlService.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
     final player = ref.watch(playerProvider);
@@ -68,6 +83,8 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _pullLoved(s, library.tracks.isNotEmpty);
       _showPlaybackError(player);
       _restoreSession(library);
+      _showLibraryScan(library);
+      _checkUpdateToast(s);
     });
 
     return widget.child;
@@ -236,5 +253,41 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   void _restoreSession(LibraryState library) {
     if (library.tracks.isEmpty) return;
     ref.read(playerProvider.notifier).restoreSession(library.tracks);
+  }
+
+  void _notice(String message) {
+    if (!mounted) return;
+    if (Overlay.maybeOf(context) == null) {
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(message)));
+      return;
+    }
+    QToast.show(context, message, duration: const Duration(seconds: 3));
+  }
+
+  void _showLibraryScan(LibraryState library) {
+    final prev = _prevLibraryStatus;
+    _prevLibraryStatus = library.status;
+    if (prev != LibraryStatus.scanning) return;
+    if (library.status == LibraryStatus.done) {
+      _notice(libraryScanFinishedMessage(library.tracks.length));
+    } else if (library.status == LibraryStatus.error) {
+      _notice(kLibraryScanFailedMessage);
+    }
+  }
+
+  void _checkUpdateToast(SettingsState s) {
+    if (_updateCheckStarted || !s.loaded) return;
+    _updateCheckStarted = true;
+    checkGithubLatest(currentVersion: kAppVersion).then((result) async {
+      if (!mounted || result.status != UpdateCheckStatus.available) return;
+      final ver = result.latestVersion;
+      if (ver == null || ver.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getString(_kUpdateNotified) == ver) return;
+      await prefs.setString(_kUpdateNotified, ver);
+      if (mounted) _notice(updateAvailableMessage(ver));
+    });
   }
 }

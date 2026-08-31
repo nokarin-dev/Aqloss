@@ -3,6 +3,7 @@ import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/services/listenbrainz_service.dart';
+import 'package:aqloss/util/notices.dart';
 
 class ScrobbleController {
   ScrobbleController._();
@@ -17,6 +18,7 @@ class ScrobbleController {
   int? _startedAt;
   bool _scrobbled = false;
   Timer? _scrobbleTimer;
+  void Function(String message)? onFailed;
 
   bool get _lastFmReady =>
       _lastFmSessionKey != null && (_lastFmCreds?.isValid ?? false);
@@ -117,6 +119,7 @@ class ScrobbleController {
     }
 
     Logger.infoScrobble('"${track.displayTitle}" ok=$ok');
+    if (!ok) onFailed?.call(kScrobbleFailedMessage);
   }
 
   void dispose() {
