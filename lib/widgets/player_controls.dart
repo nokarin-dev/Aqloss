@@ -8,6 +8,7 @@ import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/widgets/sleep_timer_sheet.dart';
+import 'package:aqloss/util/ab_loop.dart';
 import 'package:aqloss/util/sleep_timer.dart';
 
 class PlayerControls extends ConsumerWidget {
@@ -140,6 +141,12 @@ class PlayerControls extends ConsumerWidget {
                   isM3: isM3,
                   player: player,
                   onTap: () => showSleepTimerSheet(context),
+                ),
+                _AbTransportButton(
+                  isM3: isM3,
+                  phase: player.abLoop,
+                  enabled: player.currentTrack != null,
+                  onTap: notifier.tapAbLoop,
                 ),
                 const Spacer(),
                 if (isExclusive && !compact)
@@ -300,6 +307,65 @@ class PlayerControls extends ConsumerWidget {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+}
+
+class _AbTransportButton extends StatelessWidget {
+  final bool isM3;
+  final AbLoopPhase phase;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _AbTransportButton({
+    required this.isM3,
+    required this.phase,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = phase != AbLoopPhase.off;
+    final label = abLoopButtonLabel(phase);
+    final tooltip = abLoopTooltip(phase);
+    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    final color = !enabled
+        ? onSurface.withValues(alpha: 0.22)
+        : selected
+        ? (isM3 ? cs.primary : onSurface)
+        : onSurface.withValues(alpha: 0.46);
+
+    final child = Text(
+      label,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+        color: color,
+      ),
+    );
+
+    if (isM3) {
+      return IconButton(
+        tooltip: tooltip,
+        onPressed: enabled ? onTap : null,
+        icon: child,
+      );
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: enabled ? onTap : null,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+          child: child,
+        ),
+      ),
+    );
   }
 }
 

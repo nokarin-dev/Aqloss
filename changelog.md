@@ -8,6 +8,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ### Added
 
+- [Frontend|Player] A-B loop: set two points on the current track and repeat that section
 - [Frontend|Settings] Export and restore settings, playlists, and music folders as one file
 - [Frontend|Library] Tracks whose files were moved or deleted leave the library, with a notice
 - [Frontend|Playlists] Missing files are marked so you can remove them; play skips them

@@ -16,6 +16,7 @@ import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
 import 'package:aqloss/services/position_store.dart';
+import 'package:aqloss/util/ab_loop.dart';
 import 'package:aqloss/util/missing_files.dart';
 import 'package:aqloss/util/playback.dart';
 import 'package:aqloss/util/sleep_timer.dart';
@@ -39,6 +40,8 @@ class PlayerState {
   final int queueIndex;
   final SleepTimerMode sleepMode;
   final DateTime? sleepUntil;
+  final double? loopASecs;
+  final double? loopBSecs;
 
   const PlayerState({
     this.currentTrack,
@@ -51,9 +54,13 @@ class PlayerState {
     this.queueIndex = 0,
     this.sleepMode = SleepTimerMode.off,
     this.sleepUntil,
+    this.loopASecs,
+    this.loopBSecs,
   });
 
   bool get sleepActive => sleepMode != SleepTimerMode.off;
+
+  AbLoopPhase get abLoop => abLoopPhase(loopASecs, loopBSecs);
 
   PlayerState copyWith({
     Track? currentTrack,
@@ -67,6 +74,10 @@ class PlayerState {
     SleepTimerMode? sleepMode,
     DateTime? sleepUntil,
     bool clearSleepUntil = false,
+    double? loopASecs,
+    double? loopBSecs,
+    bool clearLoopA = false,
+    bool clearLoopB = false,
   }) => PlayerState(
     currentTrack: currentTrack ?? this.currentTrack,
     status: status ?? this.status,
@@ -78,6 +89,8 @@ class PlayerState {
     queueIndex: queueIndex ?? this.queueIndex,
     sleepMode: sleepMode ?? this.sleepMode,
     sleepUntil: clearSleepUntil ? null : (sleepUntil ?? this.sleepUntil),
+    loopASecs: clearLoopA ? null : (loopASecs ?? this.loopASecs),
+    loopBSecs: clearLoopB ? null : (loopBSecs ?? this.loopBSecs),
   );
 
   bool get hasPrevious => queueIndex > 0;
@@ -255,6 +268,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     state = state.copyWith(sleepMode: mode, sleepUntil: until);
   }
 
+  void tapAbLoop() {
+    if (state.currentTrack == null) return;
+    final next = abLoopTap(
+      state.position.inMilliseconds / 1000.0,
+      state.loopASecs,
+      state.loopBSecs,
+    );
+    state = state.copyWith(
+      loopASecs: next.a,
+      loopBSecs: next.b,
+      clearLoopA: next.a == null,
+      clearLoopB: next.b == null,
+    );
+  }
+
   Future<void> _onSleepFired() async {
     _sleepTimer = null;
     if (!mounted) return;
@@ -414,6 +442,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       status: PlayerStatus.loading,
       currentTrack: track,
       position: Duration.zero,
+      clearLoopA: true,
+      clearLoopB: true,
     );
     try {
       if (stopFirst) await AudioService.stop();
@@ -867,6 +897,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           _stallTicks = 0;
           _lastAdvancingPositionSecs = posSecs;
         }
+      }
+
+      if (state.status == PlayerStatus.playing &&
+          !_seeking &&
+          !_handlingTrackEnd &&
+          abLoopShouldWrap(
+            positionSecs: pos.positionSecs,
+            aSecs: state.loopASecs,
+            bSecs: state.loopBSecs,
+          )) {
+        final a = state.loopASecs ?? 0;
+        await seek(Duration(milliseconds: (a * 1000).round()));
+        return;
       }
 
       final trackEnded = _shouldHandleTrackEnd(pos);

@@ -12,6 +12,7 @@ import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/widgets/shared/custom_slider.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:aqloss/widgets/sleep_timer_sheet.dart';
+import 'package:aqloss/util/ab_loop.dart';
 import 'package:aqloss/util/sleep_timer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -227,12 +228,14 @@ class _MobileNowPlayingState extends ConsumerState<MobileNowPlaying> {
                     loopMode: player.loopMode,
                     sleepMode: player.sleepMode,
                     sleepUntil: player.sleepUntil,
+                    abLoop: player.abLoop,
                     accent: accent,
                     onSurface: onSurface,
                     muted: muted,
                     surface: surface,
                     onShuffle: notifier.toggleShuffle,
                     onSleep: () => showSleepTimerSheet(context),
+                    onAbLoop: track == null ? null : notifier.tapAbLoop,
                     onPrev: track == null ? null : notifier.skipPrevious,
                     onPlayPause: track == null
                         ? null
@@ -474,8 +477,10 @@ class _Transport extends StatelessWidget {
   final Color surface;
   final SleepTimerMode sleepMode;
   final DateTime? sleepUntil;
+  final AbLoopPhase abLoop;
   final VoidCallback onShuffle;
   final VoidCallback onSleep;
+  final VoidCallback? onAbLoop;
   final VoidCallback? onPrev;
   final VoidCallback? onPlayPause;
   final VoidCallback? onNext;
@@ -495,8 +500,10 @@ class _Transport extends StatelessWidget {
     required this.surface,
     required this.sleepMode,
     required this.sleepUntil,
+    required this.abLoop,
     required this.onShuffle,
     required this.onSleep,
+    required this.onAbLoop,
     required this.onPrev,
     required this.onPlayPause,
     required this.onNext,
@@ -526,6 +533,18 @@ class _Transport extends StatelessWidget {
           icon: Icon(
             Icons.bedtime_rounded,
             color: sleepMode != SleepTimerMode.off ? active : muted,
+          ),
+        ),
+        IconButton(
+          onPressed: onAbLoop,
+          tooltip: abLoopTooltip(abLoop),
+          icon: Text(
+            abLoopButtonLabel(abLoop),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: abLoop != AbLoopPhase.off ? active : muted,
+            ),
           ),
         ),
         IconButton(
