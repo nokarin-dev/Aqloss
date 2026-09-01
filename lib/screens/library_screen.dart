@@ -10,7 +10,6 @@ import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
-import 'package:aqloss/util/library_filter.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/library_nav_provider.dart';
@@ -261,8 +260,8 @@ class _FormatMenuButton extends ConsumerWidget {
     final n = ref.read(libraryProvider.notifier);
     final cs = Theme.of(context).colorScheme;
     final selectedFormats = library.selectedFormats;
-    final isFormatSelected =
-        library.filter == LibraryFilter.format && selectedFormats.isNotEmpty;
+    final isFormatSelected = selectedFormats.isNotEmpty;
+
 
     final label = isFormatSelected
         ? selectedFormats.length == 1
@@ -476,9 +475,8 @@ class _M3SortBar extends ConsumerWidget {
     final theme = Theme.of(context);
 
     final selectedFormats = library.selectedFormats;
-    final isFormatSelected =
-        library.filter == LibraryFilter.format &&
-        selectedFormats.isNotEmpty;
+    final isFormatSelected = selectedFormats.isNotEmpty;
+
 
     final formatLabel = isFormatSelected
         ? selectedFormats.length == 1

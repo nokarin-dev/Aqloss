@@ -33,7 +33,6 @@ class LibraryState {
   final SortOrder sortOrder;
   final LibraryFilter filter;
   final Set<AudioFormat> selectedFormats;
-  final String? formatFilter;
   final BitDepthFilter bitDepthFilter;
   final int missingRemoved;
 
@@ -48,7 +47,6 @@ class LibraryState {
     this.sortOrder = SortOrder.ascending,
     this.filter = LibraryFilter.all,
     this.selectedFormats = const {},
-    this.formatFilter,
     this.bitDepthFilter = BitDepthFilter.any,
     this.missingRemoved = 0,
   }) : _cachedFiltered = cachedFiltered;
@@ -69,8 +67,6 @@ class LibraryState {
     SortOrder? sortOrder,
     LibraryFilter? filter,
     Set<AudioFormat>? selectedFormats,
-    String? formatFilter,
-    bool clearFormatFilter = false,
     BitDepthFilter? bitDepthFilter,
     int? missingRemoved,
   }) => LibraryState(
@@ -84,9 +80,6 @@ class LibraryState {
     sortOrder: sortOrder ?? this.sortOrder,
     filter: filter ?? this.filter,
     selectedFormats: selectedFormats ?? this.selectedFormats,
-    formatFilter: clearFormatFilter
-        ? null
-        : (formatFilter ?? this.formatFilter),
     bitDepthFilter: bitDepthFilter ?? this.bitDepthFilter,
     missingRemoved: missingRemoved ?? this.missingRemoved,
   );
@@ -127,7 +120,9 @@ List<Track> _computeFiltered(_FilterParams p) {
     return trackMatchesLibraryFilters(
       track: t,
       quality: p.filter,
-      format: p.formatFilter,
+      format: p.selectedFormats.length == 1
+    ? p.selectedFormats.first.name
+    : null,
       bitDepth: p.bitDepthFilter,
     );
   }).toList();
@@ -150,7 +145,6 @@ class _FilterParams {
   final List<Track> tracks;
   final LibraryFilter filter;
   final Set<AudioFormat> selectedFormats;
-  final String? formatFilter;
   final BitDepthFilter bitDepthFilter;
   final String query;
   final SortField sortField;
@@ -160,7 +154,6 @@ class _FilterParams {
     this.tracks,
     this.filter,
     this.selectedFormats,
-    this.formatFilter,
     this.bitDepthFilter,
     this.query,
     this.sortField,
@@ -412,7 +405,6 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         tracks,
         s.filter,
         s.selectedFormats,
-        s.formatFilter,
         s.bitDepthFilter,
         s.query,
         s.sortField,
@@ -465,7 +457,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       );
     } else {
       state = state.copyWith(
-        filter: LibraryFilter.format,
+        filter: LibraryFilter.all,
         selectedFormats: updatedFormats,
       );
     }
@@ -485,17 +477,11 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       clearFormatFilters();
     } else {
       state = state.copyWith(
-        filter: LibraryFilter.format,
+        filter: LibraryFilter.all,
         selectedFormats: {format},
       );
       _applyFilter();
     }
-  }
-
-  void setFormatFilter(String format) {
-    final next = state.formatFilter == format ? null : format;
-    state = state.copyWith(formatFilter: next, clearFormatFilter: next == null);
-    _applyFilter();
   }
 
   void setBitDepthFilter(BitDepthFilter f) {
