@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.2",
-        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
+        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
         "status": "in-progress",
         "items": [
             {
@@ -117,6 +117,12 @@
                 "description": "Sort by album, artist, and track number together, not only one field.",
                 "status": "done",
                 "category": "Library"
+            },
+            {
+                "title": "Playback speed",
+                "description": "Play faster or slower. Pitch follows the speed. Exclusive mode stays at normal speed.",
+                "status": "done",
+                "category": "Player"
             }
         ]
     },
@@ -146,12 +152,6 @@
             {
                 "title": "Waveform seeker",
                 "description": "A waveform of the track as the seek bar, instead of a plain progress bar.",
-                "status": "planned",
-                "category": "Player"
-            },
-            {
-                "title": "Playback speed",
-                "description": "Play files faster or slower.",
                 "status": "planned",
                 "category": "Player"
             },

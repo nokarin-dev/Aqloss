@@ -1,6 +1,6 @@
 use crate::{
     audio_io::{ring_cap, SharedProducer},
-    convert::{adapt_channels_into, apply_gain},
+    convert::{adapt_channels_into, apply_gain, playback_dst_rate},
     decoder::Decoder,
     eq::Equalizer,
     logger,
@@ -61,6 +61,7 @@ pub struct DspConfig {
     pub skip_silence: bool,
     pub gapless: bool,
     pub crossfade_secs: f32,
+    pub playback_speed: f32,
     pub stereo_width: f32,
     pub haas_ms: f32,
 }
@@ -73,6 +74,7 @@ impl Default for DspConfig {
             skip_silence: false,
             gapless: true,
             crossfade_secs: 0.0,
+            playback_speed: 1.0,
             stereo_width: 1.0,
             haas_ms: 0.0,
         }
@@ -243,13 +245,16 @@ impl AudioEngine {
         } else {
             (new_out.sample_rate, new_out.channels)
         };
-        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != new_out.sample_rate {
-            Some(Resampler::new(sr, new_out.sample_rate, ch)?)
+        let dst = {
+            let speed = e.dsp.lock().unwrap().playback_speed;
+            playback_dst_rate(new_out.sample_rate, speed, new_out.exclusive)
+        };
+        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != dst {
+            Some(Resampler::new(sr, dst, ch)?)
         } else {
             None
         };
-        e.eq
-            .lock()
+        e.eq.lock()
             .unwrap()
             .reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
         e.stereo_enhance
@@ -366,6 +371,11 @@ impl AudioEngine {
         let v = secs.clamp(0.0, 12.0);
         logger::debug_audio(format!("set_crossfade_secs secs={v:.2}"));
         self.dsp.lock().unwrap().crossfade_secs = v;
+    }
+    pub fn set_playback_speed(&mut self, speed: f32) {
+        let v = speed.clamp(0.5, 2.0);
+        logger::debug_audio(format!("set_playback_speed {v:.2}"));
+        self.dsp.lock().unwrap().playback_speed = v;
     }
 
     // EQ setters
@@ -546,7 +556,7 @@ impl AudioEngine {
     pub fn load_path(path: &str) -> Result<()> {
         logger::info_audio(format!("load: {path}"));
         let arc = Self::global_safe()?;
-        let (gapless, crossfade_secs, playing, has_decoder, exclusive) = {
+        let (gapless, crossfade_secs, playing, has_decoder, exclusive, speed) = {
             let e = arc.lock().unwrap();
             let dsp = e.dsp.lock().unwrap();
             (
@@ -555,6 +565,7 @@ impl AudioEngine {
                 e.flags.playing.load(Ordering::SeqCst),
                 e.decoder.is_some(),
                 e.output.exclusive,
+                dsp.playback_speed,
             )
         };
 
@@ -566,8 +577,9 @@ impl AudioEngine {
             let nsr = next.sample_rate();
             let nch = next.channels();
             let mut e = arc.lock().unwrap();
-            *e.next_resampler.lock().unwrap() = if nsr != e.output.sample_rate {
-                Some(Resampler::new(nsr, e.output.sample_rate, nch)?)
+            let dst = playback_dst_rate(e.output.sample_rate, speed, exclusive);
+            *e.next_resampler.lock().unwrap() = if nsr != dst {
+                Some(Resampler::new(nsr, dst, nch)?)
             } else {
                 None
             };
@@ -645,8 +657,7 @@ impl AudioEngine {
         if let Some(out) = new_out {
             EXCLUSIVE.store(out.exclusive, Ordering::Release);
             e.output = out;
-            e.eq
-                .lock()
+            e.eq.lock()
                 .unwrap()
                 .reset_sample_rate(e.output.sample_rate, e.output.channels as usize);
             e.stereo_enhance
@@ -673,17 +684,17 @@ impl AudioEngine {
         e.dec_sample_rate = src_rate;
         e.dec_channels = src_ch;
         e.dec_bit_depth = src_bits;
-        *e.resampler.lock().unwrap() = if src_rate != e.output.sample_rate {
-            logger::debug_audio(format!(
-                "resampler: {}→{}Hz",
-                src_rate, e.output.sample_rate
-            ));
-            Some(Resampler::new(src_rate, e.output.sample_rate, src_ch)?)
+        let dst = {
+            let speed = e.dsp.lock().unwrap().playback_speed;
+            playback_dst_rate(e.output.sample_rate, speed, e.output.exclusive)
+        };
+        *e.resampler.lock().unwrap() = if src_rate != dst {
+            logger::debug_audio(format!("resampler: {src_rate}→{dst}Hz"));
+            Some(Resampler::new(src_rate, dst, src_ch)?)
         } else {
             None
         };
-        e.eq
-            .lock()
+        e.eq.lock()
             .unwrap()
             .reset_sample_rate(e.output.sample_rate, e.output.channels as usize);
         e.spectrum_buf.lock().unwrap().fill(0.0);
@@ -881,7 +892,10 @@ fn push_pcm(producer: &SharedProducer, pcm: &[f32], channels: u32, flags: &PlayF
             thread::sleep(Duration::from_millis(1));
             continue;
         }
-        let wrote = producer.lock().unwrap().push_slice(&pcm[offset..offset + take]);
+        let wrote = producer
+            .lock()
+            .unwrap()
+            .push_slice(&pcm[offset..offset + take]);
         offset += wrote;
         if wrote == 0 {
             thread::sleep(Duration::from_millis(1));
@@ -1048,11 +1062,12 @@ fn decode_loop(
                     e.dec_sample_rate = dec_rate;
                     e.volume
                 };
-                if let Err(err) = ensure_resampler(&resampler, dec_rate, out_sr as u32, dec_ch) {
+                let dsp = dsp_arc.lock().unwrap().clone();
+                let dst = playback_dst_rate(out_sr as u32, dsp.playback_speed, is_exclusive);
+                if let Err(err) = ensure_resampler(&resampler, dec_rate, dst, dec_ch) {
                     logger::error_audio(format!("resampler: {err}"));
                     continue;
                 }
-                let dsp = dsp_arc.lock().unwrap().clone();
 
                 let use_rs = {
                     let mut rs = resampler.lock().unwrap();
@@ -1094,14 +1109,9 @@ fn decode_loop(
                                 (n.channels().max(1), n.sample_rate().max(1))
                             };
                             fade_in_ch = fade_ch;
-                            if ensure_resampler(
-                                &next_resampler,
-                                fade_rate,
-                                out_sr as u32,
-                                fade_ch,
-                            )
-                            .is_err()
-                            {
+                            let dst =
+                                playback_dst_rate(out_sr as u32, dsp.playback_speed, is_exclusive);
+                            if ensure_resampler(&next_resampler, fade_rate, dst, fade_ch).is_err() {
                                 continue;
                             }
                             let use_nrs = {

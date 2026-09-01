@@ -8,6 +8,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ### Added
 
+- [Frontend|Player] Playback speed from 0.5× to 2×. Pitch follows the speed; exclusive mode stays at 1×
 - [Frontend|Player] Minimize to the system tray and control playback from the tray menu
 - [Frontend|Player] A-B loop: set two points on the current track and repeat that section
 - [Frontend|Settings] Export and restore settings, playlists, and music folders as one file

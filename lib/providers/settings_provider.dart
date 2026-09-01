@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:aqloss/services/gpu_pref.dart';
 import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/eq_presets.dart';
+import 'package:aqloss/util/playback_speed.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -115,6 +116,7 @@ const _kEqGains = 'aqloss_eq_gains';
 const _kEqUserPresets = 'aqloss_eq_user_presets';
 const _kNotchFilter = 'aqloss_notch_filter';
 const _kSkipSilence = 'aqloss_skip_silence';
+const _kPlaybackSpeed = 'aqloss_playback_speed';
 const _kShowAlbumArtBg = 'aqloss_album_art_bg';
 const _kSpectrumEnabled = 'aqloss_spectrum';
 const _kSpectrumStyle = 'aqloss_spectrum_style';
@@ -136,6 +138,7 @@ class SettingsState {
   final ReplayGainMode replayGainMode;
   final double replayGainPreamp;
   final bool skipSilence;
+  final double playbackSpeed;
   final StopAfterMode stopAfter;
   final bool eqEnabled;
   final List<double> eqGains;
@@ -179,6 +182,7 @@ class SettingsState {
     this.replayGainMode = ReplayGainMode.off,
     this.replayGainPreamp = 0.0,
     this.skipSilence = false,
+    this.playbackSpeed = 1.0,
     this.stopAfter = StopAfterMode.off,
     this.eqEnabled = false,
     this.eqGains = const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -258,6 +262,7 @@ class SettingsState {
     ReplayGainMode? replayGainMode,
     double? replayGainPreamp,
     bool? skipSilence,
+    double? playbackSpeed,
     StopAfterMode? stopAfter,
     bool? eqEnabled,
     List<double>? eqGains,
@@ -305,6 +310,7 @@ class SettingsState {
     replayGainMode: replayGainMode ?? this.replayGainMode,
     replayGainPreamp: replayGainPreamp ?? this.replayGainPreamp,
     skipSilence: skipSilence ?? this.skipSilence,
+    playbackSpeed: playbackSpeed ?? this.playbackSpeed,
     stopAfter: stopAfter ?? this.stopAfter,
     eqEnabled: eqEnabled ?? this.eqEnabled,
     eqGains: eqGains ?? this.eqGains,
@@ -372,6 +378,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           ReplayGainMode.values[(p.getInt(_kReplayGain) ?? 0).clamp(0, 3)],
       replayGainPreamp: (p.getDouble(_kReplayGainPreamp) ?? 0.0).clamp(-12, 12),
       skipSilence: p.getBool(_kSkipSilence) ?? false,
+      playbackSpeed: clampPlaybackSpeed(p.getDouble(_kPlaybackSpeed) ?? 1.0),
       stopAfter: StopAfterMode.values[(p.getInt(_kStopAfter) ?? 0).clamp(0, 2)],
       eqEnabled: p.getBool(_kEqEnabled) ?? false,
       eqGains: normalizeEqGains(eqGains),
@@ -439,6 +446,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setInt(_kReplayGain, state.replayGainMode.index),
       p.setDouble(_kReplayGainPreamp, state.replayGainPreamp),
       p.setBool(_kSkipSilence, state.skipSilence),
+      p.setDouble(_kPlaybackSpeed, state.playbackSpeed),
       p.setInt(_kStopAfter, state.stopAfter.index),
       p.setBool(_kEqEnabled, state.eqEnabled),
       p.setStringList(
@@ -527,6 +535,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void toggleSkipSilence() {
     state = state.copyWith(skipSilence: !state.skipSilence);
+    _save();
+  }
+
+  void setPlaybackSpeed(double v) {
+    state = state.copyWith(playbackSpeed: clampPlaybackSpeed(v));
     _save();
   }
 

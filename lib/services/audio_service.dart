@@ -283,6 +283,7 @@ class AudioService {
     await Future.wait([
       backend.setSoftClip(enabled: s.notchFilter).catchError((_) {}),
       backend.setSkipSilence(enabled: s.skipSilence).catchError((_) {}),
+      backend.setPlaybackSpeed(speed: s.playbackSpeed).catchError((_) {}),
       backend.setGapless(enabled: s.gaplessPlayback).catchError((_) {}),
       backend
           .setCrossfadeSecs(secs: s.crossfadeSecs.toDouble())

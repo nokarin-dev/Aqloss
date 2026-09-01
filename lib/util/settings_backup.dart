@@ -2,6 +2,7 @@ import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/eq_presets.dart';
+import 'package:aqloss/util/playback_speed.dart';
 
 const kBackupFormat = 'aqloss-backup';
 const kBackupVersion = 1;
@@ -34,6 +35,7 @@ Map<String, dynamic> settingsToJson(SettingsState s) => {
   'replayGainMode': s.replayGainMode.name,
   'replayGainPreamp': s.replayGainPreamp,
   'skipSilence': s.skipSilence,
+  'playbackSpeed': s.playbackSpeed,
   'stopAfter': s.stopAfter.name,
   'eqEnabled': s.eqEnabled,
   'eqGains': s.eqGains,
@@ -127,6 +129,9 @@ SettingsState settingsFromJson(
     replayGainPreamp: ((json['replayGainPreamp'] as num?)?.toDouble() ?? 0)
         .clamp(-12, 12),
     skipSilence: json['skipSilence'] as bool? ?? false,
+    playbackSpeed: clampPlaybackSpeed(
+      (json['playbackSpeed'] as num?)?.toDouble() ?? 1.0,
+    ),
     stopAfter:
         enumByName(StopAfterMode.values, json['stopAfter']) ??
         StopAfterMode.off,

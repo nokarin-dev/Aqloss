@@ -181,3 +181,29 @@ pub fn adapt_channels_into(input: &[f32], src: u32, dst: u32, out: &mut Vec<f32>
         _ => out.extend_from_slice(input),
     }
 }
+
+pub fn playback_dst_rate(out_sr: u32, speed: f32, exclusive: bool) -> u32 {
+    let out_sr = out_sr.max(1);
+    if exclusive {
+        return out_sr;
+    }
+    let speed = (speed as f64).clamp(0.5, 2.0);
+    if (speed - 1.0).abs() < 0.001 {
+        return out_sr;
+    }
+    ((out_sr as f64) / speed).round().clamp(1.0, 384_000.0) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dst_rate_follows_speed_except_exclusive() {
+        assert_eq!(playback_dst_rate(44100, 1.0, false), 44100);
+        assert_eq!(playback_dst_rate(44100, 2.0, false), 22050);
+        assert_eq!(playback_dst_rate(44100, 0.5, false), 88200);
+        assert_eq!(playback_dst_rate(48000, 1.25, false), 38400);
+        assert_eq!(playback_dst_rate(44100, 2.0, true), 44100);
+    }
+}

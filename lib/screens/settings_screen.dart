@@ -27,6 +27,7 @@ import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/android_path_helper.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/util/open_url.dart';
+import 'package:aqloss/util/playback_speed.dart';
 import 'package:aqloss/util/settings_backup.dart';
 import 'package:aqloss/util/support_links.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
@@ -1269,7 +1270,7 @@ class _PlaybackPane extends ConsumerWidget {
       children: [
         if (bitPerfect) ...[
           const _ExclusiveLockBanner(
-            'Exclusive mode is on. Crossfade, ReplayGain, and skip silence can\'t be used.',
+            'Exclusive mode is on. Crossfade, ReplayGain, skip silence, and playback speed can\'t be used.',
           ),
           const SizedBox(height: 16),
         ],
@@ -1333,6 +1334,17 @@ class _PlaybackPane extends ConsumerWidget {
                   'Skips leading/trailing silence at track boundaries. Useful for live recordings.',
               value: s.skipSilence,
               onChanged: (_) => n.toggleSkipSilence(),
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
+            ),
+            _Div(),
+            _PickerRow(
+              icon: Icons.slow_motion_video_rounded,
+              title: 'Playback speed',
+              subtitle: 'Play faster or slower. Pitch follows the speed.',
+              options: kPlaybackSpeedLabels,
+              selected: playbackSpeedIndex(s.playbackSpeed),
+              onChanged: (i) => n.setPlaybackSpeed(kPlaybackSpeeds[i]),
               disabled: bitPerfect,
               disabledHint: kBitPerfectUnavailableHint,
             ),

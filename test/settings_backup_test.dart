@@ -29,6 +29,7 @@ void main() {
       replayGainMode: ReplayGainMode.album,
       replayGainPreamp: -3.5,
       skipSilence: true,
+      playbackSpeed: 1.25,
       eqEnabled: true,
       eqGains: const [1, 2, 0, 0, 0, 0, 0, 0, 0, -1],
       eqUserPresets: const [
@@ -77,6 +78,7 @@ void main() {
     expect(restored.listenBrainzToken, 'tok');
     expect(restored.hardwareAcceleration, isFalse);
     expect(restored.closeToTray, isFalse);
+    expect(restored.playbackSpeed, 1.25);
     expect(restored.uiFramework, UiFramework.material3);
   });
 

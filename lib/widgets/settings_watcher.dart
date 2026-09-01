@@ -171,6 +171,10 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       await backend.setSkipSilence(enabled: s.skipSilence).catchError((_) {});
     }
 
+    if (prev?.playbackSpeed != s.playbackSpeed) {
+      await backend.setPlaybackSpeed(speed: s.playbackSpeed).catchError((_) {});
+    }
+
     if (prev?.gaplessPlayback != s.gaplessPlayback) {
       await backend.setGapless(enabled: s.gaplessPlayback).catchError((_) {});
     }

@@ -125,6 +125,10 @@ pub fn set_crossfade_secs(secs: f32) -> Result<()> {
     engine()?.lock().unwrap().set_crossfade_secs(secs);
     Ok(())
 }
+pub fn set_playback_speed(speed: f32) -> Result<()> {
+    engine()?.lock().unwrap().set_playback_speed(speed);
+    Ok(())
+}
 
 // EQ
 pub fn set_eq_enabled(enabled: bool) -> Result<()> {

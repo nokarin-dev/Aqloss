@@ -66,7 +66,7 @@ class AqlossCore
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -2138114040;
+  int get rustContentHash => -131201380;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -216,6 +216,8 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<void> crateApiSetHaasMs({required double ms});
 
   Future<void> crateApiSetLogPath({required String path});
+
+  Future<void> crateApiSetPlaybackSpeed({required double speed});
 
   Future<void> crateApiSetReplayGain({required double linearGain});
 
@@ -1665,6 +1667,34 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "set_log_path", argNames: ["path"]);
 
   @override
+  Future<void> crateApiSetPlaybackSpeed({required double speed}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_f_32(speed, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 49,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetPlaybackSpeedConstMeta,
+        argValues: [speed],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetPlaybackSpeedConstMeta =>
+      const TaskConstMeta(debugName: "set_playback_speed", argNames: ["speed"]);
+
+  @override
   Future<void> crateApiSetReplayGain({required double linearGain}) {
     return handler.executeNormal(
       NormalTask(
@@ -1674,7 +1704,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1704,7 +1734,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1732,7 +1762,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1760,7 +1790,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 53,
             port: port_,
           );
         },
@@ -1788,7 +1818,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 54,
             port: port_,
           );
         },
@@ -1815,7 +1845,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 55,
             port: port_,
           );
         },
