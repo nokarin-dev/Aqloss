@@ -23,6 +23,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ### Changed
 
+- [Frontend|Library] Artist and album sorts keep album and track order, so two albums with the same name stay with their artist
 - [Linux|Audio] Exclusive mode can take over your DAC
 - [Audio] New installs use Shared output, except on Windows (Exclusive)
 - [Frontend|Library] Large folders scan faster

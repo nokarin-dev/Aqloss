@@ -12,13 +12,12 @@ import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/src/rust/lib.dart' show TrackInfo;
+import 'package:aqloss/util/library_sort.dart';
 import 'package:aqloss/util/missing_files.dart';
 
+export 'package:aqloss/util/library_sort.dart' show SortField, SortOrder;
+
 enum LibraryStatus { idle, scanning, done, error }
-
-enum SortField { title, artist, album, duration, format, dateAdded }
-
-enum SortOrder { ascending, descending }
 
 enum LibraryFilter { all, lossless, hiRes }
 
@@ -126,47 +125,7 @@ List<Track> _computeFiltered(_FilterParams p) {
     }).toList();
   }
 
-  result.sort((a, b) {
-    int cmp;
-    switch (p.sortField) {
-      case SortField.title:
-        cmp = (a.title ?? '').compareTo(b.title ?? '');
-        break;
-      case SortField.artist:
-        final ac = (a.albumArtist ?? a.artist ?? '').compareTo(
-          b.albumArtist ?? b.artist ?? '',
-        );
-        if (ac != 0) {
-          cmp = ac;
-          break;
-        }
-        final bc = (a.album ?? '').compareTo(b.album ?? '');
-        if (bc != 0) {
-          cmp = bc;
-          break;
-        }
-        cmp = (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0);
-        break;
-      case SortField.album:
-        final bc = (a.album ?? '').compareTo(b.album ?? '');
-        if (bc != 0) {
-          cmp = bc;
-          break;
-        }
-        cmp = (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0);
-        break;
-      case SortField.duration:
-        cmp = a.durationSecs.compareTo(b.durationSecs);
-        break;
-      case SortField.format:
-        cmp = a.format.compareTo(b.format);
-        break;
-      case SortField.dateAdded:
-        cmp = 0;
-        break;
-    }
-    return p.sortOrder == SortOrder.ascending ? cmp : -cmp;
-  });
+  result.sort((a, b) => compareLibraryTracks(a, b, p.sortField, p.sortOrder));
 
   return result;
 }

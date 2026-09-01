@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.2",
-        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
+        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
         "status": "in-progress",
         "items": [
             {
@@ -111,6 +111,12 @@
                 "description": "Minimize to the tray and control playback from a small panel without opening the full window.",
                 "status": "done",
                 "category": "Player"
+            },
+            {
+                "title": "Multi column sort",
+                "description": "Sort by album, artist, and track number together, not only one field.",
+                "status": "done",
+                "category": "Library"
             }
         ]
     },
@@ -164,12 +170,6 @@
             {
                 "title": "Cover art fallback",
                 "description": "If a file has no cover, look one up online.",
-                "status": "planned",
-                "category": "Library"
-            },
-            {
-                "title": "Multi column sort",
-                "description": "Sort by album, artist, and track number together, not only one field.",
                 "status": "planned",
                 "category": "Library"
             },
