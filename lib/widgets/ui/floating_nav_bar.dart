@@ -1,8 +1,6 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:flutter/material.dart';
-import 'package:material_3_expressive/components/navigation_bar/enums/m3e_nav_bar_enums.dart';
-import 'package:material_3_expressive/components/navigation_bar/models/m3e_navigation_bar_destination.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
 
 class FloatingNavBar extends StatelessWidget {
