@@ -141,14 +141,7 @@
                 "description": "Turn off interface motion from Settings, or when the system asks for it.",
                 "status": "done",
                 "category": "Settings"
-            }
-        ]
-    },
-    {
-        "title": "Backlog",
-        "subtitle": "No timeline yet",
-        "status": "planned",
-        "items": [
+            },
             {
                 "title": "Parametric EQ",
                 "description": "More control per band than the 10-band graphic EQ, including width and shelf filters.",
