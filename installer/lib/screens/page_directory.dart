@@ -65,7 +65,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
 
   Future<void> _browse() async {
     if (_lockPath) return;
-    final picked = await FilePicker.platform.getDirectoryPath(
+    final picked = await FilePicker.getDirectoryPath(
       dialogTitle: 'Select install folder',
     );
     if (picked == null || !mounted) return;
