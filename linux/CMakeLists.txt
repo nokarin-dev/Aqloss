@@ -68,6 +68,11 @@ if(TARGET jni)
   target_compile_options(jni PRIVATE -Wno-incompatible-pointer-types)
 endif()
 
+# tray_manager: ayatana app_indicator_new is deprecated
+if(TARGET tray_manager_plugin)
+  target_compile_options(tray_manager_plugin PRIVATE -Wno-deprecated-declarations)
+endif()
+
 set(BUILD_BUNDLE_DIR "${PROJECT_BINARY_DIR}/bundle")
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
