@@ -8,6 +8,7 @@ import 'package:aqloss/theme/dynamic_scheme.dart';
 import 'package:aqloss/theme/material3_theme.dart';
 import 'package:aqloss/theme/standalone_theme.dart';
 import 'package:aqloss/theme/ui_framework.dart';
+import 'package:aqloss/util/reduce_motion.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
@@ -214,6 +215,21 @@ class _AqlossMaterialApp extends StatelessWidget {
       darkTheme: darkTheme,
       navigatorKey: navKey,
       builder: (context, child) {
+        final reduce = combineReduceMotion(
+          setting: settings.reduceMotion,
+          system: MediaQuery.disableAnimationsOf(context),
+        );
+        Widget content = child ?? const SizedBox.shrink();
+        if (reduce) {
+          content = MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: Theme(
+              data: reduceMotionTheme(Theme.of(context)),
+              child: content,
+            ),
+          );
+        }
+
         final radius = isWindowedLinux
             ? BorderRadius.circular(14.0)
             : BorderRadius.zero;
@@ -235,7 +251,7 @@ class _AqlossMaterialApp extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: radius,
-                child: Material(color: Colors.transparent, child: child),
+                child: Material(color: Colors.transparent, child: content),
               ),
             ),
           );
@@ -243,7 +259,7 @@ class _AqlossMaterialApp extends StatelessWidget {
 
         return ClipRRect(
           borderRadius: radius,
-          child: Material(color: Colors.transparent, child: child),
+          child: Material(color: Colors.transparent, child: content),
         );
       },
       home: const MiniPlayerOverlay(

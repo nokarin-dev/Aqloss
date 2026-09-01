@@ -1,17 +1,24 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/util/reduce_motion.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showQSheet({
   required BuildContext context,
   required WidgetBuilder builder,
 }) {
-  return Navigator.of(context).push<void>(_QSheetRoute(builder: builder));
+  return Navigator.of(context).push<void>(
+    _QSheetRoute(
+      builder: builder,
+      duration: motionDuration(context, const Duration(milliseconds: 280)),
+    ),
+  );
 }
 
 class _QSheetRoute<T> extends PopupRoute<T> {
   final WidgetBuilder builder;
+  final Duration duration;
 
-  _QSheetRoute({required this.builder});
+  _QSheetRoute({required this.builder, required this.duration});
 
   @override
   Color? get barrierColor => Colors.black.withValues(alpha: 0.45);
@@ -23,7 +30,7 @@ class _QSheetRoute<T> extends PopupRoute<T> {
   String? get barrierLabel => 'Dismiss';
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 280);
+  Duration get transitionDuration => duration;
 
   @override
   Widget buildPage(

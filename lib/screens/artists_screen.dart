@@ -16,6 +16,7 @@ import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/shared/search_box.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/util/reduce_motion.dart';
 
 bool get _isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -52,15 +53,22 @@ List<ArtistInfo> _groupArtists(List<Track> tracks) {
 }
 
 // Route helper
-PageRoute<void> _artistDetailRoute(Widget page) => PageRouteBuilder(
-  pageBuilder: (_, _, _) => page,
-  transitionDuration: const Duration(milliseconds: 240),
-  reverseTransitionDuration: const Duration(milliseconds: 200),
-  transitionsBuilder: (_, anim, _, child) => FadeTransition(
-    opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
-    child: child,
-  ),
-);
+PageRoute<void> _artistDetailRoute(BuildContext context, Widget page) =>
+    PageRouteBuilder(
+      pageBuilder: (_, _, _) => page,
+      transitionDuration: motionDuration(
+        context,
+        const Duration(milliseconds: 240),
+      ),
+      reverseTransitionDuration: motionDuration(
+        context,
+        const Duration(milliseconds: 200),
+      ),
+      transitionsBuilder: (_, anim, _, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+        child: child,
+      ),
+    );
 
 // Screen
 class ArtistsScreen extends ConsumerStatefulWidget {
@@ -95,9 +103,9 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
     final want = req.artist.toLowerCase();
     final match = artists.where((a) => a.name.toLowerCase() == want);
     if (match.isEmpty) return;
-    Navigator.of(
-      context,
-    ).push(_artistDetailRoute(_ArtistDetailScreen(artist: match.first)));
+    Navigator.of(context).push(
+      _artistDetailRoute(context, _ArtistDetailScreen(artist: match.first)),
+    );
   }
 
   @override
@@ -137,7 +145,7 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
             artists: artists,
             onTap: (a) => Navigator.of(
               context,
-            ).push(_artistDetailRoute(_ArtistDetailScreen(artist: a))),
+            ).push(_artistDetailRoute(context, _ArtistDetailScreen(artist: a))),
             onSecondaryTapDown: (a, d) => showArtistContextMenu(
               context: context,
               globalPosition: d.globalPosition,
@@ -150,7 +158,7 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
             artists: artists,
             onTap: (a) => Navigator.of(
               context,
-            ).push(_artistDetailRoute(_ArtistDetailScreen(artist: a))),
+            ).push(_artistDetailRoute(context, _ArtistDetailScreen(artist: a))),
             onSecondaryTapDown: (a, d) => showArtistContextMenu(
               context: context,
               globalPosition: d.globalPosition,

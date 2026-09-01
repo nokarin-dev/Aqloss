@@ -18,6 +18,7 @@ import 'package:aqloss/ui/m3/widgets/m3_page_scaffold.dart';
 import 'package:aqloss/widgets/shared/search_box.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/util/reduce_motion.dart';
 
 // Helpers
 bool get _isDesktop =>
@@ -115,7 +116,9 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
     final albums = _groupAlbums(ref.read(libraryProvider).tracks);
     final album = _findAlbum(albums, req);
     if (album == null) return;
-    Navigator.of(context).push(_fadeRoute(_AlbumDetailScreen(album: album)));
+    Navigator.of(
+      context,
+    ).push(_fadeRoute(context, _AlbumDetailScreen(album: album)));
   }
 
   _Album? _findAlbum(List<_Album> albums, LibraryNavRequest req) {
@@ -161,7 +164,9 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               .toList();
 
     void openAlbum(_Album album) {
-      Navigator.of(context).push(_fadeRoute(_AlbumDetailScreen(album: album)));
+      Navigator.of(
+        context,
+      ).push(_fadeRoute(context, _AlbumDetailScreen(album: album)));
     }
 
     void onAlbumSecondary(_Album album, TapDownDetails d) {
@@ -328,15 +333,22 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 }
 
 // Fade page route
-PageRoute<void> _fadeRoute(Widget page) => PageRouteBuilder(
-  pageBuilder: (_, _, _) => page,
-  transitionDuration: const Duration(milliseconds: 250),
-  reverseTransitionDuration: const Duration(milliseconds: 200),
-  transitionsBuilder: (_, anim, _, child) => FadeTransition(
-    opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
-    child: child,
-  ),
-);
+PageRoute<void> _fadeRoute(BuildContext context, Widget page) =>
+    PageRouteBuilder(
+      pageBuilder: (_, _, _) => page,
+      transitionDuration: motionDuration(
+        context,
+        const Duration(milliseconds: 250),
+      ),
+      reverseTransitionDuration: motionDuration(
+        context,
+        const Duration(milliseconds: 200),
+      ),
+      transitionsBuilder: (_, anim, _, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+        child: child,
+      ),
+    );
 
 // Album grid
 class _AlbumGrid extends StatelessWidget {

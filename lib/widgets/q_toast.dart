@@ -54,7 +54,16 @@ class _QToastWidgetState extends State<_QToastWidget>
       begin: const Offset(0, 1.8),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
-    _ctrl.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _ctrl.value = 1;
+    } else if (_ctrl.status == AnimationStatus.dismissed) {
+      _ctrl.forward();
+    }
   }
 
   @override

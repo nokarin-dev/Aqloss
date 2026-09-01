@@ -128,6 +128,7 @@ const _kDiscordRpc = 'aqloss_discord_rpc';
 const _kMaterialYou = 'aqloss_material_you';
 const _kHwAccel = 'aqloss_hw_accel';
 const _kCloseToTray = 'aqloss_close_to_tray';
+const _kReduceMotion = 'aqloss_reduce_motion';
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -171,6 +172,7 @@ class SettingsState {
   final bool materialYou;
   final bool hardwareAcceleration;
   final bool closeToTray;
+  final bool reduceMotion;
   final bool loaded;
 
   const SettingsState({
@@ -215,6 +217,7 @@ class SettingsState {
     this.materialYou = false,
     this.hardwareAcceleration = true,
     this.closeToTray = true,
+    this.reduceMotion = false,
     this.loaded = false,
   });
 
@@ -298,6 +301,7 @@ class SettingsState {
     bool? materialYou,
     bool? hardwareAcceleration,
     bool? closeToTray,
+    bool? reduceMotion,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -350,6 +354,7 @@ class SettingsState {
     materialYou: materialYou ?? this.materialYou,
     hardwareAcceleration: hardwareAcceleration ?? this.hardwareAcceleration,
     closeToTray: closeToTray ?? this.closeToTray,
+    reduceMotion: reduceMotion ?? this.reduceMotion,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -429,6 +434,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       materialYou: p.getBool(_kMaterialYou) ?? false,
       hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
       closeToTray: p.getBool(_kCloseToTray) ?? true,
+      reduceMotion: p.getBool(_kReduceMotion) ?? false,
       loaded: true,
     );
     GpuPref.write(state.hardwareAcceleration);
@@ -496,6 +502,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setBool(_kMaterialYou, state.materialYou),
       p.setBool(_kHwAccel, state.hardwareAcceleration),
       p.setBool(_kCloseToTray, state.closeToTray),
+      p.setBool(_kReduceMotion, state.reduceMotion),
     ]);
   }
 
@@ -795,6 +802,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void toggleCloseToTray() {
     state = state.copyWith(closeToTray: !state.closeToTray);
+    _save();
+  }
+
+  void toggleReduceMotion() {
+    state = state.copyWith(reduceMotion: !state.reduceMotion);
     _save();
   }
 

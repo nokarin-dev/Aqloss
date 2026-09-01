@@ -41,6 +41,7 @@ What changed in each Aqloss release, written for people who use the app.
 - [Linux|Audio] Each sound card appears once in the output list
 - [Linux|Audio] The saved system-default output is found again
 - [Android] Pick music folders on the phone; they stay after you update the app
+- [Frontend|Settings] Reduce motion: skip waves, toasts, and page motion
 - [Android] Lock screen, notification, and headset controls work while music plays
 - [iOS] Lock-screen controls stay available in the background
 - [Audio] Crossfade uses the full length you picked

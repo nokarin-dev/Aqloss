@@ -51,6 +51,17 @@ class _SpectrumDisplayState extends ConsumerState<SpectrumDisplay>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    if (reduce) {
+      if (_ticker.isActive) _ticker.stop();
+    } else if (!_ticker.isActive) {
+      _ticker.start();
+    }
+  }
+
+  @override
   void dispose() {
     _ticker.dispose();
     super.dispose();

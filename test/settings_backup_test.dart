@@ -42,6 +42,7 @@ void main() {
       listenBrainzToken: 'tok',
       hardwareAcceleration: false,
       closeToTray: false,
+      reduceMotion: true,
       loaded: true,
     );
     final playlists = [
@@ -78,6 +79,7 @@ void main() {
     expect(restored.listenBrainzToken, 'tok');
     expect(restored.hardwareAcceleration, isFalse);
     expect(restored.closeToTray, isFalse);
+    expect(restored.reduceMotion, isTrue);
     expect(restored.playbackSpeed, 1.25);
     expect(restored.uiFramework, UiFramework.material3);
   });
