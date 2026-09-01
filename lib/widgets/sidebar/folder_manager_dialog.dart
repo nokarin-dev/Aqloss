@@ -1,39 +1,16 @@
-import 'dart:io';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/services/folder_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
-import 'package:aqloss/util/android_path_helper.dart';
 
 class FolderManagerDialog extends ConsumerWidget {
   const FolderManagerDialog({super.key});
 
   Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
     final library = ref.read(libraryProvider.notifier);
-    if (Platform.isAndroid) {
-      final granted = await requestAndroidStoragePermission();
-      if (!granted) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Storage permission is required to scan music folders',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-    }
-    if (!context.mounted) return;
-    final result = await pickDirectory(
-      context,
-      dialogTitle: 'Select music folder',
-    );
-    if (result == null) return;
-    library.addFolder(resolveAndroidPath(result));
+    await addMusicFolderFromPicker(context, onAdded: library.addFolder);
   }
 
   String _shortPath(String path) {

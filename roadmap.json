@@ -1,7 +1,7 @@
 [
     {
-        "title": "v1.0.2",
-        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
+        "title": "v1.1.0",
+        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, Support, and an Arch Linux package.",
         "status": "in-progress",
         "items": [
             {
@@ -129,6 +129,12 @@
                 "description": "Filter the library by format and bit depth from the library page, without opening Settings.",
                 "status": "done",
                 "category": "Library"
+            },
+            {
+                "title": "Android folders",
+                "description": "Pick music folders on Android and keep access after updates.",
+                "status": "done",
+                "category": "Android"
             }
         ]
     },
@@ -184,12 +190,6 @@
                 "description": "Fill in extra details such as genre, year, and label from MusicBrainz.",
                 "status": "planned",
                 "category": "Library"
-            },
-            {
-                "title": "Android folders",
-                "description": "Pick music folders on Android and keep access after updates.",
-                "status": "planned",
-                "category": "Android"
             }
         ]
     }

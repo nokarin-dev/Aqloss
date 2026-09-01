@@ -23,5 +23,10 @@ void main() {
     expect(kBackupSavedMessage, 'Backup saved');
     expect(kBackupRestoredMessage, 'Backup restored');
     expect(kBackupInvalidMessage, 'This is not an Aqloss backup');
+    expect(
+      kStoragePermissionRequiredMessage,
+      'Storage permission is required to scan music folders',
+    );
+    expect(kFolderPickFailedMessage, 'Could not open that folder');
   });
 }

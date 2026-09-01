@@ -26,7 +26,7 @@ packages:
     source: hosted
     version: "0.3.3"
   android_file_picker:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: android_file_picker
       sha256: "665a5a57dfca27f91a715d300e4852a784f9f98e503dcff281bec9afb55767be"

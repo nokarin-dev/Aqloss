@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/util/tray.dart';
 import 'package:flutter/foundation.dart';
 import 'package:tray_manager/tray_manager.dart';
@@ -42,11 +43,15 @@ class TrayService with TrayListener {
     try {
       trayManager.addListener(this);
       await trayManager.setIcon(_iconPath());
-      await trayManager.setToolTip('Aqloss');
+      // Linux AppIndicator shows an empty dbusmenu until this runs
+      await _setMenu(playing: false);
+      await _setTooltip('Aqloss');
       _ready = true;
-    } catch (_) {
+    } catch (e, st) {
+      Logger.errorFrontend('Tray init failed: $e\n$st');
       try {
         trayManager.removeListener(this);
+        await trayManager.destroy();
       } catch (_) {}
     }
   }
@@ -59,21 +64,33 @@ class TrayService with TrayListener {
     await init();
     if (!_ready) return;
     try {
-      await trayManager.setToolTip(trayTooltip(title: title, artist: artist));
-      await trayManager.setContextMenu(
-        Menu(
-          items: [
-            MenuItem(key: 'show', label: 'Show Aqloss'),
-            MenuItem.separator(),
-            MenuItem(key: 'play_pause', label: trayPlayPauseLabel(playing)),
-            MenuItem(key: 'next', label: 'Next'),
-            MenuItem(key: 'previous', label: 'Previous'),
-            MenuItem.separator(),
-            MenuItem(key: 'quit', label: 'Quit'),
-          ],
-        ),
-      );
+      await _setTooltip(trayTooltip(title: title, artist: artist));
+      await _setMenu(playing: playing);
     } catch (_) {}
+  }
+
+  Future<void> _setTooltip(String text) async {
+    // tray_manager has no Linux setToolTip; it would abort init
+    if (Platform.isLinux) return;
+    try {
+      await trayManager.setToolTip(text);
+    } catch (_) {}
+  }
+
+  Future<void> _setMenu({required bool playing}) async {
+    await trayManager.setContextMenu(
+      Menu(
+        items: [
+          MenuItem(key: 'show', label: 'Show Aqloss'),
+          MenuItem.separator(),
+          MenuItem(key: 'play_pause', label: trayPlayPauseLabel(playing)),
+          MenuItem(key: 'next', label: 'Next'),
+          MenuItem(key: 'previous', label: 'Previous'),
+          MenuItem.separator(),
+          MenuItem(key: 'quit', label: 'Quit'),
+        ],
+      ),
+    );
   }
 
   Future<void> destroy() async {
@@ -119,6 +136,8 @@ class TrayService with TrayListener {
 
   @override
   void onTrayIconRightMouseDown() {
+    // Linux AppIndicator / StatusNotifier shows the menu itself
+    if (Platform.isLinux) return;
     trayManager.popUpContextMenu();
   }
 

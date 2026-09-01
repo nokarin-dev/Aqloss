@@ -20,31 +20,33 @@ What changed in each Aqloss release, written for people who use the app.
 - [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus your own named presets
 - [Frontend|Player] Sleep timer: 15–60 minutes, or stop at the end of the track
 - [Frontend|Player] Resume the last track where you left off when you reopen the app, and restore the last queue on launch (paused)
-- [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
+- [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
+- [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
 
 ### Changed
 
+- [Frontend] Discord status uses public cover art only; your local files stay on this computer
 - [Frontend|Library] Artist and album sorts keep album and track order, so two albums with the same name stay with their artist
+- [Frontend|Library] Large folders scan faster
 - [Linux|Audio] Exclusive mode can take over your DAC
 - [Audio] New installs use Shared output, except on Windows (Exclusive)
-- [Frontend|Library] Large folders scan faster
-- [Frontend] Discord status uses public cover art only; your local files stay on this computer
 
 ### Fixed
 
-- [Android] Lock screen, notification, and headset controls work while music plays
-- [iOS] Lock-screen controls stay available in the background
 - [Frontend|Library] ReplayGain tags in your files are used after a scan (rescan to pick them up)
-- [Audio] Crossfade uses the full length you picked
-- [Frontend] Playback errors show a message
-- [Library] DSD files (`.dsf` / `.dff`) are no longer added to the library
-- [Android] Update check, Last.fm, and lyrics work in the release app
 - [Frontend|Settings] Offline update check shows a short message instead of a network error
 - [Backend|Audio] Exclusive mode can take the DAC instead of failing silently
 - [Linux|Audio] The output you picked stays selected when devices refresh
 - [Linux|Audio] Each sound card appears once in the output list
 - [Linux|Audio] The saved system-default output is found again
+- [Android] Pick music folders on the phone; they stay after you update the app
+- [Android] Lock screen, notification, and headset controls work while music plays
+- [iOS] Lock-screen controls stay available in the background
+- [Audio] Crossfade uses the full length you picked
+- [Frontend] Playback errors show a message
+- [Library] DSD files (`.dsf` / `.dff`) are no longer added to the library
+- [Android] Update check, Last.fm, and lyrics work in the release app
 
 ---
 

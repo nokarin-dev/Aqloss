@@ -24,7 +24,6 @@ import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/settings_backup_service.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/theme/ui_framework.dart';
-import 'package:aqloss/util/android_path_helper.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/util/open_url.dart';
 import 'package:aqloss/util/playback_speed.dart';
@@ -821,28 +820,7 @@ class _MusicFoldersPane extends ConsumerWidget {
 
   Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
     final library = ref.read(libraryProvider.notifier);
-    if (Platform.isAndroid) {
-      final granted = await requestAndroidStoragePermission();
-      if (!granted) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Storage permission required to scan music folders',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-    }
-    if (!context.mounted) return;
-    final result = await pickDirectory(
-      context,
-      dialogTitle: 'Select music folder',
-    );
-    if (result == null) return;
-    library.addFolder(resolveAndroidPath(result));
+    await addMusicFolderFromPicker(context, onAdded: library.addFolder);
   }
 
   String _shortPath(String path) {
