@@ -76,6 +76,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   bool _handlingTrackEnd = false;
   bool _playPauseBusy = false;
   bool _seeking = false;
+  Duration? _seekHoldPosition;
+  DateTime? _seekHoldUntil;
   double _lastPollPositionSecs = 0;
   SettingsState Function()? _readSettings;
   HistoryNotifier? _historyNotifier;
@@ -330,7 +332,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _playPauseBusy = true;
     try {
       await AudioService.pause();
-      state = state.copyWith(status: PlayerStatus.paused);
+      var pos = state.position;
+      try {
+        final p = await backend.getPosition();
+        pos = Duration(milliseconds: (p.positionSecs * 1000).round());
+      } catch (_) {}
+      if (!mounted) return;
+      state = state.copyWith(status: PlayerStatus.paused, position: pos);
       DiscordService.update(state);
       PluginRegistry.instance.dispatchPlayPause(
         PlayPauseEvent(isPlaying: false, position: state.position),
@@ -341,9 +349,35 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  void _lockSeek(
+    Duration position, {
+    Duration hold = const Duration(seconds: 8),
+  }) {
+    _seeking = true;
+    _seekHoldPosition = position;
+    _seekHoldUntil = DateTime.now().add(hold);
+  }
+
+  void _unlockSeek() {
+    _seeking = false;
+    _seekHoldPosition = null;
+    _seekHoldUntil = null;
+  }
+
+  void _releaseSeekIfCaughtUp(Duration enginePos) {
+    if (!_seeking) return;
+    final target = _seekHoldPosition;
+    final until = _seekHoldUntil;
+    final close =
+        target != null &&
+        (enginePos.inMilliseconds - target.inMilliseconds).abs() < 400;
+    final expired = until != null && !DateTime.now().isBefore(until);
+    if (close || expired) _unlockSeek();
+  }
+
   Future<void> seek(Duration position) async {
     final sec = position.inMilliseconds / 1000.0;
-    _seeking = true;
+    _lockSeek(position);
     try {
       await AudioService.seek(sec);
       if (!mounted) return;
@@ -351,18 +385,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (state.status == PlayerStatus.playing) {
         DiscordService.updateAfterSeek(state, sec);
       }
-    } finally {
-      _seeking = false;
+      _seekHoldUntil = DateTime.now().add(const Duration(milliseconds: 1200));
+    } catch (_) {
+      _unlockSeek();
     }
   }
 
   void seekPreview(Duration position) {
+    _lockSeek(position);
     state = state.copyWith(position: position);
   }
 
   Future<void> seekCommit(Duration position) async {
     final sec = position.inMilliseconds / 1000.0;
-    _seeking = true;
+    _lockSeek(position);
     try {
       await AudioService.seek(sec);
       if (!mounted) return;
@@ -370,12 +406,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (state.status == PlayerStatus.playing) {
         DiscordService.updateAfterSeek(state, sec);
       }
-    } finally {
-      _seeking = false;
+      _seekHoldUntil = DateTime.now().add(const Duration(milliseconds: 1200));
+    } catch (_) {
+      _unlockSeek();
     }
   }
 
   Future<void> setVolume(double volume) async {
+    if (backend.isExclusiveMode()) return;
     final v = volume.clamp(0.0, 1.0);
     await AudioService.setVolume(v);
     state = state.copyWith(volume: v);
@@ -606,6 +644,15 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         return;
       }
       _lastPollPositionSecs = pos.positionSecs;
+      _releaseSeekIfCaughtUp(newPos);
+      if (_seeking) {
+        if (effDur != state.currentTrack?.duration) {
+          state = state.copyWith(
+            currentTrack: state.currentTrack?.copyWithDuration(effDur),
+          );
+        }
+        return;
+      }
       state = state.copyWith(
         position: newPos,
         currentTrack: effDur != state.currentTrack?.duration

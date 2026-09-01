@@ -41,6 +41,7 @@ class _CustomSliderState extends State<CustomSlider> {
   }
 
   void _handleDragStart(DragStartDetails d, double width) {
+    if (widget.onChanged == null) return;
     _dragValue = (d.localPosition.dx / width).clamp(0.0, 1.0);
     setState(() => _dragging = true);
   }
@@ -88,12 +89,15 @@ class _CustomSliderState extends State<CustomSlider> {
     return LayoutBuilder(
       builder: (ctx, constraints) {
         final w = constraints.maxWidth;
+        final enabled = widget.onChanged != null;
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTapDown: (d) => _handleTapDown(d, w),
-          onHorizontalDragStart: (d) => _handleDragStart(d, w),
-          onHorizontalDragUpdate: (d) => _handleDragUpdate(d, w),
-          onHorizontalDragEnd: _handleDragEnd,
+          onTapDown: enabled ? (d) => _handleTapDown(d, w) : null,
+          onHorizontalDragStart: enabled ? (d) => _handleDragStart(d, w) : null,
+          onHorizontalDragUpdate: enabled
+              ? (d) => _handleDragUpdate(d, w)
+              : null,
+          onHorizontalDragEnd: enabled ? _handleDragEnd : null,
           child: SizedBox(
             height: widget.thumbRadius * 2 + 8,
             child: CustomPaint(

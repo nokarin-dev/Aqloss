@@ -9,11 +9,11 @@ import 'package:aqloss/screens/mobile_now_playing.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/player_controls.dart';
 import 'package:aqloss/providers/history_provider.dart';
-import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/widgets/spectrum_display.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/providers/audio_device_provider.dart';
 
 // Cover layout breakpoint
 const _coverLayoutMaxWidth = 640.0;
@@ -710,7 +710,7 @@ class _TrackInfo extends ConsumerWidget {
 }
 
 // Format row
-class _FormatRow extends StatelessWidget {
+class _FormatRow extends ConsumerWidget {
   final Track track;
   final bool soft;
   final WrapAlignment alignment;
@@ -721,8 +721,8 @@ class _FormatRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isExclusive = backend.isExclusiveMode();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isExclusive = ref.watch(exclusiveModeProvider);
     return Wrap(
       spacing: 5,
       runSpacing: 4,
@@ -834,23 +834,7 @@ class _PlayerLoveBtnState extends ConsumerState<_PlayerLoveBtn>
     _busy = true;
     await _anim.forward();
     await _anim.reverse();
-    final newLoved = await ref
-        .read(historyProvider.notifier)
-        .toggleLove(widget.track);
-    final settings = ref.read(settingsProvider);
-    if (settings.scrobbleReady) {
-      final creds = LastFmService.resolve(
-        userApiKey: settings.lastFmApiKey,
-        userApiSecret: settings.lastFmApiSecret,
-      );
-      LastFmService.setLoved(
-        sessionKey: settings.lastFmSessionKey!,
-        creds: creds,
-        artist: widget.track.displayArtist,
-        track: widget.track.displayTitle,
-        loved: newLoved,
-      );
-    }
+    await ref.read(historyProvider.notifier).toggleLove(widget.track);
     _busy = false;
   }
 

@@ -137,7 +137,7 @@ class LastFmService {
     }
   }
 
-  // Send track.love or track.unlove to Last.fm.
+  // Love / unlove
   static Future<bool> setLoved({
     required String sessionKey,
     required LastFmCredentials creds,
@@ -169,6 +169,62 @@ class LastFmService {
       Logger.debugLastfm('setLoved: $e');
       return false;
     }
+  }
+
+  static Future<List<({String artist, String title})>> fetchLovedTracks({
+    required String user,
+    required LastFmCredentials creds,
+  }) async {
+    if (!creds.isValid || user.isEmpty) return const [];
+    final out = <({String artist, String title})>[];
+    var page = 1;
+    var totalPages = 1;
+    while (page <= totalPages && page <= 20) {
+      try {
+        final uri = Uri.parse(_kApiUrl).replace(
+          queryParameters: {
+            'method': 'user.getLovedTracks',
+            'user': user,
+            'api_key': creds.apiKey,
+            'format': 'json',
+            'limit': '200',
+            'page': '$page',
+          },
+        );
+        final res = await http.get(uri).timeout(const Duration(seconds: 20));
+        if (res.statusCode != 200) break;
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        if (body.containsKey('error')) {
+          Logger.debugLastfm('getLovedTracks: ${body['message']}');
+          break;
+        }
+        final root = body['lovedtracks'] as Map<String, dynamic>?;
+        if (root == null) break;
+        final attr = root['@attr'] as Map<String, dynamic>?;
+        totalPages = int.tryParse('${attr?['totalPages'] ?? 1}') ?? 1;
+        final raw = root['track'];
+        final tracks = raw is List
+            ? raw
+            : raw is Map
+            ? [raw]
+            : const [];
+        for (final item in tracks) {
+          if (item is! Map) continue;
+          final title = '${item['name'] ?? ''}'.trim();
+          final artistRaw = item['artist'];
+          final artist = artistRaw is Map
+              ? '${artistRaw['name'] ?? artistRaw['#text'] ?? ''}'.trim()
+              : '$artistRaw'.trim();
+          if (title.isEmpty || artist.isEmpty) continue;
+          out.add((artist: artist, title: title));
+        }
+        page++;
+      } catch (e) {
+        Logger.debugLastfm('getLovedTracks: $e');
+        break;
+      }
+    }
+    return out;
   }
 
   static String _sign(Map<String, String> params, String secret) {

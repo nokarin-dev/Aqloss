@@ -24,6 +24,23 @@ struct _Aqloss
 
 G_DEFINE_TYPE(Aqloss, aqloss, GTK_TYPE_APPLICATION)
 
+static void apply_hw_accel_pref(void)
+{
+  gchar *path = g_build_filename(g_get_user_data_dir(), APPLICATION_ID,
+                                 "hw_accel", nullptr);
+  gchar *contents = nullptr;
+  gsize len = 0;
+  if (g_file_get_contents(path, &contents, &len, nullptr) && len > 0 &&
+      contents[0] == '0')
+  {
+    // Debug/profile only; release ignores FLUTTER_ENGINE_SWITCHES.
+    g_setenv("FLUTTER_ENGINE_SWITCHES", "1", TRUE);
+    g_setenv("FLUTTER_ENGINE_SWITCH_1", "enable-software-rendering", TRUE);
+  }
+  g_free(contents);
+  g_free(path);
+}
+
 static gboolean window_is_flush(GtkWindow *win)
 {
   GdkWindow *gdk_win = gtk_widget_get_window(GTK_WIDGET(win));
@@ -280,6 +297,7 @@ static void aqloss_open(GApplication *application,
 
 static void aqloss_activate(GApplication *application)
 {
+  apply_hw_accel_pref();
   Aqloss *self = AQLOSS_APP(application);
   GtkWindow *window = GTK_WINDOW(
       gtk_application_window_new(GTK_APPLICATION(application)));
@@ -287,6 +305,8 @@ static void aqloss_activate(GApplication *application)
   gtk_window_set_decorated(window, FALSE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // Flutter 3.47 defaults to Impeller GLES SDF, which freezes the UI on Mesa/Hyprland.
+  fl_dart_project_set_enable_impeller(project, FALSE);
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 

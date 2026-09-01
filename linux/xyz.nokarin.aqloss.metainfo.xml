@@ -59,6 +59,24 @@
     </screenshots>
 
     <releases>
+        <release version="1.0.1" date="2026-08-27">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.0.1</url>
+            <description>
+                <p>Opus playback, ALSA exclusive-style output, queue and library extras, and playback and windowing fixes.</p>
+                <ul>
+                    <li>Play Opus files</li>
+                    <li>ALSA hardware devices for exclusive-style playback; PipeWire and mixer outputs stay shared</li>
+                    <li>Search the queue, play next or add to queue from track menus, and play all filtered library results</li>
+                    <li>Import loved tracks from Last.fm and ListenBrainz onto matching library files</li>
+                    <li>Hi-res and large-frame FLAC files no longer play too fast in shared mode</li>
+                    <li>Interface no longer becomes unresponsive after playback starts on some Linux GPUs</li>
+                    <li>Add Folder works on Hyprland; tiled and half-screen windows fill the tile</li>
+                    <li>Volume, equaliser, and other processing lock out in exclusive mode, with on-screen explanation</li>
+                    <li>Hardware acceleration toggle for GPU vs software interface rendering</li>
+                    <li>Toggle the large now playing card at the top of library pages</li>
+                </ul>
+            </description>
+        </release>
         <release version="1.0.0" date="2026-07-28">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.0.0</url>
             <description>

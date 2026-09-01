@@ -1,6 +1,6 @@
 [package]
 name = "aqloss_rust_core"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 
 [lib]
@@ -8,22 +8,19 @@ name = "aqloss_rust_core"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-flutter_rust_bridge = "=2.12.0"
+flutter_rust_bridge = "=2.13.0"
 
 # Audio decoding
 symphonia = { version = "0.6.1", features = ["all"] }
 
 # Audio output (cross-platform)
-cpal = "0.17"
+cpal = "0.18"
 
 # High-quality resampling
 rubato = "2"
 
 # Metadata & tag parsing
-lofty = "0.24"
-
-# Async runtime
-tokio = { version = "1", features = ["full"] }
+lofty = "0.25"
 
 # Error handling
 anyhow = "1"
@@ -36,7 +33,7 @@ walkdir = "2"
 discord-presence = "3.2.0"
 ringbuf = "0.4.8"
 biquad = "0.6.0"
-image = "0.25.10"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
 lru = "0.18.0"
 realfft = "3.5.0"
 
@@ -45,9 +42,6 @@ mlua = { version = "0.12", features = ["lua54", "vendored", "send"] }
 
 # Blocking HTTP for plugins
 ureq = { version = "3.3.0", features = ["json"] }
-
-# Zip for .aqx extraction
-zip = "2"
 
 # JSON serializations for plugin
 serde = { version = "1.0.228", features = ["derive"] }
@@ -61,10 +55,16 @@ jni = { version = "0.21", default-features = false }
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
     "Win32_Media_Audio",
+    "Win32_Media_KernelStreaming",
+    "Win32_Media_Multimedia",
     "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
     "Win32_System_Threading",
+    "Win32_System_Variant",
     "Win32_Foundation",
     "Win32_Security",
+    "Win32_Devices_Properties",
+    "Win32_UI_Shell_PropertiesSystem",
 ]}
 
 [patch.crates-io]

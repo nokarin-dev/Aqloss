@@ -1,6 +1,6 @@
 use crate::TrackInfo;
 use anyhow::Result;
-use image::{ImageFormat, imageops::FilterType};
+use image::{imageops::FilterType, ImageFormat};
 use lofty::prelude::{Accessor, AudioFile, ItemKey, TaggedFileExt};
 use lru::LruCache;
 use std::{

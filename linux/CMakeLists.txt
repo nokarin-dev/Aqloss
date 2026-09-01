@@ -63,6 +63,11 @@ set_target_properties(${BINARY_NAME}
 
 include(flutter/generated_plugins.cmake)
 
+# jni: JNIEnv** vs void**
+if(TARGET jni)
+  target_compile_options(jni PRIVATE -Wno-incompatible-pointer-types)
+endif()
+
 set(BUILD_BUNDLE_DIR "${PROJECT_BINARY_DIR}/bundle")
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)

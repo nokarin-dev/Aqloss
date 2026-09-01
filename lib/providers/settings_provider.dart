@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:aqloss/services/gpu_pref.dart';
 import 'package:aqloss/theme/ui_framework.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -114,6 +115,7 @@ const _kStereoWidth = 'aqloss_stereo_width';
 const _kHaasMs = 'aqloss_haas_ms';
 const _kDiscordRpc = 'aqloss_discord_rpc';
 const _kMaterialYou = 'aqloss_material_you';
+const _kHwAccel = 'aqloss_hw_accel';
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -153,6 +155,7 @@ class SettingsState {
   final double haasMs;
   final bool discordRpc;
   final bool materialYou;
+  final bool hardwareAcceleration;
   final bool loaded;
 
   const SettingsState({
@@ -193,6 +196,7 @@ class SettingsState {
     this.haasMs = 0.0,
     this.discordRpc = true,
     this.materialYou = false,
+    this.hardwareAcceleration = true,
     this.loaded = false,
   });
 
@@ -272,6 +276,7 @@ class SettingsState {
     double? haasMs,
     bool? discordRpc,
     bool? materialYou,
+    bool? hardwareAcceleration,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -320,6 +325,7 @@ class SettingsState {
     haasMs: haasMs ?? this.haasMs,
     discordRpc: discordRpc ?? this.discordRpc,
     materialYou: materialYou ?? this.materialYou,
+    hardwareAcceleration: hardwareAcceleration ?? this.hardwareAcceleration,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -395,8 +401,10 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       haasMs: (p.getDouble(_kHaasMs) ?? 0.0).clamp(0.0, 25.0),
       discordRpc: p.getBool(_kDiscordRpc) ?? true,
       materialYou: p.getBool(_kMaterialYou) ?? false,
+      hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
       loaded: true,
     );
+    GpuPref.write(state.hardwareAcceleration);
   }
 
   Future<void> _save() async {
@@ -457,6 +465,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setDouble(_kHaasMs, state.haasMs),
       p.setBool(_kDiscordRpc, state.discordRpc),
       p.setBool(_kMaterialYou, state.materialYou),
+      p.setBool(_kHwAccel, state.hardwareAcceleration),
     ]);
   }
 
@@ -572,10 +581,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   void setUiFramework(UiFramework f) {
-    state = state.copyWith(
-      uiFramework: f,
-      materialYou: f == UiFramework.material3 ? state.materialYou : false,
-    );
+    state = state.copyWith(uiFramework: f);
     _save();
   }
 
@@ -711,6 +717,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     if (state.uiFramework != UiFramework.material3) return;
     state = state.copyWith(materialYou: !state.materialYou);
     _save();
+  }
+
+  void toggleHardwareAcceleration() {
+    state = state.copyWith(hardwareAcceleration: !state.hardwareAcceleration);
+    _save();
+    GpuPref.write(state.hardwareAcceleration);
   }
 }
 

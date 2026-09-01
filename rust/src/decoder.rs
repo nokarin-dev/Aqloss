@@ -23,6 +23,7 @@ pub struct Decoder {
     bit_depth: u32,
     duration_secs: f64,
     position_secs: f64,
+    logged_layout: bool,
 }
 
 impl Decoder {
@@ -96,16 +97,17 @@ impl Decoder {
             bit_depth,
             duration_secs,
             position_secs: 0.0,
+            logged_layout: false,
         })
     }
 
-    pub fn next_packet(&mut self) -> Result<Option<Vec<f32>>> {
+    pub fn next_packet_into(&mut self, buf: &mut Vec<f32>) -> Result<bool> {
         loop {
             let packet = match self.format.next_packet() {
                 Ok(Some(p)) => p,
-                Ok(None) => return Ok(None),
+                Ok(None) => return Ok(false),
                 Err(SymphError::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                    return Ok(None)
+                    return Ok(false)
                 }
                 Err(SymphError::ResetRequired) => {
                     self.decoder.reset();
@@ -125,15 +127,40 @@ impl Decoder {
             };
 
             let spec = decoded.spec();
-            let sample_rate = spec.rate();
-
-            let mut buf: Vec<f32> = Vec::with_capacity(decoded.capacity());
-            decoded.copy_to_vec_interleaved(&mut buf);
-
             let decoded_frames = decoded.frames();
-            self.position_secs += decoded_frames as f64 / sample_rate as f64;
+            if decoded_frames == 0 {
+                continue;
+            }
 
-            return Ok(Some(buf));
+            buf.clear();
+            decoded.copy_to_vec_interleaved(buf);
+
+            let spec_ch = spec.channels().count().max(1);
+            let pcm_ch = (buf.len() / decoded_frames).max(1);
+            let ch = if buf.len() == decoded_frames * spec_ch {
+                spec_ch as u32
+            } else {
+                pcm_ch as u32
+            };
+            buf.truncate(decoded_frames * ch as usize);
+            let rate = spec.rate().max(1);
+
+            if (ch != self.channels || rate != self.sample_rate) && !self.logged_layout {
+                self.logged_layout = true;
+                crate::logger::warn_audio(format!(
+                    "packet layout {}Hz {}ch ({} frames, {} samples) differs from stream {}Hz {}ch spec_ch={spec_ch}",
+                    rate,
+                    ch,
+                    decoded_frames,
+                    buf.len(),
+                    self.sample_rate,
+                    self.channels
+                ));
+            }
+            self.sample_rate = rate;
+            self.channels = ch;
+            self.position_secs += decoded_frames as f64 / rate as f64;
+            return Ok(true);
         }
     }
 

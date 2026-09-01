@@ -1,5 +1,7 @@
 pub mod api;
 pub mod audio_engine;
+pub mod audio_io;
+pub mod convert;
 pub mod decoder;
 pub mod discord_rpc;
 pub mod eq;
@@ -10,6 +12,9 @@ pub mod output;
 pub mod plugin_engine;
 pub mod resampler;
 pub mod stereo_enhance;
+
+#[cfg(target_os = "windows")]
+pub mod wasapi_exclusive;
 
 use flutter_rust_bridge::frb;
 

@@ -1,8 +1,8 @@
 [
     {
         "title": "v1.0.1",
-        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, and Hyprland folder picker.",
-        "status": "in-progress",
+        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, Hyprland folder picker, M3 progress, and native-rate exclusive output.",
+        "status": "done",
         "items": [
             {
                 "title": "Opus Playback",
@@ -57,6 +57,42 @@
                 "description": "Filter the current queue to jump to a track. Shuffle should order the remaining queue instead of picking a random index, so Play Next stays next. Playing a library/search result should not replace the queue with the visible results.",
                 "status": "done",
                 "category": "Frontend · Player"
+            },
+            {
+                "title": "M3 playback progress",
+                "description": "Material 3 seek stays wavy for the whole track, click-seeks without snapping back, pauses as a flat bar, and draws the wave and play ring with a per-pixel shader so curves stay smooth. The unused part of the play ring waves in sync in the inactive colour.",
+                "status": "done",
+                "category": "Frontend · UI"
+            },
+            {
+                "title": "Pause resume skip",
+                "description": "Pausing no longer discards the output buffer, which skipped the track forward on play.",
+                "status": "done",
+                "category": "Audio · Playback"
+            },
+            {
+                "title": "Loved track sync",
+                "description": "Import Last.fm and ListenBrainz likes onto matching local files. Heart toggles in the app also update those services.",
+                "status": "done",
+                "category": "Frontend · Integrations"
+            },
+            {
+                "title": "Hardware acceleration",
+                "description": "Settings toggle for GPU vs software UI rendering. Restart the app after changing it.",
+                "status": "done",
+                "category": "Frontend · Settings"
+            },
+            {
+                "title": "Native-rate exclusive output",
+                "description": "WASAPI Exclusive follows the track sample rate and uses integer PCM with TPDF dither on 16-bit. Linux lists ALSA hardware endpoints for exclusive-style exact-rate output; default playback uses PipeWire.",
+                "status": "done",
+                "category": "Audio · Output"
+            },
+            {
+                "title": "Lower output latency",
+                "description": "Shorter playback ring and callback size so exclusive and shared output start with less buffering.",
+                "status": "done",
+                "category": "Audio · Playback"
             }
         ]
     },

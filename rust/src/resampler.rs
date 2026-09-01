@@ -7,16 +7,25 @@ use rubato::{
 
 const CHUNK_FRAMES: usize = 1024;
 
-#[allow(dead_code)]
 pub struct Resampler {
     inner: Async<f32>,
     channels: usize,
     in_buf: Vec<Vec<f32>>,
+    chunk: Vec<Vec<f32>>,
+    out_planar: Vec<Vec<f32>>,
+    #[allow(dead_code)]
     source_rate: usize,
+    #[allow(dead_code)]
     target_rate: usize,
 }
 
 impl Resampler {
+    pub fn matches(&self, source_rate: u32, target_rate: u32, channels: u32) -> bool {
+        self.source_rate == source_rate as usize
+            && self.target_rate == target_rate as usize
+            && self.channels == channels as usize
+    }
+
     pub fn new(source_rate: u32, target_rate: u32, channels: u32) -> Result<Self> {
         const SINC_LEN: usize = 256;
         let params = SincInterpolationParameters {
@@ -26,26 +35,29 @@ impl Resampler {
             oversampling_factor: 256,
             window: WindowFunction::BlackmanHarris2,
         };
-
+        let ch = channels as usize;
         let inner = Async::<f32>::new_sinc(
             target_rate as f64 / source_rate as f64,
             1.1,
             &params,
             CHUNK_FRAMES,
-            channels as usize,
+            ch,
             FixedAsync::Input,
         )?;
 
         Ok(Self {
             inner,
-            channels: channels as usize,
-            in_buf: vec![Vec::with_capacity(CHUNK_FRAMES * 2); channels as usize],
+            channels: ch,
+            in_buf: vec![Vec::with_capacity(CHUNK_FRAMES * 2); ch],
+            chunk: vec![vec![0.0; CHUNK_FRAMES]; ch],
+            out_planar: vec![Vec::new(); ch],
             source_rate: source_rate as usize,
             target_rate: target_rate as usize,
         })
     }
 
-    pub fn process(&mut self, input: &[f32]) -> Result<Vec<f32>> {
+    pub fn process_into(&mut self, input: &[f32], out: &mut Vec<f32>) -> Result<()> {
+        out.clear();
         let in_frames = input.len() / self.channels;
         for f in 0..in_frames {
             for ch in 0..self.channels {
@@ -53,76 +65,74 @@ impl Resampler {
             }
         }
 
-        let mut out_interleaved = Vec::new();
-
         while self.in_buf[0].len() >= CHUNK_FRAMES {
-            let chunk: Vec<Vec<f32>> = self
-                .in_buf
-                .iter_mut()
-                .map(|ch| ch.drain(..CHUNK_FRAMES).collect())
-                .collect();
+            for ch in 0..self.channels {
+                self.chunk[ch].clear();
+                self.chunk[ch].extend(self.in_buf[ch].drain(..CHUNK_FRAMES));
+            }
 
-            let input_adapter = SequentialSliceOfVecs::new(&chunk, self.channels, CHUNK_FRAMES)
-                .map_err(|e| anyhow::anyhow!("resampler input adapter: {e:?}"))?;
+            let input_adapter =
+                SequentialSliceOfVecs::new(&self.chunk, self.channels, CHUNK_FRAMES)
+                    .map_err(|e| anyhow::anyhow!("resampler input adapter: {e:?}"))?;
 
             let out_frames = self.inner.output_frames_next();
-            let mut out_buf = vec![vec![0f32; out_frames]; self.channels];
+            for ch in &mut self.out_planar {
+                ch.resize(out_frames, 0.0);
+            }
             let mut output_adapter =
-                SequentialSliceOfVecs::new_mut(&mut out_buf, self.channels, out_frames)
+                SequentialSliceOfVecs::new_mut(&mut self.out_planar, self.channels, out_frames)
                     .map_err(|e| anyhow::anyhow!("resampler output adapter: {e:?}"))?;
 
             self.inner
                 .process_into_buffer(&input_adapter, &mut output_adapter, None)?;
 
-            out_interleaved.reserve(out_frames * self.channels);
+            out.reserve(out_frames * self.channels);
             for f in 0..out_frames {
                 for ch in 0..self.channels {
-                    out_interleaved.push(out_buf[ch][f]);
+                    out.push(self.out_planar[ch][f]);
                 }
             }
         }
-
-        Ok(out_interleaved)
+        Ok(())
     }
 
-    pub fn flush(&mut self) -> Result<Vec<f32>> {
+    pub fn flush_into(&mut self, out: &mut Vec<f32>) -> Result<()> {
+        out.clear();
         if self.in_buf[0].is_empty() {
-            return Ok(Vec::new());
+            return Ok(());
         }
 
         let leftover = self.in_buf[0].len();
-        for ch in &mut self.in_buf {
-            ch.resize(CHUNK_FRAMES, 0.0);
+        for ch in 0..self.channels {
+            self.chunk[ch].clear();
+            self.chunk[ch].extend(self.in_buf[ch].drain(..));
+            self.chunk[ch].resize(CHUNK_FRAMES, 0.0);
         }
 
-        let chunk: Vec<Vec<f32>> = self
-            .in_buf
-            .iter_mut()
-            .map(|ch| ch.drain(..).collect())
-            .collect();
-
-        let input_adapter = SequentialSliceOfVecs::new(&chunk, self.channels, CHUNK_FRAMES)
+        let input_adapter = SequentialSliceOfVecs::new(&self.chunk, self.channels, CHUNK_FRAMES)
             .map_err(|e| anyhow::anyhow!("resampler flush input adapter: {e:?}"))?;
 
         let out_frames = self.inner.output_frames_next();
-        let mut out_buf = vec![vec![0f32; out_frames]; self.channels];
+        for ch in &mut self.out_planar {
+            ch.resize(out_frames, 0.0);
+        }
         let mut output_adapter =
-            SequentialSliceOfVecs::new_mut(&mut out_buf, self.channels, out_frames)
+            SequentialSliceOfVecs::new_mut(&mut self.out_planar, self.channels, out_frames)
                 .map_err(|e| anyhow::anyhow!("resampler flush output adapter: {e:?}"))?;
 
         self.inner
             .process_into_buffer(&input_adapter, &mut output_adapter, None)?;
 
-        let ratio = leftover as f64 / CHUNK_FRAMES as f64;
-        let keep_frames = (out_frames as f64 * ratio).round() as usize;
-
-        let mut out = Vec::with_capacity(keep_frames * self.channels);
-        for f in 0..keep_frames.min(out_frames) {
+        let keep_frames = ((out_frames as f64 * leftover as f64 / CHUNK_FRAMES as f64).round()
+            as usize)
+            .min(out_frames);
+        out.reserve(keep_frames * self.channels);
+        for f in 0..keep_frames {
             for ch in 0..self.channels {
-                out.push(out_buf[ch][f]);
+                out.push(self.out_planar[ch][f]);
             }
         }
-        Ok(out)
+        Ok(())
     }
 
     pub fn reset(&mut self) {
