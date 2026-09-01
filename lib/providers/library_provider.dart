@@ -504,30 +504,6 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     _applyFilter();
   }
 
-  void setFormatFilter(AudioFormat? format) {
-    if (format == null) {
-      clearFormatFilters();
-    } else {
-      state = state.copyWith(
-        filter: LibraryFilter.format,
-        selectedFormats: {format},
-      );
-      _applyFilter();
-    }
-  }
-
-  void setFormatFilter(String format) {
-    final next = state.formatFilter == format ? null : format;
-    state = state.copyWith(formatFilter: next, clearFormatFilter: next == null);
-    _applyFilter();
-  }
-
-  void setBitDepthFilter(BitDepthFilter f) {
-    final next = state.bitDepthFilter == f ? BitDepthFilter.any : f;
-    state = state.copyWith(bitDepthFilter: next);
-    _applyFilter();
-  }
-
   void clearAll() {
     _saveFolders([]);
     _deletePersistedState();
