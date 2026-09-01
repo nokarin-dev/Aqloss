@@ -12,14 +12,15 @@ import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/src/rust/lib.dart' show TrackInfo;
+import 'package:aqloss/util/library_filter.dart';
 import 'package:aqloss/util/library_sort.dart';
 import 'package:aqloss/util/missing_files.dart';
 
+export 'package:aqloss/util/library_filter.dart'
+    show BitDepthFilter, LibraryFilter;
 export 'package:aqloss/util/library_sort.dart' show SortField, SortOrder;
 
 enum LibraryStatus { idle, scanning, done, error }
-
-enum LibraryFilter { all, lossless, hiRes }
 
 class LibraryState {
   final List<Track> tracks;
@@ -31,6 +32,8 @@ class LibraryState {
   final SortField sortField;
   final SortOrder sortOrder;
   final LibraryFilter filter;
+  final String? formatFilter;
+  final BitDepthFilter bitDepthFilter;
   final int missingRemoved;
 
   const LibraryState({
@@ -43,6 +46,8 @@ class LibraryState {
     this.sortField = SortField.artist,
     this.sortOrder = SortOrder.ascending,
     this.filter = LibraryFilter.all,
+    this.formatFilter,
+    this.bitDepthFilter = BitDepthFilter.any,
     this.missingRemoved = 0,
   }) : _cachedFiltered = cachedFiltered;
 
@@ -58,6 +63,9 @@ class LibraryState {
     SortField? sortField,
     SortOrder? sortOrder,
     LibraryFilter? filter,
+    String? formatFilter,
+    bool clearFormatFilter = false,
+    BitDepthFilter? bitDepthFilter,
     int? missingRemoved,
   }) => LibraryState(
     tracks: tracks ?? this.tracks,
@@ -69,6 +77,10 @@ class LibraryState {
     sortField: sortField ?? this.sortField,
     sortOrder: sortOrder ?? this.sortOrder,
     filter: filter ?? this.filter,
+    formatFilter: clearFormatFilter
+        ? null
+        : (formatFilter ?? this.formatFilter),
+    bitDepthFilter: bitDepthFilter ?? this.bitDepthFilter,
     missingRemoved: missingRemoved ?? this.missingRemoved,
   );
 
@@ -95,26 +107,14 @@ class LibraryState {
 
 // Filter
 List<Track> _computeFiltered(_FilterParams p) {
-  var result = p.tracks.toList();
-
-  switch (p.filter) {
-    case LibraryFilter.lossless:
-      result = result
-          .where((t) => AudioFormat.fromExtension(t.format).isLossless)
-          .toList();
-      break;
-    case LibraryFilter.hiRes:
-      result = result
-          .where(
-            (t) =>
-                t.sampleRate >= 88200 ||
-                (t.bitDepth != null && t.bitDepth! >= 24),
-          )
-          .toList();
-      break;
-    case LibraryFilter.all:
-      break;
-  }
+  var result = p.tracks.where((t) {
+    return trackMatchesLibraryFilters(
+      track: t,
+      quality: p.filter,
+      format: p.formatFilter,
+      bitDepth: p.bitDepthFilter,
+    );
+  }).toList();
 
   if (p.query.isNotEmpty) {
     final q = p.query.toLowerCase();
@@ -133,12 +133,16 @@ List<Track> _computeFiltered(_FilterParams p) {
 class _FilterParams {
   final List<Track> tracks;
   final LibraryFilter filter;
+  final String? formatFilter;
+  final BitDepthFilter bitDepthFilter;
   final String query;
   final SortField sortField;
   final SortOrder sortOrder;
   const _FilterParams(
     this.tracks,
     this.filter,
+    this.formatFilter,
+    this.bitDepthFilter,
     this.query,
     this.sortField,
     this.sortOrder,
@@ -385,7 +389,15 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   ) {
     return compute(
       _computeFiltered,
-      _FilterParams(tracks, s.filter, s.query, s.sortField, s.sortOrder),
+      _FilterParams(
+        tracks,
+        s.filter,
+        s.formatFilter,
+        s.bitDepthFilter,
+        s.query,
+        s.sortField,
+        s.sortOrder,
+      ),
     );
   }
 
@@ -415,6 +427,18 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   void setFilter(LibraryFilter f) {
     state = state.copyWith(filter: f);
+    _applyFilter();
+  }
+
+  void setFormatFilter(String format) {
+    final next = state.formatFilter == format ? null : format;
+    state = state.copyWith(formatFilter: next, clearFormatFilter: next == null);
+    _applyFilter();
+  }
+
+  void setBitDepthFilter(BitDepthFilter f) {
+    final next = state.bitDepthFilter == f ? BitDepthFilter.any : f;
+    state = state.copyWith(bitDepthFilter: next);
     _applyFilter();
   }
 

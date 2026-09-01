@@ -9,6 +9,7 @@ import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
+import 'package:aqloss/util/library_filter.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/library_nav_provider.dart';
@@ -236,6 +237,11 @@ class _SortBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final n = ref.read(libraryProvider.notifier);
     final cs = Theme.of(context).colorScheme;
+    final formats = distinctLibraryFormats(library.tracks);
+    final showFormats = formats.length > 1;
+    final showDepth =
+        libraryHasCdBitDepth(library.tracks) &&
+        libraryHasHiBitDepth(library.tracks);
 
     return SizedBox(
       height: 36,
@@ -258,6 +264,40 @@ class _SortBar extends ConsumerWidget {
             selected: library.filter == LibraryFilter.hiRes,
             onTap: () => n.setFilter(LibraryFilter.hiRes),
           ),
+          if (showFormats) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 1,
+              margin: const EdgeInsets.symmetric(vertical: 9),
+              color: cs.onSurface.withValues(alpha: 0.08),
+            ),
+            const SizedBox(width: 8),
+            for (final format in formats)
+              _FilterPill(
+                label: format,
+                selected: library.formatFilter == format,
+                onTap: () => n.setFormatFilter(format),
+              ),
+          ],
+          if (showDepth) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 1,
+              margin: const EdgeInsets.symmetric(vertical: 9),
+              color: cs.onSurface.withValues(alpha: 0.08),
+            ),
+            const SizedBox(width: 8),
+            _FilterPill(
+              label: '16-bit',
+              selected: library.bitDepthFilter == BitDepthFilter.sixteen,
+              onTap: () => n.setBitDepthFilter(BitDepthFilter.sixteen),
+            ),
+            _FilterPill(
+              label: '24-bit',
+              selected: library.bitDepthFilter == BitDepthFilter.twentyFourPlus,
+              onTap: () => n.setBitDepthFilter(BitDepthFilter.twentyFourPlus),
+            ),
+          ],
           const SizedBox(width: 8),
           Container(
             width: 1,
@@ -299,6 +339,11 @@ class _M3SortBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final n = ref.read(libraryProvider.notifier);
     final theme = Theme.of(context);
+    final formats = distinctLibraryFormats(library.tracks);
+    final showFormats = formats.length > 1;
+    final showDepth =
+        libraryHasCdBitDepth(library.tracks) &&
+        libraryHasHiBitDepth(library.tracks);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -322,6 +367,32 @@ class _M3SortBar extends ConsumerWidget {
             selected: library.filter == LibraryFilter.hiRes,
             onSelected: (_) => n.setFilter(LibraryFilter.hiRes),
           ),
+          if (showFormats) ...[
+            const SizedBox(width: 12),
+            for (final format in formats) ...[
+              FilterChip(
+                label: Text(format),
+                selected: library.formatFilter == format,
+                onSelected: (_) => n.setFormatFilter(format),
+              ),
+              const SizedBox(width: 6),
+            ],
+          ],
+          if (showDepth) ...[
+            const SizedBox(width: 6),
+            FilterChip(
+              label: const Text('16-bit'),
+              selected: library.bitDepthFilter == BitDepthFilter.sixteen,
+              onSelected: (_) => n.setBitDepthFilter(BitDepthFilter.sixteen),
+            ),
+            const SizedBox(width: 6),
+            FilterChip(
+              label: const Text('24-bit'),
+              selected: library.bitDepthFilter == BitDepthFilter.twentyFourPlus,
+              onSelected: (_) =>
+                  n.setBitDepthFilter(BitDepthFilter.twentyFourPlus),
+            ),
+          ],
           const SizedBox(width: 12),
           Text('Sort', style: theme.textTheme.labelMedium),
           const SizedBox(width: 8),

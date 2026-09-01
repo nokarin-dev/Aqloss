@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.0.2",
-        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
+        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Support, and an Arch Linux package.",
         "status": "in-progress",
         "items": [
             {
@@ -123,6 +123,12 @@
                 "description": "Play faster or slower. Pitch follows the speed. Exclusive mode stays at normal speed.",
                 "status": "done",
                 "category": "Player"
+            },
+            {
+                "title": "Smart filter bar",
+                "description": "Filter the library by format and bit depth from the library page, without opening Settings.",
+                "status": "done",
+                "category": "Library"
             }
         ]
     },
@@ -158,12 +164,6 @@
             {
                 "title": "Tag editor",
                 "description": "Edit title, artist, album, year, genre, and cover from the app.",
-                "status": "planned",
-                "category": "Library"
-            },
-            {
-                "title": "Smart filter bar",
-                "description": "Filter the library by genre, year, format, and bit depth without opening Settings.",
                 "status": "planned",
                 "category": "Library"
             },
