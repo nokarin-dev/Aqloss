@@ -86,7 +86,7 @@ class AudioService {
         final idsChanged = ids.join(',') != _lastDeviceIds.join(',');
         final defaultChanged = defaultId != _lastDefaultId;
 
-        if (idsChanged || defaultChanged) {
+        if (defaultChanged) {
           _deviceChangePendingCount++;
           if (_deviceChangePendingCount >= _kDeviceChangeDebounce) {
             Logger.debugAudioService(
@@ -99,10 +99,13 @@ class AudioService {
             onDeviceChanged?.call(defaultId);
           }
         } else {
+          if (idsChanged) {
+            _lastDeviceIds = ids;
+          }
           _deviceChangePendingCount = 0;
         }
       } catch (_) {
-        // Enumeration can fail briefly during transitions
+        // Enumeration can fail during transitions
       }
     });
   }
@@ -183,7 +186,7 @@ class AudioService {
       if (deviceId != null) {
         await backend
             .reinitEngine(deviceId: deviceId, exclusive: exclusive)
-            .timeout(const Duration(seconds: 8));
+            .timeout(Duration(seconds: exclusive ? 12 : 8));
       } else {
         await backend.initEngine().timeout(const Duration(seconds: 8));
       }
@@ -193,8 +196,12 @@ class AudioService {
       return true;
     } catch (e) {
       Logger.errorAudioService(
-        'reinitToDevice failed: $e - trying system default',
+        'reinitToDevice failed: $e${exclusive ? '' : ' - trying system default'}',
       );
+      if (exclusive) {
+        _engineReady = true;
+        return false;
+      }
       try {
         await backend.initEngine().timeout(const Duration(seconds: 6));
         _engineReady = true;
@@ -276,6 +283,7 @@ class AudioService {
     await Future.wait([
       backend.setSoftClip(enabled: s.notchFilter).catchError((_) {}),
       backend.setSkipSilence(enabled: s.skipSilence).catchError((_) {}),
+      backend.setPlaybackSpeed(speed: s.playbackSpeed).catchError((_) {}),
       backend.setGapless(enabled: s.gaplessPlayback).catchError((_) {}),
       backend
           .setCrossfadeSecs(secs: s.crossfadeSecs.toDouble())

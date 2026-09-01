@@ -15,6 +15,12 @@ import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/discord_service.dart';
+import 'package:aqloss/services/position_store.dart';
+import 'package:aqloss/util/ab_loop.dart';
+import 'package:aqloss/util/missing_files.dart';
+import 'package:aqloss/util/playback.dart';
+import 'package:aqloss/util/sleep_timer.dart';
+import 'package:aqloss/util/track_positions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _kVolumeKey = 'aqloss_volume';
@@ -32,6 +38,10 @@ class PlayerState {
   final bool shuffle;
   final List<Track> queue;
   final int queueIndex;
+  final SleepTimerMode sleepMode;
+  final DateTime? sleepUntil;
+  final double? loopASecs;
+  final double? loopBSecs;
 
   const PlayerState({
     this.currentTrack,
@@ -42,7 +52,15 @@ class PlayerState {
     this.shuffle = false,
     this.queue = const [],
     this.queueIndex = 0,
+    this.sleepMode = SleepTimerMode.off,
+    this.sleepUntil,
+    this.loopASecs,
+    this.loopBSecs,
   });
+
+  bool get sleepActive => sleepMode != SleepTimerMode.off;
+
+  AbLoopPhase get abLoop => abLoopPhase(loopASecs, loopBSecs);
 
   PlayerState copyWith({
     Track? currentTrack,
@@ -53,6 +71,13 @@ class PlayerState {
     bool? shuffle,
     List<Track>? queue,
     int? queueIndex,
+    SleepTimerMode? sleepMode,
+    DateTime? sleepUntil,
+    bool clearSleepUntil = false,
+    double? loopASecs,
+    double? loopBSecs,
+    bool clearLoopA = false,
+    bool clearLoopB = false,
   }) => PlayerState(
     currentTrack: currentTrack ?? this.currentTrack,
     status: status ?? this.status,
@@ -62,6 +87,10 @@ class PlayerState {
     shuffle: shuffle ?? this.shuffle,
     queue: queue ?? this.queue,
     queueIndex: queueIndex ?? this.queueIndex,
+    sleepMode: sleepMode ?? this.sleepMode,
+    sleepUntil: clearSleepUntil ? null : (sleepUntil ?? this.sleepUntil),
+    loopASecs: clearLoopA ? null : (loopASecs ?? this.loopASecs),
+    loopBSecs: clearLoopB ? null : (loopBSecs ?? this.loopBSecs),
   );
 
   bool get hasPrevious => queueIndex > 0;
@@ -72,8 +101,10 @@ class PlayerState {
 
 class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _positionTimer;
+  Timer? _sleepTimer;
   bool _disposed = false;
   bool _handlingTrackEnd = false;
+  bool _crossfadeQueued = false;
   bool _playPauseBusy = false;
   bool _seeking = false;
   Duration? _seekHoldPosition;
@@ -87,9 +118,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   bool _deviceReinitBusy = false;
   int _stallTicks = 0;
   double _lastAdvancingPositionSecs = 0;
+  int _rememberTicks = 0;
+  bool _sessionRestored = false;
+  bool _sessionRestoreBusy = false;
+  bool _needTrackStartOnPlay = false;
 
   PlayerNotifier() : super(const PlayerState()) {
     _restoreVolume();
+    unawaited(PositionStore.instance.ensureLoaded());
 
     // Freeze recovery
     AudioService.onFreezeDetected = () async {
@@ -118,10 +154,164 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _deviceNotifier = n;
   }
 
+  Future<void> persistPlayback() async {
+    final t = state.currentTrack;
+    if (t != null) {
+      PositionStore.instance.remember(
+        t.path,
+        state.position.inMilliseconds / 1000.0,
+        t.durationSecs,
+        force: true,
+      );
+    }
+    if (state.queue.isEmpty) return;
+    final win = sessionQueueWindow(
+      length: state.queue.length,
+      index: state.queueIndex,
+    );
+    final paths = [
+      for (var i = win.start; i < win.end; i++) state.queue[i].path,
+    ];
+    await PositionStore.instance.saveSession(
+      PlaybackSession(
+        paths: paths,
+        index: win.index,
+        positionSecs: state.position.inMilliseconds / 1000.0,
+        loopMode: state.loopMode.index,
+        shuffle: state.shuffle,
+      ),
+    );
+  }
+
+  Future<void> restoreSession(List<Track> library) async {
+    if (_sessionRestored || _sessionRestoreBusy || library.isEmpty) return;
+    if (state.currentTrack != null) {
+      _sessionRestored = true;
+      return;
+    }
+    _sessionRestoreBusy = true;
+    try {
+      await PositionStore.instance.ensureLoaded();
+      final snap = PositionStore.instance.session;
+      if (snap == null || snap.paths.isEmpty) {
+        _sessionRestored = true;
+        return;
+      }
+      if (!AudioService.engineReady) {
+        for (var i = 0; i < 50; i++) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          if (!mounted) return;
+          if (AudioService.engineReady) break;
+        }
+      }
+      if (!AudioService.engineReady || !mounted) {
+        _sessionRestored = true;
+        return;
+      }
+      if (state.currentTrack != null) {
+        _sessionRestored = true;
+        return;
+      }
+      final byPath = {for (final t in library) t.path: t};
+      final queue = <Track>[
+        for (final p in snap.paths)
+          if (byPath[p] != null) byPath[p]!,
+      ];
+      if (queue.isEmpty) {
+        _sessionRestored = true;
+        return;
+      }
+      var idx = 0;
+      if (snap.index >= 0 && snap.index < snap.paths.length) {
+        final want = snap.paths[snap.index];
+        final found = queue.indexWhere((t) => t.path == want);
+        if (found >= 0) idx = found;
+      }
+      var loop = LoopMode.off;
+      if (snap.loopMode >= 0 && snap.loopMode < LoopMode.values.length) {
+        loop = LoopMode.values[snap.loopMode];
+      }
+      _sessionRestored = true;
+      state = state.copyWith(
+        queue: queue,
+        queueIndex: idx,
+        loopMode: loop,
+        shuffle: snap.shuffle,
+      );
+      await _loadAndPlay(
+        queue[idx],
+        autoplay: false,
+        resume: true,
+        resumeSecsOverride: snap.positionSecs,
+      );
+    } finally {
+      _sessionRestoreBusy = false;
+    }
+  }
+
+  void setSleepTimer(SleepTimerMode mode) {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    if (mode == SleepTimerMode.off) {
+      state = state.copyWith(
+        sleepMode: SleepTimerMode.off,
+        clearSleepUntil: true,
+      );
+      return;
+    }
+    if (mode == SleepTimerMode.endOfTrack) {
+      state = state.copyWith(sleepMode: mode, clearSleepUntil: true);
+      return;
+    }
+    final d = sleepTimerDuration(mode)!;
+    final until = DateTime.now().add(d);
+    _sleepTimer = Timer(d, _onSleepFired);
+    state = state.copyWith(sleepMode: mode, sleepUntil: until);
+  }
+
+  void tapAbLoop() {
+    if (state.currentTrack == null) return;
+    final next = abLoopTap(
+      state.position.inMilliseconds / 1000.0,
+      state.loopASecs,
+      state.loopBSecs,
+    );
+    state = state.copyWith(
+      loopASecs: next.a,
+      loopBSecs: next.b,
+      clearLoopA: next.a == null,
+      clearLoopB: next.b == null,
+    );
+  }
+
+  Future<void> _onSleepFired() async {
+    _sleepTimer = null;
+    if (!mounted) return;
+    state = state.copyWith(
+      sleepMode: SleepTimerMode.off,
+      clearSleepUntil: true,
+    );
+    await pause();
+  }
+
   Future<void> _recoverAfterOutputRouteChange([
     String? newDefaultDeviceId,
   ]) async {
     if (!mounted || _deviceReinitBusy) return;
+
+    _deviceNotifier?.refreshAfterDeviceChange(newDefaultDeviceId);
+
+    final settings = _readSettings?.call();
+    final pinned = settings?.selectedDeviceId;
+    if (pinned != null &&
+        newDefaultDeviceId != null &&
+        pinned != newDefaultDeviceId) {
+      Logger.debugPlayerProvider(
+        'output route changed → $newDefaultDeviceId (ignored, pinned $pinned)',
+      );
+      return;
+    }
+
     _deviceReinitBusy = true;
     _stallTicks = 0;
 
@@ -137,10 +327,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     Logger.warnPlayerProvider(
       'output route changed → $newDefaultDeviceId  wasPlaying=$wasPlaying',
     );
-    _deviceNotifier?.refreshAfterDeviceChange(newDefaultDeviceId);
 
     try {
-      final settings = _readSettings?.call();
       final exclusive =
           !Platform.isAndroid &&
           !Platform.isIOS &&
@@ -150,7 +338,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (!mounted) return;
 
       final ok = await AudioService.reinitToDevice(
-        deviceId: newDefaultDeviceId ?? 'default',
+        deviceId: pinned ?? newDefaultDeviceId ?? 'default',
         exclusive: exclusive,
       );
 
@@ -197,17 +385,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     List<Track> queue, {
     int? atIndex,
   }) async {
-    int idx;
-    if (atIndex != null && atIndex >= 0 && atIndex < queue.length) {
-      idx = atIndex;
-    } else {
-      idx = queue.indexWhere((t) => t.path == track.path);
-      if (idx < 0) idx = 0;
+    final pick = playableQueue(
+      preferred: track,
+      queue: queue,
+      exists: (p) => File(p).existsSync(),
+      atIndex: atIndex,
+    );
+    if (pick == null) {
+      if (mounted) state = state.copyWith(status: PlayerStatus.error);
+      return;
     }
-    var q = List<Track>.from(queue);
+    var q = List<Track>.from(pick.queue);
+    var idx = pick.index;
     if (state.shuffle) q = _shuffleUpcoming(q, idx);
     state = state.copyWith(queue: q, queueIndex: idx);
-    await _loadAndPlay(track);
+    await _loadAndPlay(pick.track);
   }
 
   Future<void> load(Track track) async {
@@ -220,12 +412,29 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await _loadAndPlay(track);
   }
 
-  Future<void> _loadAndPlay(Track track, {bool stopFirst = true}) async {
+  Future<void> _loadAndPlay(
+    Track track, {
+    bool stopFirst = true,
+    bool autoplay = true,
+    bool resume = false,
+    double? resumeSecsOverride,
+  }) async {
+    final prev = state.currentTrack;
+    if (prev != null && prev.path != track.path) {
+      PositionStore.instance.remember(
+        prev.path,
+        state.position.inMilliseconds / 1000.0,
+        prev.durationSecs,
+        force: true,
+      );
+    }
     _stopTimer();
     _handlingTrackEnd = false;
+    if (stopFirst) _crossfadeQueued = false;
     _lastPollPositionSecs = 0;
     _stallTicks = 0;
     _lastAdvancingPositionSecs = 0;
+    _rememberTicks = 0;
     ScrobbleController.instance.onTrackStop();
     PluginRegistry.instance.dispatchTrackStop(
       TrackStopEvent(state.currentTrack),
@@ -234,9 +443,15 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       status: PlayerStatus.loading,
       currentTrack: track,
       position: Duration.zero,
+      clearLoopA: true,
+      clearLoopB: true,
     );
     try {
       if (stopFirst) await AudioService.stop();
+      if (!File(track.path).existsSync()) {
+        if (mounted) state = state.copyWith(status: PlayerStatus.error);
+        return;
+      }
       await AudioService.loadTrack(track.path);
       if (!mounted) return;
       final s = _readSettings?.call();
@@ -249,15 +464,41 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           isPlayingInOrder: _isAlbumInOrder(),
         );
       }
+      await PositionStore.instance.ensureLoaded();
+      double start = 0;
+      if (resume) {
+        start = playbackStartSecs(
+          resumeOnOpen: true,
+          duration: track.durationSecs,
+          reopenSecs: resumeSecsOverride,
+          storedSecs: PositionStore.instance.resumeSecs(
+            track.path,
+            track.durationSecs,
+          ),
+        );
+        if (start > 0) await AudioService.seek(start);
+      } else {
+        PositionStore.instance.clearPath(track.path);
+      }
+      final startPos = Duration(milliseconds: (start * 1000).round());
+      if (!autoplay) {
+        _needTrackStartOnPlay = true;
+        if (!mounted) return;
+        state = state.copyWith(status: PlayerStatus.paused, position: startPos);
+        DiscordService.update(state, positionSecs: start);
+        return;
+      }
+      _needTrackStartOnPlay = false;
       await AudioService.play();
       if (!mounted) return;
-      state = state.copyWith(status: PlayerStatus.playing);
-      DiscordService.update(state, positionSecs: 0.0);
+      state = state.copyWith(status: PlayerStatus.playing, position: startPos);
+      DiscordService.update(state, positionSecs: start);
       ScrobbleController.instance.onTrackStart(track);
       PluginRegistry.instance.dispatchTrackStart(TrackStartEvent(track));
       _historyNotifier?.recordPlay(track);
       _startTimer();
     } catch (e) {
+      Logger.errorPlayerProvider('load failed: $e');
       if (mounted) state = state.copyWith(status: PlayerStatus.error);
     }
   }
@@ -316,6 +557,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       try {
         pos = (await backend.getPosition()).positionSecs;
       } catch (_) {}
+      final track = state.currentTrack;
+      if (_needTrackStartOnPlay && track != null) {
+        _needTrackStartOnPlay = false;
+        ScrobbleController.instance.onTrackStart(track);
+        PluginRegistry.instance.dispatchTrackStart(TrackStartEvent(track));
+        _historyNotifier?.recordPlay(track);
+      }
       state = state.copyWith(status: PlayerStatus.playing);
       DiscordService.update(state, positionSecs: pos);
       PluginRegistry.instance.dispatchPlayPause(
@@ -344,6 +592,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         PlayPauseEvent(isPlaying: false, position: state.position),
       );
       _stopTimer();
+      unawaited(persistPlayback());
     } finally {
       _playPauseBusy = false;
     }
@@ -386,6 +635,15 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         DiscordService.updateAfterSeek(state, sec);
       }
       _seekHoldUntil = DateTime.now().add(const Duration(milliseconds: 1200));
+      final t = state.currentTrack;
+      if (t != null) {
+        PositionStore.instance.remember(
+          t.path,
+          sec,
+          t.durationSecs,
+          force: true,
+        );
+      }
     } catch (_) {
       _unlockSeek();
     }
@@ -407,6 +665,15 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         DiscordService.updateAfterSeek(state, sec);
       }
       _seekHoldUntil = DateTime.now().add(const Duration(milliseconds: 1200));
+      final t = state.currentTrack;
+      if (t != null) {
+        PositionStore.instance.remember(
+          t.path,
+          sec,
+          t.durationSecs,
+          force: true,
+        );
+      }
     } catch (_) {
       _unlockSeek();
     }
@@ -470,10 +737,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   void addAllToQueueNext(List<Track> tracks) {
-    if (tracks.isEmpty) return;
+    final playable = keepExistingTracks(tracks, (p) => File(p).existsSync());
+    if (playable.isEmpty) return;
     final q = List<Track>.from(state.queue);
     var insertAt = (state.queueIndex + 1).clamp(0, q.length);
-    for (final track in tracks) {
+    for (final track in playable) {
       q.insert(insertAt, track);
       insertAt++;
     }
@@ -481,19 +749,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   void addAllToQueueLast(List<Track> tracks) {
-    if (tracks.isEmpty) return;
-    state = state.copyWith(queue: [...state.queue, ...tracks]);
+    final playable = keepExistingTracks(tracks, (p) => File(p).existsSync());
+    if (playable.isEmpty) return;
+    state = state.copyWith(queue: [...state.queue, ...playable]);
   }
 
   Future<void> playNext(Track track) => playAllNext([track]);
 
   Future<void> playAllNext(List<Track> tracks) async {
-    if (tracks.isEmpty) return;
+    final playable = keepExistingTracks(tracks, (p) => File(p).existsSync());
+    if (playable.isEmpty) return;
     if (state.currentTrack == null) {
-      await loadWithQueue(tracks.first, tracks);
+      await loadWithQueue(playable.first, playable);
       return;
     }
-    addAllToQueueNext(tracks);
+    addAllToQueueNext(playable);
   }
 
   void removeFromQueue(int index) {
@@ -628,6 +898,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         }
       }
 
+      if (state.status == PlayerStatus.playing &&
+          !_seeking &&
+          !_handlingTrackEnd &&
+          abLoopShouldWrap(
+            positionSecs: pos.positionSecs,
+            aSecs: state.loopASecs,
+            bSecs: state.loopBSecs,
+          )) {
+        final a = state.loopASecs ?? 0;
+        await seek(Duration(milliseconds: (a * 1000).round()));
+        return;
+      }
+
       final trackEnded = _shouldHandleTrackEnd(pos);
       if (trackEnded) {
         if (_handlingTrackEnd) return;
@@ -659,6 +942,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
             ? state.currentTrack?.copyWithDuration(effDur)
             : state.currentTrack,
       );
+      _rememberTicks++;
+      if (_rememberTicks >= 10) {
+        _rememberTicks = 0;
+        unawaited(persistPlayback());
+      }
     } catch (_) {}
   }
 
@@ -667,8 +955,27 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final stopAfter = _readSettings?.call().stopAfter ?? StopAfterMode.off;
     ScrobbleController.instance.onTrackStop();
     PluginRegistry.instance.dispatchTrackStop(TrackStopEvent(s.currentTrack));
+    if (s.currentTrack != null) {
+      PositionStore.instance.clearPath(s.currentTrack!.path);
+    }
+
+    if (s.sleepMode == SleepTimerMode.endOfTrack) {
+      _sleepTimer?.cancel();
+      _sleepTimer = null;
+      _crossfadeQueued = false;
+      state = state.copyWith(
+        status: PlayerStatus.paused,
+        position: s.currentTrack?.duration ?? Duration.zero,
+        sleepMode: SleepTimerMode.off,
+        clearSleepUntil: true,
+      );
+      DiscordService.update(state);
+      unawaited(persistPlayback());
+      return;
+    }
 
     if (stopAfter == StopAfterMode.track) {
+      _crossfadeQueued = false;
       state = state.copyWith(
         status: PlayerStatus.paused,
         position: s.currentTrack?.duration ?? Duration.zero,
@@ -688,6 +995,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           position: s.currentTrack?.duration ?? Duration.zero,
         );
         DiscordService.update(state);
+        _crossfadeQueued = false;
         return;
       }
     }
@@ -697,7 +1005,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       case LoopMode.track:
         final track = s.currentTrack;
         if (track != null) {
-          await _loadAndPlay(track);
+          await _loadAndPlay(track, resume: false);
         }
       case LoopMode.album:
         final album = s.queue
@@ -716,6 +1024,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         if (s.hasNext) {
           await skipNext();
         } else {
+          _crossfadeQueued = false;
           state = state.copyWith(
             status: PlayerStatus.paused,
             position: s.currentTrack?.duration ?? Duration.zero,
@@ -725,11 +1034,36 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  double _trackEndLead() {
+    final s = _readSettings?.call();
+    return trackEndLeadSecs(
+      crossfadeSecs: s?.crossfadeSecs ?? 0,
+      exclusive: s?.outputMode == AudioOutputMode.exclusive,
+      hasSuccessor:
+          state.loopMode != LoopMode.track &&
+          (state.hasNext || state.loopMode == LoopMode.playlist),
+      stopAfter:
+          (s != null && s.stopAfter != StopAfterMode.off) ||
+          state.sleepMode == SleepTimerMode.endOfTrack,
+    );
+  }
+
   bool _shouldHandleTrackEnd(backend.PlaybackPosition pos) {
     if (pos.durationSecs <= 0) return false;
 
-    final nearEnd = pos.positionSecs >= pos.durationSecs - 0.1;
-    if (nearEnd) return true;
+    final lead = _trackEndLead();
+    if (_crossfadeQueued) {
+      if (pos.positionSecs + lead + 0.5 < pos.durationSecs) {
+        _crossfadeQueued = false;
+      }
+      return false;
+    }
+
+    final nearEnd = pos.positionSecs >= pos.durationSecs - lead;
+    if (nearEnd) {
+      if (lead > 0.15) _crossfadeQueued = true;
+      return true;
+    }
 
     final backendStopped =
         state.status == PlayerStatus.playing &&
@@ -745,6 +1079,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   @override
   void dispose() {
     _disposed = true;
+    _sleepTimer?.cancel();
+    unawaited(persistPlayback());
     _stopTimer();
     AudioService.stopWatchdog();
     ScrobbleController.instance.dispose();

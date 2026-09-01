@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
+
 import 'package:aqloss/services/gpu_pref.dart';
 import 'package:aqloss/theme/ui_framework.dart';
+import 'package:aqloss/util/eq_presets.dart';
+import 'package:aqloss/util/playback_speed.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -65,6 +69,11 @@ extension ShortcutActionX on ShortcutAction {
 
 enum AudioOutputMode { system, exclusive }
 
+AudioOutputMode platformDefaultOutputMode({bool? windows}) {
+  if (windows ?? Platform.isWindows) return AudioOutputMode.exclusive;
+  return AudioOutputMode.system;
+}
+
 enum ThemeMode { dark, light, system }
 
 enum AppStyle { legacy, islands }
@@ -104,8 +113,10 @@ const _kListenBrainzToken = 'aqloss_listenbrainz_token';
 const _kListenBrainzUser = 'aqloss_listenbrainz_user';
 const _kEqEnabled = 'aqloss_eq_enabled';
 const _kEqGains = 'aqloss_eq_gains';
+const _kEqUserPresets = 'aqloss_eq_user_presets';
 const _kNotchFilter = 'aqloss_notch_filter';
 const _kSkipSilence = 'aqloss_skip_silence';
+const _kPlaybackSpeed = 'aqloss_playback_speed';
 const _kShowAlbumArtBg = 'aqloss_album_art_bg';
 const _kSpectrumEnabled = 'aqloss_spectrum';
 const _kSpectrumStyle = 'aqloss_spectrum_style';
@@ -116,6 +127,8 @@ const _kHaasMs = 'aqloss_haas_ms';
 const _kDiscordRpc = 'aqloss_discord_rpc';
 const _kMaterialYou = 'aqloss_material_you';
 const _kHwAccel = 'aqloss_hw_accel';
+const _kCloseToTray = 'aqloss_close_to_tray';
+const _kReduceMotion = 'aqloss_reduce_motion';
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -126,9 +139,11 @@ class SettingsState {
   final ReplayGainMode replayGainMode;
   final double replayGainPreamp;
   final bool skipSilence;
+  final double playbackSpeed;
   final StopAfterMode stopAfter;
   final bool eqEnabled;
   final List<double> eqGains;
+  final List<EqPreset> eqUserPresets;
   final bool notchFilter;
   final ThemeMode themeMode;
   final AppStyle appStyle;
@@ -156,10 +171,12 @@ class SettingsState {
   final bool discordRpc;
   final bool materialYou;
   final bool hardwareAcceleration;
+  final bool closeToTray;
+  final bool reduceMotion;
   final bool loaded;
 
   const SettingsState({
-    this.outputMode = AudioOutputMode.exclusive,
+    this.outputMode = AudioOutputMode.system,
     this.selectedDeviceId,
     this.volume = 1.0,
     this.gaplessPlayback = true,
@@ -167,9 +184,11 @@ class SettingsState {
     this.replayGainMode = ReplayGainMode.off,
     this.replayGainPreamp = 0.0,
     this.skipSilence = false,
+    this.playbackSpeed = 1.0,
     this.stopAfter = StopAfterMode.off,
     this.eqEnabled = false,
     this.eqGains = const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    this.eqUserPresets = const [],
     this.notchFilter = true,
     this.themeMode = ThemeMode.dark,
     this.appStyle = AppStyle.legacy,
@@ -197,6 +216,8 @@ class SettingsState {
     this.discordRpc = true,
     this.materialYou = false,
     this.hardwareAcceleration = true,
+    this.closeToTray = true,
+    this.reduceMotion = false,
     this.loaded = false,
   });
 
@@ -244,9 +265,11 @@ class SettingsState {
     ReplayGainMode? replayGainMode,
     double? replayGainPreamp,
     bool? skipSilence,
+    double? playbackSpeed,
     StopAfterMode? stopAfter,
     bool? eqEnabled,
     List<double>? eqGains,
+    List<EqPreset>? eqUserPresets,
     bool? notchFilter,
     ThemeMode? themeMode,
     AppStyle? appStyle,
@@ -277,6 +300,8 @@ class SettingsState {
     bool? discordRpc,
     bool? materialYou,
     bool? hardwareAcceleration,
+    bool? closeToTray,
+    bool? reduceMotion,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -289,9 +314,11 @@ class SettingsState {
     replayGainMode: replayGainMode ?? this.replayGainMode,
     replayGainPreamp: replayGainPreamp ?? this.replayGainPreamp,
     skipSilence: skipSilence ?? this.skipSilence,
+    playbackSpeed: playbackSpeed ?? this.playbackSpeed,
     stopAfter: stopAfter ?? this.stopAfter,
     eqEnabled: eqEnabled ?? this.eqEnabled,
     eqGains: eqGains ?? this.eqGains,
+    eqUserPresets: eqUserPresets ?? this.eqUserPresets,
     notchFilter: notchFilter ?? this.notchFilter,
     themeMode: themeMode ?? this.themeMode,
     appStyle: appStyle ?? this.appStyle,
@@ -326,6 +353,8 @@ class SettingsState {
     discordRpc: discordRpc ?? this.discordRpc,
     materialYou: materialYou ?? this.materialYou,
     hardwareAcceleration: hardwareAcceleration ?? this.hardwareAcceleration,
+    closeToTray: closeToTray ?? this.closeToTray,
+    reduceMotion: reduceMotion ?? this.reduceMotion,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -345,7 +374,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(
       outputMode:
           AudioOutputMode.values[(p.getInt(_kOutputMode) ??
-                  AudioOutputMode.exclusive.index)
+                  platformDefaultOutputMode().index)
               .clamp(0, AudioOutputMode.values.length - 1)],
       selectedDeviceId: p.getString(_kSelectedDeviceId),
       gaplessPlayback: p.getBool(_kGapless) ?? true,
@@ -354,9 +383,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           ReplayGainMode.values[(p.getInt(_kReplayGain) ?? 0).clamp(0, 3)],
       replayGainPreamp: (p.getDouble(_kReplayGainPreamp) ?? 0.0).clamp(-12, 12),
       skipSilence: p.getBool(_kSkipSilence) ?? false,
+      playbackSpeed: clampPlaybackSpeed(p.getDouble(_kPlaybackSpeed) ?? 1.0),
       stopAfter: StopAfterMode.values[(p.getInt(_kStopAfter) ?? 0).clamp(0, 2)],
       eqEnabled: p.getBool(_kEqEnabled) ?? false,
-      eqGains: eqGains,
+      eqGains: normalizeEqGains(eqGains),
+      eqUserPresets: decodeEqUserPresets(p.getString(_kEqUserPresets)),
       notchFilter: p.getBool(_kNotchFilter) ?? true,
       themeMode: ThemeMode.values[(p.getInt(_kTheme) ?? 0).clamp(0, 2)],
       appStyle:
@@ -402,6 +433,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       discordRpc: p.getBool(_kDiscordRpc) ?? true,
       materialYou: p.getBool(_kMaterialYou) ?? false,
       hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
+      closeToTray: p.getBool(_kCloseToTray) ?? true,
+      reduceMotion: p.getBool(_kReduceMotion) ?? false,
       loaded: true,
     );
     GpuPref.write(state.hardwareAcceleration);
@@ -419,12 +452,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setInt(_kReplayGain, state.replayGainMode.index),
       p.setDouble(_kReplayGainPreamp, state.replayGainPreamp),
       p.setBool(_kSkipSilence, state.skipSilence),
+      p.setDouble(_kPlaybackSpeed, state.playbackSpeed),
       p.setInt(_kStopAfter, state.stopAfter.index),
       p.setBool(_kEqEnabled, state.eqEnabled),
       p.setStringList(
         _kEqGains,
         state.eqGains.map((g) => g.toString()).toList(),
       ),
+      p.setString(_kEqUserPresets, encodeEqUserPresets(state.eqUserPresets)),
       p.setBool(_kNotchFilter, state.notchFilter),
       p.setInt(_kTheme, state.themeMode.index),
       p.setInt(_kAppStyle, state.appStyle.index),
@@ -466,6 +501,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setBool(_kDiscordRpc, state.discordRpc),
       p.setBool(_kMaterialYou, state.materialYou),
       p.setBool(_kHwAccel, state.hardwareAcceleration),
+      p.setBool(_kCloseToTray, state.closeToTray),
+      p.setBool(_kReduceMotion, state.reduceMotion),
     ]);
   }
 
@@ -505,6 +542,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void toggleSkipSilence() {
     state = state.copyWith(skipSilence: !state.skipSilence);
+    _save();
+  }
+
+  void setPlaybackSpeed(double v) {
+    state = state.copyWith(playbackSpeed: clampPlaybackSpeed(v));
     _save();
   }
 
@@ -698,6 +740,39 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _save();
   }
 
+  void applyEqPreset(EqPreset preset) {
+    state = state.copyWith(
+      eqGains: normalizeEqGains(preset.gains),
+      eqEnabled: true,
+    );
+    _save();
+  }
+
+  EqPresetSaveResult saveEqPreset(String rawName) {
+    final name = sanitizeEqPresetName(rawName);
+    if (name == null) return EqPresetSaveResult.emptyName;
+    if (isBuiltInEqPresetName(name)) return EqPresetSaveResult.builtInName;
+    final next = upsertEqUserPreset(
+      state.eqUserPresets,
+      name: name,
+      gains: state.eqGains,
+    );
+    if (next == null) return EqPresetSaveResult.full;
+    state = state.copyWith(eqUserPresets: next);
+    _save();
+    return EqPresetSaveResult.ok;
+  }
+
+  void deleteEqUserPreset(String name) {
+    final next = [
+      for (final p in state.eqUserPresets)
+        if (p.name.toLowerCase() != name.toLowerCase()) p,
+    ];
+    if (next.length == state.eqUserPresets.length) return;
+    state = state.copyWith(eqUserPresets: next);
+    _save();
+  }
+
   void setStereoWidth(double v) {
     state = state.copyWith(stereoWidth: v.clamp(0.0, 2.0));
     _save();
@@ -722,6 +797,22 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void toggleHardwareAcceleration() {
     state = state.copyWith(hardwareAcceleration: !state.hardwareAcceleration);
     _save();
+    GpuPref.write(state.hardwareAcceleration);
+  }
+
+  void toggleCloseToTray() {
+    state = state.copyWith(closeToTray: !state.closeToTray);
+    _save();
+  }
+
+  void toggleReduceMotion() {
+    state = state.copyWith(reduceMotion: !state.reduceMotion);
+    _save();
+  }
+
+  Future<void> applyBackup(SettingsState next) async {
+    state = next.copyWith(loaded: true);
+    await _save();
     GpuPref.write(state.hardwareAcceleration);
   }
 }

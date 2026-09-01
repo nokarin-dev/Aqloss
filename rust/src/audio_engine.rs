@@ -1,6 +1,6 @@
 use crate::{
     audio_io::{ring_cap, SharedProducer},
-    convert::{adapt_channels_into, apply_gain},
+    convert::{adapt_channels_into, apply_gain, playback_dst_rate},
     decoder::Decoder,
     eq::Equalizer,
     logger,
@@ -61,6 +61,7 @@ pub struct DspConfig {
     pub skip_silence: bool,
     pub gapless: bool,
     pub crossfade_secs: f32,
+    pub playback_speed: f32,
     pub stereo_width: f32,
     pub haas_ms: f32,
 }
@@ -73,6 +74,7 @@ impl Default for DspConfig {
             skip_silence: false,
             gapless: true,
             crossfade_secs: 0.0,
+            playback_speed: 1.0,
             stereo_width: 1.0,
             haas_ms: 0.0,
         }
@@ -149,41 +151,39 @@ impl AudioEngine {
         let arc = ENGINE
             .get()
             .ok_or_else(|| anyhow!("Engine not initialized"))?;
-        let (wait, dec) = {
+        let (wait, dec, old_out, prev_id, prev_excl) = {
             let mut e = arc.lock().unwrap();
             let wait = e.signal_stop();
             e.output.start_drain();
-            (wait, e.decoder.clone())
+            let prev_id = e.output.device_id.clone();
+            let prev_excl = e.output.exclusive;
+            let old_out = std::mem::replace(&mut e.output, AudioOutput::closed());
+            (wait, e.decoder.clone(), old_out, prev_id, prev_excl)
         };
         if let Some(f) = wait {
             wait_stopped(&f);
         }
+        drop(old_out);
+        #[cfg(target_os = "windows")]
+        if exclusive {
+            thread::sleep(Duration::from_millis(50));
+        }
         let hint = decoder_hint(&dec);
-        let new_out = AudioOutput::open(Some(device_id), exclusive, hint)?;
-        let (sr, ch) = if let Some(ref d) = dec {
-            let g = d.lock().unwrap();
-            (g.sample_rate(), g.channels())
-        } else {
-            (new_out.sample_rate, new_out.channels)
+        let new_out = match AudioOutput::open(Some(device_id), exclusive, hint) {
+            Ok(o) => o,
+            Err(err) => {
+                logger::error_audio(format!("reinit open failed: {err}"));
+                let fallback = AudioOutput::open(prev_id.as_deref(), prev_excl, hint)
+                    .or_else(|_| AudioOutput::open(prev_id.as_deref(), false, hint))
+                    .or_else(|_| AudioOutput::new_default())
+                    .map_err(|_| anyhow!("{err}"))?;
+                let mut e = arc.lock().unwrap();
+                Self::apply_output(&mut e, fallback, &dec)?;
+                return Err(err);
+            }
         };
         let mut e = arc.lock().unwrap();
-        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != new_out.sample_rate {
-            Some(Resampler::new(sr, new_out.sample_rate, ch)?)
-        } else {
-            None
-        };
-        e.eq
-            .lock()
-            .unwrap()
-            .reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
-        e.stereo_enhance
-            .lock()
-            .unwrap()
-            .reset_sample_rate(new_out.sample_rate);
-        EXCLUSIVE.store(new_out.exclusive, Ordering::Release);
-        e.output = new_out;
-        e.smooth_volume = e.volume;
-        e.decode_thread_died.store(false, Ordering::SeqCst);
+        Self::apply_output(&mut e, new_out, &dec)?;
         logger::info_audio("AudioEngine::reinit complete");
         Ok(())
     }
@@ -193,36 +193,68 @@ impl AudioEngine {
         let arc = ENGINE
             .get()
             .ok_or_else(|| anyhow!("Engine not initialized"))?;
-        let (wait, exclusive, id, dec) = {
+        let (wait, exclusive, id, dec, old_out) = {
             let mut e = arc.lock().unwrap();
             let wait = e.signal_stop();
             e.output.start_drain();
-            (
-                wait,
-                e.output.exclusive,
-                e.output.device_id.clone(),
-                e.decoder.clone(),
-            )
+            let exclusive = e.output.exclusive;
+            let id = e.output.device_id.clone();
+            let dec = e.decoder.clone();
+            let old_out = std::mem::replace(&mut e.output, AudioOutput::closed());
+            (wait, exclusive, id, dec, old_out)
         };
         if let Some(f) = wait {
             wait_stopped(&f);
         }
+        drop(old_out);
+        #[cfg(target_os = "windows")]
+        if exclusive {
+            thread::sleep(Duration::from_millis(50));
+        }
         let hint = decoder_hint(&dec);
-        let new_out = AudioOutput::open(id.as_deref(), exclusive, hint)?;
-        let (sr, ch) = if let Some(ref d) = dec {
+        let new_out = match AudioOutput::open(id.as_deref(), exclusive, hint) {
+            Ok(o) => o,
+            Err(err) => {
+                logger::error_audio(format!("recover open failed: {err}"));
+                let fallback = AudioOutput::open(id.as_deref(), false, hint)
+                    .or_else(|_| AudioOutput::new_default())
+                    .map_err(|_| anyhow!("{err}"))?;
+                let mut e = arc.lock().unwrap();
+                Self::apply_output(&mut e, fallback, &dec)?;
+                e.flags = PlayFlags::new();
+                PLAYING.store(false, Ordering::Release);
+                return Err(err);
+            }
+        };
+        let mut e = arc.lock().unwrap();
+        Self::apply_output(&mut e, new_out, &dec)?;
+        e.flags = PlayFlags::new();
+        PLAYING.store(false, Ordering::Release);
+        logger::info_audio("AudioEngine::recover_engine - output re-opened");
+        Ok(())
+    }
+
+    fn apply_output(
+        e: &mut Self,
+        new_out: AudioOutput,
+        dec: &Option<Arc<Mutex<Decoder>>>,
+    ) -> Result<()> {
+        let (sr, ch) = if let Some(d) = dec {
             let g = d.lock().unwrap();
             (g.sample_rate(), g.channels())
         } else {
             (new_out.sample_rate, new_out.channels)
         };
-        let mut e = arc.lock().unwrap();
-        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != new_out.sample_rate {
-            Some(Resampler::new(sr, new_out.sample_rate, ch)?)
+        let dst = {
+            let speed = e.dsp.lock().unwrap().playback_speed;
+            playback_dst_rate(new_out.sample_rate, speed, new_out.exclusive)
+        };
+        *e.resampler.lock().unwrap() = if e.decoder.is_some() && sr != dst {
+            Some(Resampler::new(sr, dst, ch)?)
         } else {
             None
         };
-        e.eq
-            .lock()
+        e.eq.lock()
             .unwrap()
             .reset_sample_rate(new_out.sample_rate, new_out.channels as usize);
         e.stereo_enhance
@@ -232,10 +264,7 @@ impl AudioEngine {
         EXCLUSIVE.store(new_out.exclusive, Ordering::Release);
         e.output = new_out;
         e.smooth_volume = e.volume;
-        e.flags = PlayFlags::new();
-        PLAYING.store(false, Ordering::Release);
         e.decode_thread_died.store(false, Ordering::SeqCst);
-        logger::info_audio("AudioEngine::recover_engine - output re-opened");
         Ok(())
     }
 
@@ -342,6 +371,11 @@ impl AudioEngine {
         let v = secs.clamp(0.0, 12.0);
         logger::debug_audio(format!("set_crossfade_secs secs={v:.2}"));
         self.dsp.lock().unwrap().crossfade_secs = v;
+    }
+    pub fn set_playback_speed(&mut self, speed: f32) {
+        let v = speed.clamp(0.5, 2.0);
+        logger::debug_audio(format!("set_playback_speed {v:.2}"));
+        self.dsp.lock().unwrap().playback_speed = v;
     }
 
     // EQ setters
@@ -522,7 +556,7 @@ impl AudioEngine {
     pub fn load_path(path: &str) -> Result<()> {
         logger::info_audio(format!("load: {path}"));
         let arc = Self::global_safe()?;
-        let (gapless, crossfade_secs, playing, has_decoder) = {
+        let (gapless, crossfade_secs, playing, has_decoder, exclusive, speed) = {
             let e = arc.lock().unwrap();
             let dsp = e.dsp.lock().unwrap();
             (
@@ -530,10 +564,12 @@ impl AudioEngine {
                 dsp.crossfade_secs,
                 e.flags.playing.load(Ordering::SeqCst),
                 e.decoder.is_some(),
+                e.output.exclusive,
+                dsp.playback_speed,
             )
         };
 
-        if crossfade_secs > 0.0 && has_decoder && playing {
+        if !exclusive && crossfade_secs > 0.0 && has_decoder && playing {
             logger::debug_audio(format!(
                 "crossfade queued next track ({crossfade_secs:.2}s)"
             ));
@@ -541,8 +577,9 @@ impl AudioEngine {
             let nsr = next.sample_rate();
             let nch = next.channels();
             let mut e = arc.lock().unwrap();
-            *e.next_resampler.lock().unwrap() = if nsr != e.output.sample_rate {
-                Some(Resampler::new(nsr, e.output.sample_rate, nch)?)
+            let dst = playback_dst_rate(e.output.sample_rate, speed, exclusive);
+            *e.next_resampler.lock().unwrap() = if nsr != dst {
+                Some(Resampler::new(nsr, dst, nch)?)
             } else {
                 None
             };
@@ -575,6 +612,11 @@ impl AudioEngine {
             }
         };
         let new_out = if let Some((exclusive, id)) = reopen {
+            let old = {
+                let mut e = arc.lock().unwrap();
+                std::mem::replace(&mut e.output, AudioOutput::closed())
+            };
+            drop(old);
             match AudioOutput::open(
                 id.as_deref(),
                 exclusive,
@@ -587,9 +629,18 @@ impl AudioEngine {
                 Ok(o) => Some(o),
                 Err(err) => {
                     logger::warn_audio(format!(
-                        "could not reopen at {src_rate}Hz ({err}), keeping current stream"
+                        "could not reopen at {src_rate}Hz ({err}), restoring previous rate"
                     ));
-                    None
+                    match AudioOutput::open(id.as_deref(), exclusive, None)
+                        .or_else(|_| AudioOutput::open(id.as_deref(), false, None))
+                        .or_else(|_| AudioOutput::new_default())
+                    {
+                        Ok(o) => Some(o),
+                        Err(e2) => {
+                            logger::error_audio(format!("could not restore output: {e2}"));
+                            None
+                        }
+                    }
                 }
             }
         } else {
@@ -606,8 +657,7 @@ impl AudioEngine {
         if let Some(out) = new_out {
             EXCLUSIVE.store(out.exclusive, Ordering::Release);
             e.output = out;
-            e.eq
-                .lock()
+            e.eq.lock()
                 .unwrap()
                 .reset_sample_rate(e.output.sample_rate, e.output.channels as usize);
             e.stereo_enhance
@@ -634,17 +684,17 @@ impl AudioEngine {
         e.dec_sample_rate = src_rate;
         e.dec_channels = src_ch;
         e.dec_bit_depth = src_bits;
-        *e.resampler.lock().unwrap() = if src_rate != e.output.sample_rate {
-            logger::debug_audio(format!(
-                "resampler: {}→{}Hz",
-                src_rate, e.output.sample_rate
-            ));
-            Some(Resampler::new(src_rate, e.output.sample_rate, src_ch)?)
+        let dst = {
+            let speed = e.dsp.lock().unwrap().playback_speed;
+            playback_dst_rate(e.output.sample_rate, speed, e.output.exclusive)
+        };
+        *e.resampler.lock().unwrap() = if src_rate != dst {
+            logger::debug_audio(format!("resampler: {src_rate}→{dst}Hz"));
+            Some(Resampler::new(src_rate, dst, src_ch)?)
         } else {
             None
         };
-        e.eq
-            .lock()
+        e.eq.lock()
             .unwrap()
             .reset_sample_rate(e.output.sample_rate, e.output.channels as usize);
         e.spectrum_buf.lock().unwrap().fill(0.0);
@@ -842,7 +892,10 @@ fn push_pcm(producer: &SharedProducer, pcm: &[f32], channels: u32, flags: &PlayF
             thread::sleep(Duration::from_millis(1));
             continue;
         }
-        let wrote = producer.lock().unwrap().push_slice(&pcm[offset..offset + take]);
+        let wrote = producer
+            .lock()
+            .unwrap()
+            .push_slice(&pcm[offset..offset + take]);
         offset += wrote;
         if wrote == 0 {
             thread::sleep(Duration::from_millis(1));
@@ -923,6 +976,7 @@ fn decode_loop(
             e.next_resampler.clone(),
         )
     };
+    let mut dec_arc = dec_arc;
 
     let cap = ring_cap(out_sr as u32, out_ch);
     let throttle_threshold = cap / 4;
@@ -1008,11 +1062,12 @@ fn decode_loop(
                     e.dec_sample_rate = dec_rate;
                     e.volume
                 };
-                if let Err(err) = ensure_resampler(&resampler, dec_rate, out_sr as u32, dec_ch) {
+                let dsp = dsp_arc.lock().unwrap().clone();
+                let dst = playback_dst_rate(out_sr as u32, dsp.playback_speed, is_exclusive);
+                if let Err(err) = ensure_resampler(&resampler, dec_rate, dst, dec_ch) {
                     logger::error_audio(format!("resampler: {err}"));
                     continue;
                 }
-                let dsp = dsp_arc.lock().unwrap().clone();
 
                 let use_rs = {
                     let mut rs = resampler.lock().unwrap();
@@ -1054,14 +1109,9 @@ fn decode_loop(
                                 (n.channels().max(1), n.sample_rate().max(1))
                             };
                             fade_in_ch = fade_ch;
-                            if ensure_resampler(
-                                &next_resampler,
-                                fade_rate,
-                                out_sr as u32,
-                                fade_ch,
-                            )
-                            .is_err()
-                            {
+                            let dst =
+                                playback_dst_rate(out_sr as u32, dsp.playback_speed, is_exclusive);
+                            if ensure_resampler(&next_resampler, fade_rate, dst, fade_ch).is_err() {
                                 continue;
                             }
                             let use_nrs = {
@@ -1121,6 +1171,22 @@ fn decode_loop(
             }
 
             Ok(false) => {
+                let next = engine_arc.lock().unwrap().next_decoder.take();
+                if let Some(n) = next {
+                    logger::info_audio("decode_loop: taking next decoder");
+                    {
+                        let mut e = engine_arc.lock().unwrap();
+                        e.decoder = Some(n.clone());
+                        let nr = e.next_resampler.lock().unwrap().take();
+                        *e.resampler.lock().unwrap() = nr;
+                    }
+                    dec_arc = n;
+                    fade_in_dec = None;
+                    crossfade_ramp = 0;
+                    leading_silent = 0;
+                    leading_done = false;
+                    continue;
+                }
                 logger::info_audio("decode_loop: end of stream, flushing tail");
                 let (dec_ch, target_vol) = {
                     let e = engine_arc.lock().unwrap();

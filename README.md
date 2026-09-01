@@ -35,12 +35,13 @@ DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm no
 | AAC | `.aac` `.m4a` | |
 | Vorbis | `.ogg` | |
 | Opus | `.opus` | libopus via Symphonia adapter |
+| WavPack | `.wv` | lossless |
 
 ---
 
 ## Download
 
-GitHub [releases](https://github.com/nokarin-dev/aqloss/releases/latest) (Windows installer/portable, Linux `.deb` / `.rpm` / AppImage / tarball, Android APKs). Linux is also on [Flathub](https://flathub.org/apps/xyz.nokarin.aqloss).
+GitHub [releases](https://github.com/nokarin-dev/aqloss/releases/latest) (Windows installer/portable, Linux `.deb` / `.rpm` / AppImage / tarball, Android APKs). Linux is also on [Flathub](https://flathub.org/apps/xyz.nokarin.aqloss). Arch and derivatives: AUR [`aqloss-bin`](https://aur.archlinux.org/packages/aqloss-bin) (`yay -S aqloss-bin` / `paru -S aqloss-bin`).
 
 The Windows installer is not code-signed. SmartScreen will complain; More info → Run anyway.
 
@@ -63,7 +64,7 @@ flutter run -d windows
 
 ```bash
 sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
-  libasound2-dev libpulse-dev
+  libasound2-dev libpulse-dev libayatana-appindicator3-dev
 flutter run -d linux
 ```
 
@@ -78,6 +79,15 @@ flutter run -d android
 Both live under Settings → Integrations. Last.fm needs an API account because this repo is public and I don't ship a key - create one at [last.fm/api/account/create](https://www.last.fm/api/account/create) and paste it in settings. ListenBrainz uses your own user token.
 
 Lua/webhook plugins: see [docs/plugin.md](docs/plugin.md).
+
+---
+
+## Support
+
+- International: [Ko-fi](https://ko-fi.com/nokarin), [Buy Me a Coffee](https://www.buymeacoffee.com/nokarin), [Open Collective](https://opencollective.com/nokarin), [thanks.dev](https://thanks.dev/u/gh/nokarin-dev)
+- Indonesia: [Trakteer](https://trakteer.id/nokarin), [Tako](https://tako.id/nokarin)
+
+Also in Settings → Support.
 
 ---
 

@@ -1,231 +1,194 @@
 [
     {
-        "title": "v1.0.1",
-        "subtitle": "Opus, Apple launch fix, installer, queue actions, half-screen layout, queue search, Hyprland folder picker, M3 progress, and native-rate exclusive output.",
-        "status": "done",
+        "title": "v1.1.0",
+        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, and an Arch Linux package.",
+        "status": "in-progress",
         "items": [
-            {
-                "title": "Opus Playback",
-                "description": "Decode typical .opus (Ogg Opus) files through libopus and the Symphonia adapter.",
-                "status": "done",
-                "category": "Core · Audio"
-            },
-            {
-                "title": "macOS Sequoia Launch Crash",
-                "description": "Link vendored Lua into the macOS/iOS staticlib so the app no longer dies on missing _luaopen_base at launch.",
-                "status": "done",
-                "category": "System · Platform"
-            },
-            {
-                "title": "Windows SFX Installer",
-                "description": "Patch the 7z SFX stub before concatenating the payload so rcedit cannot truncate the installer to ~100 KB.",
-                "status": "done",
-                "category": "Frontend · Windows"
-            },
-            {
-                "title": "Rolling Apple Build",
-                "description": "Unsigned macOS and iOS builds live on a single Apple Build prerelease, overwritten on each stable tag. Stable v* releases stay Windows, Linux, and Android.",
-                "status": "done",
-                "category": "Tooling · CI"
-            },
-            {
-                "title": "Now Playing Card Toggle",
-                "description": "Hide the top now playing card by default; opt in from Settings → Display. Mini player shows artist and album.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Queue improvements",
-                "description": "Play next and add to queue from track/album context menus, jump to album or artist from the queue, and drop the duplicate drag handle on queue rows.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Half-screen layout",
-                "description": "Linux tiled/half-screen drops fake CSD padding and rounded corners so the app fills the tile. Narrow panes use a cover Now Playing layout; maximized panes keep lyrics under the cover with a reserved share of the column height.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Hyprland folder picker",
-                "description": "Add Folder did nothing on Hyprland. Pick with zenity/kdialog, or from a dialog in the app. Adding a folder must not use a disposed Riverpod ref after the picker closes (#26).",
-                "status": "done",
-                "category": "Frontend · Linux"
-            },
-            {
-                "title": "Queue search",
-                "description": "Filter the current queue to jump to a track. Shuffle should order the remaining queue instead of picking a random index, so Play Next stays next. Playing a library/search result should not replace the queue with the visible results.",
-                "status": "done",
-                "category": "Frontend · Player"
-            },
-            {
-                "title": "M3 playback progress",
-                "description": "Material 3 seek stays wavy for the whole track, click-seeks without snapping back, pauses as a flat bar, and draws the wave and play ring with a per-pixel shader so curves stay smooth. The unused part of the play ring waves in sync in the inactive colour.",
-                "status": "done",
-                "category": "Frontend · UI"
-            },
-            {
-                "title": "Pause resume skip",
-                "description": "Pausing no longer discards the output buffer, which skipped the track forward on play.",
-                "status": "done",
-                "category": "Audio · Playback"
-            },
-            {
-                "title": "Loved track sync",
-                "description": "Import Last.fm and ListenBrainz likes onto matching local files. Heart toggles in the app also update those services.",
-                "status": "done",
-                "category": "Frontend · Integrations"
-            },
-            {
-                "title": "Hardware acceleration",
-                "description": "Settings toggle for GPU vs software UI rendering. Restart the app after changing it.",
-                "status": "done",
-                "category": "Frontend · Settings"
-            },
-            {
-                "title": "Native-rate exclusive output",
-                "description": "WASAPI Exclusive follows the track sample rate and uses integer PCM with TPDF dither on 16-bit. Linux lists ALSA hardware endpoints for exclusive-style exact-rate output; default playback uses PipeWire.",
-                "status": "done",
-                "category": "Audio · Output"
-            },
-            {
-                "title": "Lower output latency",
-                "description": "Shorter playback ring and callback size so exclusive and shared output start with less buffering.",
-                "status": "done",
-                "category": "Audio · Playback"
-            }
-        ]
-    },
-    {
-        "title": "Backlog",
-        "subtitle": "No timeline yet",
-        "status": "planned",
-        "items": [
-            {
-                "title": "Parametric EQ",
-                "description": "Replace the 10-band graphic EQ with a parametric EQ - more control per band, Q factor, shelf filters.",
-                "status": "planned",
-                "category": "Audio · DSP"
-            },
-            {
-                "title": "Crossfeed",
-                "description": "Binaural crossfeed filter for headphone listening - reduces fatigue on hard-panned recordings.",
-                "status": "planned",
-                "category": "Audio · DSP"
-            },
-            {
-                "title": "ReplayGain scanner",
-                "description": "Built-in scanner to compute and write ReplayGain tags to files, not just read them.",
-                "status": "planned",
-                "category": "Audio · Backend"
-            },
-            {
-                "title": "Waveform seeker",
-                "description": "A visual waveform of the audio file displayed as a seek bar, rather than a standard progress bar.",
-                "status": "planned",
-                "category": "Player · Playback"
-            },
-            {
-                "title": "A-B loop",
-                "description": "Set points A and B for a specific repeat section within a track.",
-                "status": "planned",
-                "category": "Player · Playback"
-            },
             {
                 "title": "Sleep timer",
-                "description": "Automatically stop playback after a specified time.",
-                "status": "planned",
-                "category": "Player · Playback"
-            },
-            {
-                "title": "Playback speed",
-                "description": "Adjust the playback speed of audio files.",
-                "status": "planned",
-                "category": "Player · Playback"
+                "description": "Stop playback after a set time, or at the end of the current track.",
+                "status": "done",
+                "category": "Player"
             },
             {
                 "title": "Restore position",
-                "description": "Remember the last position of each track when the app is closed and reopened.",
-                "status": "planned",
-                "category": "Player · Playback"
-            },
-            {
-                "title": "Tag editor",
-                "description": "Edit ID3/Vorbis metadata (title, artist, album, year, genre, cover) directly from the UI.",
-                "status": "planned",
-                "category": "Library · Organization"
-            },
-            {
-                "title": "Smart filter bar",
-                "description": "Filter the library by genre, year, format, and bit depth without going into the settings.",
-                "status": "planned",
-                "category": "Library · Organization"
-            },
-            {
-                "title": "Cover art fallback",
-                "description": "Fetch the cover from MusicBrainz or the Cover Art Archive if the file doesn't have a cover.",
-                "status": "planned",
-                "category": "Library · Organization"
-            },
-            {
-                "title": "Multi column sort",
-                "description": "Sort by album, artist, and track number all at once, not just by a single field.",
-                "status": "planned",
-                "category": "Library · Organization"
+                "description": "When you reopen the app, the last track continues where you left off. Skip and previous start from the beginning.",
+                "status": "done",
+                "category": "Player"
             },
             {
                 "title": "EQ presets",
-                "description": "Save/load EQ settings as named presets. Includes several default presets (Rock, Classical, Vocal).",
-                "status": "planned",
-                "category": "Audio · DSP"
+                "description": "Save and load EQ settings. Includes Flat, Rock, Classical, and Vocal, plus your own names.",
+                "status": "done",
+                "category": "Audio"
             },
             {
-                "title": "Loudness normalisation",
-                "description": "EBU R128 / LUFS-based loudness normalization as an alternative to ReplayGain.",
-                "status": "planned",
-                "category": "Audio · DSP"
+                "title": "Exclusive DAC",
+                "description": "Exclusive mode can take over your DAC. If that fails, you see an error instead of silent fallback.",
+                "status": "done",
+                "category": "Audio"
             },
             {
-                "title": "MusicBrainz lookup",
-                "description": "Automatic metadata enrichment via MusicBrainz: genre, year, ISRC, label.",
-                "status": "planned",
-                "category": "Frontend · Integration"
+                "title": "Android lock screen",
+                "description": "Play, pause, and skip from the lock screen, notification, and headset on Android.",
+                "status": "done",
+                "category": "Android"
             },
             {
-                "title": "Track info modal",
-                "description": "Track details: all tags, codec information, file path, ReplayGain values, play count.",
-                "status": "planned",
-                "category": "Frontend · UI"
+                "title": "Support page",
+                "description": "Settings links to support the project: Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako.",
+                "status": "done",
+                "category": "Settings"
             },
             {
-                "title": "Notification toast",
-                "description": "A notification when a folder has finished scanning, a scrobble has failed, or an update is available.",
-                "status": "planned",
-                "category": "Frontend · UI"
+                "title": "Arch Linux package",
+                "description": "Install on Arch Linux with yay -S aqloss-bin.",
+                "status": "done",
+                "category": "Linux"
             },
             {
-                "title": "System tray",
-                "description": "Minimize to the system tray, a small control panel pops up from the tray icon without opening the full app.",
-                "status": "planned",
-                "category": "System · Platform"
+                "title": "ReplayGain from files",
+                "description": "ReplayGain tags in your files are used after a library scan.",
+                "status": "done",
+                "category": "Library"
+            },
+            {
+                "title": "Crossfade length",
+                "description": "Crossfade uses the full fade length you picked.",
+                "status": "done",
+                "category": "Audio"
+            },
+            {
+                "title": "Faster library scan",
+                "description": "Large folders finish scanning sooner.",
+                "status": "done",
+                "category": "Library"
+            },
+            {
+                "title": "Shared output default",
+                "description": "New installs use Shared output, except on Windows, which still defaults to Exclusive. Your saved choice is kept.",
+                "status": "done",
+                "category": "Audio"
+            },
+            {
+                "title": "Discord covers",
+                "description": "Discord status uses public cover art only. Local files stay on this computer.",
+                "status": "done",
+                "category": "Player"
+            },
+            {
+                "title": "Track info",
+                "description": "See tags, format, file path, ReplayGain, and play count for a track.",
+                "status": "done",
+                "category": "Player"
+            },
+            {
+                "title": "Scan and update notices",
+                "description": "A notice when a folder has finished scanning, a scrobble has failed, or an update is available.",
+                "status": "done",
+                "category": "Player"
+            },
+            {
+                "title": "Missing files",
+                "description": "Tracks whose files were moved or deleted leave the library. Playlists can remove those entries, and play skips them.",
+                "status": "done",
+                "category": "Library"
             },
             {
                 "title": "Settings backup",
-                "description": "Export or import all settings and playlists as a single JSON file.",
-                "status": "planned",
-                "category": "System · Platform"
+                "description": "Export or restore settings, playlists, and music folders as a single file.",
+                "status": "done",
+                "category": "Settings"
             },
             {
-                "title": "Missing file detection",
-                "description": "Detect tracks in the library whose files have been moved or deleted, then offer to remove or relocate them.",
-                "status": "planned",
-                "category": "System · Platform"
+                "title": "A-B loop",
+                "description": "Repeat a section of the current track between two points you set.",
+                "status": "done",
+                "category": "Player"
             },
             {
-                "title": "Android improvements",
-                "description": "Improved notification controls, lock screen art, and scoped storage handling in Android 13 and later.",
+                "title": "System tray",
+                "description": "Minimize to the tray and control playback from a small panel without opening the full window.",
+                "status": "done",
+                "category": "Player"
+            },
+            {
+                "title": "Multi column sort",
+                "description": "Sort by album, artist, and track number together, not only one field.",
+                "status": "done",
+                "category": "Library"
+            },
+            {
+                "title": "Playback speed",
+                "description": "Play faster or slower. Pitch follows the speed. Exclusive mode stays at normal speed.",
+                "status": "done",
+                "category": "Player"
+            },
+            {
+                "title": "Smart filter bar",
+                "description": "Filter the library by format and bit depth from the library page, without opening Settings.",
+                "status": "done",
+                "category": "Library"
+            },
+            {
+                "title": "Android folders",
+                "description": "Pick music folders on Android and keep access after updates.",
+                "status": "done",
+                "category": "Android"
+            },
+            {
+                "title": "Reduce motion",
+                "description": "Turn off interface motion from Settings, or when the system asks for it.",
+                "status": "done",
+                "category": "Settings"
+            },
+            {
+                "title": "Parametric EQ",
+                "description": "More control per band than the 10-band graphic EQ, including width and shelf filters.",
                 "status": "planned",
-                "category": "System · Platform"
+                "category": "Audio"
+            },
+            {
+                "title": "Crossfeed",
+                "description": "A headphone filter that eases hard-panned recordings.",
+                "status": "planned",
+                "category": "Audio"
+            },
+            {
+                "title": "ReplayGain scanner",
+                "description": "Scan your files and write ReplayGain tags, not only read them.",
+                "status": "planned",
+                "category": "Audio"
+            },
+            {
+                "title": "Waveform seeker",
+                "description": "A waveform of the track as the seek bar, instead of a plain progress bar.",
+                "status": "planned",
+                "category": "Player"
+            },
+            {
+                "title": "Tag editor",
+                "description": "Edit title, artist, album, year, genre, and cover from the app.",
+                "status": "planned",
+                "category": "Library"
+            },
+            {
+                "title": "Cover art fallback",
+                "description": "If a file has no cover, look one up online.",
+                "status": "planned",
+                "category": "Library"
+            },
+            {
+                "title": "Loudness normalisation",
+                "description": "Keep albums at a similar volume, as an alternative to ReplayGain.",
+                "status": "planned",
+                "category": "Audio"
+            },
+            {
+                "title": "MusicBrainz lookup",
+                "description": "Fill in extra details such as genre, year, and label from MusicBrainz.",
+                "status": "planned",
+                "category": "Library"
             }
         ]
     }

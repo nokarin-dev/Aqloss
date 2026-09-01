@@ -12,6 +12,7 @@ import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/widgets/spectrum_display.dart';
 import 'package:aqloss/widgets/lyrics_view.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/audio_device_provider.dart';
 
@@ -723,27 +724,31 @@ class _FormatRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isExclusive = ref.watch(exclusiveModeProvider);
-    return Wrap(
-      spacing: 5,
-      runSpacing: 4,
-      alignment: alignment,
-      children: [
-        _Badge(track.format, soft: soft),
-        if (track.sampleRate > 0)
-          _Badge(
-            '${(track.sampleRate / 1000).toStringAsFixed(track.sampleRate % 1000 == 0 ? 0 : 1)} kHz',
-            soft: soft,
-          ),
-        if (track.bitDepth != null) _Badge('${track.bitDepth}-bit', soft: soft),
-        if (isExclusive)
-          _Badge(
-            'BIT-PERFECT',
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.06),
-            soft: soft,
-          ),
-      ],
+    return GestureDetector(
+      onTap: () => showTrackInfoSheet(context, track),
+      child: Wrap(
+        spacing: 5,
+        runSpacing: 4,
+        alignment: alignment,
+        children: [
+          _Badge(track.format, soft: soft),
+          if (track.sampleRate > 0)
+            _Badge(
+              '${(track.sampleRate / 1000).toStringAsFixed(track.sampleRate % 1000 == 0 ? 0 : 1)} kHz',
+              soft: soft,
+            ),
+          if (track.bitDepth != null)
+            _Badge('${track.bitDepth}-bit', soft: soft),
+          if (isExclusive)
+            _Badge(
+              'BIT-PERFECT',
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.06),
+              soft: soft,
+            ),
+        ],
+      ),
     );
   }
 }

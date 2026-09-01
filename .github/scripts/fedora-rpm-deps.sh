@@ -20,6 +20,7 @@ dnf install -y \
   gtk3-devel \
   xz-devel \
   libstdc++-devel \
+  libayatana-appindicator-gtk3-devel \
   alsa-lib-devel \
   pulseaudio-libs-devel \
   mesa-libGL-devel \
@@ -40,6 +41,11 @@ for cmd in "${required_cmds[@]}"; do
   fi
 done
 if [ "$missing" -ne 0 ]; then
+  exit 1
+fi
+
+if ! pkg-config --exists ayatana-appindicator3-0.1; then
+  echo "pkg-config module ayatana-appindicator3-0.1 is missing" >&2
   exit 1
 fi
 

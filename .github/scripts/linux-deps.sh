@@ -13,6 +13,7 @@ case "${profile}" in
     sudo apt-get install -y \
       clang cmake ninja-build pkg-config \
       libgtk-3-dev liblzma-dev libstdc++-12-dev \
+      libayatana-appindicator3-dev \
       libasound2-dev libpulse-dev \
       dpkg-dev fakeroot wget file
     ;;

@@ -1,14 +1,53 @@
 # Changelog
 
-All notable changes to Aqloss are documented here.
-
-This project loosely follows Keep a Changelog and uses Semantic Versioning.
+What changed in each Aqloss release, written for people who use the app.
 
 ---
 
 ## [Unreleased]
 
-No Changes Yet.
+### Added
+
+- [Frontend|Library] Filter the library by format and bit depth from the library bar
+- [Frontend|Player] Playback speed from 0.5× to 2×. Pitch follows the speed; exclusive mode stays at 1×
+- [Frontend|Player] Minimize to the system tray and control playback from the tray menu
+- [Frontend|Player] A-B loop: set two points on the current track and repeat that section
+- [Frontend|Settings] Export and restore settings, playlists, and music folders as one file
+- [Frontend|Library] Tracks whose files were moved or deleted leave the library, with a notice
+- [Frontend|Playlists] Missing files are marked so you can remove them; play skips them
+- [Frontend|UI] A notice when a folder scan finishes, a scrobble fails, or a new version is available
+- [Frontend|Player] Track info: tags, format, path, ReplayGain, and play count
+- [Frontend|DSP] EQ presets: Flat, Rock, Classical, Vocal, plus your own named presets
+- [Frontend|Player] Sleep timer: 15–60 minutes, or stop at the end of the track
+- [Frontend|Player] Resume the last track where you left off when you reopen the app, and restore the last queue on launch (paused)
+- [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
+- [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
+- [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
+
+### Changed
+
+- [Frontend] Discord status uses public cover art only; your local files stay on this computer
+- [Frontend|Library] Artist and album sorts keep album and track order, so two albums with the same name stay with their artist
+- [Frontend|Library] Large folders scan faster
+- [Linux|Audio] Exclusive mode can take over your DAC
+- [Audio] New installs use Shared output, except on Windows (Exclusive)
+
+### Fixed
+
+- [Frontend|Library] ReplayGain tags in your files are used after a scan (rescan to pick them up)
+- [Frontend|Settings] Offline update check shows a short message instead of a network error
+- [Backend|Audio] Exclusive mode can take the DAC instead of failing silently
+- [Linux|Audio] The output you picked stays selected when devices refresh
+- [Linux|Audio] Each sound card appears once in the output list
+- [Linux|Audio] The saved system-default output is found again
+- [Android] Pick music folders on the phone; they stay after you update the app
+- [Frontend|Settings] Reduce motion: skip waves, toasts, and page motion
+- [Android] Lock screen, notification, and headset controls work while music plays
+- [iOS] Lock-screen controls stay available in the background
+- [Audio] Crossfade uses the full length you picked
+- [Frontend] Playback errors show a message
+- [Library] DSD files (`.dsf` / `.dff`) are no longer added to the library
+- [Android] Update check, Last.fm, and lyrics work in the release app
 
 ---
 

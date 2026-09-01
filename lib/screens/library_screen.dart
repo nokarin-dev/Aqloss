@@ -6,9 +6,11 @@ import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/q_sheet.dart';
 import 'package:aqloss/widgets/q_spinner.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
+import 'package:aqloss/util/library_filter.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/library_nav_provider.dart';
@@ -398,6 +400,7 @@ class _FormatMenuButton extends ConsumerWidget {
 }
 
 // Sort / filter bar
+// Sort / filter bar
 class _SortBar extends ConsumerWidget {
   final LibraryState library;
   const _SortBar({required this.library});
@@ -471,8 +474,11 @@ class _M3SortBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final n = ref.read(libraryProvider.notifier);
     final theme = Theme.of(context);
+
     final selectedFormats = library.selectedFormats;
-    final isFormatSelected = library.filter == LibraryFilter.format && selectedFormats.isNotEmpty;
+    final isFormatSelected =
+        library.filter == LibraryFilter.format &&
+        selectedFormats.isNotEmpty;
 
     final formatLabel = isFormatSelected
         ? selectedFormats.length == 1
@@ -528,7 +534,10 @@ class _M3SortBar extends ConsumerWidget {
                             Navigator.pop(context);
                             n.clearFormatFilters();
                           },
-                          child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                          child: const Text(
+                            'Clear',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                     ],
                   ),
@@ -536,7 +545,9 @@ class _M3SortBar extends ConsumerWidget {
                 const PopupMenuDivider(),
                 ...library.availableFormats.map(
                   (fmt) {
-                    final isSelected = selectedFormats.contains(fmt);
+                    final isSelected =
+                        selectedFormats.contains(fmt);
+
                     return PopupMenuItem<AudioFormat>(
                       value: fmt,
                       child: Row(
@@ -546,7 +557,11 @@ class _M3SortBar extends ConsumerWidget {
                             onChanged: null,
                           ),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(fmt.name.toUpperCase())),
+                          Expanded(
+                            child: Text(
+                              fmt.name.toUpperCase(),
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -559,7 +574,10 @@ class _M3SortBar extends ConsumerWidget {
                   children: [
                     Text(formatLabel),
                     const SizedBox(width: 4),
-                    const Icon(Icons.arrow_drop_down_rounded, size: 18),
+                    const Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: 18,
+                    ),
                   ],
                 ),
                 selected: isFormatSelected,
@@ -568,7 +586,10 @@ class _M3SortBar extends ConsumerWidget {
             ),
           ],
           const SizedBox(width: 12),
-          Text('Sort', style: theme.textTheme.labelMedium),
+          Text(
+            'Sort',
+            style: theme.textTheme.labelMedium,
+          ),
           const SizedBox(width: 8),
           ...[
             (SortField.artist, 'Artist'),
@@ -578,6 +599,7 @@ class _M3SortBar extends ConsumerWidget {
             (SortField.format, 'Format'),
           ].map((e) {
             final selected = library.sortField == e.$1;
+
             return Padding(
               padding: const EdgeInsets.only(right: 6),
               child: FilterChip(
@@ -612,6 +634,8 @@ class _M3SortBar extends ConsumerWidget {
     );
   }
 }
+
+
 
 class _FilterPill extends StatelessWidget {
   final String label;
@@ -1018,6 +1042,13 @@ class _TrackOptions extends ConsumerWidget {
             onTap: () {
               Navigator.pop(context);
               requestShowArtist(context, ref, artist: libraryArtistOf(track));
+            },
+          ),
+          UiListTile(
+            title: 'Track info',
+            onTap: () {
+              Navigator.pop(context);
+              showTrackInfoSheet(context, track);
             },
           ),
           if (playlists.isNotEmpty) ...[

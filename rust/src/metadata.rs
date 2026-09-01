@@ -236,12 +236,14 @@ pub fn read_embedded_lyrics(path: &str) -> Result<Option<String>> {
     Ok(None)
 }
 
-pub fn scan_directory(dir: &str) -> Result<Vec<String>> {
-    const SUPPORTED: &[&str] = &[
-        "flac", "wav", "aiff", "aif", "alac", "m4a", "dsf", "dff", "mp3", "ogg", "opus", "aac",
-        "wv",
-    ];
+fn scannable_ext(ext: &str) -> bool {
+    matches!(
+        ext.to_ascii_lowercase().as_str(),
+        "flac" | "wav" | "aiff" | "aif" | "alac" | "m4a" | "mp3" | "ogg" | "opus" | "aac" | "wv"
+    )
+}
 
+pub fn scan_directory(dir: &str) -> Result<Vec<String>> {
     let mut paths = Vec::new();
     for entry in walkdir::WalkDir::new(dir)
         .follow_links(true)
@@ -253,7 +255,7 @@ pub fn scan_directory(dir: &str) -> Result<Vec<String>> {
             continue;
         }
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            if SUPPORTED.contains(&ext.to_lowercase().as_str()) {
+            if scannable_ext(ext) {
                 if let Some(s) = path.to_str() {
                     paths.push(s.to_string());
                 }
@@ -288,6 +290,14 @@ mod tests {
         let art = find_local_cover_uncached(&dir);
         assert_eq!(art.as_deref(), Some(b"named-cover".as_slice()));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn scan_skips_dsd_keeps_wavpack() {
+        assert!(!scannable_ext("dsf"));
+        assert!(!scannable_ext("DFF"));
+        assert!(scannable_ext("flac"));
+        assert!(scannable_ext("WV"));
     }
 
     #[test]

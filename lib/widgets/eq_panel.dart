@@ -1,4 +1,9 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/util/eq_presets.dart';
+import 'package:aqloss/widgets/q_sheet.dart';
+import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/widgets/shared/input_dialog.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
@@ -79,26 +84,165 @@ class EqPanel extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Reset button
-          GestureDetector(
-            onTap: n.resetEq,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: onSurface.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: onSurface.withValues(alpha: 0.08)),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _EqAction(
+                label:
+                    matchingEqPresetName(s.eqGains, s.eqUserPresets) ??
+                    'Presets',
+                onTap: () => showQSheet(
+                  context: context,
+                  builder: (_) => const _EqPresetSheet(),
+                ),
               ),
-              child: Text(
-                'Reset all bands',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: onSurface.withValues(alpha: 0.40),
+              _EqAction(label: 'Save', onTap: () => _savePreset(context, ref)),
+              _EqAction(label: 'Reset', onTap: n.resetEq),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _savePreset(BuildContext context, WidgetRef ref) async {
+  final ctrl = TextEditingController(
+    text:
+        matchingEqPresetName(
+          ref.read(settingsProvider).eqGains,
+          ref.read(settingsProvider).eqUserPresets,
+        ) ??
+        '',
+  );
+  if (isBuiltInEqPresetName(ctrl.text)) ctrl.clear();
+  final raw = await showDialog<String>(
+    context: context,
+    builder: (ctx) => InputDialog(
+      title: 'Save EQ preset',
+      hint: 'Preset name',
+      confirmLabel: 'Save',
+      controller: ctrl,
+    ),
+  );
+  ctrl.dispose();
+  if (raw == null || !context.mounted) return;
+  final result = ref.read(settingsProvider.notifier).saveEqPreset(raw);
+  final message = switch (result) {
+    EqPresetSaveResult.ok => 'Saved',
+    EqPresetSaveResult.emptyName => 'Name required',
+    EqPresetSaveResult.builtInName => 'That name is a built-in preset',
+    EqPresetSaveResult.full => 'Remove a saved preset first',
+  };
+  if (context.mounted) QToast.show(context, message);
+}
+
+class _EqAction extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _EqAction({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isM3 = context.isMaterial3Ui;
+    final cs = Theme.of(context).colorScheme;
+    final aq = context.aq;
+    final onSurface = isM3 ? cs.onSurface : aq.onSurface;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: onSurface.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: onSurface.withValues(alpha: 0.08)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: onSurface.withValues(alpha: 0.40),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EqPresetSheet extends ConsumerWidget {
+  const _EqPresetSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(settingsProvider);
+    final n = ref.read(settingsProvider.notifier);
+    final cs = Theme.of(context).colorScheme;
+    final selected = matchingEqPresetName(s.eqGains, s.eqUserPresets);
+
+    void apply(EqPreset preset) {
+      n.applyEqPreset(preset);
+      Navigator.pop(context);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 32,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            Text(
+              'EQ presets',
+              style: TextStyle(
+                color: cs.onSurface,
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const UiDivider(),
+            const SizedBox(height: 8),
+            for (final p in kBuiltInEqPresets)
+              UiListTile(
+                title: p.name,
+                selected: selected == p.name,
+                onTap: () => apply(p),
+              ),
+            if (s.eqUserPresets.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const UiDivider(),
+              const SizedBox(height: 8),
+              for (final p in s.eqUserPresets)
+                UiListTile(
+                  title: p.name,
+                  selected: selected == p.name,
+                  trailing: IconButton(
+                    tooltip: 'Delete',
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: cs.onSurface.withValues(alpha: 0.36),
+                    ),
+                    onPressed: () => n.deleteEqUserPreset(p.name),
+                  ),
+                  onTap: () => apply(p),
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }

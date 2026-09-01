@@ -101,6 +101,27 @@ class PlaylistNotifier extends StateNotifier<List<Playlist>> {
     state = [...state, playlist];
     await _save();
   }
+
+  Future<void> replaceAll(List<Playlist> playlists) async {
+    state = playlists;
+    await _save();
+  }
+
+  Future<int> removeTracksByPath(String playlistId, Set<String> paths) async {
+    if (paths.isEmpty) return 0;
+    var removed = 0;
+    state = state.map((p) {
+      if (p.id != playlistId) return p;
+      final kept = [
+        for (final t in p.tracks)
+          if (!paths.contains(t.path)) t,
+      ];
+      removed = p.tracks.length - kept.length;
+      return p.copyWith(tracks: kept);
+    }).toList();
+    if (removed > 0) await _save();
+    return removed;
+  }
 }
 
 final playlistProvider =

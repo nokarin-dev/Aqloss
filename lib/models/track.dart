@@ -150,4 +150,25 @@ class Track {
       '${(fileSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB';
 
   bool get hasReplayGain => replayGainTrack != null || replayGainAlbum != null;
+
+  String get sampleRateLabel => sampleRate > 0 ? '$sampleRate Hz' : '\u2014';
+
+  String get bitDepthLabel => bitDepth != null ? '$bitDepth-bit' : '\u2014';
+
+  String get channelsLabel {
+    if (channels <= 0) return '\u2014';
+    if (channels == 1) return 'Mono';
+    if (channels == 2) return 'Stereo';
+    return '$channels ch';
+  }
+
+  String get replayGainTrackLabel => formatReplayGainDb(replayGainTrack);
+
+  String get replayGainAlbumLabel => formatReplayGainDb(replayGainAlbum);
+}
+
+String formatReplayGainDb(double? db) {
+  if (db == null) return '\u2014';
+  final sign = db > 0 ? '+' : '';
+  return '$sign${db.toStringAsFixed(2)} dB';
 }

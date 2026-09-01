@@ -26,6 +26,7 @@ dependencies:
 
   # File picking
   file_picker: ^12.0.0
+  android_file_picker: ^1.0.1
 
   # Audio focus / media keys (mobile)
   audio_service: ^0.18.13
@@ -48,6 +49,8 @@ dependencies:
   dynamic_color: ^2.1.0
   material_ui: ^1.0.1
   material_3_expressive: ^1.0.8
+  url_launcher: ^6.3.2
+  tray_manager: ^0.5.3
 
 dependency_overrides:
   dynamic_color: ^2.1.0

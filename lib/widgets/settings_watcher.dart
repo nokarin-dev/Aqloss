@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:aqloss/app_version.dart';
 import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
@@ -7,9 +11,14 @@ import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/services/loved_sync.dart';
 import 'package:aqloss/services/notifier/media_control_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
+import 'package:aqloss/services/tray_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
-import 'package:flutter/widgets.dart';
+import 'package:aqloss/util/notices.dart';
+import 'package:aqloss/util/update_check.dart';
+import 'package:aqloss/widgets/q_toast.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsWatcher extends ConsumerStatefulWidget {
   final Widget child;
@@ -22,16 +31,37 @@ class SettingsWatcher extends ConsumerStatefulWidget {
 class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   SettingsState? _prev;
   PlayerState? _prevPlayer;
+  PlayerStatus? _prevPlayerStatus;
   bool _mediaInitialized = false;
   bool _lovedPullStarted = false;
   AccentMode? _prevAccentMode;
   int? _prevAccentColor;
   String? _prevAccentPath;
+  LibraryStatus? _prevLibraryStatus;
+  int _prevMissingRemoved = 0;
+  bool _updateCheckStarted = false;
+  bool _trayStarted = false;
+  String? _trayTrack;
+  bool? _trayPlaying;
+
+  static const _kUpdateNotified = 'aqloss_update_notified';
 
   @override
   void initState() {
     super.initState();
+    ScrobbleController.instance.onFailed = (msg) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _notice(msg);
+      });
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) => _initMediaControls());
+  }
+
+  @override
+  void dispose() {
+    ScrobbleController.instance.onFailed = null;
+    MediaControlService.dispose();
+    super.dispose();
   }
 
   Future<void> _initMediaControls() async {
@@ -49,12 +79,6 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   }
 
   @override
-  void dispose() {
-    MediaControlService.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
     final player = ref.watch(playerProvider);
@@ -65,6 +89,12 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _applyMediaControls(player);
       _applyAccent(s, player);
       _pullLoved(s, library.tracks.isNotEmpty);
+      _showPlaybackError(player);
+      _restoreSession(library);
+      _showLibraryScan(library);
+      _showMissingRemoved(library);
+      _checkUpdateToast(s);
+      _syncTray(s, player);
     });
 
     return widget.child;
@@ -139,6 +169,10 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
 
     if (prev?.skipSilence != s.skipSilence) {
       await backend.setSkipSilence(enabled: s.skipSilence).catchError((_) {});
+    }
+
+    if (prev?.playbackSpeed != s.playbackSpeed) {
+      await backend.setPlaybackSpeed(speed: s.playbackSpeed).catchError((_) {});
     }
 
     if (prev?.gaplessPlayback != s.gaplessPlayback) {
@@ -218,5 +252,104 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     _lovedPullStarted = true;
     _configureLoved(s);
     LovedSync.importInto(ref);
+  }
+
+  void _showPlaybackError(PlayerState player) {
+    final prev = _prevPlayerStatus;
+    _prevPlayerStatus = player.status;
+    if (player.status != PlayerStatus.error || prev == PlayerStatus.error) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(const SnackBar(content: Text('Playback failed')));
+  }
+
+  void _restoreSession(LibraryState library) {
+    if (library.tracks.isEmpty) return;
+    ref.read(playerProvider.notifier).restoreSession(library.tracks);
+  }
+
+  void _notice(String message) {
+    if (!mounted) return;
+    if (Overlay.maybeOf(context) == null) {
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(message)));
+      return;
+    }
+    QToast.show(context, message, duration: const Duration(seconds: 3));
+  }
+
+  void _showLibraryScan(LibraryState library) {
+    final prev = _prevLibraryStatus;
+    _prevLibraryStatus = library.status;
+    if (prev != LibraryStatus.scanning) return;
+    if (library.status == LibraryStatus.done) {
+      _notice(libraryScanFinishedMessage(library.tracks.length));
+    } else if (library.status == LibraryStatus.error) {
+      _notice(kLibraryScanFailedMessage);
+    }
+  }
+
+  void _showMissingRemoved(LibraryState library) {
+    final n = library.missingRemoved;
+    if (n > 0 && n != _prevMissingRemoved) {
+      _notice(missingFilesRemovedMessage(n));
+    }
+    _prevMissingRemoved = n;
+  }
+
+  void _checkUpdateToast(SettingsState s) {
+    if (_updateCheckStarted || !s.loaded) return;
+    _updateCheckStarted = true;
+    checkGithubLatest(currentVersion: kAppVersion).then((result) async {
+      if (!mounted || result.status != UpdateCheckStatus.available) return;
+      final ver = result.latestVersion;
+      if (ver == null || ver.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getString(_kUpdateNotified) == ver) return;
+      await prefs.setString(_kUpdateNotified, ver);
+      if (mounted) _notice(updateAvailableMessage(ver));
+    });
+  }
+
+  void _syncTray(SettingsState s, PlayerState player) {
+    if (!s.loaded) return;
+    if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) return;
+
+    if (!_trayStarted) {
+      _trayStarted = true;
+      final n = ref.read(playerProvider.notifier);
+      final tray = TrayService.instance;
+      tray.onShow = () {
+        unawaited(tray.showWindow());
+      };
+      tray.onPlayPause = () {
+        if (ref.read(playerProvider).status == PlayerStatus.playing) {
+          n.pause();
+        } else {
+          n.play();
+        }
+      };
+      tray.onNext = n.skipNext;
+      tray.onPrevious = n.skipPrevious;
+      tray.onQuit = () {
+        n.persistPlayback();
+        unawaited(tray.quitApp());
+      };
+    }
+
+    final playing = player.status == PlayerStatus.playing;
+    final path = player.currentTrack?.path;
+    if (path == _trayTrack && playing == _trayPlaying) return;
+    _trayTrack = path;
+    _trayPlaying = playing;
+    unawaited(
+      TrayService.instance.sync(
+        playing: playing,
+        title: player.currentTrack?.displayTitle,
+        artist: player.currentTrack?.displayArtist,
+      ),
+    );
   }
 }

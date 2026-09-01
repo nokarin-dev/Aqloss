@@ -4,6 +4,7 @@ import 'package:aqloss/providers/library_nav_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,6 +34,7 @@ Future<void> showTrackContextMenu({
         Icons.person_outline_rounded,
         'Show artist',
       ),
+      _item(context, 'info', Icons.info_outline_rounded, 'Track info'),
       if (playlists.isNotEmpty) ...[
         const PopupMenuDivider(height: 8),
         const PopupMenuItem<String>(
@@ -173,6 +175,10 @@ Future<void> _onTrackAction(
   }
   if (selected == 'show_artist') {
     requestShowArtist(context, ref, artist: libraryArtistOf(track));
+    return;
+  }
+  if (selected == 'info') {
+    await showTrackInfoSheet(context, track);
     return;
   }
   if (selected.startsWith('pl:')) {

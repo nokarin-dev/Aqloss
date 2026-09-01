@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:aqloss/app_version.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
+import 'package:aqloss/util/update_check.dart';
 import 'package:aqloss/screens/plugin_pane.dart';
-import 'package:http/http.dart' as http;
 
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/services/discord_service.dart';
@@ -18,13 +17,19 @@ import 'package:aqloss/services/folder_picker.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:aqloss/providers/settings_provider.dart';
-import 'package:aqloss/theme/aqloss_tokens.dart';
-import 'package:aqloss/theme/ui_framework.dart';
-import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
-import 'package:aqloss/util/android_path_helper.dart';
+import 'package:aqloss/providers/playlist_provider.dart';
+import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/services/settings_backup_service.dart';
+import 'package:aqloss/theme/aqloss_tokens.dart';
+import 'package:aqloss/theme/ui_framework.dart';
+import 'package:aqloss/util/notices.dart';
+import 'package:aqloss/util/open_url.dart';
+import 'package:aqloss/util/playback_speed.dart';
+import 'package:aqloss/util/settings_backup.dart';
+import 'package:aqloss/util/support_links.dart';
+import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -40,6 +45,7 @@ enum _SettingsPage {
   integrations,
   plugins,
   updates,
+  support,
   about,
 }
 
@@ -54,12 +60,12 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts => 'Shortcuts',
     _SettingsPage.plugins => 'Plugins',
     _SettingsPage.updates => 'Updates',
+    _SettingsPage.support => 'Support',
     _SettingsPage.about => 'About',
   };
 
   String get subtitle => switch (this) {
-    _SettingsPage.musicFolders =>
-      'Directories that Shiranami watches for audio files',
+    _SettingsPage.musicFolders => 'Folders Aqloss scans for audio files',
     _SettingsPage.audioOutput => 'Device and output mode selection',
     _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
     _SettingsPage.dsp => 'Equalizer, soft-clip, stereo width and depth',
@@ -69,7 +75,8 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts => 'Global keyboard shortcuts',
     _SettingsPage.plugins => 'Installed third-party and built-in plugins',
     _SettingsPage.updates => 'Check for new releases',
-    _SettingsPage.about => 'Version info and logs',
+    _SettingsPage.support => 'Ko-fi, Trakteer, and other ways to help',
+    _SettingsPage.about => 'Version, logs, and backup',
   };
 
   IconData get icon => switch (this) {
@@ -82,6 +89,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts => Icons.keyboard_outlined,
     _SettingsPage.plugins => Icons.widgets_outlined,
     _SettingsPage.updates => Icons.system_update_alt_rounded,
+    _SettingsPage.support => Icons.favorite_border_rounded,
     _SettingsPage.about => Icons.info_outline_rounded,
   };
 
@@ -92,6 +100,7 @@ extension _SettingsPageX on _SettingsPage {
     _SettingsPage.shortcuts ||
     _SettingsPage.plugins ||
     _SettingsPage.updates ||
+    _SettingsPage.support ||
     _SettingsPage.about => 'SYSTEM',
   };
 }
@@ -142,7 +151,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // Right content pane
         Expanded(
-          child: _SettingsContent(page: _page, isDesktop: isDesktop),
+          child: _SettingsContent(
+            page: _page,
+            isDesktop: isDesktop,
+            onOpenSupport: () => setState(() => _page = _SettingsPage.support),
+          ),
         ),
       ],
     );
@@ -485,8 +498,13 @@ class _SidebarNavItemState extends State<_SidebarNavItem> {
 class _SettingsContent extends StatelessWidget {
   final _SettingsPage page;
   final bool isDesktop;
+  final VoidCallback onOpenSupport;
 
-  const _SettingsContent({required this.page, required this.isDesktop});
+  const _SettingsContent({
+    required this.page,
+    required this.isDesktop,
+    required this.onOpenSupport,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +518,8 @@ class _SettingsContent extends StatelessWidget {
       _SettingsPage.shortcuts => const _ShortcutsPane(),
       _SettingsPage.plugins => const PluginsPane(),
       _SettingsPage.updates => const _UpdatesPane(),
-      _SettingsPage.about => const _AboutPane(),
+      _SettingsPage.support => const _SupportPane(),
+      _SettingsPage.about => _AboutPane(onOpenSupport: onOpenSupport),
     };
   }
 }
@@ -571,7 +590,11 @@ class _NarrowSettings extends StatelessWidget {
             ],
           ],
         ),
-        body: _SettingsContent(page: page, isDesktop: isDesktop),
+        body: _SettingsContent(
+          page: page,
+          isDesktop: isDesktop,
+          onOpenSupport: () => onSelect(_SettingsPage.support),
+        ),
       );
     }
 
@@ -591,7 +614,11 @@ class _NarrowSettings extends StatelessWidget {
           color: aq.border,
         ),
         Expanded(
-          child: _SettingsContent(page: page, isDesktop: isDesktop),
+          child: _SettingsContent(
+            page: page,
+            isDesktop: isDesktop,
+            onOpenSupport: () => onSelect(_SettingsPage.support),
+          ),
         ),
       ],
     );
@@ -793,28 +820,7 @@ class _MusicFoldersPane extends ConsumerWidget {
 
   Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
     final library = ref.read(libraryProvider.notifier);
-    if (Platform.isAndroid) {
-      final granted = await requestAndroidStoragePermission();
-      if (!granted) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Storage permission required to scan music folders',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-    }
-    if (!context.mounted) return;
-    final result = await pickDirectory(
-      context,
-      dialogTitle: 'Select music folder',
-    );
-    if (result == null) return;
-    library.addFolder(resolveAndroidPath(result));
+    await addMusicFolderFromPicker(context, onAdded: library.addFolder);
   }
 
   String _shortPath(String path) {
@@ -1127,9 +1133,22 @@ class _AudioDeviceSection extends ConsumerWidget {
                     isSelected: state.devices[i].id == state.selectedId,
                     currentMode: state.outputMode,
                     isSwitching: state.isSwitching,
-                    onSelect: (mode) => ref
-                        .read(audioDeviceProvider.notifier)
-                        .selectDevice(state.devices[i].id, mode),
+                    onSelect: (mode) async {
+                      try {
+                        await ref
+                            .read(audioDeviceProvider.notifier)
+                            .selectDevice(state.devices[i].id, mode);
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        final text = e.toString().replaceFirst(
+                          'Exception: ',
+                          '',
+                        );
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(text)));
+                      }
+                    },
                   ),
                 ],
               ],
@@ -1146,7 +1165,7 @@ class _AudioDeviceSection extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                'Exclusive / bit-perfect is only available on ALSA hardware devices (hw:). PipeWire and other mixer outputs stay in shared mode.',
+                'Exclusive / bit-perfect is only available on ALSA hardware devices (hw:). PipeWire and other mixer outputs stay in shared mode. Switching to exclusive pauses other apps on the sound card.',
                 style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurface.withValues(alpha: 0.38),
@@ -1229,7 +1248,7 @@ class _PlaybackPane extends ConsumerWidget {
       children: [
         if (bitPerfect) ...[
           const _ExclusiveLockBanner(
-            'Exclusive mode is on. Crossfade, ReplayGain, and skip silence can\'t be used.',
+            'Exclusive mode is on. Crossfade, ReplayGain, skip silence, and playback speed can\'t be used.',
           ),
           const SizedBox(height: 16),
         ],
@@ -1293,6 +1312,17 @@ class _PlaybackPane extends ConsumerWidget {
                   'Skips leading/trailing silence at track boundaries. Useful for live recordings.',
               value: s.skipSilence,
               onChanged: (_) => n.toggleSkipSilence(),
+              disabled: bitPerfect,
+              disabledHint: kBitPerfectUnavailableHint,
+            ),
+            _Div(),
+            _PickerRow(
+              icon: Icons.slow_motion_video_rounded,
+              title: 'Playback speed',
+              subtitle: 'Play faster or slower. Pitch follows the speed.',
+              options: kPlaybackSpeedLabels,
+              selected: playbackSpeedIndex(s.playbackSpeed),
+              onChanged: (i) => n.setPlaybackSpeed(kPlaybackSpeeds[i]),
               disabled: bitPerfect,
               disabledHint: kBitPerfectUnavailableHint,
             ),
@@ -1468,6 +1498,26 @@ class _DisplayPane extends ConsumerWidget {
               value: s.hardwareAcceleration,
               onChanged: (_) => n.toggleHardwareAcceleration(),
             ),
+            _Div(),
+            _ToggleRow(
+              icon: Icons.motion_photos_off_outlined,
+              title: 'Reduce motion',
+              subtitle:
+                  'Skip waves, toasts, and page motion. Also follows the system reduce-motion setting.',
+              value: s.reduceMotion,
+              onChanged: (_) => n.toggleReduceMotion(),
+            ),
+            if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
+              _Div(),
+              _ToggleRow(
+                icon: Icons.desktop_windows_outlined,
+                title: 'Close to tray',
+                subtitle:
+                    'Closing the window keeps music playing. Quit from the tray icon to exit.',
+                value: s.closeToTray,
+                onChanged: (_) => n.toggleCloseToTray(),
+              ),
+            ],
             _Div(),
             _ToggleRow(
               icon: Icons.image_outlined,
@@ -2124,82 +2174,31 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
     });
 
     try {
-      final uri = Uri.parse(
-        'https://api.github.com/repos/nokarin-dev/aqloss/releases/latest',
-      );
-      final resp = await http
-          .get(
-            uri,
-            headers: {
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28',
-            },
-          )
-          .timeout(const Duration(seconds: 12));
-
-      if (resp.statusCode == 404) {
-        setState(() => _status = _UpdateStatus.upToDate);
-        return;
+      final result = await checkGithubLatest(currentVersion: kAppVersion);
+      if (!mounted) return;
+      switch (result.status) {
+        case UpdateCheckStatus.upToDate:
+          setState(() => _status = _UpdateStatus.upToDate);
+        case UpdateCheckStatus.available:
+          setState(() {
+            _latestVersion = result.latestVersion;
+            _releaseNotes = result.notes;
+            _releaseUrl = result.url;
+            _status = _UpdateStatus.available;
+          });
+        case UpdateCheckStatus.error:
+          setState(() {
+            _status = _UpdateStatus.error;
+            _errorMsg = result.error;
+          });
       }
-
-      if (resp.statusCode != 200) {
-        setState(() {
-          _status = _UpdateStatus.error;
-          _errorMsg = 'GitHub responded with ${resp.statusCode}';
-        });
-        return;
-      }
-
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final tag = (data['tag_name'] as String? ?? '').replaceFirst('v', '');
-      final notes = _stripDownloads(data['body'] as String? ?? '');
-      final url = data['html_url'] as String? ?? '';
-
-      setState(() {
-        _latestVersion = tag;
-        _releaseNotes = notes.trim().isEmpty ? null : notes.trim();
-        _releaseUrl = url;
-        _status = _isNewer(tag, kAppVersion)
-            ? _UpdateStatus.available
-            : _UpdateStatus.upToDate;
-      });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _status = _UpdateStatus.error;
-        _errorMsg = e.toString().replaceFirst('Exception: ', '');
+        _errorMsg = formatUpdateCheckError(e);
       });
     }
-  }
-
-  bool _isNewer(String remote, String local) {
-    List<int> parse(String v) => v
-        .split('.')
-        .map((s) => int.tryParse(s.replaceAll(RegExp(r'[^\d]'), '')) ?? 0)
-        .toList();
-    final r = parse(remote), l = parse(local);
-    final len = r.length > l.length ? r.length : l.length;
-    for (int i = 0; i < len; i++) {
-      final rv = i < r.length ? r[i] : 0;
-      final lv = i < l.length ? l[i] : 0;
-      if (rv > lv) return true;
-      if (rv < lv) return false;
-    }
-    return false;
-  }
-
-  String _stripDownloads(String raw) {
-    final hrIdx = raw.indexOf('\n---');
-    final trimmed = hrIdx != -1 ? raw.substring(0, hrIdx) : raw;
-    return trimmed
-        .split('\n')
-        .where((line) {
-          final t = line.trim();
-          if (t.startsWith('[![')) return false;
-          if (RegExp(r'^https?://').hasMatch(t)) return false;
-          return true;
-        })
-        .join('\n')
-        .trim();
   }
 
   @override
@@ -2705,16 +2704,100 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
 }
 
 // About pane
-class _AboutPane extends StatelessWidget {
-  const _AboutPane();
+class _AboutPane extends ConsumerWidget {
+  final VoidCallback onOpenSupport;
+  const _AboutPane({required this.onOpenSupport});
+
+  void _snack(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _export(BuildContext context, WidgetRef ref) async {
+    final result = await SettingsBackupService.export(
+      settings: ref.read(settingsProvider),
+      playlists: ref.read(playlistProvider),
+      folders: ref.read(libraryProvider).folders,
+    );
+    if (!context.mounted) return;
+    if (result.success) {
+      _snack(context, kBackupSavedMessage);
+    } else if (result.error != null) {
+      _snack(context, result.error!);
+    }
+  }
+
+  Future<void> _restore(BuildContext context, WidgetRef ref) async {
+    final picked = await SettingsBackupService.import();
+    if (!context.mounted) return;
+    if (!picked.success) {
+      if (picked.error != null) _snack(context, picked.error!);
+      return;
+    }
+    final payload = picked.payload;
+    if (payload == null) return;
+    final confirmed = await showUiDialog<bool>(
+      context: context,
+      title: 'Restore backup?',
+      content: const Text('This replaces your current settings and playlists.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Restore'),
+        ),
+      ],
+    );
+    if (confirmed != true || !context.mounted) return;
+    final settings = settingsFromJson(
+      payload.settings,
+      defaultOutputMode: platformDefaultOutputMode(),
+    );
+    await ref.read(settingsProvider.notifier).applyBackup(settings);
+    await ref.read(playlistProvider.notifier).replaceAll(payload.playlists);
+    await ref.read(libraryProvider.notifier).restoreFolders(payload.folders);
+    if (context.mounted) _snack(context, kBackupRestoredMessage);
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return _Pane(
       page: _SettingsPage.about,
       children: [
         _SettingsCard(
           children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.favorite_border_rounded,
+                    size: 15,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Support the project',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.42),
+                      ),
+                    ),
+                  ),
+                  _HoverTextBtn(label: 'Open', onTap: onOpenSupport),
+                ],
+              ),
+            ),
+            _Div(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               child: Row(
@@ -2750,6 +2833,42 @@ class _AboutPane extends StatelessWidget {
               ),
             ),
             _Div(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.backup_rounded,
+                    size: 15,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Backup',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.42),
+                      ),
+                    ),
+                  ),
+                  _HoverTextBtn(
+                    label: 'Export',
+                    onTap: () => _export(context, ref),
+                  ),
+                  const SizedBox(width: 8),
+                  _HoverTextBtn(
+                    label: 'Restore',
+                    onTap: () => _restore(context, ref),
+                  ),
+                ],
+              ),
+            ),
+            _Div(),
             _InfoRow(
               icon: Icons.music_note_rounded,
               title: 'Aqloss',
@@ -2770,6 +2889,155 @@ class _AboutPane extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _SupportPane extends StatelessWidget {
+  const _SupportPane();
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = View.of(context).platformDispatcher.locale;
+    final groups = supportGroups(
+      indonesiaFirst: preferIndonesianSupport(locale),
+    );
+
+    return _Pane(
+      page: _SettingsPage.support,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            'Aqloss is free software. If you want to help keep development going, pick a platform below.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: context.stOnSurface(0.42),
+            ),
+          ),
+        ),
+        for (int i = 0; i < groups.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _SupportGroupCard(group: groups[i]),
+        ],
+      ],
+    );
+  }
+}
+
+class _SupportGroupCard extends StatelessWidget {
+  final SupportGroup group;
+  const _SupportGroupCard({required this.group});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = group.links.firstWhere((l) => l.primary);
+    final rest = group.links.where((l) => !l.primary).toList();
+
+    return _SettingsCard(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 13, 14, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                group.title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: context.stOnSurface(0.78),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                group.subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: context.stOnSurface(0.34),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _SupportPrimaryBtn(link: primary),
+          ),
+        ),
+        if (rest.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final link in rest)
+                  _HoverTextBtn(
+                    label: link.name,
+                    onTap: () => openExternalUrl(link.url),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SupportPrimaryBtn extends StatefulWidget {
+  final SupportLink link;
+  const _SupportPrimaryBtn({required this.link});
+
+  @override
+  State<_SupportPrimaryBtn> createState() => _SupportPrimaryBtnState();
+}
+
+class _SupportPrimaryBtnState extends State<_SupportPrimaryBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () => openExternalUrl(widget.link.url),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 130),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? context.stOnSurface(0.12)
+                : context.stOnSurface(0.07),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: context.stOnSurface(0.10)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 13,
+                color: context.stOnSurface(0.60),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.link.name,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.stOnSurface(0.78),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

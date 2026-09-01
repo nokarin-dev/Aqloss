@@ -69,8 +69,14 @@ class _WaveformBarState extends ConsumerState<WaveformBar>
   Widget build(BuildContext context) {
     final player = ref.watch(playerProvider);
     final isPlaying = player.status == PlayerStatus.playing;
+    final reduce = MediaQuery.disableAnimationsOf(context);
 
-    if (isPlaying) {
+    if (reduce) {
+      for (final c in _controllers) {
+        c.stop();
+        c.value = 0;
+      }
+    } else if (isPlaying) {
       _startAnimating();
     } else {
       _stopAnimating();

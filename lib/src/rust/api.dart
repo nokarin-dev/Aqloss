@@ -72,6 +72,9 @@ Future<void> setGapless({required bool enabled}) =>
 Future<void> setCrossfadeSecs({required double secs}) =>
     AqlossCore.instance.api.crateApiSetCrossfadeSecs(secs: secs);
 
+Future<void> setPlaybackSpeed({required double speed}) =>
+    AqlossCore.instance.api.crateApiSetPlaybackSpeed(speed: speed);
+
 Future<void> setEqEnabled({required bool enabled}) =>
     AqlossCore.instance.api.crateApiSetEqEnabled(enabled: enabled);
 

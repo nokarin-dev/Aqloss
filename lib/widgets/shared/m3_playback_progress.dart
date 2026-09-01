@@ -83,12 +83,17 @@ class _M3PlaybackRingState extends State<M3PlaybackRing>
       vsync: this,
       duration: const Duration(milliseconds: 3200),
     );
-    _syncWave();
     M3WavePrograms.ensure().then((_) {
       final program = M3WavePrograms.ring;
       if (!mounted || program == null) return;
       setState(() => _shader = program.fragmentShader());
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncWave();
   }
 
   @override
@@ -98,7 +103,9 @@ class _M3PlaybackRingState extends State<M3PlaybackRing>
   }
 
   void _syncWave() {
-    final run = widget.loading || widget.wavy;
+    if (!mounted) return;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final run = !reduce && (widget.loading || widget.wavy);
     if (run && !_wave.isAnimating) {
       _wave.repeat();
     } else if (!run && _wave.isAnimating) {
@@ -122,7 +129,8 @@ class _M3PlaybackRingState extends State<M3PlaybackRing>
     final track = widget.trackColor ?? cs.secondaryContainer;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final shader = _shader;
-    final wavy = widget.wavy || widget.loading;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final wavy = !reduce && (widget.wavy || widget.loading);
 
     return SizedBox(
       width: widget.size,
@@ -404,12 +412,17 @@ class _M3WaveSliderState extends State<_M3WaveSlider>
       vsync: this,
       duration: const Duration(milliseconds: 3200),
     );
-    _syncWave();
     M3WavePrograms.ensure().then((_) {
       final program = M3WavePrograms.track;
       if (!mounted || program == null) return;
       setState(() => _shader = program.fragmentShader());
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncWave();
   }
 
   @override
@@ -420,9 +433,12 @@ class _M3WaveSliderState extends State<_M3WaveSlider>
   }
 
   void _syncWave() {
-    if (widget.playing && !_wave.isAnimating) {
+    if (!mounted) return;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final run = !reduce && widget.playing;
+    if (run && !_wave.isAnimating) {
       _wave.repeat();
-    } else if (!widget.playing && _wave.isAnimating) {
+    } else if (!run && _wave.isAnimating) {
       _wave
         ..stop()
         ..value = 0;
@@ -450,7 +466,8 @@ class _M3WaveSliderState extends State<_M3WaveSlider>
     final inactive = cs.secondaryContainer;
     final height = widget.compact ? 32.0 : 40.0;
     final wavelength = widget.compact ? 56.0 : 64.0;
-    final amp = widget.playing ? (widget.compact ? 2.6 : 3.4) : 0.0;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final amp = !reduce && widget.playing ? (widget.compact ? 2.6 : 3.4) : 0.0;
     final step = m3WaveStep(context, wavelength: wavelength);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final shader = _shader;
