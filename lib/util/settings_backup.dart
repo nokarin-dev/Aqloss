@@ -71,6 +71,7 @@ Map<String, dynamic> settingsToJson(SettingsState s) => {
   'hardwareAcceleration': s.hardwareAcceleration,
   'closeToTray': s.closeToTray,
   'reduceMotion': s.reduceMotion,
+  'showTitleBar': s.showTitleBar,
 };
 
 SettingsState settingsFromJson(
@@ -179,6 +180,7 @@ SettingsState settingsFromJson(
     hardwareAcceleration: json['hardwareAcceleration'] as bool? ?? true,
     closeToTray: json['closeToTray'] as bool? ?? true,
     reduceMotion: json['reduceMotion'] as bool? ?? false,
+    showTitleBar: json['showTitleBar'] as bool? ?? false,
     loaded: true,
   );
 }

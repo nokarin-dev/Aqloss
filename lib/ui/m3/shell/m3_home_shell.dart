@@ -35,7 +35,8 @@ class M3HomeShell extends ConsumerStatefulWidget {
   ConsumerState<M3HomeShell> createState() => _M3HomeShellState();
 }
 
-class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
+class _M3HomeShellState extends ConsumerState<M3HomeShell>
+    with WindowListener {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   int _route = M3Route.player;
   bool _isMaximized = false;
@@ -47,7 +48,11 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
   @override
   void initState() {
     super.initState();
-    if (_isDesktop) windowManager.addListener(this);
+
+    if (_isDesktop) {
+      windowManager.addListener(this);
+    }
+
     _loadNavPref();
     HardwareKeyboard.instance.addHandler(_onKey);
   }
@@ -55,20 +60,30 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKey);
-    if (_isDesktop) windowManager.removeListener(this);
+
+    if (_isDesktop) {
+      windowManager.removeListener(this);
+    }
+
     super.dispose();
   }
 
   @override
-  void onWindowMaximize() => setState(() => _isMaximized = true);
+  void onWindowMaximize() {
+    setState(() => _isMaximized = true);
+  }
+
   @override
-  void onWindowUnmaximize() => setState(() => _isMaximized = false);
+  void onWindowUnmaximize() {
+    setState(() => _isMaximized = false);
+  }
 
   Future<void> _loadNavPref() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(
-        () => _navCollapsed = prefs.getBool('m3_nav_collapsed') ?? false,
+        () => _navCollapsed =
+            prefs.getBool('m3_nav_collapsed') ?? false,
       );
     }
   }
@@ -77,7 +92,7 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
     final next = !_navCollapsed;
     setState(() => _navCollapsed = next);
     final prefs = await SharedPreferences.getInstance();
-    prefs.setBool('m3_nav_collapsed', next);
+    await prefs.setBool('m3_nav_collapsed', next);
   }
 
   Widget _screen() {
@@ -96,7 +111,9 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
     final playlists = ref.read(playlistProvider);
     final idx = _route - M3Route.playlistBase;
     if (idx >= 0 && idx < playlists.length) {
-      return PlaylistDetailScreen(playlist: playlists[idx]);
+      return PlaylistDetailScreen(
+        playlist: playlists[idx],
+      );
     }
     return const PlayerScreen();
   }
@@ -139,10 +156,14 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
       case ShortcutAction.skipPrevious:
         ref.read(playerProvider.notifier).skipPrevious();
       case ShortcutAction.volumeUp:
-        final vol = (ref.read(playerProvider).volume + 0.05).clamp(0.0, 1.0);
+        final vol =
+            (ref.read(playerProvider).volume + 0.05).clamp(0.0, 1.0);
+
         ref.read(playerProvider.notifier).setVolume(vol);
       case ShortcutAction.volumeDown:
-        final vol = (ref.read(playerProvider).volume - 0.05).clamp(0.0, 1.0);
+        final vol =
+            (ref.read(playerProvider).volume - 0.05).clamp(0.0, 1.0);
+
         ref.read(playerProvider.notifier).setVolume(vol);
       case ShortcutAction.toggleSidebar:
         _toggleNav();
@@ -173,12 +194,20 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<LibraryNavRequest?>(libraryNavProvider, (prev, next) {
-      if (next == null) return;
-      if (_route != next.route) setState(() => _route = next.route);
-    });
+    ref.listen<LibraryNavRequest?>(
+      libraryNavProvider,
+      (prev, next) {
+        if (next == null) return;
 
+        if (_route != next.route) {
+          setState(() => _route = next.route);
+        }
+      },
+    );
+
+    final settings = ref.watch(settingsProvider);
     final isWide = MediaQuery.sizeOf(context).width > 700;
+
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
 
@@ -201,7 +230,12 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
       onEndDrawerChanged: (open) {
         ref.read(queuePanelOpenProvider.notifier).state = open;
       },
-      body: isWide ? _desktopBody(hasTrack) : _mobileBody(),
+      body: isWide
+          ? _desktopBody(
+              hasTrack,
+              settings,
+            )
+          : _mobileBody(),
       bottomNavigationBar: isWide
           ? null
           : Column(
@@ -209,12 +243,23 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
               children: [
                 if (hasTrack && _route != M3Route.player)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                    padding: const EdgeInsets.fromLTRB(
+                      14,
+                      0,
+                      14,
+                      6,
+                    ),
                     child: M3MiniPlayerBar(
-                      onTap: () => setState(() => _route = M3Route.player),
+                      onTap: () {
+                        setState(
+                          () => _route = M3Route.player,
+                        );
+                      },
                       onOpenQueue: () {
                         _scaffoldKey.currentState?.openEndDrawer();
-                        ref.read(queuePanelOpenProvider.notifier).state = true;
+                        ref
+                            .read(queuePanelOpenProvider.notifier)
+                            .state = true;
                       },
                     ),
                   ),
@@ -224,7 +269,9 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
                     if (i == 4) {
                       _scaffoldKey.currentState?.openDrawer();
                     } else {
-                      setState(() => _route = _mobileRouteFor(i));
+                      setState(
+                        () => _route = _mobileRouteFor(i),
+                      );
                     }
                   },
                 ),
@@ -232,59 +279,95 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
             ),
     );
 
-    return Focus(autofocus: true, child: scaffold);
+    return Focus(
+      autofocus: true,
+      child: scaffold,
+    );
   }
 
   Widget _mobileBody() {
     final bottom = MediaQuery.paddingOf(context).bottom;
+
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
     final showMini = hasTrack && _route != M3Route.player;
-    final contentBottom = 80.0 + bottom + (showMini ? 58.0 : 0.0);
+
+    final contentBottom =
+        80.0 +
+        bottom +
+        (showMini ? 58.0 : 0.0);
 
     return SafeArea(
       bottom: false,
       child: GlobalSearchOverlay(
         key: globalSearchKey,
         child: Padding(
-          padding: EdgeInsets.only(bottom: contentBottom),
+          padding: EdgeInsets.only(
+            bottom: contentBottom,
+          ),
           child: _screen(),
         ),
       ),
     );
   }
 
-  Widget _desktopBody(bool hasTrack) {
+  Widget _desktopBody(
+    bool hasTrack,
+    dynamic settings,
+  ) {
     return Column(
       children: [
-        if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
+        if (settings.showTitleBar && _isDesktop)
+          CustomTitleBar(
+            isMaximized: _isMaximized,
+          ),
         Expanded(
           child: GlobalSearchOverlay(
             key: globalSearchKey,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
               children: [
                 M3DesktopNav(
                   route: _route,
                   collapsed: _navCollapsed,
-                  onSelect: (r) => setState(() => _route = r),
+                  onSelect: (r) =>
+                      setState(() => _route = r),
                   onToggleCollapse: _toggleNav,
                   onOpenQueue: () {
-                    _scaffoldKey.currentState?.openEndDrawer();
-                    ref.read(queuePanelOpenProvider.notifier).state = true;
+                    _scaffoldKey.currentState
+                        ?.openEndDrawer();
+
+                    ref
+                        .read(queuePanelOpenProvider.notifier)
+                        .state = true;
                   },
                 ),
                 Expanded(
                   child: Column(
                     children: [
-                      Expanded(child: _screen()),
-                      if (hasTrack && _route != M3Route.player)
+                      Expanded(
+                        child: _screen(),
+                      ),
+                      if (hasTrack &&
+                          _route != M3Route.player)
                         M3MiniPlayerBar(
-                          onTap: () => setState(() => _route = M3Route.player),
+                          onTap: () {
+                            setState(
+                              () => _route =
+                                  M3Route.player,
+                            );
+                          },
                           onOpenQueue: () {
-                            _scaffoldKey.currentState?.openEndDrawer();
-                            ref.read(queuePanelOpenProvider.notifier).state =
-                                true;
+                            _scaffoldKey.currentState
+                                ?.openEndDrawer();
+
+                            ref
+                                .read(
+                                  queuePanelOpenProvider
+                                      .notifier,
+                                )
+                                .state = true;
                           },
                         ),
                     ],
@@ -299,8 +382,15 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
   }
 
   int _mobileNavIndex() {
-    if (_route >= M3Route.playlistBase) return 4;
-    if (_route == M3Route.history || _route == M3Route.artists) return 4;
+    if (_route >= M3Route.playlistBase) {
+      return 4;
+    }
+
+    if (_route == M3Route.history ||
+        _route == M3Route.artists) {
+      return 4;
+    }
+
     return _route.clamp(0, 3);
   }
 
@@ -316,7 +406,10 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
     final ctrl =
         HardwareKeyboard.instance.isControlPressed ||
         HardwareKeyboard.instance.isMetaPressed;
-    final shift = HardwareKeyboard.instance.isShiftPressed;
+
+    final shift =
+        HardwareKeyboard.instance.isShiftPressed;
+
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.control ||
         key == LogicalKeyboardKey.meta ||
@@ -347,6 +440,11 @@ class _M3HomeShellState extends ConsumerState<M3HomeShell> with WindowListener {
       };
     }
     if (name == null) return null;
-    return [if (ctrl) 'Ctrl', if (shift) 'Shift', name].join('+');
+
+    return [
+      if (ctrl) 'Ctrl',
+      if (shift) 'Shift',
+      name,
+    ].join('+');
   }
 }
