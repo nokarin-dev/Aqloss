@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:aqloss/providers/player_provider.dart';
 import 'package:dbus/dbus.dart';
 
 class MediaControlPlatform {
@@ -13,6 +14,8 @@ class MediaControlPlatform {
     required void Function() onNext,
     required void Function() onPrevious,
     required void Function(Duration) onSeek,
+    void Function(LoopMode)? onLoopModeChanged,
+    void Function(bool)? onShuffleChanged,
   }) async {
     try {
       _client = DBusClient.session();
@@ -22,6 +25,8 @@ class MediaControlPlatform {
         onNext: onNext,
         onPrevious: onPrevious,
         onSeek: onSeek,
+        onLoopModeChanged: onLoopModeChanged,
+        onShuffleChanged: onShuffleChanged,
       );
       await _client!.registerObject(_obj!);
       await _client!.requestName('org.mpris.MediaPlayer2.aqloss');
@@ -39,6 +44,8 @@ class MediaControlPlatform {
     required Duration position,
     required Duration duration,
     Uint8List? artBytes,
+    required String loopStatus,
+    required bool shuffle,
   }) async {
     final obj = _obj;
     if (obj == null) return;
@@ -61,6 +68,8 @@ class MediaControlPlatform {
       position: position,
       duration: duration,
       artUrl: artUrl,
+      loopStatus: loopStatus,
+      shuffle: shuffle,
     );
   }
 
@@ -82,11 +91,15 @@ class _MprisObject extends DBusObject {
   final void Function() onNext;
   final void Function() onPrevious;
   final void Function(Duration) onSeek;
+  final void Function(LoopMode)? onLoopModeChanged;
+  final void Function(bool)? onShuffleChanged;
 
   // Internal state
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  String _loopStatus = 'None';
+  bool _shuffle = false;
   Map<String, DBusValue> _metadata = {
     'mpris:trackid': DBusObjectPath('/org/aqloss/track/0'),
   };
@@ -97,6 +110,8 @@ class _MprisObject extends DBusObject {
     required this.onNext,
     required this.onPrevious,
     required this.onSeek,
+    this.onLoopModeChanged,
+    this.onShuffleChanged,
   }) : super(DBusObjectPath('/org/mpris/MediaPlayer2'));
 
   // Interface declarations
@@ -291,9 +306,9 @@ class _MprisObject extends DBusObject {
         'PlaybackStatus' => DBusGetPropertyResponse(
           DBusString(_isPlaying ? 'Playing' : 'Paused'),
         ),
-        'LoopStatus' => DBusGetPropertyResponse(DBusString('None')),
+        'LoopStatus' => DBusGetPropertyResponse(DBusString(_loopStatus)),
         'Rate' => DBusGetPropertyResponse(DBusDouble(1.0)),
-        'Shuffle' => DBusGetPropertyResponse(DBusBoolean(false)),
+        'Shuffle' => DBusGetPropertyResponse(DBusBoolean(_shuffle)),
         'Metadata' => DBusGetPropertyResponse(_buildMetadata()),
         'Volume' => DBusGetPropertyResponse(DBusDouble(1.0)),
         'Position' => DBusGetPropertyResponse(
@@ -322,8 +337,50 @@ class _MprisObject extends DBusObject {
   ) async {
     if (interface == 'org.mpris.MediaPlayer2.Player') {
       if (name == 'Volume') return DBusMethodSuccessResponse();
-      if (name == 'LoopStatus') return DBusMethodSuccessResponse();
-      if (name == 'Shuffle') return DBusMethodSuccessResponse();
+
+      if (name == 'LoopStatus') {
+        final status = (value as DBusString).value;
+        if (status != 'None' &&
+            status != 'Track' &&
+            status != 'Playlist') {
+          return DBusMethodErrorResponse.failed();
+        }
+
+        _loopStatus = status;
+
+        onLoopModeChanged?.call(
+          switch (status) {
+            'None' => LoopMode.off,
+            'Track' => LoopMode.track,
+            'Playlist' => LoopMode.playlist,
+            _ => LoopMode.off,
+          },
+        );
+
+        await emitPropertiesChanged(
+          'org.mpris.MediaPlayer2.Player',
+          changedProperties: {
+            'LoopStatus': DBusString(_loopStatus),
+          },
+        );
+
+        return DBusMethodSuccessResponse();
+      }
+
+      if (name == 'Shuffle') {
+        _shuffle = (value as DBusBoolean).value;
+        onShuffleChanged?.call(_shuffle);
+
+        await emitPropertiesChanged(
+          'org.mpris.MediaPlayer2.Player',
+          changedProperties: {
+            'Shuffle': DBusBoolean(_shuffle),
+          },
+        );
+
+        return DBusMethodSuccessResponse();
+      }
+
       if (name == 'Rate') return DBusMethodSuccessResponse();
     }
     return DBusMethodErrorResponse.failed();
@@ -346,9 +403,9 @@ class _MprisObject extends DBusObject {
     if (interface == 'org.mpris.MediaPlayer2.Player') {
       return DBusGetAllPropertiesResponse({
         'PlaybackStatus': DBusString(_isPlaying ? 'Playing' : 'Paused'),
-        'LoopStatus': DBusString('None'),
+        'LoopStatus': DBusString(_loopStatus),
         'Rate': DBusDouble(1.0),
-        'Shuffle': DBusBoolean(false),
+        'Shuffle': DBusBoolean(_shuffle),
         'Metadata': _buildMetadata(),
         'Volume': DBusDouble(1.0),
         'Position': DBusInt64(_position.inMicroseconds),
@@ -429,11 +486,15 @@ class _MprisObject extends DBusObject {
     required Duration position,
     required Duration duration,
     required String artUrl,
+    required String loopStatus,
+    required bool shuffle,
   }) async {
     final wasPlaying = _isPlaying;
     _isPlaying = isPlaying;
     _position = position;
     _duration = duration;
+    _loopStatus = loopStatus;
+    _shuffle = shuffle;
     _metadata = {
       'mpris:trackid': DBusObjectPath('/org/aqloss/track/1'),
       'mpris:length': DBusInt64(duration.inMicroseconds),
@@ -449,6 +510,8 @@ class _MprisObject extends DBusObject {
         'PlaybackStatus': DBusString(_isPlaying ? 'Playing' : 'Paused'),
         'Metadata': _buildMetadata(),
         'Position': DBusInt64(_position.inMicroseconds),
+        'LoopStatus': DBusString(_loopStatus),
+        'Shuffle': DBusBoolean(_shuffle),
       },
     );
 
