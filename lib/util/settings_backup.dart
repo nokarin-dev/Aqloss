@@ -180,7 +180,7 @@ SettingsState settingsFromJson(
     hardwareAcceleration: json['hardwareAcceleration'] as bool? ?? true,
     closeToTray: json['closeToTray'] as bool? ?? true,
     reduceMotion: json['reduceMotion'] as bool? ?? false,
-    showTitleBar: json['showTitleBar'] as bool? ?? false,
+    showTitleBar: json['showTitleBar'] as bool? ?? true,
     loaded: true,
   );
 }

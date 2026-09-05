@@ -441,7 +441,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
       closeToTray: p.getBool(_kCloseToTray) ?? true,
       reduceMotion: p.getBool(_kReduceMotion) ?? false,
-      showTitleBar: p.getBool(_kShowTileBar) ?? false,
+      showTitleBar: p.getBool(_kShowTileBar) ?? true,
       loaded: true,
     );
     GpuPref.write(state.hardwareAcceleration);
