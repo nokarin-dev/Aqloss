@@ -21,6 +21,8 @@ class MediaControlService {
   static bool _initialized = false;
   static String? _lastArtPath;
   static Uint8List? _lastArtBytes;
+  
+  static LoopMode _currentLoopMode = LoopMode.off;
 
   static bool get _isSupported =>
       Platform.isLinux ||
@@ -48,7 +50,20 @@ class MediaControlService {
         onNext: onNext,
         onPrevious: onPrevious,
         onSeek: onSeek,
-        onLoopModeChanged: onLoopModeChanged,
+        onLoopModeChanged: onLoopModeChanged != null
+            ? (String status) {
+                // If we receive 'Playlist' but are already in 'album' mode then keep album instead of switching to playlist mode
+                final newMode = switch (status) {
+                  'Track' => LoopMode.track,
+                  'Playlist' => _currentLoopMode == LoopMode.album 
+                      ? LoopMode.album 
+                      : LoopMode.playlist,
+                  _ => LoopMode.off,
+                };
+                
+                onLoopModeChanged(newMode);
+              }
+            : null,
         onShuffleChanged: onShuffleChanged,
       );
     } else if (Platform.isWindows) {
@@ -80,6 +95,7 @@ class MediaControlService {
     }
 
     final isPlaying = state.status == PlayerStatus.playing;
+    _currentLoopMode = state.loopMode; 
 
     // Snapshot art path
     Uint8List? art;

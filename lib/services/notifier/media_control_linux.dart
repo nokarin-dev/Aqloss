@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:aqloss/providers/player_provider.dart';
 import 'package:dbus/dbus.dart';
 
 class MediaControlPlatform {
@@ -14,7 +13,7 @@ class MediaControlPlatform {
     required void Function() onNext,
     required void Function() onPrevious,
     required void Function(Duration) onSeek,
-    void Function(LoopMode)? onLoopModeChanged,
+    void Function(String)? onLoopModeChanged,
     void Function(bool)? onShuffleChanged,
   }) async {
     try {
@@ -91,7 +90,7 @@ class _MprisObject extends DBusObject {
   final void Function() onNext;
   final void Function() onPrevious;
   final void Function(Duration) onSeek;
-  final void Function(LoopMode)? onLoopModeChanged;
+  final void Function(String)? onLoopModeChanged;
   final void Function(bool)? onShuffleChanged;
 
   // Internal state
@@ -339,7 +338,9 @@ class _MprisObject extends DBusObject {
       if (name == 'Volume') return DBusMethodSuccessResponse();
 
       if (name == 'LoopStatus') {
-        final status = (value as DBusString).value;
+        if (value is! DBusString) return DBusMethodErrorResponse.invalidArgs();
+        
+        final status = value.value;
         if (status != 'None' &&
             status != 'Track' &&
             status != 'Playlist') {
@@ -348,14 +349,7 @@ class _MprisObject extends DBusObject {
 
         _loopStatus = status;
 
-        onLoopModeChanged?.call(
-          switch (status) {
-            'None' => LoopMode.off,
-            'Track' => LoopMode.track,
-            'Playlist' => LoopMode.playlist,
-            _ => LoopMode.off,
-          },
-        );
+        onLoopModeChanged?.call(status);
 
         await emitPropertiesChanged(
           'org.mpris.MediaPlayer2.Player',
@@ -368,7 +362,9 @@ class _MprisObject extends DBusObject {
       }
 
       if (name == 'Shuffle') {
-        _shuffle = (value as DBusBoolean).value;
+        if (value is! DBusBoolean) return DBusMethodErrorResponse.invalidArgs();
+        
+        _shuffle = value.value;
         onShuffleChanged?.call(_shuffle);
 
         await emitPropertiesChanged(
