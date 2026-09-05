@@ -1510,6 +1510,17 @@ class _DisplayPane extends ConsumerWidget {
             if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
               _Div(),
               _ToggleRow(
+                icon: Icons.web_asset_outlined,
+                title: 'Show Title Bar',
+                subtitle:
+                    'Turns off the title bar on the window.',
+                value: s.showTitleBar,
+                onChanged: (_) => n.toggleShowTitleBar(),
+              ),
+            ],
+            if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
+              _Div(),
+              _ToggleRow(
                 icon: Icons.desktop_windows_outlined,
                 title: 'Close to tray',
                 subtitle:
