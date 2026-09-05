@@ -21,6 +21,8 @@ class MediaControlService {
   static bool _initialized = false;
   static String? _lastArtPath;
   static Uint8List? _lastArtBytes;
+  
+  static LoopMode _currentLoopMode = LoopMode.off;
 
   static bool get _isSupported =>
       Platform.isLinux ||
@@ -35,6 +37,8 @@ class MediaControlService {
     required void Function() onNext,
     required void Function() onPrevious,
     required void Function(Duration) onSeek,
+    void Function(LoopMode)? onLoopModeChanged,
+    void Function(bool)? onShuffleChanged,
   }) async {
     if (_initialized || !_isSupported) return;
     _initialized = true;
@@ -46,6 +50,21 @@ class MediaControlService {
         onNext: onNext,
         onPrevious: onPrevious,
         onSeek: onSeek,
+        onLoopModeChanged: onLoopModeChanged != null
+            ? (String status) {
+                // If we receive 'Playlist' but are already in 'album' mode then keep album instead of switching to playlist mode
+                final newMode = switch (status) {
+                  'Track' => LoopMode.track,
+                  'Playlist' => _currentLoopMode == LoopMode.album 
+                      ? LoopMode.album 
+                      : LoopMode.playlist,
+                  _ => LoopMode.off,
+                };
+                
+                onLoopModeChanged(newMode);
+              }
+            : null,
+        onShuffleChanged: onShuffleChanged,
       );
     } else if (Platform.isWindows) {
       await windows.MediaControlPlatform.init(
@@ -76,6 +95,7 @@ class MediaControlService {
     }
 
     final isPlaying = state.status == PlayerStatus.playing;
+    _currentLoopMode = state.loopMode; 
 
     // Snapshot art path
     Uint8List? art;
@@ -85,7 +105,6 @@ class MediaControlService {
       _lastArtBytes = null;
       try {
         final bytes = await backend.readAlbumArt(path: pathSnapshot);
-        // Stale fetch
         if (_lastArtPath == pathSnapshot && bytes != null) {
           _lastArtBytes = Uint8List.fromList(bytes);
         }
@@ -94,6 +113,13 @@ class MediaControlService {
     art = _lastArtBytes;
 
     if (Platform.isLinux) {
+      final loopStatus = switch (state.loopMode) {
+        LoopMode.off => 'None',
+        LoopMode.track => 'Track',
+        LoopMode.album => 'Playlist', // mpris has no standard album loop mode so map is to playlist
+        LoopMode.playlist => 'Playlist',
+      };
+
       await linux.MediaControlPlatform.update(
         title: track.displayTitle,
         artist: track.displayArtist,
@@ -102,6 +128,8 @@ class MediaControlService {
         position: state.position,
         duration: track.duration,
         artBytes: art,
+        loopStatus: loopStatus,
+        shuffle: state.shuffle,
       );
     } else if (Platform.isWindows) {
       await windows.MediaControlPlatform.update(

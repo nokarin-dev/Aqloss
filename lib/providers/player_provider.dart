@@ -837,6 +837,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       queue: _shuffleUpcoming(state.queue, state.queueIndex),
     );
   }
+    void setShuffle(bool enabled) {
+    if (state.shuffle == enabled) return;
+
+    if (enabled) {
+      state = state.copyWith(
+        shuffle: true,
+        queue: _shuffleUpcoming(state.queue, state.queueIndex),
+      );
+    } else {
+      state = state.copyWith(shuffle: false);
+    }
+  }
+
 
   List<Track> _shuffleUpcoming(List<Track> queue, int index) {
     if (queue.length <= 1 || index < 0 || index >= queue.length - 1) {

@@ -75,6 +75,8 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       onNext: () => notifier.skipNext(),
       onPrevious: () => notifier.skipPrevious(),
       onSeek: (pos) => notifier.seekCommit(pos),
+      onLoopModeChanged: (mode) => notifier.setLoopMode(mode),
+      onShuffleChanged: (shuffle) => notifier.setShuffle(shuffle),
     );
   }
 
@@ -108,8 +110,14 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     final statusChanged = player.status != prev?.status;
     final positionChanged =
         player.position.inSeconds != prev?.position.inSeconds;
+    final loopChanged = player.loopMode != prev?.loopMode;
+    final shuffleChanged = player.shuffle != prev?.shuffle;
 
-    if (trackChanged || statusChanged || positionChanged) {
+    if (trackChanged ||
+        statusChanged ||
+        positionChanged ||
+        loopChanged ||
+        shuffleChanged) {
       MediaControlService.update(player);
     }
   }

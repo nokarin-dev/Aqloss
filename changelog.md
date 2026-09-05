@@ -23,6 +23,7 @@ What changed in each Aqloss release, written for people who use the app.
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
 - [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
 - [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
+- [Linux] Mpris controllers can now control shuttle and loop modes
 
 ### Changed
 
