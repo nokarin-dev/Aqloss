@@ -1,7 +1,7 @@
 [
     {
         "title": "v1.1.0",
-        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, and search spaces.",
+        "subtitle": "Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, and a per-user Windows installer.",
         "status": "in-progress",
         "items": [
             {
@@ -147,6 +147,12 @@
                 "description": "Typing a space in a search box inserts a space instead of play/pause.",
                 "status": "done",
                 "category": "Frontend"
+            },
+            {
+                "title": "Windows per-user install",
+                "description": "The installer runs without admin and puts Aqloss in this user's folder. Uninstall can keep or delete settings.",
+                "status": "done",
+                "category": "Windows"
             },
             {
                 "title": "Parametric EQ",

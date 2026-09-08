@@ -1,11 +1,12 @@
 import 'package:aqloss_installer/screens/installer_shell.dart';
 import 'package:aqloss_installer/services/install_detector.dart';
+import 'package:aqloss_installer/services/install_paths.dart';
+import 'package:aqloss_installer/widgets/check_option.dart';
 import 'package:aqloss_installer/widgets/installer_button.dart';
 import 'package:aqloss_installer/widgets/side_accent.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 class DirectoryPage extends StatefulWidget {
   const DirectoryPage({
@@ -54,11 +55,9 @@ class _DirectoryPageState extends State<DirectoryPage> {
       return;
     }
 
-    final local = await getApplicationSupportDirectory();
-    final base = p.dirname(local.path);
     if (!mounted) return;
     setState(() {
-      _ctrl.text = p.join(base, 'Aqloss');
+      _ctrl.text = defaultInstallPath();
       _loading = false;
     });
   }
@@ -150,13 +149,13 @@ class _DirectoryPageState extends State<DirectoryPage> {
                     ],
                   ),
                 const SizedBox(height: 20),
-                _CheckOption(
+                CheckOption(
                   label: 'Create desktop shortcut',
                   value: _createDesktopShortcut,
                   onChanged: (v) => setState(() => _createDesktopShortcut = v),
                 ),
                 const SizedBox(height: 10),
-                _CheckOption(
+                CheckOption(
                   label: 'Create Start Menu shortcut',
                   value: _createStartMenuShortcut,
                   onChanged: (v) =>
@@ -230,53 +229,6 @@ class _PathField extends StatelessWidget {
             isCollapsed: true,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CheckOption extends StatelessWidget {
-  const _CheckOption({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => onChanged(!value),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              color: value ? const Color(0xFF4F8EF7) : Colors.transparent,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: value
-                    ? const Color(0xFF4F8EF7)
-                    : const Color(0xFF3A3A48),
-                width: 1.5,
-              ),
-            ),
-            child: value
-                ? const Icon(Icons.check, size: 12, color: Colors.white)
-                : null,
-          ),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: const TextStyle(color: Color(0xFF9A9AAA), fontSize: 13),
-          ),
-        ],
       ),
     );
   }

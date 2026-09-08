@@ -14,6 +14,7 @@ $BundleZip = Join-Path $InstallerRoot "assets\aqloss_bundle.zip"
 $InstallerRelease = Join-Path $InstallerRoot "build\windows\x64\runner\Release"
 $ToolsDir = Join-Path $env:TEMP "aqloss-7z-tools"
 $AppIcon = Join-Path $InstallerRoot "windows\runner\resources\app_icon.ico"
+$InstallerManifest = Join-Path $InstallerRoot "windows\runner\runner.exe.manifest"
 $MainAppIcon = "windows\runner\resources\app_icon.ico"
 $Publisher = "nokarin-dev"
 
@@ -94,6 +95,19 @@ function Set-ExeIcon {
     throw "Failed to set icon on $ExePath"
   }
   Write-Host "Applied icon to $ExePath"
+}
+
+function Set-ExeAsInvoker {
+  param([string]$ExePath)
+  if (-not (Test-Path $InstallerManifest)) {
+    throw "Installer manifest not found: $InstallerManifest"
+  }
+  $rcedit = Ensure-Rcedit
+  & $rcedit $ExePath --application-manifest $InstallerManifest
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to embed asInvoker manifest on $ExePath"
+  }
+  Write-Host "Applied asInvoker manifest to $ExePath"
 }
 
 function Assert-ReleaseDir {
@@ -229,6 +243,7 @@ function Prepare-SfxStub {
     -FileDescription "Aqloss Installer" `
     -OriginalFilename "Aqloss-windows-installer.exe" `
     -InternalName "AqlossInstaller"
+  Set-ExeAsInvoker -ExePath $stubExe
 
   return $stubExe
 }
@@ -339,6 +354,7 @@ function Build-FlutterInstaller {
     -FileDescription "Aqloss Setup" `
     -OriginalFilename "aqloss_installer.exe" `
     -InternalName "aqloss_installer"
+  Set-ExeAsInvoker -ExePath $exe
 
   Invoke-OptionalCodeSign -Files @($exe)
 

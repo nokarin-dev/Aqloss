@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:aqloss_installer/services/install_paths.dart';
 import 'package:aqloss_installer/services/registry_service.dart';
 import 'package:aqloss_installer/services/shortcut_service.dart';
+import 'package:aqloss_installer/widgets/check_option.dart';
 import 'package:aqloss_installer/widgets/installer_button.dart';
 import 'package:aqloss_installer/widgets/title_bar.dart';
 import 'package:flutter/material.dart';
@@ -12,14 +14,14 @@ class UninstallService {
 
   static Future<int> runSilent() async {
     try {
-      await _uninstall();
+      await uninstall(removeUserData: false);
       return 0;
     } catch (_) {
       return 1;
     }
   }
 
-  static Future<void> _uninstall() async {
+  static Future<void> uninstall({bool removeUserData = false}) async {
     final installPath = await RegistryService.readInstallLocation();
     await ShortcutService.removeDesktop(name: 'Aqloss');
     await ShortcutService.removeStartMenu();
@@ -40,6 +42,22 @@ class UninstallService {
         }
       }
     }
+
+    if (removeUserData) {
+      _deleteUserData(installPath);
+    }
+  }
+
+  static void _deleteUserData(String? installPath) {
+    final skip = installPath?.toLowerCase();
+    for (final path in userDataDirs()) {
+      if (skip != null && path.toLowerCase() == skip) continue;
+      final dir = Directory(path);
+      if (!dir.existsSync()) continue;
+      try {
+        dir.deleteSync(recursive: true);
+      } catch (_) {}
+    }
   }
 }
 
@@ -53,6 +71,8 @@ class UninstallShell extends StatefulWidget {
 class _UninstallShellState extends State<UninstallShell> {
   bool _busy = false;
   bool _done = false;
+  bool _removeUserData = false;
+  bool _removedUserData = false;
   String? _error;
   String? _installPath;
 
@@ -70,11 +90,12 @@ class _UninstallShellState extends State<UninstallShell> {
       _error = null;
     });
     try {
-      await UninstallService._uninstall();
+      await UninstallService.uninstall(removeUserData: _removeUserData);
       if (!mounted) return;
       setState(() {
         _busy = false;
         _done = true;
+        _removedUserData = _removeUserData;
       });
     } catch (e) {
       if (!mounted) return;
@@ -83,6 +104,20 @@ class _UninstallShellState extends State<UninstallShell> {
         _error = e.toString();
       });
     }
+  }
+
+  String get _heading => _done ? 'Aqloss has been removed' : 'Uninstall Aqloss?';
+
+  String get _body {
+    if (_done) {
+      return _removedUserData
+          ? 'Settings, playlists, and library data were deleted too. You can close this window.'
+          : 'Settings and playlists are still on this PC. You can close this window.';
+    }
+    if (_installPath == null) {
+      return 'No Aqloss installation was found in the registry.';
+    }
+    return 'This will remove Aqloss from:\n$_installPath';
   }
 
   @override
@@ -102,7 +137,7 @@ class _UninstallShellState extends State<UninstallShell> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _done ? 'Aqloss has been removed' : 'Uninstall Aqloss?',
+                    _heading,
                     style: const TextStyle(
                       color: Color(0xFFEAEAEA),
                       fontSize: 22,
@@ -111,17 +146,26 @@ class _UninstallShellState extends State<UninstallShell> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    _done
-                        ? 'You can close this window.'
-                        : (_installPath == null
-                            ? 'No Aqloss installation was found in the registry.'
-                            : 'This will remove Aqloss from:\n$_installPath'),
+                    _body,
                     style: const TextStyle(
                       color: Color(0xFF7A7A8A),
                       fontSize: 13.5,
                       height: 1.55,
                     ),
                   ),
+                  if (!_done && _installPath != null) ...[
+                    const SizedBox(height: 20),
+                    IgnorePointer(
+                      ignoring: _busy,
+                      child: CheckOption(
+                        label:
+                            'Also remove settings, playlists, and library data',
+                        value: _removeUserData,
+                        onChanged: (v) =>
+                            setState(() => _removeUserData = v),
+                      ),
+                    ),
+                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 16),
                     Text(

@@ -17,6 +17,7 @@ class RegistryService {
   }) async {
     final uninstallCmd =
         'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$uninstallerPath"';
+    final quietCmd = '$uninstallCmd -Silent';
 
     final entries = <String, ({String type, String value})>{
       'DisplayName': (type: 'REG_SZ', value: 'Aqloss'),
@@ -24,7 +25,7 @@ class RegistryService {
       'Publisher': (type: 'REG_SZ', value: 'nokarin-dev'),
       'InstallLocation': (type: 'REG_SZ', value: installPath),
       'UninstallString': (type: 'REG_SZ', value: uninstallCmd),
-      'QuietUninstallString': (type: 'REG_SZ', value: uninstallCmd),
+      'QuietUninstallString': (type: 'REG_SZ', value: quietCmd),
       'DisplayIcon': (type: 'REG_SZ', value: exePath),
       'NoModify': (type: 'REG_DWORD', value: '1'),
       'NoRepair': (type: 'REG_DWORD', value: '1'),

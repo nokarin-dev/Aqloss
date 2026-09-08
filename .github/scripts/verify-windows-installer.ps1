@@ -27,4 +27,11 @@ if ($installerSize -lt ($portableSize / 4)) {
   throw "Installer ($installerSize bytes) is much smaller than portable ($portableSize bytes)."
 }
 
-Write-Host "Windows installer size check passed."
+$bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $InstallerPath))
+$utf16 = [System.Text.Encoding]::Unicode.GetString($bytes)
+$utf8 = [System.Text.Encoding]::UTF8.GetString($bytes)
+if ($utf16 -notmatch 'asInvoker' -and $utf8 -notmatch 'asInvoker') {
+  throw "Installer is missing asInvoker in its manifest. Windows will treat it as a setup that needs admin."
+}
+
+Write-Host "Windows installer size and asInvoker check passed."
