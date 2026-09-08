@@ -1,3 +1,4 @@
+import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter/material.dart';
 
 class M3SearchField extends StatefulWidget {
@@ -19,15 +20,20 @@ class M3SearchField extends StatefulWidget {
 }
 
 class _M3SearchFieldState extends State<M3SearchField> {
+  final _focusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
+    SearchFocusTracker.instance.register(_focusNode);
     widget.controller.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
+    SearchFocusTracker.instance.unregister(_focusNode);
     widget.controller.removeListener(_onTextChanged);
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -38,6 +44,7 @@ class _M3SearchFieldState extends State<M3SearchField> {
     final theme = Theme.of(context);
     return SearchBar(
       controller: widget.controller,
+      focusNode: _focusNode,
       hintText: widget.hintText,
       leading: const Icon(Icons.search_rounded),
       trailing: widget.controller.text.isNotEmpty
