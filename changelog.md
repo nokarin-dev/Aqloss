@@ -34,6 +34,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ### Fixed
 
+- [Frontend|UI] Space in a search box types a space instead of play/pause (#32)
 - [Frontend|Library] ReplayGain tags in your files are used after a scan (rescan to pick them up)
 - [Frontend|Settings] Offline update check shows a short message instead of a network error
 - [Backend|Audio] Exclusive mode can take the DAC instead of failing silently

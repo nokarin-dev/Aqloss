@@ -12,5 +12,13 @@ class SearchFocusTracker {
 
   void setCapturingShortcut(bool v) => _capturingShortcut = v;
 
-  bool get hasFocus => _capturingShortcut || _nodes.any((n) => n.hasFocus);
+  bool get hasFocus =>
+      _capturingShortcut || _nodes.any((n) => n.hasFocus) || _editingText;
+
+  bool get _editingText {
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null) return false;
+    if (ctx.widget is EditableText) return true;
+    return ctx.findAncestorStateOfType<EditableTextState>() != null;
+  }
 }
