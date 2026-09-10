@@ -18,7 +18,7 @@ Future<void> main(List<String> args) async {
 
   await windowManager.ensureInitialized();
 
-  final size = uninstall ? const Size(480, 320) : const Size(720, 480);
+    final size = uninstall ? const Size(480, 400) : const Size(720, 480);
   await windowManager.waitUntilReadyToShow(
     WindowOptions(
       size: size,

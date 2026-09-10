@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss_installer/services/install_paths.dart';
 import 'package:aqloss_installer/services/registry_service.dart';
 import 'package:aqloss_installer/services/shortcut_service.dart';
 import 'package:archive/archive.dart';
@@ -108,11 +109,71 @@ class InstallService {
 
   static Future<void> _writeUninstallerScript(String installPath) async {
     final scriptPath = p.join(installPath, 'uninstall.ps1');
+    final dataLines = userDataDirs()
+        .map((d) => "  '${d.replaceAll("'", "''")}'")
+        .join('\n');
 
     final script = r'''
+param([switch]$Silent)
 $ErrorActionPreference = 'SilentlyContinue'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $regKey = 'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Aqloss'
+$userDataDirs = @(
+__USER_DATA_DIRS__
+)
+
+function Show-UninstallPrompt {
+  $old = $ErrorActionPreference
+  $ErrorActionPreference = 'Stop'
+  try {
+    Add-Type -AssemblyName System.Windows.Forms | Out-Null
+    Add-Type -AssemblyName System.Drawing | Out-Null
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'Uninstall Aqloss'
+    $form.Size = New-Object System.Drawing.Size(460, 230)
+    $form.StartPosition = 'CenterScreen'
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = "This will remove Aqloss from:`r`n$root"
+    $label.Location = New-Object System.Drawing.Point(16, 16)
+    $label.Size = New-Object System.Drawing.Size(410, 52)
+    $form.Controls.Add($label)
+    $check = New-Object System.Windows.Forms.CheckBox
+    $check.Text = 'Also remove settings, playlists, and library data'
+    $check.Location = New-Object System.Drawing.Point(16, 78)
+    $check.Size = New-Object System.Drawing.Size(410, 28)
+    $form.Controls.Add($check)
+    $ok = New-Object System.Windows.Forms.Button
+    $ok.Text = 'Uninstall'
+    $ok.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $ok.Location = New-Object System.Drawing.Point(236, 140)
+    $ok.Size = New-Object System.Drawing.Size(90, 28)
+    $form.AcceptButton = $ok
+    $form.Controls.Add($ok)
+    $cancel = New-Object System.Windows.Forms.Button
+    $cancel.Text = 'Cancel'
+    $cancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $cancel.Location = New-Object System.Drawing.Point(336, 140)
+    $cancel.Size = New-Object System.Drawing.Size(90, 28)
+    $form.CancelButton = $cancel
+    $form.Controls.Add($cancel)
+    $result = $form.ShowDialog()
+    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { exit 0 }
+    return [bool]$check.Checked
+  } catch {
+    return $false
+  } finally {
+    $ErrorActionPreference = $old
+  }
+}
+
+$removeUserData = $false
+if (-not $Silent) {
+  $removeUserData = Show-UninstallPrompt
+}
 
 $desktop = [Environment]::GetFolderPath('Desktop')
 if (-not $desktop) {
@@ -132,10 +193,21 @@ if ($programs) {
 
 reg delete "$regKey" /f | Out-Null
 
+if ($removeUserData) {
+  foreach ($d in $userDataDirs) {
+    if (-not $d) { continue }
+    $a = $d.TrimEnd('\')
+    $b = $root.TrimEnd('\')
+    if ($a -and $b -and ($a -ieq $b)) { continue }
+    if (Test-Path -LiteralPath $d) { Remove-Item -Recurse -Force -LiteralPath $d }
+  }
+}
+
 $cmd = 'cmd.exe'
 $arg = '/c ping 127.0.0.1 -n 2 > nul & rmdir /s /q "' + $root + '"'
 Start-Process -FilePath $cmd -ArgumentList $arg -WindowStyle Hidden
 '''
+        .replaceAll('__USER_DATA_DIRS__', dataLines)
         .replaceAll('\n', '\r\n');
 
     await File(scriptPath).writeAsString(script);

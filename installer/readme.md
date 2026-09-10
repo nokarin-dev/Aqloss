@@ -2,7 +2,7 @@
 
 Flutter app that installs Aqloss for the current user (`%LOCALAPPDATA%\Aqloss`, no admin). The shipped file is a 7-Zip SFX: `Aqloss-windows-installer.exe`.
 
-It reads the existing uninstall entry in HKCU to pick **Install**, **Repair** (same version), or **Update**. Uninstall is `uninstall.ps1`, or the GUI with `--uninstall`.
+It reads the existing uninstall entry in HKCU to pick **Install**, **Repair** (same version), or **Update**. Uninstall is `uninstall.ps1` (Apps & Features) or the GUI with `--uninstall`. Both ask whether to also delete settings, playlists, and library data. Silent uninstall (`-Silent` / `--silent`) keeps that data.
 
 From the repo root, after `flutter build windows --release`:
 
