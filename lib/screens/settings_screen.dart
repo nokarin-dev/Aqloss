@@ -1462,7 +1462,7 @@ class _DisplayPane extends ConsumerWidget {
               icon: Icons.layers_outlined,
               title: 'UI framework',
               subtitle:
-                  'Default uses the custom Aqloss interface. Material 3 follows Google\'s design system.',
+                  'Same layout. Default is the Aqloss look. Material 3 follows Google\'s design.',
               options: const ['Default', 'Material Design 3'],
               selected: s.uiFramework.index,
               onChanged: (i) => n.setUiFramework(UiFramework.values[i]),

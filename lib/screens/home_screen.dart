@@ -27,7 +27,7 @@ import 'artists_screen.dart';
 import 'package:aqloss/widgets/mini_player_window.dart';
 import 'package:aqloss/widgets/queue_panel.dart';
 import 'package:aqloss/widgets/global_search.dart';
-import 'package:aqloss/ui/m3/shell/m3_home_shell.dart';
+import 'package:aqloss/ui/m3/shell/m3_desktop_nav.dart';
 import 'package:aqloss/widgets/ui/floating_nav_bar.dart';
 
 const _kSidebarCollapsed = 'aqloss_sidebar_collapsed';
@@ -291,19 +291,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     });
 
     final settings = ref.watch(settingsProvider);
-    if (settings.uiFramework == UiFramework.material3) {
-      return const M3HomeShell();
-    }
-
+    final isM3 = settings.uiFramework == UiFramework.material3;
     final isWide = MediaQuery.of(context).size.width > 700;
     final player = ref.watch(playerProvider);
     final hasTrack = player.currentTrack != null;
-    final bg = context.aq.surface;
 
     return Focus(
       autofocus: true,
       child: AppShell(
-        color: bg,
         child: SafeArea(
           top: !_isDesktop,
           bottom: false,
@@ -311,18 +306,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
             children: [
               if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
               Expanded(
-                child: isWide
-                    ? GlobalSearchOverlay(
-                        key: globalSearchKey,
-                        child: Row(
+                child: GlobalSearchOverlay(
+                  key: globalSearchKey,
+                  child: isWide
+                      ? Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            SideNav(
-                              route: _route,
-                              collapsed: _sidebarCollapsed,
-                              onSelect: (r) => setState(() => _route = r),
-                              onToggleCollapse: _toggleSidebar,
-                            ),
+                            isM3
+                                ? M3DesktopNav(
+                                    route: _route,
+                                    collapsed: _sidebarCollapsed,
+                                    onSelect: (r) => setState(() => _route = r),
+                                    onToggleCollapse: _toggleSidebar,
+                                  )
+                                : SideNav(
+                                    route: _route,
+                                    collapsed: _sidebarCollapsed,
+                                    onSelect: (r) => setState(() => _route = r),
+                                    onToggleCollapse: _toggleSidebar,
+                                  ),
                             Expanded(
                               child: Column(
                                 children: [
@@ -336,15 +338,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
                             ),
                             const QueuePanel(),
                           ],
+                        )
+                      : _MobileShell(
+                          route: _route,
+                          hasTrack: hasTrack,
+                          onRouteChanged: (r) => setState(() => _route = r),
+                          onCreatePlaylist: _showCreatePlaylistDialog,
+                          onSearch: () => globalSearchKey.currentState?.show(),
+                          screen: _buildScreen(),
                         ),
-                      )
-                    : _MobileShell(
-                        route: _route,
-                        hasTrack: hasTrack,
-                        onRouteChanged: (r) => setState(() => _route = r),
-                        onCreatePlaylist: _showCreatePlaylistDialog,
-                        screen: _buildScreen(),
-                      ),
+                ),
               ),
             ],
           ),
@@ -354,11 +357,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
   }
 }
 
-class _MobileShell extends StatefulWidget {
+class _MobileShell extends ConsumerStatefulWidget {
   final int route;
   final bool hasTrack;
   final ValueChanged<int> onRouteChanged;
   final VoidCallback onCreatePlaylist;
+  final VoidCallback onSearch;
   final Widget screen;
 
   const _MobileShell({
@@ -366,14 +370,15 @@ class _MobileShell extends StatefulWidget {
     required this.hasTrack,
     required this.onRouteChanged,
     required this.onCreatePlaylist,
+    required this.onSearch,
     required this.screen,
   });
 
   @override
-  State<_MobileShell> createState() => _MobileShellState();
+  ConsumerState<_MobileShell> createState() => _MobileShellState();
 }
 
-class _MobileShellState extends State<_MobileShell> {
+class _MobileShellState extends ConsumerState<_MobileShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   int get _navIndex {
@@ -393,7 +398,19 @@ class _MobileShellState extends State<_MobileShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(queuePanelOpenProvider, (prev, open) {
+      final state = _scaffoldKey.currentState;
+      if (state == null) return;
+      if (open) {
+        state.openEndDrawer();
+      } else if (state.isEndDrawerOpen) {
+        state.closeEndDrawer();
+      }
+    });
+
     final aq = context.aq;
+    final cs = Theme.of(context).colorScheme;
+    final isM3 = context.isMaterial3Ui;
     final bottom = MediaQuery.paddingOf(context).bottom;
     final showMini = widget.hasTrack && widget.route != 0;
     final contentBottom = 72.0 + bottom + (showMini ? 58.0 : 0.0);
@@ -406,7 +423,18 @@ class _MobileShellState extends State<_MobileShell> {
         route: widget.route,
         onSelect: widget.onRouteChanged,
         onCreatePlaylist: widget.onCreatePlaylist,
+        onSearch: widget.onSearch,
+        onOpenQueue: () {
+          ref.read(queuePanelOpenProvider.notifier).state = true;
+        },
       ),
+      endDrawer: const Drawer(
+        width: 320,
+        child: SafeArea(child: QueuePanelBody()),
+      ),
+      onEndDrawerChanged: (open) {
+        ref.read(queuePanelOpenProvider.notifier).state = open;
+      },
       body: Padding(
         padding: EdgeInsets.only(bottom: contentBottom),
         child: widget.screen,
@@ -420,7 +448,7 @@ class _MobileShellState extends State<_MobileShell> {
               child: Material(
                 elevation: 5,
                 shadowColor: Colors.black.withValues(alpha: 0.3),
-                color: aq.surfaceVariant,
+                color: isM3 ? cs.surfaceContainerHigh : aq.surfaceVariant,
                 borderRadius: BorderRadius.circular(16),
                 clipBehavior: Clip.antiAlias,
                 child: MiniPlayerBar(onTap: () => widget.onRouteChanged(0)),
@@ -437,11 +465,15 @@ class _MobileDrawer extends ConsumerWidget {
   final int route;
   final ValueChanged<int> onSelect;
   final VoidCallback onCreatePlaylist;
+  final VoidCallback onSearch;
+  final VoidCallback onOpenQueue;
 
   const _MobileDrawer({
     required this.route,
     required this.onSelect,
     required this.onCreatePlaylist,
+    required this.onSearch,
+    required this.onOpenQueue,
   });
 
   @override
@@ -478,6 +510,24 @@ class _MobileDrawer extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+            _DrawerTile(
+              icon: Icons.search_rounded,
+              label: 'Search',
+              selected: false,
+              onTap: () {
+                Navigator.pop(context);
+                onSearch();
+              },
+            ),
+            _DrawerTile(
+              icon: Icons.queue_music_rounded,
+              label: 'Queue',
+              selected: false,
+              onTap: () {
+                Navigator.pop(context);
+                onOpenQueue();
+              },
             ),
             _DrawerTile(
               icon: Icons.person_outline_rounded,

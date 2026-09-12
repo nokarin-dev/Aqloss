@@ -25,9 +25,7 @@ What changed in each Aqloss release, written for people who use the app.
 - [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
 - [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
 
-### Changed
-
-- [Frontend] Discord status uses public cover art only; your local files stay on this computer
+- [Frontend|UI] Adjust ui layout between default and material 3
 - [Frontend|Library] Artist and album sorts keep album and track order, so two albums with the same name stay with their artist
 - [Frontend|Library] Large folders scan faster
 - [Linux|Audio] Exclusive mode can take over your DAC

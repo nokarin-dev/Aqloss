@@ -24,19 +24,19 @@ class QueuePanel extends ConsumerWidget {
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeInOutCubic,
       width: open ? panelW : 0.0,
-      child: open ? const _QueuePanelContent() : const SizedBox.shrink(),
+      child: open ? const QueuePanelBody() : const SizedBox.shrink(),
     );
   }
 }
 
-class _QueuePanelContent extends ConsumerStatefulWidget {
-  const _QueuePanelContent();
+class QueuePanelBody extends ConsumerStatefulWidget {
+  const QueuePanelBody({super.key});
 
   @override
-  ConsumerState<_QueuePanelContent> createState() => _QueuePanelContentState();
+  ConsumerState<QueuePanelBody> createState() => _QueuePanelBodyState();
 }
 
-class _QueuePanelContentState extends ConsumerState<_QueuePanelContent> {
+class _QueuePanelBodyState extends ConsumerState<QueuePanelBody> {
   final _search = TextEditingController();
 
   @override
@@ -91,8 +91,10 @@ class _QueuePanelContentState extends ConsumerState<_QueuePanelContent> {
               ),
               const SizedBox(width: 8),
               _CloseBtn(
-                onTap: () =>
-                    ref.read(queuePanelOpenProvider.notifier).state = false,
+                onTap: () {
+                  ref.read(queuePanelOpenProvider.notifier).state = false;
+                  Scaffold.maybeOf(context)?.closeEndDrawer();
+                },
               ),
             ],
           ),

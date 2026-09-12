@@ -3,10 +3,11 @@ import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
+import 'package:aqloss/services/playlist_io_service.dart';
 import 'package:aqloss/ui/m3/m3_route.dart';
-import 'package:aqloss/ui/m3/shell/m3_app_drawer.dart';
 import 'package:aqloss/widgets/playlist/playlist_art_icon.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/widgets/queue_panel.dart';
 import 'package:aqloss/widgets/shared/input_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +18,6 @@ class M3DesktopNav extends ConsumerStatefulWidget {
   final bool collapsed;
   final ValueChanged<int> onSelect;
   final VoidCallback onToggleCollapse;
-  final VoidCallback onOpenQueue;
 
   const M3DesktopNav({
     super.key,
@@ -25,7 +25,6 @@ class M3DesktopNav extends ConsumerStatefulWidget {
     required this.collapsed,
     required this.onSelect,
     required this.onToggleCollapse,
-    required this.onOpenQueue,
   });
 
   @override
@@ -69,7 +68,41 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
   }
 
   Future<void> _createPlaylist() async {
-    await showM3CreatePlaylistDialog(context, ref);
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => InputDialog(
+        title: 'New playlist',
+        hint: 'Playlist name',
+        confirmLabel: 'Create',
+        controller: ctrl,
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      ref.read(playlistProvider.notifier).create(name);
+    }
+  }
+
+  Future<void> _importPlaylist() async {
+    final result = await PlaylistIOService.import();
+    if (!mounted) return;
+    if (result.success && result.playlist != null) {
+      await ref
+          .read(playlistProvider.notifier)
+          .importPlaylist(result.playlist!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Imported \'${result.playlist!.name}\''),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } else if (result.error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Import failed: ${result.error}')));
+    }
   }
 
   Future<void> _renamePlaylist(Playlist pl) async {
@@ -208,6 +241,15 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
                               ),
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.upload_file_rounded,
+                              size: 18,
+                            ),
+                            tooltip: 'Import playlist (.aqp)',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _importPlaylist,
+                          ),
                           IconButton.filledTonal(
                             icon: const Icon(Icons.add_rounded, size: 18),
                             tooltip: 'New playlist',
@@ -312,12 +354,15 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
                 icon: Icons.queue_music_outlined,
                 selectedIcon: Icons.queue_music_rounded,
                 label: 'Queue',
-                selected: false,
+                selected: ref.watch(queuePanelOpenProvider),
                 collapsed: collapsed,
                 trailing: queueLen > 0
                     ? _QueueBadge(count: queueLen, collapsed: collapsed)
                     : null,
-                onTap: widget.onOpenQueue,
+                onTap: () {
+                  final n = ref.read(queuePanelOpenProvider.notifier);
+                  n.state = !n.state;
+                },
               ),
               const SizedBox(height: 8),
             ],
