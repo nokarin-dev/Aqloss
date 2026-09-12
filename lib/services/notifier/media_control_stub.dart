@@ -7,6 +7,8 @@ class MediaControlPlatform {
     required void Function() onNext,
     required void Function() onPrevious,
     required void Function(Duration) onSeek,
+    void Function(String)? onLoopStatus,
+    void Function(bool)? onShuffle,
   }) async {}
 
   static Future<void> update({
@@ -17,6 +19,8 @@ class MediaControlPlatform {
     Duration? position,
     Duration? duration,
     Uint8List? artBytes,
+    String loopStatus = 'None',
+    bool shuffle = false,
   }) async {}
 
   static void clear() {}
