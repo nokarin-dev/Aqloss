@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/util/mpris_loop.dart';
 
 // Platform imports
 import 'media_control_linux.dart'
@@ -21,6 +22,7 @@ class MediaControlService {
   static bool _initialized = false;
   static String? _lastArtPath;
   static Uint8List? _lastArtBytes;
+  static LoopMode _loopMode = LoopMode.off;
 
   static bool get _isSupported =>
       Platform.isLinux ||
@@ -35,6 +37,8 @@ class MediaControlService {
     required void Function() onNext,
     required void Function() onPrevious,
     required void Function(Duration) onSeek,
+    void Function(LoopMode)? onLoopModeChanged,
+    void Function(bool)? onShuffleChanged,
   }) async {
     if (_initialized || !_isSupported) return;
     _initialized = true;
@@ -46,6 +50,11 @@ class MediaControlService {
         onNext: onNext,
         onPrevious: onPrevious,
         onSeek: onSeek,
+        onLoopStatus: onLoopModeChanged == null
+            ? null
+            : (status) =>
+                  onLoopModeChanged(loopModeFromMpris(status, _loopMode)),
+        onShuffle: onShuffleChanged,
       );
     } else if (Platform.isWindows) {
       await windows.MediaControlPlatform.init(
@@ -76,6 +85,7 @@ class MediaControlService {
     }
 
     final isPlaying = state.status == PlayerStatus.playing;
+    _loopMode = state.loopMode;
 
     // Snapshot art path
     Uint8List? art;
@@ -102,6 +112,8 @@ class MediaControlService {
         position: state.position,
         duration: track.duration,
         artBytes: art,
+        loopStatus: mprisLoopStatus(state.loopMode),
+        shuffle: state.shuffle,
       );
     } else if (Platform.isWindows) {
       await windows.MediaControlPlatform.update(

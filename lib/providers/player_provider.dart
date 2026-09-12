@@ -825,7 +825,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     );
   }
 
-  void setLoopMode(LoopMode m) => state = state.copyWith(loopMode: m);
+  void setLoopMode(LoopMode m) {
+    if (m == state.loopMode) return;
+    state = state.copyWith(loopMode: m);
+  }
 
   void toggleShuffle() {
     if (state.shuffle) {
@@ -836,6 +839,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       shuffle: true,
       queue: _shuffleUpcoming(state.queue, state.queueIndex),
     );
+  }
+
+  void setShuffle(bool enabled) {
+    if (enabled == state.shuffle) return;
+    toggleShuffle();
   }
 
   List<Track> _shuffleUpcoming(List<Track> queue, int index) {

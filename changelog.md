@@ -24,6 +24,9 @@ What changed in each Aqloss release, written for people who use the app.
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
 - [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
 - [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
+- [Linux] Shuffle and repeat from the desktop media controls (MPRIS) (#34)
+
+### Changed
 
 - [Frontend|UI] Adjust ui layout between default and material 3
 - [Frontend|Library] Artist and album sorts keep album and track order, so two albums with the same name stay with their artist
