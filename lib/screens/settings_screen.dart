@@ -1503,7 +1503,7 @@ class _DisplayPane extends ConsumerWidget {
               icon: Icons.motion_photos_off_outlined,
               title: 'Reduce motion',
               subtitle:
-                  'Skip waves, toasts, and page motion. Also follows the system reduce-motion setting.',
+                  'Skip waves, toasts, page motion, and the loading spinner. Also follows the system reduce-motion setting.',
               value: s.reduceMotion,
               onChanged: (_) => n.toggleReduceMotion(),
             ),

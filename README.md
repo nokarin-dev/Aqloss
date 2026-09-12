@@ -1,14 +1,14 @@
-![Aqloss Banner](https://github.com/nokarin-dev/Aqloss/blob/main/assets/banner/github_banner.png?raw=true)
+![Aqloss Banner](assets/banner/github_banner.png)
 
 <div align="center">
 
 [![Release](https://img.shields.io/github/v/release/nokarin-dev/aqloss?style=for-the-badge&color=4F8EF7)](https://github.com/nokarin-dev/aqloss/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](LICENSE)
-[![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?style=for-the-badge&logo=flutter)](https://flutter.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?style=for-the-badge&logo=flutter)](https://flutter.dev)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Android-02569B?style=for-the-badge)](#download)
 
 [![Total Downloads](https://img.shields.io/github/downloads/nokarin-dev/aqloss/total?style=for-the-badge&logoColor=%3D&color=3471eb)](https://github.com/nokarin-dev/aqloss/releases)
-[![Flathub Downloads](https://img.shields.io/flathub/downloads/xyz.nokarin.aqloss?style=for-the-badge&label=flathub%40installs&color=0451b8)](https://github.com/nokarin-dev/aqloss/releases/latest)
+[![Flathub Downloads](https://img.shields.io/flathub/downloads/xyz.nokarin.aqloss?style=for-the-badge&label=flathub%40installs&color=0451b8)](https://flathub.org/apps/xyz.nokarin.aqloss)
 [![Latest Downloads](https://img.shields.io/github/downloads/nokarin-dev/aqloss/latest/total?style=for-the-badge&color=3d47d4)](https://github.com/nokarin-dev/aqloss/releases/latest)
 [![Test Status](https://img.shields.io/github/actions/workflow/status/nokarin-dev/aqloss/ci.yml?style=for-the-badge&label=test%20build&color=22316e)](https://github.com/nokarin-dev/aqloss/actions/workflows/ci.yml)
 
@@ -19,7 +19,23 @@
 > [!NOTE]
 > Windows, Linux, and Android are the platforms I actually ship. macOS and iOS compile; I don't test them regularly.
 
-On Windows, **WASAPI Exclusive** can send the stream straight to the device (no OS mixer). Volume, EQ, ReplayGain, and soft-clip are off in that mode - that's the point. Shared mode (and every other OS) goes through the mixer and whatever DSP you enable. Bit-perfect still needs a DAC/driver that won't resample behind your back.
+On Windows, **WASAPI Exclusive** can send the stream straight to the device (no OS mixer). Linux can do the same on ALSA hardware (`hw:`). Volume, EQ, ReplayGain, and the rest of the DSP stay off in that mode - that's the point. Shared mode goes through the mixer. Bit-perfect still needs a DAC/driver that won't resample behind your back.
+
+---
+
+<details>
+  <summary>
+    <h2>In App Preview</h2>
+  </summary>
+  <p align="center">
+   <h3>Playing Screen</h3>
+    <img src="assets/preview/playing.png" alt="Now playing" width="920">
+    <h3>Library Screen - Grid</h3>
+    <img src="assets/preview/library_grid.png" alt="Library grid" width="920">
+    <h3>Library Screen - Details</h3>
+    <img src="assets/preview/library_detail.png" alt="Library list" width="920">
+  </p>
+</details>
 
 ---
 
@@ -41,7 +57,9 @@ DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm no
 
 ## Download
 
-GitHub [releases](https://github.com/nokarin-dev/aqloss/releases/latest) (Windows installer/portable, Linux `.deb` / `.rpm` / AppImage / tarball, Android APKs). Linux is also on [Flathub](https://flathub.org/apps/xyz.nokarin.aqloss). Arch and derivatives: AUR [`aqloss-bin`](https://aur.archlinux.org/packages/aqloss-bin) (`yay -S aqloss-bin` / `paru -S aqloss-bin`).
+GitHub [releases](https://github.com/nokarin-dev/aqloss/releases/latest) (Windows installer/portable, Linux `.deb` / `.rpm` / AppImage / tarball, Android APKs). Linux is also on [Flathub](https://flathub.org/apps/xyz.nokarin.aqloss).
+
+No AUR package yet. They closed new account registration, so I can't upload `aqloss-bin` until that opens again. Use GitHub or Flathub until then.
 
 The Windows installer is not code-signed. SmartScreen will complain; More info → Run anyway.
 
@@ -55,7 +73,7 @@ You need Flutter (stable) and Rust (stable). For codegen changes, also `cargo in
 
 ```bash
 flutter pub get
-flutter_rust_bridge_codegen generate   # only if you touch the Rust API
+flutter_rust_bridge_codegen generate # only if you touch the Rust API
 ```
 
 ```bash

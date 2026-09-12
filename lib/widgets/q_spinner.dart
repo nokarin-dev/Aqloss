@@ -27,7 +27,20 @@ class _QSpinnerState extends State<QSpinner>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Follow reduce motion
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    if (reduce) {
+      if (_ctrl.isAnimating) _ctrl.stop();
+      _ctrl.value = 0;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat();
+    }
   }
 
   @override

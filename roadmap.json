@@ -41,12 +41,6 @@
                 "category": "Settings"
             },
             {
-                "title": "Arch Linux package",
-                "description": "Install on Arch Linux with yay -S aqloss-bin.",
-                "status": "done",
-                "category": "Linux"
-            },
-            {
                 "title": "ReplayGain from files",
                 "description": "ReplayGain tags in your files are used after a library scan.",
                 "status": "done",
@@ -213,6 +207,19 @@
                 "description": "Fill in extra details such as genre, year, and label from MusicBrainz.",
                 "status": "planned",
                 "category": "Library"
+            }
+        ]
+    },
+    {
+        "title": "Backlog",
+        "subtitle": "Features that are not yet planned for a release.",
+        "status": "backlog",
+        "items": [
+            {
+                "title": "Arch Linux package",
+                "description": "AUR aqloss-bin",
+                "status": "planned",
+                "category": "Linux"
             }
         ]
     }

@@ -22,12 +22,14 @@ What changed in each Aqloss release, written for people who use the app.
 - [Frontend|Player] Sleep timer: 15–60 minutes, or stop at the end of the track
 - [Frontend|Player] Resume the last track where you left off when you reopen the app, and restore the last queue on launch (paused)
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
-- [Linux] Install from the Arch User Repository with `yay -S aqloss-bin`
 - [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
 - [Linux] Shuffle and repeat from the desktop media controls (MPRIS) (#34)
 
 ### Changed
 
+### Changed
+
+- [Frontend] App icon
 - [Frontend|UI] Adjust ui layout between default and material 3
 - [Frontend|Library] Artist and album sorts keep album and track order, so two albums with the same name stay with their artist
 - [Frontend|Library] Large folders scan faster
@@ -45,7 +47,7 @@ What changed in each Aqloss release, written for people who use the app.
 - [Linux|Audio] Each sound card appears once in the output list
 - [Linux|Audio] The saved system-default output is found again
 - [Android] Pick music folders on the phone; they stay after you update the app
-- [Frontend|Settings] Reduce motion: skip waves, toasts, and page motion
+- [Frontend|Settings] Reduce motion: skip waves, toasts, page motion, and the loading spinner
 - [Android] Lock screen, notification, and headset controls work while music plays
 - [iOS] Lock-screen controls stay available in the background
 - [Audio] Crossfade uses the full length you picked
