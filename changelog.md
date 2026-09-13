@@ -51,11 +51,13 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Android] Pick music folders on the phone; they stay after you update the app
 - [Frontend|Settings] Reduce motion: skip waves, toasts, page motion, and the loading spinner
 - [Android] Lock screen, notification, and headset controls work while music plays
-- [iOS] Lock-screen controls stay available in the background
+- [iOS] Lock screen, Control Center, and headset controls show the current track and cover art
 - [Audio] Crossfade uses the full length you picked
 - [Frontend] Playback errors show a message
 - [Library] DSD files (`.dsf` / `.dff`) are no longer added to the library
 - [Android] Update check, Last.fm, and lyrics work in the release app
+- [iOS] Music failed to play from the speaker, including after Bluetooth headphones disconnect
+- [iOS] Playback keeps going when you leave the app
 
 ---
 

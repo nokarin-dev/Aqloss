@@ -74,6 +74,12 @@ AudioOutputMode platformDefaultOutputMode({bool? windows}) {
   return AudioOutputMode.system;
 }
 
+bool platformDefaultDiscordRpc({bool? desktop}) {
+  final isDesktop =
+      desktop ?? (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+  return isDesktop;
+}
+
 enum ThemeMode { dark, light, system }
 
 enum AppStyle { legacy, islands }
@@ -430,7 +436,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       accentColor: p.getInt(_kAccentColor),
       stereoWidth: (p.getDouble(_kStereoWidth) ?? 1.0).clamp(0.0, 2.0),
       haasMs: (p.getDouble(_kHaasMs) ?? 0.0).clamp(0.0, 25.0),
-      discordRpc: p.getBool(_kDiscordRpc) ?? true,
+      discordRpc: p.getBool(_kDiscordRpc) ?? platformDefaultDiscordRpc(),
       materialYou: p.getBool(_kMaterialYou) ?? false,
       hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
       closeToTray: p.getBool(_kCloseToTray) ?? true,

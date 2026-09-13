@@ -23,7 +23,7 @@ class AudioService {
   static bool _reinitingForDevice = false;
   static List<String> _lastDeviceIds = [];
   static String? _lastDefaultId;
-  static StreamSubscription<dynamic>? _androidRouteSub;
+  static StreamSubscription<dynamic>? _routeSub;
 
   static void _startWatchdog() {
     _watchdog?.cancel();
@@ -56,8 +56,8 @@ class AudioService {
     _watchdog = null;
     _deviceWatchdog?.cancel();
     _deviceWatchdog = null;
-    _androidRouteSub?.cancel();
-    _androidRouteSub = null;
+    _routeSub?.cancel();
+    _routeSub = null;
   }
 
   static int _deviceChangePendingCount = 0;
@@ -111,12 +111,12 @@ class AudioService {
   }
 
   static void _startAndroidRouteListener() {
-    if (!Platform.isAndroid) return;
-    _androidRouteSub?.cancel();
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    _routeSub?.cancel();
     const channel = EventChannel('xyz.nokarin.aqloss/audio_route');
-    _androidRouteSub = channel.receiveBroadcastStream().listen((_) {
+    _routeSub = channel.receiveBroadcastStream().listen((_) {
       if (_reinitingForDevice || _recovering) return;
-      Logger.debugAudioService('Android audio route changed');
+      Logger.debugAudioService('audio route changed');
       onDeviceChanged?.call(null);
     }, onError: (_) {});
   }

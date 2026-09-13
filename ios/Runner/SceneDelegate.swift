@@ -7,13 +7,23 @@ class SceneDelegate: FlutterSceneDelegate {
     willConnectTo session: UISceneSession,
     options connectionOptions: UIScene.ConnectionOptions
   ) {
+    IosPlaybackSession.activate()
     super.scene(scene, willConnectTo: session, options: connectionOptions)
     guard let window = (scene as? UIWindowScene)?.windows.first,
           let controller = window.rootViewController as? FlutterViewController
     else {
       return
     }
-    FileOpenPlugin.shared.setup(messenger: controller.binaryMessenger)
-    IosFoldersPlugin.shared.setup(messenger: controller.binaryMessenger)
+    registerAqlossIosPlugins(controller.binaryMessenger)
+  }
+
+  override func sceneDidBecomeActive(_ scene: UIScene) {
+    super.sceneDidBecomeActive(scene)
+    IosPlaybackSession.activate()
+  }
+
+  override func sceneDidEnterBackground(_ scene: UIScene) {
+    super.sceneDidEnterBackground(scene)
+    IosPlaybackSession.activate()
   }
 }

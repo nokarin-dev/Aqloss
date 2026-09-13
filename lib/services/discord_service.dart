@@ -5,7 +5,7 @@ import 'package:aqloss/providers/player_provider.dart';
 import 'package:http/http.dart' as http;
 
 class DiscordService {
-  static bool _enabled = true;
+  static bool _enabled = false;
   static Timer? _refreshTimer;
   static Timer? _reconnectTimer;
   static final Map<String, String> _artCache = {};

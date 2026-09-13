@@ -15,4 +15,12 @@ void main() {
       AudioOutputMode.system,
     );
   });
+
+  test('desktop defaults Discord RPC on', () {
+    expect(platformDefaultDiscordRpc(desktop: true), isTrue);
+  });
+
+  test('phones default Discord RPC off', () {
+    expect(platformDefaultDiscordRpc(desktop: false), isFalse);
+  });
 }

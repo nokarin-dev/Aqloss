@@ -67,13 +67,13 @@ $(badge Aqloss-android-x86_64.apk Android-x86_64 x86_64 android 3ddc84)
 ### macOS
 Unsigned. Gatekeeper will block it; right-click the app, Open.
 
-$(badge Aqloss-macos.dmg macOS-DMG DMG apple 555555)
-$(badge Aqloss-macos-portable.zip macOS-Portable Portable apple 555555)
+$(badge Aqloss-macos.dmg macOS-DMG DMG apple black)
+$(badge Aqloss-macos-portable.zip macOS-Portable Portable apple black)
 
 ### iOS
 Unsigned IPA, sideload only.
 
-$(badge Aqloss-ios.ipa iOS-IPA IPA apple 555555)
+$(badge Aqloss-ios.ipa iOS-IPA IPA apple black)
 EOF
 )"
 

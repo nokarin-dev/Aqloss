@@ -1,22 +1,36 @@
+import AVFoundation
 import Flutter
 import UIKit
 import MediaPlayer
 import UniformTypeIdentifiers
 
+enum IosPlaybackSession {
+  static func activate() {
+    let session = AVAudioSession.sharedInstance()
+    try? session.setCategory(.playback, mode: .default)
+    try? session.setActive(true)
+    UIApplication.shared.beginReceivingRemoteControlEvents()
+  }
+}
+
+func registerAqlossIosPlugins(_ messenger: FlutterBinaryMessenger) {
+  MediaControlsPlugin.shared.setup(messenger: messenger)
+  IosAudioRoutePlugin.shared.setup(messenger: messenger)
+  FileOpenPlugin.shared.setup(messenger: messenger)
+  IosFoldersPlugin.shared.setup(messenger: messenger)
+}
+
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-  private var mediaControls: MediaControlsPlugin?
-
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    IosPlaybackSession.activate()
     GeneratedPluginRegistrant.register(with: self)
 
     if let controller = window?.rootViewController as? FlutterViewController {
-      mediaControls = MediaControlsPlugin(messenger: controller.binaryMessenger)
-      FileOpenPlugin.shared.setup(messenger: controller.binaryMessenger)
-      IosFoldersPlugin.shared.setup(messenger: controller.binaryMessenger)
+      registerAqlossIosPlugins(controller.binaryMessenger)
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -28,6 +42,11 @@ import UniformTypeIdentifiers
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
     return FileOpenPlugin.shared.send(url.path)
+  }
+
+  override func applicationDidEnterBackground(_ application: UIApplication) {
+    super.applicationDidEnterBackground(application)
+    IosPlaybackSession.activate()
   }
 }
 
@@ -211,26 +230,100 @@ final class IosFoldersPlugin: NSObject, UIDocumentPickerDelegate {
   }
 }
 
-// MediaControlsPlugin
-class MediaControlsPlugin: NSObject {
-    private let channel: FlutterMethodChannel
-    private var isRegistered = false
+// Route changes (Bluetooth / speaker)
+final class IosAudioRoutePlugin: NSObject, FlutterStreamHandler {
+  static let shared = IosAudioRoutePlugin()
+  private var channel: FlutterEventChannel?
+  private var sink: FlutterEventSink?
+  private var listening = false
+  private var pending: DispatchWorkItem?
 
-    init(messenger: FlutterBinaryMessenger) {
-        channel = FlutterMethodChannel(
+  func setup(messenger: FlutterBinaryMessenger) {
+    IosPlaybackSession.activate()
+    let ch = FlutterEventChannel(
+      name: "xyz.nokarin.aqloss/audio_route",
+      binaryMessenger: messenger
+    )
+    ch.setStreamHandler(self)
+    channel = ch
+    startListening()
+  }
+
+  private func startListening() {
+    if listening { return }
+    listening = true
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(routeChanged),
+      name: AVAudioSession.routeChangeNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(interrupted),
+      name: AVAudioSession.interruptionNotification,
+      object: nil
+    )
+  }
+
+  private func scheduleNotify() {
+    pending?.cancel()
+    let work = DispatchWorkItem { [weak self] in
+      IosPlaybackSession.activate()
+      self?.sink?(nil)
+    }
+    pending = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+  }
+
+  @objc private func routeChanged(_ notification: Notification) {
+    scheduleNotify()
+  }
+
+  @objc private func interrupted(_ notification: Notification) {
+    guard
+      let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+      let type = AVAudioSession.InterruptionType(rawValue: raw),
+      type == .ended
+    else { return }
+    scheduleNotify()
+  }
+
+  func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+    sink = events
+    return nil
+  }
+
+  func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    sink = nil
+    return nil
+  }
+}
+
+// MediaControlsPlugin
+final class MediaControlsPlugin: NSObject {
+    static let shared = MediaControlsPlugin()
+    private var channel: FlutterMethodChannel?
+    private var isRegistered = false
+    private var isPlaying = false
+    private var lastArtwork: MPMediaItemArtwork?
+
+    func setup(messenger: FlutterBinaryMessenger) {
+        let ch = FlutterMethodChannel(
             name: "xyz.nokarin.aqloss/media_controls",
             binaryMessenger: messenger
         )
-        super.init()
-        channel.setMethodCallHandler(handle)
+        ch.setMethodCallHandler(handle)
+        channel = ch
+        setupRemoteCommands()
+        IosPlaybackSession.activate()
     }
 
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "init":
             setupRemoteCommands()
-            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try? AVAudioSession.sharedInstance().setActive(true)
+            IosPlaybackSession.activate()
             result(nil)
 
         case "update":
@@ -239,7 +332,10 @@ class MediaControlsPlugin: NSObject {
             result(nil)
 
         case "clear":
+            isPlaying = false
+            lastArtwork = nil
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            MPNowPlayingInfoCenter.default().playbackState = .stopped
             result(nil)
 
         default:
@@ -255,29 +351,34 @@ class MediaControlsPlugin: NSObject {
         let cc = MPRemoteCommandCenter.shared()
 
         cc.playCommand.addTarget { [weak self] _ in
-            self?.channel.invokeMethod("onPlay", arguments: nil)
+            self?.channel?.invokeMethod("onPlay", arguments: nil)
             return .success
         }
         cc.pauseCommand.addTarget { [weak self] _ in
-            self?.channel.invokeMethod("onPause", arguments: nil)
+            self?.channel?.invokeMethod("onPause", arguments: nil)
             return .success
         }
         cc.togglePlayPauseCommand.addTarget { [weak self] _ in
-            self?.channel.invokeMethod("onPlay", arguments: nil)
+            guard let self else { return .success }
+            if self.isPlaying {
+                self.channel?.invokeMethod("onPause", arguments: nil)
+            } else {
+                self.channel?.invokeMethod("onPlay", arguments: nil)
+            }
             return .success
         }
         cc.nextTrackCommand.addTarget { [weak self] _ in
-            self?.channel.invokeMethod("onNext", arguments: nil)
+            self?.channel?.invokeMethod("onNext", arguments: nil)
             return .success
         }
         cc.previousTrackCommand.addTarget { [weak self] _ in
-            self?.channel.invokeMethod("onPrevious", arguments: nil)
+            self?.channel?.invokeMethod("onPrevious", arguments: nil)
             return .success
         }
         cc.changePlaybackPositionCommand.addTarget { [weak self] event in
             if let e = event as? MPChangePlaybackPositionCommandEvent {
                 let ms = Int(e.positionTime * 1000)
-                self?.channel.invokeMethod("onSeek", arguments: ms)
+                self?.channel?.invokeMethod("onSeek", arguments: ms)
             }
             return .success
         }
@@ -293,13 +394,26 @@ class MediaControlsPlugin: NSObject {
         cc.seekBackwardCommand.isEnabled = false
     }
 
+    private func number(_ args: [String: Any], _ key: String) -> Double {
+        if let n = args[key] as? NSNumber { return n.doubleValue }
+        return 0
+    }
+
+    private func flag(_ args: [String: Any], _ key: String) -> Bool {
+        if let b = args[key] as? Bool { return b }
+        if let n = args[key] as? NSNumber { return n.boolValue }
+        return false
+    }
+
     private func updateNowPlaying(_ args: [String: Any]) {
+        IosPlaybackSession.activate()
+
         let title = args["title"] as? String ?? ""
         let artist = args["artist"] as? String ?? ""
         let album = args["album"] as? String ?? ""
-        let isPlaying = args["isPlaying"] as? Bool   ?? false
-        let posMs = args["positionMs"] as? Double ?? 0
-        let durMs = args["durationMs"] as? Double ?? 0
+        isPlaying = flag(args, "isPlaying")
+        let posMs = number(args, "positionMs")
+        let durMs = number(args, "durationMs")
         let artBytes = args["artBytes"] as? FlutterStandardTypedData
 
         var info: [String: Any] = [
@@ -309,14 +423,19 @@ class MediaControlsPlugin: NSObject {
             MPMediaItemPropertyPlaybackDuration: durMs / 1000.0,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: posMs / 1000.0,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
         ]
 
         if let bytes = artBytes?.data, let image = UIImage(data: bytes) {
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            lastArtwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        }
+        if let artwork = lastArtwork {
             info[MPMediaItemPropertyArtwork] = artwork
         }
 
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        let center = MPNowPlayingInfoCenter.default()
+        center.nowPlayingInfo = info
+        center.playbackState = isPlaying ? .playing : .paused
     }
 }

@@ -174,7 +174,7 @@ SettingsState settingsFromJson(
       2.0,
     ),
     haasMs: ((json['haasMs'] as num?)?.toDouble() ?? 0.0).clamp(0.0, 25.0),
-    discordRpc: json['discordRpc'] as bool? ?? true,
+    discordRpc: json['discordRpc'] as bool? ?? platformDefaultDiscordRpc(),
     materialYou: json['materialYou'] as bool? ?? false,
     hardwareAcceleration: json['hardwareAcceleration'] as bool? ?? true,
     closeToTray: json['closeToTray'] as bool? ?? true,

@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 class MediaControlPlatform {
   static const _channel = MethodChannel('xyz.nokarin.aqloss/media_controls');
   static bool _listening = false;
+  static bool _nativeReady = false;
 
   static Future<void> init({
     required void Function() onPlay,
@@ -14,42 +15,50 @@ class MediaControlPlatform {
     required void Function() onPrevious,
     required void Function(Duration) onSeek,
   }) async {
-    if (_listening) return;
-    _listening = true;
-
-    _channel.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case 'onPlay':
-          onPlay();
-          break;
-        case 'onPause':
-          onPause();
-          break;
-        case 'onNext':
-          onNext();
-          break;
-        case 'onPrevious':
-          onPrevious();
-          break;
-        case 'onSeek':
-          final ms = call.arguments as int?;
-          if (ms != null) onSeek(Duration(milliseconds: ms));
-          break;
-        case 'onStop':
-          onPause();
-          break;
-      }
-    });
+    if (!_listening) {
+      _listening = true;
+      _channel.setMethodCallHandler((call) async {
+        switch (call.method) {
+          case 'onPlay':
+            onPlay();
+            break;
+          case 'onPause':
+            onPause();
+            break;
+          case 'onNext':
+            onNext();
+            break;
+          case 'onPrevious':
+            onPrevious();
+            break;
+          case 'onSeek':
+            final ms = call.arguments as int?;
+            if (ms != null) onSeek(Duration(milliseconds: ms));
+            break;
+          case 'onStop':
+            onPause();
+            break;
+        }
+      });
+    }
 
     if (Platform.isAndroid) {
       await Permission.notification.request();
     }
 
+    await _ensureNative();
+  }
+
+  static Future<void> _ensureNative() async {
+    if (_nativeReady) return;
     try {
       await _channel.invokeMethod('init');
+      _nativeReady = true;
     } on MissingPluginException {
-      // iOS/macOS register later in some embeds
-    } catch (_) {}
+      _nativeReady = false;
+    } catch (_) {
+      _nativeReady = false;
+    }
   }
 
   static Future<void> update({
@@ -61,18 +70,19 @@ class MediaControlPlatform {
     Duration? duration,
     Uint8List? artBytes,
   }) async {
+    await _ensureNative();
     try {
       await _channel.invokeMethod('update', {
         'title': title,
         'artist': artist,
         'album': album,
         'isPlaying': isPlaying,
-        'positionMs': position?.inMilliseconds ?? 0,
-        'durationMs': duration?.inMilliseconds ?? 0,
+        'positionMs': (position?.inMilliseconds ?? 0).toDouble(),
+        'durationMs': (duration?.inMilliseconds ?? 0).toDouble(),
         'artBytes': artBytes,
       });
     } on MissingPluginException {
-      // channel not registered yet
+      _nativeReady = false;
     } catch (_) {}
   }
 
@@ -87,5 +97,6 @@ class MediaControlPlatform {
       _channel.invokeMethod('clear');
     } catch (_) {}
     _listening = false;
+    _nativeReady = false;
   }
 }

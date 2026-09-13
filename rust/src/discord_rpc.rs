@@ -1,9 +1,13 @@
 use anyhow::Result;
 use discord_presence::{models::Activity, models::ActivityType, Client};
 use std::sync::{Mutex, OnceLock};
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 const CLIENT_ID: u64 = 1495825548109414564;
 
 // Discord state field max is 128 chars
@@ -28,46 +32,53 @@ fn rpc() -> &'static Mutex<Option<RpcState>> {
 }
 
 fn ensure_ready(guard: &mut Option<RpcState>) {
-    if guard.as_ref().map(|s| s.ready).unwrap_or(false) {
-        return;
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    {
+        let _ = guard;
     }
-    if guard.is_some() {
-        thread::sleep(Duration::from_millis(50));
-        let ready = Client::is_ready();
-        if let Some(ref mut s) = *guard {
-            s.ready = ready;
-        }
-        return;
-    }
-
-    let mut client = Client::new(CLIENT_ID);
-    client
-        .on_ready(|_| crate::logger::info_discord("Ready!"))
-        .persist();
-    client
-        .on_error(|ctx| crate::logger::error_discord(format!("Error: {:?}", ctx.event)))
-        .persist();
-    client.start();
-
-    let deadline = Duration::from_secs(3);
-    let poll = Duration::from_millis(50);
-    let started = std::time::Instant::now();
-    while !Client::is_ready() {
-        if started.elapsed() >= deadline {
-            crate::logger::warn_discord("Timed out waiting for Discord handshake");
-            *guard = Some(RpcState {
-                client,
-                ready: false,
-            });
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+        if guard.as_ref().map(|s| s.ready).unwrap_or(false) {
             return;
         }
-        thread::sleep(poll);
+        if guard.is_some() {
+            thread::sleep(Duration::from_millis(50));
+            let ready = Client::is_ready();
+            if let Some(ref mut s) = *guard {
+                s.ready = ready;
+            }
+            return;
+        }
+
+        let mut client = Client::new(CLIENT_ID);
+        client
+            .on_ready(|_| crate::logger::info_discord("Ready!"))
+            .persist();
+        client
+            .on_error(|ctx| crate::logger::error_discord(format!("Error: {:?}", ctx.event)))
+            .persist();
+        client.start();
+
+        let deadline = Duration::from_secs(3);
+        let poll = Duration::from_millis(50);
+        let started = std::time::Instant::now();
+        while !Client::is_ready() {
+            if started.elapsed() >= deadline {
+                crate::logger::warn_discord("Timed out waiting for Discord handshake");
+                *guard = Some(RpcState {
+                    client,
+                    ready: false,
+                });
+                return;
+            }
+            thread::sleep(poll);
+        }
+        crate::logger::info_discord("Connected to Discord");
+        *guard = Some(RpcState {
+            client,
+            ready: true,
+        });
     }
-    crate::logger::info_discord("Connected to Discord");
-    *guard = Some(RpcState {
-        client,
-        ready: true,
-    });
 }
 
 pub fn update_playing(

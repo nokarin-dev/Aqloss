@@ -78,7 +78,7 @@ void main(List<String> args) async {
         volume: volume,
         settings: settings,
       );
-      DiscordService.enabled = settings.discordRpc;
+      DiscordService.enabled = isDesktop && settings.discordRpc;
 
       // Wire plugin registry
       await PluginRegistry.instance.init();
@@ -131,6 +131,6 @@ Future<SettingsState> _loadSettingsState(SharedPreferences p) async {
     }(),
     stereoWidth: (p.getDouble('aqloss_stereo_width') ?? 1.0).clamp(0.0, 2.0),
     haasMs: (p.getDouble('aqloss_haas_ms') ?? 0.0).clamp(0.0, 25.0),
-    discordRpc: p.getBool('aqloss_discord_rpc') ?? true,
+    discordRpc: p.getBool('aqloss_discord_rpc') ?? platformDefaultDiscordRpc(),
   );
 }

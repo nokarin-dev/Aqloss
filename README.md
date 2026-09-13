@@ -10,6 +10,9 @@
 [![Total Downloads](https://img.shields.io/github/downloads/nokarin-dev/aqloss/total?style=for-the-badge&logoColor=%3D&color=3471eb)](https://github.com/nokarin-dev/aqloss/releases)
 [![Flathub Downloads](https://img.shields.io/flathub/downloads/xyz.nokarin.aqloss?style=for-the-badge&label=flathub%40installs&color=0451b8)](https://flathub.org/apps/xyz.nokarin.aqloss)
 [![Latest Downloads](https://img.shields.io/github/downloads/nokarin-dev/aqloss/latest/total?style=for-the-badge&color=3d47d4)](https://github.com/nokarin-dev/aqloss/releases/latest)
+[![Nightly Downloads](https://img.shields.io/github/downloads/nokarin-dev/aqloss/nightly/total?style=for-the-badge&color=3d47d4)](https://github.com/nokarin-dev/aqloss/releases/nightly)
+
+[![Nightly Status](https://img.shields.io/github/actions/workflow/status/nokarin-dev/aqloss/nightly.yml?style=for-the-badge&label=nightly%20build&color=22316e)](https://github.com/nokarin-dev/aqloss/actions/workflows/nightly.yml)
 [![Test Status](https://img.shields.io/github/actions/workflow/status/nokarin-dev/aqloss/ci.yml?style=for-the-badge&label=test%20build&color=22316e)](https://github.com/nokarin-dev/aqloss/actions/workflows/ci.yml)
 
 </div>
