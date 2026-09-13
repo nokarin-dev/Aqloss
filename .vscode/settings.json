@@ -1,3 +1,4 @@
 {
-    "C_Cpp.errorSquiggles": "enabled"
+    "C_Cpp.errorSquiggles": "enabled",
+    "cmake.sourceDirectory": "/home/nokarin/Documents/project/aqloss/rust_builder/windows"
 }

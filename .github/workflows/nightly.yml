@@ -1,0 +1,226 @@
+name: Nightly
+
+on:
+  schedule:
+    # 00:00 UTC
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-linux:
+    name: Linux
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/read-version
+        id: version
+      - uses: ./.github/actions/setup-aqloss
+        with:
+          install-linux-deps: "true"
+      - run: flutter build linux --release
+      - run: |
+          bash .github/scripts/package-deb.sh "${{ steps.version.outputs.version }}"
+          bash .github/scripts/package-appimage.sh
+          bash .github/scripts/package-portable.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          if-no-files-found: error
+          path: |
+            Aqloss-linux-installer.deb
+            Aqloss-linux.AppImage
+            Aqloss-linux-portable.tar.gz
+
+  build-linux-rpm:
+    name: Linux (RPM)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:42
+    env:
+      GIT_CONFIG_GLOBAL: /root/.gitconfig-ci
+    steps:
+      - name: Install git
+        run: dnf install -y git
+      - uses: actions/checkout@v4
+      - name: Configure Git safe directory
+        run: bash .github/scripts/git-safe-directory.sh
+      - uses: ./.github/actions/read-version
+        id: version
+      - name: Install build dependencies
+        run: bash .github/scripts/fedora-rpm-deps.sh
+      - uses: ./.github/actions/setup-aqloss
+        with:
+          install-linux-deps: "false"
+      - run: flutter build linux --release
+      - run: bash .github/scripts/package-rpm.sh "${{ steps.version.outputs.version }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-rpm
+          if-no-files-found: error
+          path: Aqloss-linux-installer.rpm
+
+  build-windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/read-version
+        id: version
+      - uses: ./.github/actions/setup-aqloss
+      - run: flutter build windows --release
+      - shell: pwsh
+        run: |
+          .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
+          .\.github\scripts\verify-windows-installer.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          if-no-files-found: error
+          path: |
+            Aqloss-windows-installer.exe
+            Aqloss-windows-portable.zip
+
+  build-android:
+    name: Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: ./.github/actions/read-version
+        id: version
+      - uses: ./.github/actions/setup-aqloss
+        with:
+          rust-targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - name: Build APKs (debug certificate, not Play Store-signed)
+        run: flutter build apk --release --split-per-abi
+      - run: |
+          set -euo pipefail
+          for src_dst in \
+            "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk:Aqloss-android-arm64.apk" \
+            "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk:Aqloss-android-arm32.apk" \
+            "build/app/outputs/flutter-apk/app-x86_64-release.apk:Aqloss-android-x86_64.apk"
+          do
+            src="${src_dst%%:*}"
+            dst="${src_dst##*:}"
+            [ -f "$src" ] || { echo "Missing APK: $src"; ls -la build/app/outputs/flutter-apk || true; exit 1; }
+            cp "$src" "$dst"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          if-no-files-found: error
+          path: |
+            Aqloss-android-arm64.apk
+            Aqloss-android-arm32.apk
+            Aqloss-android-x86_64.apk
+
+  build-macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
+            if [ -d "$xcode" ]; then
+              sudo xcode-select -s "$xcode"
+              xcodebuild -version
+              break
+            fi
+          done
+      - uses: ./.github/actions/setup-aqloss
+        with:
+          rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Build macOS release
+        run: flutter build macos --release
+      - name: Smoke test macOS launch
+        run: bash .github/scripts/smoke-macos.sh
+      - name: Package DMG and zip (unsigned)
+        run: |
+          APP="build/macos/Build/Products/Release/Aqloss.app"
+          [ -d "$APP" ] || { echo "Missing $APP"; find build/macos -name '*.app' | head -20; exit 1; }
+          hdiutil create -volname "Aqloss" -srcfolder "$APP" -ov -format UDZO "Aqloss-macos.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" Aqloss-macos-portable.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          if-no-files-found: error
+          path: |
+            Aqloss-macos.dmg
+            Aqloss-macos-portable.zip
+
+  build-ios:
+    name: iOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
+            if [ -d "$xcode" ]; then
+              sudo xcode-select -s "$xcode"
+              xcodebuild -version
+              break
+            fi
+          done
+      - name: Download iOS platform
+        run: xcodebuild -downloadPlatform iOS
+      - uses: ./.github/actions/setup-aqloss
+        with:
+          rust-targets: aarch64-apple-ios,aarch64-apple-ios-sim
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+      - name: Package unsigned IPA
+        run: |
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          [ -d "$APP_PATH" ] || { echo "Missing $APP_PATH"; find build/ios -name '*.app' | head -20; exit 1; }
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -qr Aqloss-ios.ipa Payload/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          if-no-files-found: error
+          path: Aqloss-ios.ipa
+
+  publish:
+    name: Update nightly release
+    if: github.ref == 'refs/heads/main'
+    needs:
+      - build-linux
+      - build-linux-rpm
+      - build-windows
+      - build-android
+      - build-macos
+      - build-ios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/read-version
+        id: version
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish rolling nightly
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          APP_VERSION: ${{ steps.version.outputs.pubspec }}
+        run: bash .github/scripts/publish-nightly.sh dist

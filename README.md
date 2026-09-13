@@ -59,11 +59,13 @@ DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm no
 
 GitHub [releases](https://github.com/nokarin-dev/aqloss/releases/latest) (Windows installer/portable, Linux `.deb` / `.rpm` / AppImage / tarball, Android APKs). Linux is also on [Flathub](https://flathub.org/apps/xyz.nokarin.aqloss).
 
+A rolling [nightly](https://github.com/nokarin-dev/aqloss/releases/tag/nightly) from main has those plus unsigned macOS and iOS. Overwritten each night.
+
 No AUR package yet. They closed new account registration, so I can't upload `aqloss-bin` until that opens again. Use GitHub or Flathub until then.
 
 The Windows installer is not code-signed. SmartScreen will complain; More info → Run anyway.
 
-macOS and iOS are a rolling [Apple Build](https://github.com/nokarin-dev/aqloss/releases/tag/apple-build) (unsigned, overwritten on each stable tag).
+macOS and iOS compile; I don't test them regularly. They only ship on nightly.
 
 ---
 

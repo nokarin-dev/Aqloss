@@ -233,7 +233,7 @@ jobs:
             [![Android-ARM32](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-arm32.apk?style=for-the-badge&logo=android&logoColor=white&label=ARM32&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-arm32.apk)
             [![Android-x86_64](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-android-x86_64.apk?style=for-the-badge&logo=android&logoColor=white&label=x86_64&color=3ddc84)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-android-x86_64.apk)
 
-            macOS and iOS are not attached here. Unsigned builds live on the rolling [Apple Build](https://github.com/nokarin-dev/aqloss/releases/tag/apple-build) release.
+            macOS and iOS are not attached here. Unsigned builds live on the rolling [nightly](https://github.com/nokarin-dev/aqloss/releases/tag/nightly) release.
           draft: false
           prerelease: false
           files: |
