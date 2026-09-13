@@ -37,3 +37,6 @@ const kFolderPickFailedMessage = 'Could not open that folder';
 
 const kAndroidFolderUnusableMessage =
     'This folder cannot be scanned. Pick a folder on internal storage, such as Music.';
+
+const kIosMusicFolderHint =
+    'Copy tracks into Files, On My iPhone, Aqloss. Add Folder only works for folders you pick in Files.';

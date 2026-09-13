@@ -244,6 +244,13 @@ fn scannable_ext(ext: &str) -> bool {
 }
 
 pub fn scan_directory(dir: &str) -> Result<Vec<String>> {
+    let root = Path::new(dir);
+    if !root.exists() {
+        return Ok(Vec::new());
+    }
+    std::fs::read_dir(root)
+        .map_err(|e| anyhow::anyhow!("cannot read {dir}: {e}"))?;
+
     let mut paths = Vec::new();
     for entry in walkdir::WalkDir::new(dir)
         .follow_links(true)
@@ -290,6 +297,39 @@ mod tests {
         let art = find_local_cover_uncached(&dir);
         assert_eq!(art.as_deref(), Some(b"named-cover".as_slice()));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn scan_missing_dir_is_empty() {
+        let missing = std::env::temp_dir().join("aqloss_no_such_scan_dir");
+        let _ = fs::remove_dir_all(&missing);
+        let paths = scan_directory(missing.to_str().unwrap()).unwrap();
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn scan_unreadable_dir_errors() {
+        let dir = std::env::temp_dir().join("aqloss_unreadable_scan");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        write_file(&dir.join("track.flac"), b"dummy");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&dir, fs::Permissions::from_mode(0o000)).unwrap();
+            let res = scan_directory(dir.to_str().unwrap());
+            fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+            let _ = fs::remove_dir_all(&dir);
+            if res.is_ok() {
+                return;
+            }
+            assert!(res.is_err());
+            return;
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = fs::remove_dir_all(&dir);
+        }
     }
 
     #[test]

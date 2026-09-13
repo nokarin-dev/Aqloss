@@ -30,6 +30,8 @@ import 'package:aqloss/util/playback_speed.dart';
 import 'package:aqloss/util/settings_backup.dart';
 import 'package:aqloss/util/support_links.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
+import 'package:aqloss/util/logger.dart';
+import 'package:aqloss/services/ios_folder_access.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -872,9 +874,14 @@ class _MusicFoldersPane extends ConsumerWidget {
                 _FolderRow(
                   path: folders[i],
                   shortPath: _shortPath(folders[i]),
-                  onRemove: () => ref
-                      .read(libraryProvider.notifier)
-                      .removeFolder(folders[i]),
+                  onRemove: () async {
+                    if (await IosFolderAccess.isDocumentsFolder(folders[i])) {
+                      return;
+                    }
+                    await ref
+                        .read(libraryProvider.notifier)
+                        .removeFolder(folders[i]);
+                  },
                 ),
               ],
           ],
@@ -901,6 +908,17 @@ class _MusicFoldersPane extends ConsumerWidget {
             ),
           ],
         ),
+        if (Platform.isIOS) ...[
+          const SizedBox(height: 12),
+          Text(
+            kIosMusicFolderHint,
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.4,
+              color: cs.onSurface.withValues(alpha: 0.32),
+            ),
+          ),
+        ],
 
         if (library.totalTracks > 0) ...[
           const SizedBox(height: 20),
@@ -2822,11 +2840,18 @@ class _AboutPane extends ConsumerWidget {
                     ),
                   ),
                   _HoverTextBtn(
-                    label: 'Open Logs',
+                    label: Platform.isIOS ? 'Share Logs' : 'Open Logs',
                     onTap: () async {
-                      final appDir = await getApplicationSupportDirectory();
-                      final logDirPath = p.join(appDir.path, 'logs');
-                      OpenFile.open(logDirPath);
+                      final logDir = await Logger.logDirectory();
+                      if (Platform.isIOS) {
+                        final files = [
+                          for (final e in logDir.listSync(recursive: true))
+                            if (e is File) e.path,
+                        ];
+                        await IosFolderAccess.shareFiles(files);
+                        return;
+                      }
+                      OpenFile.open(logDir.path);
                     },
                   ),
                 ],

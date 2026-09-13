@@ -10,10 +10,12 @@ import 'package:aqloss/models/audio_format.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
+import 'package:aqloss/services/ios_folder_access.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/src/rust/lib.dart' show TrackInfo;
 import 'package:aqloss/util/library_filter.dart';
 import 'package:aqloss/util/library_sort.dart';
+import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/util/missing_files.dart';
 
 export 'package:aqloss/util/library_filter.dart'
@@ -247,7 +249,10 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList(_kFoldersKey) ?? [];
+    final raw = prefs.getStringList(_kFoldersKey) ?? [];
+    final saved = await IosFolderAccess.ensureMusicFolder(raw);
+    if (!listEquals(raw, saved)) await _saveFolders(saved);
+    await IosFolderAccess.startAll(saved);
     if (saved.isEmpty) return;
 
     final cached = await _loadCache();
@@ -310,10 +315,13 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     final updated = [...state.folders, folderPath];
     state = state.copyWith(folders: updated, status: LibraryStatus.scanning);
     await _saveFolders(updated);
+    await IosFolderAccess.startAll([folderPath]);
     await _scanAll(updated);
   }
 
   Future<void> removeFolder(String folderPath) async {
+    if (await IosFolderAccess.isDocumentsFolder(folderPath)) return;
+    await IosFolderAccess.stop(folderPath);
     final updated = state.folders.where((f) => f != folderPath).toList();
     state = state.copyWith(folders: updated, status: LibraryStatus.scanning);
     await _saveFolders(updated);
@@ -341,7 +349,14 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     );
     try {
       final results = await Future.wait(
-        folders.map((f) => backend.scanDirectory(path: f)),
+        folders.map((f) async {
+          try {
+            return await backend.scanDirectory(path: f);
+          } catch (e) {
+            Logger.errorFrontend('Library scan failed for $f: $e');
+            return <String>[];
+          }
+        }),
       );
       final seen = <String>{};
       final allPaths = results

@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/services/folder_picker.dart';
+import 'package:aqloss/services/ios_folder_access.dart';
+import 'package:aqloss/util/notices.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -133,9 +137,16 @@ class FolderManagerDialog extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           GestureDetector(
-                            onTap: () => ref
-                                .read(libraryProvider.notifier)
-                                .removeFolder(folder),
+                            onTap: () async {
+                              if (await IosFolderAccess.isDocumentsFolder(
+                                folder,
+                              )) {
+                                return;
+                              }
+                              await ref
+                                  .read(libraryProvider.notifier)
+                                  .removeFolder(folder);
+                            },
                             child: MouseRegion(
                               cursor: SystemMouseCursors.click,
                               child: Container(
@@ -160,6 +171,13 @@ class FolderManagerDialog extends ConsumerWidget {
                 ),
               ),
             const SizedBox(height: 14),
+            if (Platform.isIOS) ...[
+              Text(
+                kIosMusicFolderHint,
+                style: TextStyle(color: a(0.32), fontSize: 11, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+            ],
             isM3 ? const UiDivider() : Container(height: 1, color: aq.border),
             const SizedBox(height: 14),
             SizedBox(

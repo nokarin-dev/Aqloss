@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:android_file_picker/android_file_picker.dart';
+import 'package:aqloss/services/ios_folder_access.dart';
 import 'package:aqloss/util/android_path_helper.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/util/notices.dart';
@@ -56,6 +57,9 @@ Future<String?> pickDirectory(
   String dialogTitle = 'Select folder',
   String? initialDirectory,
 }) async {
+  if (Platform.isIOS) {
+    return IosFolderAccess.pickFolder();
+  }
   if (Platform.isLinux) {
     final cli = await _pickDirectoryLinuxCli(dialogTitle, initialDirectory);
     if (cli.handled) return cli.path;
@@ -79,7 +83,6 @@ Future<String?> pickDirectory(
       if (Platform.isAndroid) {
         throw const DirectoryPickerException(kFolderPickFailedMessage);
       }
-      if (Platform.isIOS) return null;
     }
   }
 

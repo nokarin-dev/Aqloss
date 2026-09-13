@@ -45,22 +45,22 @@
 
     <screenshots>
         <screenshot type="default">
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/8e2538586e9fe5bc8adb452fae025ae119f9dec1/assets/preview/playing.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9da7ae977168f0c2d697d4d8329fa3b418ee307a/assets/preview/playing.png</image>
             <caption>Playing</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/8e2538586e9fe5bc8adb452fae025ae119f9dec1/assets/preview/library_detail.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9da7ae977168f0c2d697d4d8329fa3b418ee307a/assets/preview/library_detail.png</image>
             <caption>Library - Detail View</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/8e2538586e9fe5bc8adb452fae025ae119f9dec1/assets/preview/library_grid.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9da7ae977168f0c2d697d4d8329fa3b418ee307a/assets/preview/library_grid.png</image>
             <caption>Library - Grid View</caption>
         </screenshot>
     </screenshots>
 
     <releases>
-        <release version="1.0.1" date="2026-08-27">
-            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.0.1</url>
+        <release version="1.1.0" date="2026-08-27">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.1.0</url>
             <description>
                 <p>Opus playback, ALSA exclusive-style output, queue and library extras, and playback and windowing fixes.</p>
                 <ul>

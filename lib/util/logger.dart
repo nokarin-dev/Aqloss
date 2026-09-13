@@ -33,10 +33,21 @@ class Logger {
   static bool _isInitialized = false;
   static late final Map<LogTarget, File> _files;
 
+  static Future<Directory> _rootDir() async {
+    if (Platform.isIOS) return getApplicationDocumentsDirectory();
+    return getApplicationSupportDirectory();
+  }
+
+  static Future<Directory> logDirectory() async {
+    await init();
+    final appDir = await _rootDir();
+    return Directory(p.join(appDir.path, 'logs'));
+  }
+
   static Future<void> init() async {
     if (_isInitialized) return;
 
-    final appDir = await getApplicationSupportDirectory();
+    final appDir = await _rootDir();
     final logDirPath = p.join(appDir.path, 'logs/frontend');
     final logDir = Directory(logDirPath);
 

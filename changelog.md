@@ -27,9 +27,9 @@ What changed in each Aqloss release, written for people who use the app.
 
 ### Changed
 
-### Changed
-
 - [Frontend] App icon
+- [iOS] Library reads the app Files folder and keeps access to folders you pick
+- [iOS] Share Logs sends the log files instead of a folder share sheet
 - [Frontend|UI] Adjust ui layout between default and material 3
 - [Frontend|Library] Artist and album sorts keep album and track order, so two albums with the same name stay with their artist
 - [Frontend|Library] Large folders scan faster
