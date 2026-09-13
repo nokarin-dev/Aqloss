@@ -33,8 +33,6 @@ import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/services/ios_folder_access.dart';
 import 'package:open_file/open_file.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 // Top-level page entries
 enum _SettingsPage {

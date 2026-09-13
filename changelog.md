@@ -6,6 +6,8 @@ What changed in each Aqloss release, written for people who use the app.
 
 ## [Unreleased]
 
+Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, and Linux shuffle/repeat from media controls.
+
 ### Added
 
 - [Windows] Uninstall asks whether to keep settings, playlists, and library data
@@ -365,7 +367,8 @@ Initial public
 
 ---
 
-[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/nokarin-dev/Aqloss/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.1.0...v1.0.1
 [1.0.0]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.2...v1.0.0
 [0.3.2]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nokarin-dev/Aqloss/compare/v0.3.0...v0.3.1

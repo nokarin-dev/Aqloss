@@ -62,6 +62,15 @@
         <release version="1.1.0" date="2026-08-27">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.1.0</url>
             <description>
+                <p>Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, and Linux shuffle/repeat from media controls.</p>
+                <ul>
+                    <li></li>
+                </ul>
+            </description>
+        </release>
+        <release version="1.0.1" date="2026-08-27">
+            <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.0.1</url>
+            <description>
                 <p>Opus playback, ALSA exclusive-style output, queue and library extras, and playback and windowing fixes.</p>
                 <ul>
                     <li>Play Opus files</li>
