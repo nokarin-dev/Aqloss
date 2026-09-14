@@ -202,14 +202,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: |
-          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
-            if [ -d "$xcode" ]; then
-              sudo xcode-select -s "$xcode"
-              xcodebuild -version
-              break
-            fi
-          done
+        run: bash .github/scripts/select-xcode.sh
 
       - uses: ./.github/actions/setup-aqloss
         with:
@@ -245,16 +238,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: |
-          for xcode in /Applications/Xcode_26.1.app /Applications/Xcode_16.4.app; do
-            if [ -d "$xcode" ]; then
-              sudo xcode-select -s "$xcode"
-              xcodebuild -version
-              break
-            fi
-          done
+        run: bash .github/scripts/select-xcode.sh
 
       - name: Download iOS platform
+        timeout-minutes: 45
         run: bash .github/scripts/ensure-ios-platform.sh
 
       - uses: ./.github/actions/setup-aqloss

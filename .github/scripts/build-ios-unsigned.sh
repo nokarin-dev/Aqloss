@@ -4,62 +4,86 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-# aqloss_rust_core is CocoaPods-only. SPM makes xcodebuild -showBuildSettings return nothing.
 flutter config --no-enable-swift-package-manager
 flutter pub get
+flutter build ios --config-only --release --no-codesign
 
-APP="$ROOT/build/ios/iphoneos/Runner.app"
-BUILD_DIR="$ROOT/build/ios"
-mkdir -p "$BUILD_DIR"
-
-set +e
-flutter build ios --release --no-codesign
-flutter_status=$?
-set -e
-
-if [ -d "$APP" ]; then
-  echo "Runner.app ready (flutter exit ${flutter_status})"
-  exit 0
-fi
-
-echo "flutter did not write Runner.app; xcodebuild with signing off" >&2
 if [ ! -f "$ROOT/ios/Flutter/Generated.xcconfig" ]; then
   echo "Missing ios/Flutter/Generated.xcconfig" >&2
   exit 1
 fi
 
-if [ -f "$ROOT/ios/Podfile" ]; then
+if [ -f "$ROOT/ios/Podfile" ] && [ ! -d "$ROOT/ios/Pods" ]; then
   (cd "$ROOT/ios" && pod install)
 fi
 
-cd "$ROOT/ios"
-xcodebuild \
-  -workspace Runner.xcworkspace \
-  -scheme Runner \
-  -configuration Release \
-  -sdk iphoneos \
-  -destination 'generic/platform=iOS' \
-  BUILD_DIR="$BUILD_DIR" \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY= \
-  "CODE_SIGN_IDENTITY[sdk=iphoneos*]"= \
-  DEVELOPMENT_TEAM= \
-  PROVISIONING_PROFILE_SPECIFIER= \
-  VALIDATE_PRODUCT=NO \
-  build
+BUILD_DIR="$ROOT/build/ios"
+DEST_DIR="$BUILD_DIR/iphoneos"
+DEST="$DEST_DIR/Runner.app"
+mkdir -p "$DEST_DIR"
 
-if [ -d "$APP" ]; then
+find_runner_app() {
+  local p
+  for p in \
+    "$DEST" \
+    "$BUILD_DIR/Release-iphoneos/Runner.app" \
+    "$BUILD_DIR/Build/Products/Release-iphoneos/Runner.app" \
+    "$BUILD_DIR/DerivedData/Build/Products/Release-iphoneos/Runner.app"
+  do
+    if [ -d "$p" ]; then
+      echo "$p"
+      return 0
+    fi
+  done
+  find "$BUILD_DIR" -name 'Runner.app' -type d 2>/dev/null | head -n 1
+}
+
+place_runner_app() {
+  local found="$1"
+  if [ "$found" = "$DEST" ]; then
+    return 0
+  fi
+  mkdir -p "$DEST_DIR"
+  rm -rf "$DEST"
+  cp -R "$found" "$DEST"
+}
+
+run_xcodebuild() {
+  xcodebuild \
+    -workspace Runner.xcworkspace \
+    -scheme Runner \
+    -configuration Release \
+    -sdk iphoneos \
+    -derivedDataPath "$BUILD_DIR/DerivedData" \
+    CONFIGURATION_BUILD_DIR="$DEST_DIR" \
+    CODE_SIGN_STYLE=Manual \
+    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGNING_REQUIRED=NO \
+    CODE_SIGN_IDENTITY=- \
+    DEVELOPMENT_TEAM= \
+    PROVISIONING_PROFILE_SPECIFIER= \
+    VALIDATE_PRODUCT=NO \
+    "$@"
+}
+
+cd "$ROOT/ios"
+set +e
+run_xcodebuild -destination 'generic/platform=iOS' build
+xb_status=$?
+if [ "$xb_status" -ne 0 ]; then
+  echo "generic iOS destination failed; retry sdk-only" >&2
+  run_xcodebuild build
+  xb_status=$?
+fi
+set -e
+
+found="$(find_runner_app || true)"
+if [ -n "${found:-}" ]; then
+  place_runner_app "$found"
+  echo "Runner.app ready"
   exit 0
 fi
 
-FOUND="$(find "$BUILD_DIR" -name 'Runner.app' -type d | head -n 1 || true)"
-if [ -z "$FOUND" ]; then
-  echo "Missing Runner.app under $BUILD_DIR" >&2
-  find "$BUILD_DIR" -name '*.app' | head -20 >&2 || true
-  exit 1
-fi
-
-mkdir -p "$(dirname "$APP")"
-rm -rf "$APP"
-cp -R "$FOUND" "$APP"
+echo "Missing Runner.app under $BUILD_DIR (xcodebuild exit ${xb_status})" >&2
+find "$BUILD_DIR" -name '*.app' | head -20 >&2 || true
+exit 1

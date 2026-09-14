@@ -60,9 +60,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [iOS] Playback keeps going when you leave the app
 - [iOS] Lock screen and Control Center play/pause follow the in-app button
 - [iOS] First play from Control Center starts audio instead of a silent first tap
-- [Tooling] Unsigned iOS CI builds without a Development Team
-- [Tooling] iOS CI uses CocoaPods so unsigned Xcode settings resolve
-- [Tooling] iOS CI skips platform download when the device SDK is already on the runner
+- [Tooling] Unsigned iOS CI uses the newest Xcode 26.x, downloads the iOS platform only when the device destination is missing, and builds with signing off
 
 ---
 
