@@ -175,7 +175,7 @@ jobs:
             fi
           done
       - name: Download iOS platform
-        run: xcodebuild -downloadPlatform iOS
+        run: bash .github/scripts/ensure-ios-platform.sh
       - uses: ./.github/actions/setup-aqloss
         with:
           rust-targets: aarch64-apple-ios,aarch64-apple-ios-sim

@@ -255,7 +255,7 @@ jobs:
           done
 
       - name: Download iOS platform
-        run: xcodebuild -downloadPlatform iOS
+        run: bash .github/scripts/ensure-ios-platform.sh
 
       - uses: ./.github/actions/setup-aqloss
         with:
