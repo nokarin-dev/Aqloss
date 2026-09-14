@@ -312,6 +312,8 @@ impl AudioOutput {
 
     #[cfg(target_os = "ios")]
     fn apply_ios_stream_pause(&self, paused: bool) {
+        use cpal::traits::StreamTrait;
+
         let Some(AudioStream::Cpal(stream)) = self._stream.as_ref() else {
             return;
         };
