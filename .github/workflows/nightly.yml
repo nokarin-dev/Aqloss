@@ -169,12 +169,7 @@ jobs:
       - name: Build iOS (no codesign)
         run: bash .github/scripts/build-ios-unsigned.sh
       - name: Package unsigned IPA
-        run: |
-          APP_PATH="build/ios/iphoneos/Runner.app"
-          [ -d "$APP_PATH" ] || { echo "Missing $APP_PATH"; find build/ios -name '*.app' | head -20; exit 1; }
-          mkdir -p Payload
-          cp -r "$APP_PATH" Payload/
-          zip -qr Aqloss-ios.ipa Payload/
+        run: bash .github/scripts/package-ios-ipa.sh
       - uses: actions/upload-artifact@v4
         with:
           name: ios
