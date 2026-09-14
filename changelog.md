@@ -60,6 +60,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [iOS] Playback keeps going when you leave the app
 - [iOS] Lock screen and Control Center play/pause follow the in-app button
 - [iOS] First play from Control Center starts audio instead of a silent first tap
+- [Tooling] Unsigned iOS CI builds without a Development Team
 
 ---
 

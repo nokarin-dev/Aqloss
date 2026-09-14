@@ -262,7 +262,7 @@ jobs:
           rust-targets: aarch64-apple-ios,aarch64-apple-ios-sim
 
       - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+        run: bash .github/scripts/build-ios-unsigned.sh
 
       - name: Package unsigned IPA
         run: |
