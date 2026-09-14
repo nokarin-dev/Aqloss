@@ -56,8 +56,10 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Frontend] Playback errors show a message
 - [Library] DSD files (`.dsf` / `.dff`) are no longer added to the library
 - [Android] Update check, Last.fm, and lyrics work in the release app
-- [iOS] Music failed to play from the speaker, including after Bluetooth headphones disconnect
+- [iOS] Music plays from the speaker, including after Bluetooth headphones disconnect
 - [iOS] Playback keeps going when you leave the app
+- [iOS] Lock screen and Control Center play/pause follow the in-app button
+- [iOS] First play from Control Center starts audio instead of a silent first tap
 
 ---
 

@@ -306,6 +306,27 @@ impl AudioOutput {
 
     pub fn set_paused(&self, paused: bool) {
         self.paused.store(paused, Ordering::SeqCst);
+        #[cfg(target_os = "ios")]
+        self.apply_ios_stream_pause(paused);
+    }
+
+    #[cfg(target_os = "ios")]
+    fn apply_ios_stream_pause(&self, paused: bool) {
+        let Some(AudioStream::Cpal(stream)) = self._stream.as_ref() else {
+            return;
+        };
+        let result = if paused {
+            stream.pause()
+        } else {
+            stream.play().or_else(|e| {
+                crate::logger::debug_output(format!("ios stream play retry: {e}"));
+                thread::sleep(Duration::from_millis(40));
+                stream.play()
+            })
+        };
+        if let Err(e) = result {
+            crate::logger::debug_output(format!("ios stream pause={paused}: {e}"));
+        }
     }
 }
 

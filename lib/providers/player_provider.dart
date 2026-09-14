@@ -578,6 +578,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> pause() async {
     if (_playPauseBusy) return;
     _playPauseBusy = true;
+    _stopTimer();
     try {
       await AudioService.pause();
       var pos = state.position;
@@ -591,7 +592,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       PluginRegistry.instance.dispatchPlayPause(
         PlayPauseEvent(isPlaying: false, position: state.position),
       );
-      _stopTimer();
       unawaited(persistPlayback());
     } finally {
       _playPauseBusy = false;

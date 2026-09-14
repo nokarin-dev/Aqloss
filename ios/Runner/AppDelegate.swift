@@ -326,6 +326,10 @@ final class MediaControlsPlugin: NSObject {
             IosPlaybackSession.activate()
             result(nil)
 
+        case "ensureSession":
+            IosPlaybackSession.activate()
+            result(nil)
+
         case "update":
             guard let args = call.arguments as? [String: Any] else { result(nil); return }
             updateNowPlaying(args)
@@ -351,18 +355,24 @@ final class MediaControlsPlugin: NSObject {
         let cc = MPRemoteCommandCenter.shared()
 
         cc.playCommand.addTarget { [weak self] _ in
+            IosPlaybackSession.activate()
+            self?.isPlaying = true
             self?.channel?.invokeMethod("onPlay", arguments: nil)
             return .success
         }
         cc.pauseCommand.addTarget { [weak self] _ in
+            self?.isPlaying = false
             self?.channel?.invokeMethod("onPause", arguments: nil)
             return .success
         }
         cc.togglePlayPauseCommand.addTarget { [weak self] _ in
             guard let self else { return .success }
             if self.isPlaying {
+                self.isPlaying = false
                 self.channel?.invokeMethod("onPause", arguments: nil)
             } else {
+                IosPlaybackSession.activate()
+                self.isPlaying = true
                 self.channel?.invokeMethod("onPlay", arguments: nil)
             }
             return .success
@@ -406,12 +416,14 @@ final class MediaControlsPlugin: NSObject {
     }
 
     private func updateNowPlaying(_ args: [String: Any]) {
-        IosPlaybackSession.activate()
+        isPlaying = flag(args, "isPlaying")
+        if isPlaying {
+            IosPlaybackSession.activate()
+        }
 
         let title = args["title"] as? String ?? ""
         let artist = args["artist"] as? String ?? ""
         let album = args["album"] as? String ?? ""
-        isPlaying = flag(args, "isPlaying")
         let posMs = number(args, "positionMs")
         let durMs = number(args, "durationMs")
         let artBytes = args["artBytes"] as? FlutterStandardTypedData
@@ -435,7 +447,7 @@ final class MediaControlsPlugin: NSObject {
         }
 
         let center = MPNowPlayingInfoCenter.default()
-        center.nowPlayingInfo = info
         center.playbackState = isPlaying ? .playing : .paused
+        center.nowPlayingInfo = info
     }
 }

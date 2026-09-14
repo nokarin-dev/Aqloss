@@ -49,6 +49,15 @@ class MediaControlPlatform {
     await _ensureNative();
   }
 
+  static Future<void> ensureSession() async {
+    await _ensureNative();
+    try {
+      await _channel.invokeMethod('ensureSession');
+    } on MissingPluginException {
+      _nativeReady = false;
+    } catch (_) {}
+  }
+
   static Future<void> _ensureNative() async {
     if (_nativeReady) return;
     try {

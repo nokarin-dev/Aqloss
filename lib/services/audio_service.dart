@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/services/notifier/media_control_mobile.dart'
+    as media_mobile;
 
 class AudioService {
   // Volume cache
@@ -238,6 +240,9 @@ class AudioService {
       }
     }
     if (!_engineReady) throw Exception('AudioEngine not ready');
+    if (Platform.isIOS) {
+      await media_mobile.MediaControlPlatform.ensureSession();
+    }
     return backend.play();
   }
 

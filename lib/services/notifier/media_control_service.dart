@@ -23,6 +23,8 @@ class MediaControlService {
   static String? _lastArtPath;
   static Uint8List? _lastArtBytes;
   static LoopMode _loopMode = LoopMode.off;
+  static PlayerState? _pending;
+  static bool _publishing = false;
 
   static bool get _isSupported =>
       Platform.isLinux ||
@@ -41,7 +43,6 @@ class MediaControlService {
     void Function(bool)? onShuffleChanged,
   }) async {
     if (_initialized || !_isSupported) return;
-    _initialized = true;
 
     if (Platform.isLinux) {
       await linux.MediaControlPlatform.init(
@@ -73,11 +74,33 @@ class MediaControlService {
         onSeek: onSeek,
       );
     }
+    _initialized = true;
+    if (_pending != null) {
+      await update(_pending!);
+    }
   }
 
   static Future<void> update(PlayerState state) async {
+    _pending = state;
     if (!_initialized) return;
+    _pending = state;
+    if (_publishing) return;
+    _publishing = true;
+    try {
+      while (_pending != null) {
+        final next = _pending!;
+        _pending = null;
+        await _publish(next);
+      }
+    } finally {
+      _publishing = false;
+      if (_pending != null) {
+        await update(_pending!);
+      }
+    }
+  }
 
+  static Future<void> _publish(PlayerState state) async {
     final track = state.currentTrack;
     if (track == null) {
       _clear();
@@ -87,7 +110,6 @@ class MediaControlService {
     final isPlaying = state.status == PlayerStatus.playing;
     _loopMode = state.loopMode;
 
-    // Snapshot art path
     Uint8List? art;
     if (track.path != _lastArtPath) {
       final pathSnapshot = track.path;
@@ -95,7 +117,6 @@ class MediaControlService {
       _lastArtBytes = null;
       try {
         final bytes = await backend.readAlbumArt(path: pathSnapshot);
-        // Stale fetch
         if (_lastArtPath == pathSnapshot && bytes != null) {
           _lastArtBytes = Uint8List.fromList(bytes);
         }
@@ -159,5 +180,7 @@ class MediaControlService {
       mobile.MediaControlPlatform.dispose();
     }
     _initialized = false;
+    _pending = null;
+    _publishing = false;
   }
 }
