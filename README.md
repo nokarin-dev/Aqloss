@@ -62,7 +62,7 @@ DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm no
 
 GitHub [releases](https://github.com/nokarin-dev/aqloss/releases/latest) (Windows installer/portable, Linux `.deb` / `.rpm` / AppImage / tarball, Android APKs). Linux is also on [Flathub](https://flathub.org/apps/xyz.nokarin.aqloss).
 
-A rolling [nightly](https://github.com/nokarin-dev/aqloss/releases/tag/nightly) from main has those plus unsigned macOS and iOS. Overwritten each night.
+A rolling [nightly](https://github.com/nokarin-dev/aqloss/releases/tag/nightly) from main has those plus unsigned macOS and iOS.
 
 No AUR package yet. They closed new account registration, so I can't upload `aqloss-bin` until that opens again. Use GitHub or Flathub until then.
 

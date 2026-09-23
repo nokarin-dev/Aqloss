@@ -41,7 +41,7 @@ badge() {
 }
 
 notes="$(cat <<EOF
-Rolling builds from main. This tag is overwritten by the next successful nightly. Not a versioned release.
+Rolling builds from main. This tag is overwritten when main moves. Not a versioned release.
 
 Current binaries: app version **${APP_VERSION}**, commit \`${SHORT}\` (${DATE_UTC} UTC).
 

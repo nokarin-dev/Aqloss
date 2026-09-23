@@ -15,8 +15,21 @@ permissions:
   actions: read
 
 jobs:
+  gate:
+    name: Check commit
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        name: Skip if nightly is this commit
+        run: bash .github/scripts/nightly-should-build.sh
+
   build-linux:
     name: Linux
+    needs: [gate]
+    if: needs.gate.outputs.should_build == 'true'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +54,8 @@ jobs:
 
   build-linux-rpm:
     name: Linux (RPM)
+    needs: [gate]
+    if: needs.gate.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     container:
       image: fedora:42
@@ -69,6 +84,8 @@ jobs:
 
   build-windows:
     name: Windows
+    needs: [gate]
+    if: needs.gate.outputs.should_build == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +107,8 @@ jobs:
 
   build-android:
     name: Android
+    needs: [gate]
+    if: needs.gate.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -127,6 +146,8 @@ jobs:
 
   build-macos:
     name: macOS
+    needs: [gate]
+    if: needs.gate.outputs.should_build == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -155,6 +176,8 @@ jobs:
 
   build-ios:
     name: iOS
+    needs: [gate]
+    if: needs.gate.outputs.should_build == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
