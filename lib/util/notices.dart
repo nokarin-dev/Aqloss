@@ -40,3 +40,8 @@ const kAndroidFolderUnusableMessage =
 
 const kIosMusicFolderHint =
     'Copy tracks into Files, On My iPhone, Aqloss. Add Folder only works for folders you pick in Files.';
+
+const kNightlyBuildTitle = 'Nightly build';
+
+const kNightlyBuildMessage =
+    'This is a rolling build from main. Features may be unfinished or break. Use a GitHub or Flathub release if you want something stable.';

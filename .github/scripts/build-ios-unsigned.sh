@@ -6,7 +6,7 @@ cd "$ROOT"
 
 flutter config --no-enable-swift-package-manager
 flutter pub get
-flutter build ios --config-only --release --no-codesign
+flutter build ios --config-only --release --no-codesign "$@"
 
 if [ ! -f "$ROOT/ios/Flutter/Generated.xcconfig" ]; then
   echo "Missing ios/Flutter/Generated.xcconfig" >&2

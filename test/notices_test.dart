@@ -29,4 +29,12 @@ void main() {
     );
     expect(kFolderPickFailedMessage, 'Could not open that folder');
   });
+
+  test('nightly warning copy is short', () {
+    expect(kNightlyBuildTitle, 'Nightly build');
+    expect(
+      kNightlyBuildMessage,
+      'This is a rolling build from main. Features may be unfinished or break. Use a GitHub or Flathub release if you want something stable.',
+    );
+  });
 }

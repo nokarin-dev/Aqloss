@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss/app_channel.dart';
 import 'package:aqloss/app_version.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:aqloss/util/update_check.dart';
@@ -2225,10 +2226,10 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
       children: [
         _SettingsCard(
           children: [
-            const _InfoRow(
+            _InfoRow(
               icon: Icons.tag_rounded,
               title: 'Installed version',
-              value: kAppVersion,
+              value: appVersionLabel(kAppVersion),
             ),
             _Div(),
             _UpdateStatusRow(
@@ -2895,7 +2896,7 @@ class _AboutPane extends ConsumerWidget {
             _InfoRow(
               icon: Icons.music_note_rounded,
               title: 'Aqloss',
-              value: 'Version $kAppVersion',
+              value: 'Version ${appVersionLabel(kAppVersion)}',
             ),
             _Div(),
             const _InfoRow(

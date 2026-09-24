@@ -14,6 +14,9 @@ permissions:
   contents: write
   actions: read
 
+env:
+  AQLOSS_CHANNEL: nightly
+
 jobs:
   gate:
     name: Check commit
@@ -38,7 +41,7 @@ jobs:
       - uses: ./.github/actions/setup-aqloss
         with:
           install-linux-deps: "true"
-      - run: flutter build linux --release
+      - run: flutter build linux --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - run: |
           bash .github/scripts/package-deb.sh "${{ steps.version.outputs.version }}"
           bash .github/scripts/package-appimage.sh
@@ -74,7 +77,7 @@ jobs:
       - uses: ./.github/actions/setup-aqloss
         with:
           install-linux-deps: "false"
-      - run: flutter build linux --release
+      - run: flutter build linux --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - run: bash .github/scripts/package-rpm.sh "${{ steps.version.outputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
@@ -92,7 +95,7 @@ jobs:
       - uses: ./.github/actions/read-version
         id: version
       - uses: ./.github/actions/setup-aqloss
-      - run: flutter build windows --release
+      - run: flutter build windows --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - shell: pwsh
         run: |
           .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
@@ -122,7 +125,7 @@ jobs:
         with:
           rust-targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
       - name: Build APKs (debug certificate, not Play Store-signed)
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --split-per-abi --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - run: |
           set -euo pipefail
           for src_dst in \
@@ -157,7 +160,7 @@ jobs:
         with:
           rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
       - name: Build macOS release
-        run: flutter build macos --release
+        run: flutter build macos --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - name: Smoke test macOS launch
         run: bash .github/scripts/smoke-macos.sh
       - name: Package DMG and zip (unsigned)
@@ -190,7 +193,7 @@ jobs:
         with:
           rust-targets: aarch64-apple-ios,aarch64-apple-ios-sim
       - name: Build iOS (no codesign)
-        run: bash .github/scripts/build-ios-unsigned.sh
+        run: bash .github/scripts/build-ios-unsigned.sh --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - name: Package unsigned IPA
         run: bash .github/scripts/package-ios-ipa.sh
       - uses: actions/upload-artifact@v4

@@ -15,6 +15,7 @@ import 'package:aqloss/services/tray_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/util/update_check.dart';
+import 'package:aqloss/widgets/nightly_notice.dart';
 import 'package:aqloss/widgets/q_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   LibraryStatus? _prevLibraryStatus;
   int _prevMissingRemoved = 0;
   bool _updateCheckStarted = false;
+  bool _nightlyNoticeStarted = false;
   bool _trayStarted = false;
   String? _trayTrack;
   bool? _trayPlaying;
@@ -96,6 +98,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _showLibraryScan(library);
       _showMissingRemoved(library);
       _checkUpdateToast(s);
+      _maybeNightlyNotice();
       _syncTray(s, player);
     });
 
@@ -305,6 +308,12 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _notice(missingFilesRemovedMessage(n));
     }
     _prevMissingRemoved = n;
+  }
+
+  void _maybeNightlyNotice() {
+    if (_nightlyNoticeStarted) return;
+    _nightlyNoticeStarted = true;
+    unawaited(maybeShowNightlyNotice(context));
   }
 
   void _checkUpdateToast(SettingsState s) {

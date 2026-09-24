@@ -6,7 +6,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ## [Unreleased]
 
-Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, and Linux shuffle/repeat from media controls.
+Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, and a nightly warning.
 
 ### Added
 
@@ -26,6 +26,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
 - [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
 - [Linux] Shuffle and repeat from the desktop media controls (MPRIS) (#34)
+- [Frontend] Nightly builds warn on first launch that they are not a release
 
 ### Changed
 
