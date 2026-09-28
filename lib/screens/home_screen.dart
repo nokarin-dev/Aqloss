@@ -304,7 +304,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
           bottom: false,
           child: Column(
             children: [
-              if (_isDesktop) CustomTitleBar(isMaximized: _isMaximized),
+              if (_isDesktop &&
+                  showInAppTitleBar(
+                    linux: Platform.isLinux,
+                    showTitleBar: settings.showTitleBar,
+                  ))
+                CustomTitleBar(isMaximized: _isMaximized),
               Expanded(
                 child: GlobalSearchOverlay(
                   key: globalSearchKey,

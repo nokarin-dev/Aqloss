@@ -135,6 +135,10 @@ const _kMaterialYou = 'aqloss_material_you';
 const _kHwAccel = 'aqloss_hw_accel';
 const _kCloseToTray = 'aqloss_close_to_tray';
 const _kReduceMotion = 'aqloss_reduce_motion';
+const _kShowTitleBar = 'aqloss_show_titlebar';
+
+bool showInAppTitleBar({required bool linux, required bool showTitleBar}) =>
+    !linux || showTitleBar;
 
 class SettingsState {
   final AudioOutputMode outputMode;
@@ -179,6 +183,7 @@ class SettingsState {
   final bool hardwareAcceleration;
   final bool closeToTray;
   final bool reduceMotion;
+  final bool showTitleBar;
   final bool loaded;
 
   const SettingsState({
@@ -224,6 +229,7 @@ class SettingsState {
     this.hardwareAcceleration = true,
     this.closeToTray = true,
     this.reduceMotion = false,
+    this.showTitleBar = true,
     this.loaded = false,
   });
 
@@ -308,6 +314,7 @@ class SettingsState {
     bool? hardwareAcceleration,
     bool? closeToTray,
     bool? reduceMotion,
+    bool? showTitleBar,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -361,6 +368,7 @@ class SettingsState {
     hardwareAcceleration: hardwareAcceleration ?? this.hardwareAcceleration,
     closeToTray: closeToTray ?? this.closeToTray,
     reduceMotion: reduceMotion ?? this.reduceMotion,
+    showTitleBar: showTitleBar ?? this.showTitleBar,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -441,6 +449,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
       closeToTray: p.getBool(_kCloseToTray) ?? true,
       reduceMotion: p.getBool(_kReduceMotion) ?? false,
+      showTitleBar: p.getBool(_kShowTitleBar) ?? true,
       loaded: true,
     );
     GpuPref.write(state.hardwareAcceleration);
@@ -509,6 +518,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setBool(_kHwAccel, state.hardwareAcceleration),
       p.setBool(_kCloseToTray, state.closeToTray),
       p.setBool(_kReduceMotion, state.reduceMotion),
+      p.setBool(_kShowTitleBar, state.showTitleBar),
     ]);
   }
 
@@ -813,6 +823,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void toggleReduceMotion() {
     state = state.copyWith(reduceMotion: !state.reduceMotion);
+    _save();
+  }
+
+  void toggleShowTitleBar() {
+    state = state.copyWith(showTitleBar: !state.showTitleBar);
     _save();
   }
 
