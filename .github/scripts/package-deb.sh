@@ -53,6 +53,7 @@ cat > "${PKG}/DEBIAN/postinst" <<'EOF'
 chmod +x /opt/aqloss/aqloss 2>/dev/null || true
 update-mime-database /usr/share/mime 2>/dev/null || true
 update-desktop-database /usr/share/applications 2>/dev/null || true
+gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
 exit 0
 EOF
 chmod 755 "${PKG}/DEBIAN/postinst"

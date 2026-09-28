@@ -44,6 +44,19 @@ class AqlossTokens extends ThemeExtension<AqlossTokens> {
     primary: Color(0xFF3B5BDB),
   );
 
+  factory AqlossTokens.fromScheme(ColorScheme scheme) {
+    return AqlossTokens(
+      surface: scheme.surface,
+      surfaceVariant: scheme.surfaceContainerHighest,
+      card: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceMuted: scheme.onSurfaceVariant,
+      border: scheme.outlineVariant,
+      indicator: scheme.secondaryContainer,
+      primary: scheme.primary,
+    );
+  }
+
   @override
   AqlossTokens copyWith({
     Color? surface,

@@ -253,7 +253,12 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     final saved = await IosFolderAccess.ensureMusicFolder(raw);
     if (!listEquals(raw, saved)) await _saveFolders(saved);
     await IosFolderAccess.startAll(saved);
-    if (saved.isEmpty) return;
+    if (saved.isEmpty) {
+      if (mounted) {
+        state = state.copyWith(folders: saved, status: LibraryStatus.done);
+      }
+      return;
+    }
 
     final cached = await _loadCache();
     final changed = await _foldersChanged(saved);
