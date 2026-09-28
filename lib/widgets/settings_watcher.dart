@@ -7,6 +7,7 @@ import 'package:aqloss/providers/library_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/audio_service.dart';
+import 'package:aqloss/services/folder_picker.dart';
 import 'package:aqloss/services/lastfm_service.dart';
 import 'package:aqloss/services/loved_sync.dart';
 import 'package:aqloss/services/notifier/media_control_service.dart';
@@ -42,6 +43,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   int _prevMissingRemoved = 0;
   bool _updateCheckStarted = false;
   bool _nightlyNoticeStarted = false;
+  bool _firstFolderStarted = false;
   bool _trayStarted = false;
   String? _trayTrack;
   bool? _trayPlaying;
@@ -99,6 +101,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _showMissingRemoved(library);
       _checkUpdateToast(s);
       _maybeNightlyNotice();
+      _maybeFirstMusicFolder(library);
       _syncTray(s, player);
     });
 
@@ -314,6 +317,30 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
     if (_nightlyNoticeStarted) return;
     _nightlyNoticeStarted = true;
     unawaited(maybeShowNightlyNotice(context));
+  }
+
+  void _maybeFirstMusicFolder(LibraryState library) {
+    if (_firstFolderStarted) return;
+    if (!shouldPromptFirstMusicFolder(
+      prompted: false,
+      initDone: library.status == LibraryStatus.done,
+      foldersEmpty: library.folders.isEmpty,
+    )) {
+      return;
+    }
+    _firstFolderStarted = true;
+    unawaited(_promptFirstMusicFolder());
+  }
+
+  Future<void> _promptFirstMusicFolder() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(kFirstMusicFolderPref) == true) return;
+    await prefs.setBool(kFirstMusicFolderPref, true);
+    if (!mounted) return;
+    await addMusicFolderFromPicker(
+      context,
+      onAdded: ref.read(libraryProvider.notifier).addFolder,
+    );
   }
 
   void _checkUpdateToast(SettingsState s) {

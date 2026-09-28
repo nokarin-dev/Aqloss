@@ -325,6 +325,8 @@ static void aqloss_activate(GApplication *application)
 
   FlView *view = fl_view_new(project);
   gtk_window_set_default_size(window, 1280, 720);
+  gtk_window_set_default_icon_name(APPLICATION_ID);
+  gtk_window_set_icon_name(window, APPLICATION_ID);
   set_transparent(window, view);
 
   gtk_widget_show(GTK_WIDGET(view));

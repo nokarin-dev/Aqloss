@@ -6,7 +6,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ## [Unreleased]
 
-Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, a nightly warning, and a Material 3 Light title bar.
+Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, a nightly warning, a Material 3 Light title bar, and a first-launch folder picker.
 
 ### Added
 
@@ -27,6 +27,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Linux] Right-click on the tray icon shows Show, Play/Pause, Next, Previous, and Quit
 - [Linux] Shuffle and repeat from the desktop media controls (MPRIS) (#34)
 - [Frontend] Nightly builds warn on first launch that they are not a release
+- [Frontend|Library] First launch asks for a music folder
 
 ### Changed
 
@@ -63,6 +64,8 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [iOS] First play from Control Center starts audio instead of a silent first tap
 - [Tooling] Unsigned iOS CI uses the newest Xcode 26.x, downloads the iOS platform only when the device destination is missing, and builds with signing off
 - [Frontend|UI] Material 3 Light uses a light window title bar (#30)
+- [Linux] Add Folder uses the in-app picker, so it is not hidden behind the window and does not use a dark GTK title bar (#30)
+- [Linux] The window uses the Aqloss icon instead of the Flutter flask (#30)
 
 ---
 
