@@ -43,6 +43,7 @@ void main() {
       hardwareAcceleration: false,
       closeToTray: false,
       reduceMotion: true,
+      showTitleBar: false,
       loaded: true,
     );
     final playlists = [
@@ -80,6 +81,7 @@ void main() {
     expect(restored.hardwareAcceleration, isFalse);
     expect(restored.closeToTray, isFalse);
     expect(restored.reduceMotion, isTrue);
+    expect(restored.showTitleBar, isFalse);
     expect(restored.playbackSpeed, 1.25);
     expect(restored.uiFramework, UiFramework.material3);
   });
@@ -120,5 +122,6 @@ void main() {
     expect(restored.eqGains.first, 12.0);
     expect(restored.eqGains[1], -12.0);
     expect(restored.closeToTray, isTrue);
+    expect(restored.showTitleBar, isTrue);
   });
 }

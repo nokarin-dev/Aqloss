@@ -1524,6 +1524,17 @@ class _DisplayPane extends ConsumerWidget {
               value: s.reduceMotion,
               onChanged: (_) => n.toggleReduceMotion(),
             ),
+            if (Platform.isLinux) ...[
+              _Div(),
+              _ToggleRow(
+                icon: Icons.web_asset_outlined,
+                title: 'Show title bar',
+                subtitle:
+                    'In-app min, max, and close. Turn this off on a tiling window manager.',
+                value: s.showTitleBar,
+                onChanged: (_) => n.toggleShowTitleBar(),
+              ),
+            ],
             if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ...[
               _Div(),
               _ToggleRow(
