@@ -9,6 +9,9 @@ class CustomTitleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final aq = context.aq;
+    final bar = context.isMaterial3Ui
+        ? Theme.of(context).colorScheme.surface
+        : aq.surfaceVariant;
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       onDoubleTap: () async {
@@ -20,7 +23,7 @@ class CustomTitleBar extends StatelessWidget {
       },
       child: Container(
         height: 32,
-        color: aq.surfaceVariant,
+        color: bar,
         child: Row(
           children: [
             const Spacer(),

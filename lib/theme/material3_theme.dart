@@ -1,3 +1,4 @@
+import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 
 ThemeData buildMaterial3Theme({
@@ -39,6 +40,7 @@ ThemeData buildMaterial3Theme({
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
+    extensions: [AqlossTokens.fromScheme(scheme)],
     textTheme: textTheme,
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
@@ -224,7 +226,10 @@ ThemeData buildMaterial3Theme({
         color: scheme.inverseSurface,
         borderRadius: BorderRadius.circular(8),
       ),
-      textStyle: TextStyle(color: scheme.onInverseSurface, fontSize: 12 * scale),
+      textStyle: TextStyle(
+        color: scheme.onInverseSurface,
+        fontSize: 12 * scale,
+      ),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       elevation: 3,

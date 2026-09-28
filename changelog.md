@@ -6,7 +6,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ## [Unreleased]
 
-Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, and a nightly warning.
+Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, a nightly warning, and a Material 3 Light title bar.
 
 ### Added
 
@@ -62,6 +62,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [iOS] Lock screen and Control Center play/pause follow the in-app button
 - [iOS] First play from Control Center starts audio instead of a silent first tap
 - [Tooling] Unsigned iOS CI uses the newest Xcode 26.x, downloads the iOS platform only when the device destination is missing, and builds with signing off
+- [Frontend|UI] Material 3 Light uses a light window title bar (#30)
 
 ---
 
