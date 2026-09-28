@@ -253,6 +253,11 @@ pub fn plugin_manifest_json(id: String) -> Option<String> {
     .flatten()
 }
 
+#[frb(sync)]
+pub fn plugin_app_bar_color() -> Option<String> {
+    plugin_engine::app_bar_color()
+}
+
 pub fn plugin_load(dir_path: String) -> Result<String> {
     plugin_engine::with_engine(|e| e.load_plugin(std::path::Path::new(&dir_path)))?
 }

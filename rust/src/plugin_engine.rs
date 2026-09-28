@@ -16,6 +16,7 @@ pub enum PluginPermission {
     Network,
     Filesystem,
     LibraryWrite,
+    Theme,
 }
 
 fn default_type() -> String {
@@ -153,6 +154,8 @@ impl PluginInstance {
         let api = lua.create_table()?;
         let network_ok = self.manifest.has(PluginPermission::Network);
         let fs_ok = self.manifest.has(PluginPermission::Filesystem);
+        let theme_ok = self.manifest.has(PluginPermission::Theme);
+        let plugin_id = self.manifest.id.clone();
         let plugin_dir = self.dir.clone();
 
         api.set(
@@ -265,6 +268,32 @@ impl PluginInstance {
         )?;
 
         api.set("version", env!("CARGO_PKG_VERSION"))?;
+
+        api.set(
+            "set_app_bar_color",
+            lua.create_function(move |_, hex: Option<String>| {
+                if !theme_ok {
+                    return Err(LuaError::RuntimeError(
+                        "set_app_bar_color: missing 'theme' permission in plugin.json".into(),
+                    ));
+                }
+                match hex.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+                    None => {
+                        clear_app_bar_color_if_owner(&plugin_id);
+                        Ok(())
+                    }
+                    Some(raw) => {
+                        let normalized = parse_hex_color(raw).ok_or_else(|| {
+                            LuaError::RuntimeError(
+                                "set_app_bar_color: expected #RGB, #RRGGBB, or #AARRGGBB".into(),
+                            )
+                        })?;
+                        set_app_bar_color(plugin_id.clone(), normalized);
+                        Ok(())
+                    }
+                }
+            })?,
+        )?;
 
         lua.globals().set("aqloss", api)?;
         Ok(())
@@ -405,6 +434,7 @@ impl LuaPluginEngine {
         }
         self.plugins.remove(id);
         self.order.retain(|x| x != id);
+        clear_app_bar_color_if_owner(id);
     }
 
     pub fn set_enabled(&mut self, id: &str, enabled: bool) {
@@ -447,6 +477,53 @@ impl LuaPluginEngine {
     }
 }
 
+// Title bar color from Lua
+static APP_BAR_COLOR: Mutex<Option<(String, String)>> = Mutex::new(None);
+
+fn parse_hex_color(raw: &str) -> Option<String> {
+    let s = raw.trim();
+    let s = s.strip_prefix('#').unwrap_or(s);
+    if !s.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    let hex = s.to_ascii_uppercase();
+    let argb = match hex.len() {
+        3 => {
+            let r = hex.as_bytes()[0] as char;
+            let g = hex.as_bytes()[1] as char;
+            let b = hex.as_bytes()[2] as char;
+            format!("FF{r}{r}{g}{g}{b}{b}")
+        }
+        6 => format!("FF{hex}"),
+        8 => hex,
+        _ => return None,
+    };
+    Some(format!("#{argb}"))
+}
+
+fn set_app_bar_color(owner: String, hex: String) {
+    if let Ok(mut g) = APP_BAR_COLOR.lock() {
+        *g = Some((owner, hex));
+    }
+}
+
+fn clear_app_bar_color_if_owner(id: &str) {
+    if let Ok(mut g) = APP_BAR_COLOR.lock() {
+        if g.as_ref().is_some_and(|(owner, _)| owner == id) {
+            *g = None;
+        }
+    }
+}
+
+pub fn app_bar_color() -> Option<String> {
+    let (id, hex) = {
+        let g = APP_BAR_COLOR.lock().ok()?;
+        g.clone()?
+    };
+    let enabled = with_engine_read(|e| e.is_enabled(&id)).unwrap_or(false);
+    enabled.then_some(hex)
+}
+
 // Global singleton
 static ENGINE: Mutex<Option<LuaPluginEngine>> = Mutex::new(None);
 
@@ -474,4 +551,74 @@ where
 {
     let g = ENGINE.lock().unwrap();
     g.as_ref().map(f)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write_plugin(dir: &Path, json: &str, lua: &str) {
+        fs::create_dir_all(dir).unwrap();
+        fs::write(dir.join("plugin.json"), json).unwrap();
+        fs::write(dir.join("main.lua"), lua).unwrap();
+    }
+
+    #[test]
+    fn parse_hex_color_variants() {
+        assert_eq!(parse_hex_color("#1a1"), Some("#FF11AA11".into()));
+        assert_eq!(parse_hex_color("#1A1A1A"), Some("#FF1A1A1A".into()));
+        assert_eq!(parse_hex_color("80abcdef"), Some("#80ABCDEF".into()));
+        assert_eq!(parse_hex_color("not"), None);
+        assert_eq!(parse_hex_color("#12"), None);
+    }
+
+    #[test]
+    fn theme_permission_parses() {
+        let m: PluginManifest = serde_json::from_str(
+            r#"{"id":"t","name":"t","version":"1","author":"a","permissions":["theme"]}"#,
+        )
+        .unwrap();
+        assert!(m.has(PluginPermission::Theme));
+    }
+
+    #[test]
+    fn lua_set_app_bar_color_theme_permission() {
+        engine_init();
+        let ok_dir = std::env::temp_dir().join("aqloss-test-theme-ok");
+        let deny_dir = std::env::temp_dir().join("aqloss-test-theme-deny");
+        let _ = fs::remove_dir_all(&ok_dir);
+        let _ = fs::remove_dir_all(&deny_dir);
+
+        write_plugin(
+            &ok_dir,
+            r#"{"id":"xyz.test.theme","name":"t","version":"1.0.0","author":"t","permissions":["theme"]}"#,
+            "function on_load() aqloss.set_app_bar_color('#1A1A1A') end",
+        );
+        with_engine(|e| e.load_plugin(&ok_dir))
+            .unwrap()
+            .unwrap();
+        assert_eq!(app_bar_color(), Some("#FF1A1A1A".into()));
+
+        with_engine(|e| e.set_enabled("xyz.test.theme", false)).unwrap();
+        assert_eq!(app_bar_color(), None);
+        with_engine(|e| e.set_enabled("xyz.test.theme", true)).unwrap();
+        assert_eq!(app_bar_color(), Some("#FF1A1A1A".into()));
+
+        with_engine(|e| e.unload_plugin("xyz.test.theme")).unwrap();
+        assert_eq!(app_bar_color(), None);
+
+        write_plugin(
+            &deny_dir,
+            r#"{"id":"xyz.test.theme.deny","name":"t","version":"1.0.0","author":"t","permissions":[]}"#,
+            "function on_load() aqloss.set_app_bar_color('#FFFFFF') end",
+        );
+        with_engine(|e| e.load_plugin(&deny_dir))
+            .unwrap()
+            .unwrap();
+        assert_eq!(app_bar_color(), None);
+        with_engine(|e| e.unload_plugin("xyz.test.theme.deny")).unwrap();
+
+        let _ = fs::remove_dir_all(&ok_dir);
+        let _ = fs::remove_dir_all(&deny_dir);
+    }
 }

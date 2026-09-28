@@ -1,6 +1,6 @@
 import 'package:aqloss/models/track.dart';
 
-enum PluginPermission { network, filesystem }
+enum PluginPermission { network, filesystem, theme }
 
 enum PluginType { webhook, lua }
 
@@ -69,6 +69,7 @@ class PluginManifest {
             (p) => switch (p as String) {
               'network' => PluginPermission.network,
               'filesystem' => PluginPermission.filesystem,
+              'theme' => PluginPermission.theme,
               _ => null,
             },
           )
@@ -106,6 +107,7 @@ extension PluginPermissionJson on PluginPermission {
   String get jsonName => switch (this) {
     PluginPermission.network => 'network',
     PluginPermission.filesystem => 'filesystem',
+    PluginPermission.theme => 'theme',
   };
 }
 

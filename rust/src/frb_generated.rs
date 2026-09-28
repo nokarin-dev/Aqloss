@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -131201380;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1501097376;
 
 // Section: executor
 
@@ -655,6 +655,35 @@ fn wire__crate__api__play_impl(
                     })(),
                 )
             }
+        },
+    )
+}
+fn wire__crate__api__plugin_app_bar_color_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "plugin_app_bar_color",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::plugin_app_bar_color())?;
+                std::result::Result::Ok(output_ok)
+            })())
         },
     )
 }
@@ -2219,59 +2248,59 @@ fn pde_ffi_dispatcher_primary_impl(
         16 => wire__crate__api__load_track_impl(port, ptr, rust_vec_len, data_len),
         17 => wire__crate__api__pause_impl(port, ptr, rust_vec_len, data_len),
         18 => wire__crate__api__play_impl(port, ptr, rust_vec_len, data_len),
-        19 => {
+        20 => {
             wire__crate__api__plugin_dispatch_app_foreground_impl(port, ptr, rust_vec_len, data_len)
         }
-        20 => wire__crate__api__plugin_dispatch_library_scan_complete_impl(
+        21 => wire__crate__api__plugin_dispatch_library_scan_complete_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__plugin_dispatch_library_scan_start_impl(
+        22 => wire__crate__api__plugin_dispatch_library_scan_start_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        22 => wire__crate__api__plugin_dispatch_play_pause_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__plugin_dispatch_position_update_impl(
+        23 => wire__crate__api__plugin_dispatch_play_pause_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__plugin_dispatch_position_update_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        24 => {
+        25 => {
             wire__crate__api__plugin_dispatch_track_complete_impl(port, ptr, rust_vec_len, data_len)
         }
-        25 => wire__crate__api__plugin_dispatch_track_loved_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__plugin_dispatch_track_start_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__plugin_dispatch_track_stop_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__plugin_load_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__plugin_set_enabled_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__plugin_unload_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__read_album_art_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__read_album_art_thumbnail_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__read_embedded_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__read_metadata_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__recover_engine_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__reinit_engine_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__scan_directory_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__seek_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__set_crossfade_secs_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__set_eq_band_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__set_eq_enabled_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__set_eq_gains_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__set_gapless_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__set_haas_ms_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__set_log_path_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__set_playback_speed_impl(port, ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__set_replay_gain_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__set_skip_silence_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__set_soft_clip_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__set_stereo_width_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__set_volume_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__stop_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__plugin_dispatch_track_loved_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__plugin_dispatch_track_start_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__plugin_dispatch_track_stop_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__plugin_load_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__plugin_set_enabled_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__plugin_unload_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__read_album_art_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__read_album_art_thumbnail_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__read_embedded_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__read_metadata_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__recover_engine_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__reinit_engine_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__scan_directory_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__seek_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__set_crossfade_secs_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__set_eq_band_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__set_eq_enabled_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__set_eq_gains_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__set_gapless_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__set_haas_ms_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__set_log_path_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__set_playback_speed_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__set_replay_gain_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__set_skip_silence_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__set_soft_clip_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__set_stereo_width_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__set_volume_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__stop_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2289,9 +2318,10 @@ fn pde_ffi_dispatcher_sync_impl(
         13 => wire__crate__api__is_decode_thread_dead_impl(ptr, rust_vec_len, data_len),
         14 => wire__crate__api__is_exclusive_mode_impl(ptr, rust_vec_len, data_len),
         15 => wire__crate__api__is_playing_impl(ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__plugin_is_enabled_impl(ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__plugin_loaded_ids_impl(ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__plugin_manifest_json_impl(ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__plugin_app_bar_color_impl(ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__plugin_is_enabled_impl(ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__plugin_loaded_ids_impl(ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__plugin_manifest_json_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

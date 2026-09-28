@@ -160,6 +160,9 @@ List<String> pluginLoadedIds() =>
 String? pluginManifestJson({required String id}) =>
     AqlossCore.instance.api.crateApiPluginManifestJson(id: id);
 
+String? pluginAppBarColor() =>
+    AqlossCore.instance.api.crateApiPluginAppBarColor();
+
 Future<String> pluginLoad({required String dirPath}) =>
     AqlossCore.instance.api.crateApiPluginLoad(dirPath: dirPath);
 

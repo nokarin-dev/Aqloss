@@ -6,7 +6,7 @@ What changed in each Aqloss release, written for people who use the app.
 
 ## [Unreleased]
 
-Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, a nightly warning, a Material 3 Light title bar, and a first-launch folder picker.
+Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, a nightly warning, a Material 3 Light title bar, a first-launch folder picker, and Lua title bar color.
 
 ### Added
 
@@ -28,6 +28,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Linux] Shuffle and repeat from the desktop media controls (MPRIS) (#34)
 - [Frontend] Nightly builds warn on first launch that they are not a release
 - [Frontend|Library] First launch asks for a music folder
+- [Frontend|Plugins] Lua plugins can request `theme` and set the window title bar color
 
 ### Changed
 

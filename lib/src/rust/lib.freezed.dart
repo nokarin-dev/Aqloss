@@ -26,16 +26,21 @@ $TrackInfoCopyWith<TrackInfo> get copyWith => _$TrackInfoCopyWithImpl<TrackInfo>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrackInfo&&(identical(other.path, path) || other.path == path)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.album, album) || other.album == album)&&(identical(other.albumArtist, albumArtist) || other.albumArtist == albumArtist)&&(identical(other.trackNumber, trackNumber) || other.trackNumber == trackNumber)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs)&&(identical(other.sampleRate, sampleRate) || other.sampleRate == sampleRate)&&(identical(other.bitDepth, bitDepth) || other.bitDepth == bitDepth)&&(identical(other.channels, channels) || other.channels == channels)&&(identical(other.format, format) || other.format == format)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes)&&(identical(other.replayGainTrack, replayGainTrack) || other.replayGainTrack == replayGainTrack)&&(identical(other.replayGainAlbum, replayGainAlbum) || other.replayGainAlbum == replayGainAlbum));
+  final _this = this as TrackInfo;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrackInfo&&(identical(other.path, _this.path) || other.path == _this.path)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.artist, _this.artist) || other.artist == _this.artist)&&(identical(other.album, _this.album) || other.album == _this.album)&&(identical(other.albumArtist, _this.albumArtist) || other.albumArtist == _this.albumArtist)&&(identical(other.trackNumber, _this.trackNumber) || other.trackNumber == _this.trackNumber)&&(identical(other.durationSecs, _this.durationSecs) || other.durationSecs == _this.durationSecs)&&(identical(other.sampleRate, _this.sampleRate) || other.sampleRate == _this.sampleRate)&&(identical(other.bitDepth, _this.bitDepth) || other.bitDepth == _this.bitDepth)&&(identical(other.channels, _this.channels) || other.channels == _this.channels)&&(identical(other.format, _this.format) || other.format == _this.format)&&(identical(other.fileSizeBytes, _this.fileSizeBytes) || other.fileSizeBytes == _this.fileSizeBytes)&&(identical(other.replayGainTrack, _this.replayGainTrack) || other.replayGainTrack == _this.replayGainTrack)&&(identical(other.replayGainAlbum, _this.replayGainAlbum) || other.replayGainAlbum == _this.replayGainAlbum));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,path,title,artist,album,albumArtist,trackNumber,durationSecs,sampleRate,bitDepth,channels,format,fileSizeBytes,replayGainTrack,replayGainAlbum);
+int get hashCode {
+  final _this = this as TrackInfo;
+  return Object.hash(runtimeType,_this.path,_this.title,_this.artist,_this.album,_this.albumArtist,_this.trackNumber,_this.durationSecs,_this.sampleRate,_this.bitDepth,_this.channels,_this.format,_this.fileSizeBytes,_this.replayGainTrack,_this.replayGainAlbum);
+}
 
 @override
 String toString() {
-  return 'TrackInfo(path: $path, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, trackNumber: $trackNumber, durationSecs: $durationSecs, sampleRate: $sampleRate, bitDepth: $bitDepth, channels: $channels, format: $format, fileSizeBytes: $fileSizeBytes, replayGainTrack: $replayGainTrack, replayGainAlbum: $replayGainAlbum)';
+  final _this = this as TrackInfo;
+  return 'TrackInfo(path: ${_this.path}, title: ${_this.title}, artist: ${_this.artist}, album: ${_this.album}, albumArtist: ${_this.albumArtist}, trackNumber: ${_this.trackNumber}, durationSecs: ${_this.durationSecs}, sampleRate: ${_this.sampleRate}, bitDepth: ${_this.bitDepth}, channels: ${_this.channels}, format: ${_this.format}, fileSizeBytes: ${_this.fileSizeBytes}, replayGainTrack: ${_this.replayGainTrack}, replayGainAlbum: ${_this.replayGainAlbum})';
 }
 
 
@@ -242,16 +247,18 @@ _$TrackInfoCopyWith<_TrackInfo> get copyWith => __$TrackInfoCopyWithImpl<_TrackI
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrackInfo&&(identical(other.path, path) || other.path == path)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.album, album) || other.album == album)&&(identical(other.albumArtist, albumArtist) || other.albumArtist == albumArtist)&&(identical(other.trackNumber, trackNumber) || other.trackNumber == trackNumber)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs)&&(identical(other.sampleRate, sampleRate) || other.sampleRate == sampleRate)&&(identical(other.bitDepth, bitDepth) || other.bitDepth == bitDepth)&&(identical(other.channels, channels) || other.channels == channels)&&(identical(other.format, format) || other.format == format)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes)&&(identical(other.replayGainTrack, replayGainTrack) || other.replayGainTrack == replayGainTrack)&&(identical(other.replayGainAlbum, replayGainAlbum) || other.replayGainAlbum == replayGainAlbum));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrackInfo&&(identical(other.path, path) || other.path == path)&&(identical(other.title, title) || other.title == title)&&(identical(other.artist, artist) || other.artist == artist)&&(identical(other.album, album) || other.album == album)&&(identical(other.albumArtist, albumArtist) || other.albumArtist == albumArtist)&&(identical(other.trackNumber, trackNumber) || other.trackNumber == trackNumber)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs)&&(identical(other.sampleRate, sampleRate) || other.sampleRate == sampleRate)&&(identical(other.bitDepth, bitDepth) || other.bitDepth == bitDepth)&&(identical(other.channels, channels) || other.channels == channels)&&(identical(other.format, format) || other.format == format)&&(identical(other.fileSizeBytes, fileSizeBytes) || other.fileSizeBytes == fileSizeBytes)&&(identical(other.replayGainTrack, replayGainTrack) || other.replayGainTrack == replayGainTrack)&&(identical(other.replayGainAlbum, replayGainAlbum) || other.replayGainAlbum == replayGainAlbum));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,path,title,artist,album,albumArtist,trackNumber,durationSecs,sampleRate,bitDepth,channels,format,fileSizeBytes,replayGainTrack,replayGainAlbum);
+int get hashCode {
+    return Object.hash(runtimeType,path,title,artist,album,albumArtist,trackNumber,durationSecs,sampleRate,bitDepth,channels,format,fileSizeBytes,replayGainTrack,replayGainAlbum);
+}
 
 @override
 String toString() {
-  return 'TrackInfo(path: $path, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, trackNumber: $trackNumber, durationSecs: $durationSecs, sampleRate: $sampleRate, bitDepth: $bitDepth, channels: $channels, format: $format, fileSizeBytes: $fileSizeBytes, replayGainTrack: $replayGainTrack, replayGainAlbum: $replayGainAlbum)';
+    return 'TrackInfo(path: $path, title: $title, artist: $artist, album: $album, albumArtist: $albumArtist, trackNumber: $trackNumber, durationSecs: $durationSecs, sampleRate: $sampleRate, bitDepth: $bitDepth, channels: $channels, format: $format, fileSizeBytes: $fileSizeBytes, replayGainTrack: $replayGainTrack, replayGainAlbum: $replayGainAlbum)';
 }
 
 

@@ -28,7 +28,7 @@ Install from **Settings → Plugins → Install .aqx**, or drop a folder there m
 | `type` | no | `"lua"` | `"lua"` or `"webhook"` |
 | `entry` | no | `"main.lua"` | Lua entry file |
 | `min_aqloss_version` | no | `"1.0.0"` | Refused at load time if the running app is older |
-| `permissions` | no | `[]` | `"network"`, `"filesystem"` (Lua only) |
+| `permissions` | no | `[]` | `"network"`, `"filesystem"`, `"theme"` (Lua only) |
 | `webhook_url` | webhook | - | Destination URL |
 | `webhook_headers` | no | - | Extra HTTP headers |
 | `webhook_events` | no | all events | Subset of event names |
@@ -59,6 +59,7 @@ Each Lua plugin gets its own VM with `table`, `string`, and `math` stdlibs plus:
 | `aqloss.http_get(url)` | `network` | Returns body or `nil` |
 | `aqloss.http_post(url, headers, body)` | `network` | Returns `true` if HTTP status &lt; 400 |
 | `aqloss.read_file(rel_path)` | `filesystem` | Read-only, jailed to the plugin folder |
+| `aqloss.set_app_bar_color(hex)` | `theme` | Title bar color (`#RGB`, `#RRGGBB`, `#AARRGGBB`). `nil` clears |
 | `aqloss.version` | - | Running Aqloss version string |
 
 Calls that need a permission raise a Lua error when the permission is missing. Use `pcall` if you want to handle that gracefully.

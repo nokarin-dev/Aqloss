@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:aqloss/plugins/plugin_api.dart';
+import 'package:aqloss/plugins/plugin_theme.dart';
 import 'package:aqloss/plugins/webhook_dispatcher.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/util/logger.dart';
@@ -111,9 +112,10 @@ class PluginRegistry {
     try {
       final loadedId = await backend.pluginLoad(dirPath: dir.path);
       final enabled = await _isEnabled(manifest.id);
-      backend.pluginSetEnabled(id: loadedId, enabled: enabled);
+      await backend.pluginSetEnabled(id: loadedId, enabled: enabled);
       _luaPlugins.add(manifest);
       _installDirs[manifest.id] = dir;
+      PluginTheme.syncFromEngine();
       Logger.debugFrontend('[plugins] lua loaded: $loadedId');
     } catch (e) {
       Logger.errorPlayerProvider('[plugins] lua load error ${manifest.id}: $e');
@@ -136,8 +138,9 @@ class PluginRegistry {
 
     if (_luaPlugins.any((m) => m.id == pluginId)) {
       try {
-        backend.pluginSetEnabled(id: pluginId, enabled: enabled);
+        await backend.pluginSetEnabled(id: pluginId, enabled: enabled);
         await _persistEnabled(pluginId, enabled);
+        PluginTheme.syncFromEngine();
       } catch (e) {
         Logger.errorPlayerProvider('[plugins/lua] setEnabled($pluginId): $e');
       }
@@ -153,11 +156,12 @@ class PluginRegistry {
       _webhooks.removeAt(wIdx);
     } else {
       try {
-        backend.pluginUnload(id: pluginId);
+        await backend.pluginUnload(id: pluginId);
       } catch (e) {
         Logger.errorPlayerProvider('[plugins/lua] unload($pluginId): $e');
       }
       _luaPlugins.removeWhere((m) => m.id == pluginId);
+      PluginTheme.syncFromEngine();
     }
 
     final dir = await findInstallDir(pluginId);
@@ -221,7 +225,7 @@ class PluginRegistry {
   Future<void> dispose() async {
     for (final m in _luaPlugins) {
       try {
-        backend.pluginUnload(id: m.id);
+        await backend.pluginUnload(id: m.id);
       } catch (e) {
         Logger.errorPlayerProvider('[plugins/lua] dispose(${m.id}): $e');
       }
@@ -229,6 +233,7 @@ class PluginRegistry {
     _webhooks.clear();
     _luaPlugins.clear();
     _installDirs.clear();
+    PluginTheme.clear();
   }
 
   Future<void> dispatchTrackStart(TrackStartEvent event) async {
@@ -360,6 +365,7 @@ class PluginRegistry {
     if (_luaPlugins.isEmpty) return;
     try {
       await call();
+      PluginTheme.syncFromEngine();
     } catch (e) {
       Logger.errorPlayerProvider('[plugins/lua] dispatch failed: $e');
     }

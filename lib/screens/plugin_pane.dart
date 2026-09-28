@@ -495,6 +495,13 @@ class _PermissionReviewSheet extends StatelessWidget {
               desc: 'Read files inside the plugin folder',
               cs: cs,
             ),
+          if (manifest.permissions.contains(PluginPermission.theme))
+            _InfoRow(
+              icon: Icons.palette_outlined,
+              label: 'theme',
+              desc: 'Change the window title bar color',
+              cs: cs,
+            ),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -669,6 +676,7 @@ class _PermBadge extends StatelessWidget {
   String get _label => switch (perm) {
     PluginPermission.network => 'network',
     PluginPermission.filesystem => 'filesystem',
+    PluginPermission.theme => 'theme',
   };
 
   @override
