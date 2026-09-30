@@ -187,7 +187,6 @@ impl ExclusiveStream {
             }
             Err(_) => {
                 alive.store(false, Ordering::SeqCst);
-                let _ = _thread.join();
                 Err(anyhow!("WASAPI exclusive start timed out"))
             }
         }

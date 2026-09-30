@@ -89,7 +89,11 @@ impl AudioOutput {
             );
         }
         prepare_mixer(device_id, exclusive);
-        let tries = if exclusive { 6 } else { 1 };
+        let tries = match (exclusive, cfg!(target_os = "linux")) {
+            (true, true) => 6,
+            (true, false) => 2,
+            (false, _) => 1,
+        };
         let mut last = None;
         for i in 0..tries {
             match Self::open_once(device_id, exclusive, hint) {
@@ -907,6 +911,14 @@ mod alsa_hw_id_tests {
         assert!(is_system_default_id("pipewire:output_default"));
         assert!(is_system_default_id("alsa:default"));
         assert!(!is_system_default_id("alsa:hw:CARD=PCH,DEV=0"));
+    }
+
+    #[test]
+    fn exclusive_timeout_is_not_busy() {
+        assert!(!is_device_busy(&anyhow!(
+            "WASAPI exclusive start timed out"
+        )));
+        assert!(is_device_busy(&anyhow!("AUDCLNT_E_DEVICE_IN_USE")));
     }
 }
 
