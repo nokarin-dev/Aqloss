@@ -41,6 +41,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Frontend|Library] Large folders scan faster
 - [Linux|Audio] Exclusive mode can take over your DAC
 - [Audio] New installs use Shared output, except on Windows (Exclusive)
+- [Linux] Rename AppImage to `Aqloss-x86_64.AppImage`, ships AppStream metadata, and can update with AppImageUpdate
 
 ### Fixed
 

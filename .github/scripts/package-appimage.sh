@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUTPUT="${1:-Aqloss-linux.AppImage}"
+OUTPUT="${1:-Aqloss-x86_64.AppImage}"
 BUNDLE="${BUNDLE:-build/linux/x64/release/bundle}"
+ZSYNC_NAME="$(basename "${OUTPUT}").zsync"
+UPDATE_INFO="${UPDATE_INFO:-gh-releases-zsync|nokarin-dev|Aqloss|latest|${ZSYNC_NAME}}"
 
 if [ ! -d "${BUNDLE}" ]; then
   echo "Flutter Linux bundle not found: ${BUNDLE}" >&2
@@ -30,7 +32,7 @@ if [ ! -x "${APPIMAGETOOL}" ]; then
 fi
 
 mkdir -p AppDir/app AppDir/usr/share/icons/hicolor/256x256/apps \
-  AppDir/usr/share/mime/packages
+  AppDir/usr/share/mime/packages AppDir/usr/share/metainfo
 
 cp -r "${BUNDLE}/." AppDir/app/
 
@@ -44,6 +46,8 @@ fi
 
 cp linux/xyz.nokarin.aqloss.desktop AppDir/xyz.nokarin.aqloss.desktop
 cp linux/xyz.nokarin.aqloss.xml AppDir/usr/share/mime/packages/xyz.nokarin.aqloss.xml
+cp linux/xyz.nokarin.aqloss.metainfo.xml \
+  AppDir/usr/share/metainfo/xyz.nokarin.aqloss.metainfo.xml
 
 cat > AppDir/AppRun <<'EOF'
 #!/bin/sh
@@ -56,6 +60,11 @@ exec "./$EXE_NAME" "$@"
 EOF
 chmod +x AppDir/AppRun
 
-ARCH=x86_64 "${APPIMAGETOOL}" --no-appstream AppDir "${OUTPUT}"
+ARCH=x86_64 "${APPIMAGETOOL}" --no-appstream -u "${UPDATE_INFO}" AppDir "${OUTPUT}"
 chmod +x "${OUTPUT}"
+if [ ! -f "${ZSYNC_NAME}" ]; then
+  echo "appimagetool did not write ${ZSYNC_NAME}" >&2
+  exit 1
+fi
 echo "Built ${OUTPUT} ($(du -h "${OUTPUT}" | cut -f1))"
+echo "Built ${ZSYNC_NAME}"

@@ -16,7 +16,8 @@ files=(
   "${DIST}/Aqloss-windows-portable.zip"
   "${DIST}/Aqloss-linux-installer.deb"
   "${DIST}/Aqloss-linux-installer.rpm"
-  "${DIST}/Aqloss-linux.AppImage"
+  "${DIST}/Aqloss-x86_64.AppImage"
+  "${DIST}/Aqloss-x86_64.AppImage.zsync"
   "${DIST}/Aqloss-linux-portable.tar.gz"
   "${DIST}/Aqloss-android-arm64.apk"
   "${DIST}/Aqloss-android-arm32.apk"
@@ -56,7 +57,7 @@ $(badge Aqloss-windows-portable.zip Windows-Portable Portable windows blue)
 ### Linux
 $(badge Aqloss-linux-installer.deb Linux-Debian .deb linux e07334)
 $(badge Aqloss-linux-installer.rpm Linux-RPM .rpm linux e07334)
-$(badge Aqloss-linux.AppImage Linux-AppImage AppImage linux e07334)
+$(badge Aqloss-x86_64.AppImage Linux-AppImage AppImage linux e07334)
 $(badge Aqloss-linux-portable.tar.gz Linux-Portable Portable linux e07334)
 
 ### Android

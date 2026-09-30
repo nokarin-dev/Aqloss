@@ -47,7 +47,8 @@ jobs:
           if-no-files-found: error
           path: |
             Aqloss-linux-installer.deb
-            Aqloss-linux.AppImage
+            Aqloss-x86_64.AppImage
+            Aqloss-x86_64.AppImage.zsync
             Aqloss-linux-portable.tar.gz
 
   build-linux-rpm:
@@ -169,7 +170,8 @@ jobs:
             dist/Aqloss-windows-portable.zip
             dist/Aqloss-linux-installer.deb
             dist/Aqloss-linux-installer.rpm
-            dist/Aqloss-linux.AppImage
+            dist/Aqloss-x86_64.AppImage
+            dist/Aqloss-x86_64.AppImage.zsync
             dist/Aqloss-linux-portable.tar.gz
             dist/Aqloss-android-arm64.apk
             dist/Aqloss-android-arm32.apk
@@ -225,7 +227,7 @@ jobs:
             ### Linux
             [![Linux-Debian](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-installer.deb?style=for-the-badge&logo=linux&logoColor=white&label=.deb&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.deb)
             [![Linux-RPM](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-installer.rpm?style=for-the-badge&logo=linux&logoColor=white&label=.rpm&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-installer.rpm)
-            [![Linux-AppImage](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux.AppImage?style=for-the-badge&logo=linux&logoColor=white&label=AppImage&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux.AppImage)
+            [![Linux-AppImage](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-x86_64.AppImage?style=for-the-badge&logo=linux&logoColor=white&label=AppImage&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-x86_64.AppImage)
             [![Linux-Portable](https://img.shields.io/github/downloads/nokarin-dev/aqloss/${{ github.ref_name }}/Aqloss-linux-portable.tar.gz?style=for-the-badge&logo=linux&logoColor=white&label=Portable&color=e07334)](https://github.com/nokarin-dev/aqloss/releases/download/${{ github.ref_name }}/Aqloss-linux-portable.tar.gz)
 
             ### Android
@@ -241,7 +243,8 @@ jobs:
             dist/Aqloss-windows-portable.zip
             dist/Aqloss-linux-installer.deb
             dist/Aqloss-linux-installer.rpm
-            dist/Aqloss-linux.AppImage
+            dist/Aqloss-x86_64.AppImage
+            dist/Aqloss-x86_64.AppImage.zsync
             dist/Aqloss-linux-portable.tar.gz
             dist/Aqloss-android-arm64.apk
             dist/Aqloss-android-arm32.apk

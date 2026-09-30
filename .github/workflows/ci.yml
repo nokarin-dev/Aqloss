@@ -77,7 +77,8 @@ jobs:
           if-no-files-found: error
           path: |
             Aqloss-linux-installer.deb
-            Aqloss-linux.AppImage
+            Aqloss-x86_64.AppImage
+            Aqloss-x86_64.AppImage.zsync
             Aqloss-linux-portable.tar.gz
 
   build-linux-rpm:

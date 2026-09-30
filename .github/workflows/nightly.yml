@@ -44,7 +44,8 @@ jobs:
       - run: flutter build linux --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - run: |
           bash .github/scripts/package-deb.sh "${{ steps.version.outputs.version }}"
-          bash .github/scripts/package-appimage.sh
+          UPDATE_INFO='gh-releases-zsync|nokarin-dev|Aqloss|nightly|Aqloss-x86_64.AppImage.zsync' \
+            bash .github/scripts/package-appimage.sh
           bash .github/scripts/package-portable.sh
       - uses: actions/upload-artifact@v4
         with:
@@ -52,7 +53,8 @@ jobs:
           if-no-files-found: error
           path: |
             Aqloss-linux-installer.deb
-            Aqloss-linux.AppImage
+            Aqloss-x86_64.AppImage
+            Aqloss-x86_64.AppImage.zsync
             Aqloss-linux-portable.tar.gz
 
   build-linux-rpm:
