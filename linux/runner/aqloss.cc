@@ -135,7 +135,6 @@ static void chrome_method_call(FlMethodChannel *, FlMethodCall *call,
 static void first_frame_cb(Aqloss *self, FlView *view)
 {
   GtkWidget *top = gtk_widget_get_toplevel(GTK_WIDGET(view));
-  gtk_widget_show(top);
   if (GTK_IS_WINDOW(top))
     emit_window_chrome(self, GTK_WINDOW(top));
 }
@@ -332,7 +331,6 @@ static void aqloss_activate(GApplication *application)
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb), self);
-  gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
@@ -414,6 +412,9 @@ static void aqloss_activate(GApplication *application)
                          G_CALLBACK(on_sub_delete), nullptr);
       });
 
+  gtk_widget_show(GTK_WIDGET(window));
+  gtk_window_present(window);
+  gtk_widget_realize(GTK_WIDGET(view));
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 

@@ -69,6 +69,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Frontend|UI] Material 3 Light uses a light window title bar (#30)
 - [Linux] Add Folder uses the in-app picker, so it is not hidden behind the window and does not use a dark GTK title bar (#30)
 - [Windows|Audio] Exclusive output no longer freezes the app when the DAC does not start in time (#41)
+- [Linux] The window is shown before the first Flutter frame, so it is not stuck with no window and 100% CPU on some GPUs (#42)
 - [Linux] The window uses the Aqloss icon instead of the Flutter flask (#30)
 
 ---
