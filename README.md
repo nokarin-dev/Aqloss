@@ -26,19 +26,18 @@ On Windows, **WASAPI Exclusive** can send the stream straight to the device (no 
 
 ---
 
-<details>
-  <summary>
-    <h2>In App Preview</h2>
-  </summary>
-  <p align="center">
-   <h3>Playing Screen</h3>
-    <img src="assets/preview/playing.png" alt="Now playing" width="920">
-    <h3>Library Screen - Grid</h3>
-    <img src="assets/preview/library_grid.png" alt="Library grid" width="920">
-    <h3>Library Screen - Details</h3>
-    <img src="assets/preview/library_detail.png" alt="Library list" width="920">
-  </p>
-</details>
+## Screenshot
+<div align="center">
+
+| Playing (Default) | Library Detail (Default) | Library Grid (Default)
+| --- | --- | --- |
+| ![Playing](assets/preview/playing.png) | ![Library_Detail](assets/preview/library_detail.png) | ![Library_Grid](assets/preview/library_grid.png) |
+
+| Playing (M3) | Library Detail (M3) | Library Grid (M3) |
+| --- | --- | --- |
+| ![Playing-M3](assets/preview/playing-M3.png) | ![Library_Detail-M3](assets/preview/library_detail-M3.png) | ![Library_Grid-M3](assets/preview/library_grid-M3.png) |
+
+</div>
 
 ---
 
