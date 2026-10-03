@@ -264,7 +264,6 @@ static gboolean on_sub_delete(GtkWidget *widget, GdkEvent *, gpointer)
   return TRUE;
 }
 
-// Send a file path to Dart via the file_open channel
 static void send_file_to_flutter(Aqloss *self, const char *path)
 {
   if (!self->file_open_channel || !path)
@@ -274,37 +273,24 @@ static void send_file_to_flutter(Aqloss *self, const char *path)
       self->file_open_channel, "openFile", arg, nullptr, nullptr, nullptr);
 }
 
-static void aqloss_open(GApplication *application,
-                        GFile **files, gint n_files,
-                        const gchar * /*hint*/)
+struct EngineBoot
 {
-  Aqloss *self = AQLOSS_APP(application);
+  Aqloss *self;
+  GtkWindow *window;
+  GtkWidget *placeholder;
+};
 
-  // Ensure the main window is shown
-  g_application_activate(application);
-
-  for (gint i = 0; i < n_files; i++)
-  {
-    char *path = g_file_get_path(files[i]);
-    if (path)
-    {
-      send_file_to_flutter(self, path);
-      g_free(path);
-    }
-  }
+static gboolean draw_placeholder(GtkWidget *, cairo_t *cr, gpointer)
+{
+  cairo_set_source_rgb(cr, 0.024, 0.024, 0.031);
+  cairo_paint(cr);
+  return FALSE;
 }
 
-static void aqloss_activate(GApplication *application)
+static void start_engine(Aqloss *self, GtkWindow *window, GtkWidget *placeholder)
 {
-  apply_hw_accel_pref();
-  Aqloss *self = AQLOSS_APP(application);
-  GtkWindow *window = GTK_WINDOW(
-      gtk_application_window_new(GTK_APPLICATION(application)));
-
-  gtk_window_set_decorated(window, FALSE);
-
+  g_message("aqloss: creating flutter view");
   g_autoptr(FlDartProject) project = fl_dart_project_new();
-  // Flutter 3.47 defaults to Impeller GLES SDF, which freezes the UI on Mesa/Hyprland.
   fl_dart_project_set_enable_impeller(project, FALSE);
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
@@ -323,16 +309,17 @@ static void aqloss_activate(GApplication *application)
 #endif
 
   FlView *view = fl_view_new(project);
-  gtk_window_set_default_size(window, 1280, 720);
-  gtk_window_set_default_icon_name(APPLICATION_ID);
-  gtk_window_set_icon_name(window, APPLICATION_ID);
+  g_message("aqloss: flutter view created");
   set_transparent(window, view);
 
+  if (placeholder)
+    gtk_widget_destroy(placeholder);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb), self);
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  g_message("aqloss: plugins registered");
 
   {
     g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
@@ -412,10 +399,70 @@ static void aqloss_activate(GApplication *application)
                          G_CALLBACK(on_sub_delete), nullptr);
       });
 
-  gtk_widget_show(GTK_WIDGET(window));
-  gtk_window_present(window);
   gtk_widget_realize(GTK_WIDGET(view));
   gtk_widget_grab_focus(GTK_WIDGET(view));
+  g_message("aqloss: activate end");
+}
+
+static gboolean start_engine_idle(gpointer data)
+{
+  auto *boot = static_cast<EngineBoot *>(data);
+  start_engine(boot->self, boot->window, boot->placeholder);
+  g_free(boot);
+  return G_SOURCE_REMOVE;
+}
+
+static void aqloss_open(GApplication *application,
+                        GFile **files, gint n_files,
+                        const gchar * /*hint*/)
+{
+  Aqloss *self = AQLOSS_APP(application);
+
+  g_application_activate(application);
+
+  for (gint i = 0; i < n_files; i++)
+  {
+    char *path = g_file_get_path(files[i]);
+    if (path)
+    {
+      send_file_to_flutter(self, path);
+      g_free(path);
+    }
+  }
+}
+
+static void aqloss_activate(GApplication *application)
+{
+  apply_hw_accel_pref();
+  Aqloss *self = AQLOSS_APP(application);
+  g_message("aqloss: activate begin");
+  GtkWindow *window = GTK_WINDOW(
+      gtk_application_window_new(GTK_APPLICATION(application)));
+
+  gtk_window_set_decorated(window, FALSE);
+  gtk_window_set_default_size(window, 1280, 720);
+  gtk_window_set_default_icon_name(APPLICATION_ID);
+  gtk_window_set_icon_name(window, APPLICATION_ID);
+
+  GdkScreen *screen = gtk_window_get_screen(window);
+  GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
+  if (visual && gdk_screen_is_composited(screen))
+    gtk_widget_set_visual(GTK_WIDGET(window), visual);
+
+  GtkWidget *placeholder = gtk_drawing_area_new();
+  g_signal_connect(placeholder, "draw", G_CALLBACK(draw_placeholder), nullptr);
+  gtk_widget_show(placeholder);
+  gtk_container_add(GTK_CONTAINER(window), placeholder);
+
+  g_message("aqloss: window shown");
+  gtk_widget_show(GTK_WIDGET(window));
+  gtk_window_present(window);
+
+  auto *boot = g_new0(EngineBoot, 1);
+  boot->self = self;
+  boot->window = window;
+  boot->placeholder = placeholder;
+  g_idle_add(start_engine_idle, boot);
 }
 
 static gboolean aqloss_local_command_line(GApplication *application,
