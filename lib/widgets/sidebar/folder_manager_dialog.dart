@@ -46,7 +46,7 @@ class FolderManagerDialog extends ConsumerWidget {
             Row(
               children: [
                 Text(
-                  'Music Folders',
+                  tr('settings.folders'),
                   style: TextStyle(
                     color: onSurface,
                     fontSize: 15,
@@ -90,7 +90,7 @@ class FolderManagerDialog extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  'No folders added yet.',
+                  tr('folders.empty_sentence'),
                   style: TextStyle(color: a(0.32), fontSize: 13),
                 ),
               )
@@ -186,7 +186,10 @@ class FolderManagerDialog extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: isScanning ? null : () => _addFolder(context, ref),
                 icon: const Icon(Icons.add_rounded, size: 15),
-                label: const Text('Add folder', style: TextStyle(fontSize: 13)),
+                label: Text(
+                  tr('folders.add_short'),
+                  style: TextStyle(fontSize: 13),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: a(0.55),
                   side: BorderSide(color: a(0.12)),

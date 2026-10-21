@@ -1,3 +1,5 @@
+import 'package:aqloss/l10n/l10n.dart';
+
 const kAbLoopMinGapSecs = 1.0;
 
 enum AbLoopPhase { off, aSet, active }
@@ -28,9 +30,9 @@ bool abLoopShouldWrap({
 }
 
 String abLoopTooltip(AbLoopPhase phase) => switch (phase) {
-  AbLoopPhase.off => 'A-B loop',
-  AbLoopPhase.aSet => 'A-B loop · A set',
-  AbLoopPhase.active => 'A-B loop · on',
+  AbLoopPhase.off => tr('ab.title'),
+  AbLoopPhase.aSet => tr('ab.set'),
+  AbLoopPhase.active => tr('ab.on'),
 };
 
 String abLoopButtonLabel(AbLoopPhase phase) =>

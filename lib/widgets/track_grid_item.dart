@@ -244,7 +244,7 @@ class _GridContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  track.displayArtist,
+                  track.uiArtist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

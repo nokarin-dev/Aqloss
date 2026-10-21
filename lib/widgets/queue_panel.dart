@@ -8,6 +8,7 @@ import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 final queuePanelOpenProvider = StateProvider<bool>((ref) => false);
 
@@ -76,7 +77,7 @@ class _QueuePanelBodyState extends ConsumerState<QueuePanelBody> {
               ),
               const SizedBox(width: 8),
               Text(
-                'Queue',
+                tr('sidebar.queue'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -86,7 +87,7 @@ class _QueuePanelBodyState extends ConsumerState<QueuePanelBody> {
               ),
               const Spacer(),
               Text(
-                '${queue.length} track${queue.length == 1 ? '' : 's'}',
+                trFill('library.tracks', {'count': '${queue.length}'}),
                 style: TextStyle(fontSize: 10.5, color: onSurfaceAlpha(0.26)),
               ),
               const SizedBox(width: 8),
@@ -181,7 +182,7 @@ class _QueueSearchFieldState extends State<_QueueSearchField> {
         style: TextStyle(fontSize: 12.5, color: onSurface),
         cursorWidth: 1.2,
         decoration: InputDecoration(
-          hintText: 'Search queue',
+          hintText: tr('queue.search'),
           hintStyle: TextStyle(
             fontSize: 12.5,
             color: onSurface.withValues(alpha: 0.28),
@@ -234,7 +235,7 @@ class _QueueNoMatches extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Center(
       child: Text(
-        'No matches',
+        tr('queue.no_matches'),
         style: TextStyle(
           fontSize: 12,
           color: cs.onSurface.withValues(alpha: 0.28),
@@ -428,7 +429,7 @@ class _QueueTileState extends ConsumerState<_QueueTile> {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        widget.track.displayArtist,
+                        widget.track.uiArtist,
                         style: TextStyle(
                           fontSize: 10.5,
                           color: onSurfaceAlpha(0.32),
@@ -485,7 +486,7 @@ class _EmptyQueue extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Queue is empty',
+            tr('queue.empty'),
             style: TextStyle(fontSize: 13, color: onSurfaceAlpha(0.26)),
           ),
         ],

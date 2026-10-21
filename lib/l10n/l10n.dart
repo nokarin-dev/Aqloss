@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:aqloss/l10n/english_copy.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,8 +52,7 @@ class L10nCatalog {
   }
 
   static L10nCatalog parse(Map<String, String> jsonByAssetPath) {
-    final byCode = <String, Map<String, String>>{};
-    final englishKeys = <String>{};
+    final rawByCode = <String, Map<String, String>>{};
     for (final entry in jsonByAssetPath.entries) {
       final code = languageCodeFromAsset(entry.key);
       if (code == null) continue;
@@ -68,35 +68,46 @@ class L10nCatalog {
         final key = '${item.key}';
         final value = item.value;
         if (value is! String) continue;
-        if (key.startsWith('_')) {
-          final meta = value.trim();
-          if (meta.isNotEmpty) raw[key] = meta;
-          continue;
-        }
-        if (code == 'en') {
-          englishKeys.add(key);
-          continue;
-        }
-        final accepted = acceptedTranslation(key, value);
-        if (accepted == null) {
-          continue;
-        }
-        raw[key] = accepted;
+        if (value.trim().isEmpty) continue;
+        raw[key] = value;
       }
-      byCode[code] = raw;
+      rawByCode[code] = raw;
+    }
+
+    final english = rawByCode['en'] ?? const <String, String>{};
+    final englishKeys = english.keys
+        .where((key) => !key.startsWith('_'))
+        .toSet();
+    final byCode = <String, Map<String, String>>{};
+    for (final entry in rawByCode.entries) {
+      final kept = <String, String>{};
+      for (final item in entry.value.entries) {
+        if (item.key.startsWith('_')) {
+          final meta = item.value.trim();
+          if (meta.isNotEmpty) kept[item.key] = meta;
+          continue;
+        }
+        final source = entry.key == 'en' ? item.value : english[item.key];
+        final text = _storedText(item.value, source);
+        if (text == null) continue;
+        final expected = source == null ? _tokens(item.key) : _tokens(source);
+        if (!_sameTokens(expected, _tokens(text))) continue;
+        kept[item.key] = text;
+      }
+      byCode[entry.key] = kept;
     }
     return L10nCatalog(byCode, englishKeys: englishKeys);
   }
 }
 
-final _placeholder = RegExp(r'\{[A-Za-z0-9_]+\}');
-
-String? acceptedTranslation(String key, String value) {
-  final trimmed = value.trim();
-  if (trimmed.isEmpty) return null;
-  if (!_sameTokens(_tokens(key), _tokens(trimmed))) return null;
-  return trimmed;
+// Keep edge spaces from the English line
+String? _storedText(String value, String? english) {
+  if (value.trim().isEmpty) return null;
+  if (english != null && english != english.trim()) return value;
+  return value.trim();
 }
+
+final _placeholder = RegExp(r'\{[A-Za-z0-9_]+\}');
 
 bool _sameTokens(Set<String> a, Set<String> b) {
   if (a.length != b.length) return false;
@@ -147,19 +158,23 @@ Future<L10nCatalog> loadL10nCatalog(AssetBundle bundle) async {
 
 class AppCopy {
   static Map<String, String> _table = const {};
+  static Map<String, String> _english = kEnglishCopy;
 
-  static void apply(Map<String, String> table) {
+  static void apply(Map<String, String> table, {Map<String, String>? english}) {
     _table = table;
+    _english = english == null || english.isEmpty ? kEnglishCopy : english;
   }
 
-  static String tr(String english) {
-    final value = _table[english];
-    if (value == null || value.isEmpty) return english;
-    return value;
+  static String tr(String key) {
+    final value = _table[key];
+    if (value != null && value.isNotEmpty) return value;
+    final english = _english[key];
+    if (english != null && english.isNotEmpty) return english;
+    return key;
   }
 
-  static String trFill(String english, Map<String, String> args) {
-    var text = tr(english);
+  static String trFill(String key, Map<String, String> args) {
+    var text = tr(key);
     for (final arg in args.entries) {
       text = text.replaceAll('{${arg.key}}', arg.value);
     }
@@ -167,7 +182,21 @@ class AppCopy {
   }
 }
 
-String tr(String english) => AppCopy.tr(english);
+String tr(String key) => AppCopy.tr(key);
 
-String trFill(String english, Map<String, String> args) =>
-    AppCopy.trFill(english, args);
+String trFill(String key, Map<String, String> args) =>
+    AppCopy.trFill(key, args);
+
+// Empty-tag names
+String trMeta(String text) {
+  switch (text) {
+    case 'Unknown Artist':
+      return tr('library.unknown_artist');
+    case 'Unknown Album':
+      return tr('library.unknown_album');
+    case 'Singles':
+      return tr('albums.singles');
+    default:
+      return text;
+  }
+}

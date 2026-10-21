@@ -30,22 +30,22 @@ enum ShortcutAction {
 
 extension ShortcutActionX on ShortcutAction {
   String get label => switch (this) {
-    ShortcutAction.playPause => tr('Play / Pause'),
-    ShortcutAction.skipNext => tr('Next track'),
-    ShortcutAction.skipPrevious => tr('Previous track'),
-    ShortcutAction.volumeUp => tr('Volume up 5%'),
-    ShortcutAction.volumeDown => tr('Volume down 5%'),
-    ShortcutAction.toggleSidebar => tr('Toggle sidebar'),
-    ShortcutAction.toggleQueue => tr('Toggle queue panel'),
-    ShortcutAction.search => tr('Open search'),
-    ShortcutAction.miniPlayer => tr('Toggle mini player'),
-    ShortcutAction.navPlayer => tr('Go to Now Playing'),
-    ShortcutAction.navLibrary => tr('Go to Library'),
-    ShortcutAction.navAlbums => tr('Go to Albums'),
-    ShortcutAction.navArtists => tr('Go to Artists'),
-    ShortcutAction.navHistory => tr('Go to History'),
-    ShortcutAction.navSettings => tr('Go to Settings'),
-    ShortcutAction.newPlaylist => tr('New playlist'),
+    ShortcutAction.playPause => tr('player.play_pause'),
+    ShortcutAction.skipNext => tr('player.next_track'),
+    ShortcutAction.skipPrevious => tr('player.previous_track'),
+    ShortcutAction.volumeUp => tr('player.volume_up'),
+    ShortcutAction.volumeDown => tr('player.volume_down'),
+    ShortcutAction.toggleSidebar => tr('sidebar.toggle'),
+    ShortcutAction.toggleQueue => tr('queue.toggle'),
+    ShortcutAction.search => tr('search.open'),
+    ShortcutAction.miniPlayer => tr('player.mini'),
+    ShortcutAction.navPlayer => tr('sidebar.go_now_playing'),
+    ShortcutAction.navLibrary => tr('sidebar.go_library'),
+    ShortcutAction.navAlbums => tr('sidebar.go_albums'),
+    ShortcutAction.navArtists => tr('sidebar.go_artists'),
+    ShortcutAction.navHistory => tr('sidebar.go_history'),
+    ShortcutAction.navSettings => tr('sidebar.go_settings'),
+    ShortcutAction.newPlaylist => tr('playlists.new'),
   };
 
   String get defaultKey => const {

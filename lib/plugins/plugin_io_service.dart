@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/plugins/plugin_api.dart';
 import 'package:aqloss/plugins/plugin_registry.dart';
 import 'package:aqloss/util/logger.dart';
@@ -38,21 +39,22 @@ class PluginImportResult {
   bool get cancelled => status == PluginImportStatus.cancelled;
 
   String get userMessage => switch (status) {
-    PluginImportStatus.ok =>
-      'The “${manifest?.name}” plugin was successfully installed.',
+    PluginImportStatus.ok => trFill('plugins.installed', {
+      'name': manifest?.name ?? '',
+    }),
     PluginImportStatus.cancelled => '',
-    PluginImportStatus.invalidFormat =>
-      'This is not a valid .aqx file. It may be corrupted or not a ZIP archive.',
-    PluginImportStatus.missingManifest =>
-      'plugin.json was not found in the .aqx file.',
-    PluginImportStatus.alreadyInstalled =>
-      '“${manifest?.name}” is already installed. Uninstall it first before reinstalling.',
-    PluginImportStatus.extractError =>
-      'Failed to extract plugin: ${errorDetail ?? "unknown error"}.',
-    PluginImportStatus.permissionDenied =>
-      'Unable to write to the plugins folder.',
-    PluginImportStatus.loadFailed =>
-      'The plugin was extracted but could not be loaded: ${errorDetail ?? "unknown error"}.',
+    PluginImportStatus.invalidFormat => tr('plugins.invalid'),
+    PluginImportStatus.missingManifest => tr('plugins.missing_manifest'),
+    PluginImportStatus.alreadyInstalled => trFill('plugins.already', {
+      'name': manifest?.name ?? '',
+    }),
+    PluginImportStatus.extractError => trFill('plugins.extract_failed', {
+      'error': errorDetail ?? tr('plugins.unknown_error'),
+    }),
+    PluginImportStatus.permissionDenied => tr('plugins.write_failed'),
+    PluginImportStatus.loadFailed => trFill('plugins.load_failed', {
+      'error': errorDetail ?? tr('plugins.unknown_error'),
+    }),
   };
 }
 
@@ -116,7 +118,7 @@ class PluginIOService {
     PlatformFile? picked;
     try {
       picked = await FilePicker.pickFile(
-        dialogTitle: 'Install plugin',
+        dialogTitle: tr('plugins.install_title'),
         type: FileType.custom,
         allowedExtensions: [_kExtension],
       );
@@ -365,7 +367,7 @@ class PluginIOService {
 
       final outBytes = await File(tmpPath).readAsBytes();
       final saved = await FilePicker.saveFile(
-        dialogTitle: 'Export plugin',
+        dialogTitle: tr('plugins.export_title'),
         fileName: '${_safeName(manifest.id)}.$_kExtension',
         type: FileType.custom,
         allowedExtensions: [_kExtension],

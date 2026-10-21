@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/listenbrainz_service.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class ListenBrainzAuthRow extends ConsumerStatefulWidget {
   const ListenBrainzAuthRow({super.key});
@@ -40,13 +41,17 @@ class _ListenBrainzAuthRowState extends ConsumerState<ListenBrainzAuthRow> {
               children: [
                 Text(
                   hasToken
-                      ? 'Signed in as ${s.listenBrainzUsername ?? 'ListenBrainz user'}'
-                      : 'Paste your user token',
+                      ? trFill('integrations.signed_in', {
+                          'name':
+                              s.listenBrainzUsername ??
+                              tr('integrations.lb_user'),
+                        })
+                      : tr('integrations.lb_paste'),
                   style: TextStyle(fontSize: 13, color: a(0.70)),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Create one at listenbrainz.org/profile',
+                  tr('integrations.lb_create'),
                   style: TextStyle(fontSize: 11, color: a(0.30)),
                 ),
                 if (!hasToken)
@@ -71,7 +76,7 @@ class _ListenBrainzAuthRowState extends ConsumerState<ListenBrainzAuthRow> {
             GestureDetector(
               onTap: n.clearListenBrainz,
               child: _Chip(
-                label: 'Sign out',
+                label: tr('integrations.sign_out'),
                 onSurface: onSurface,
                 filled: false,
               ),
@@ -80,7 +85,7 @@ class _ListenBrainzAuthRowState extends ConsumerState<ListenBrainzAuthRow> {
             GestureDetector(
               onTap: () => _showTokenDialog(context, n),
               child: _Chip(
-                label: 'Add token',
+                label: tr('integrations.lb_add'),
                 onSurface: onSurface,
                 filled: true,
               ),
@@ -95,16 +100,16 @@ class _ListenBrainzAuthRowState extends ConsumerState<ListenBrainzAuthRow> {
 
     await showUiDialog<void>(
       context: ctx,
-      title: 'ListenBrainz token',
+      title: tr('integrations.lb_token'),
       content: TextField(
         controller: tokenCtrl,
         obscureText: true,
-        decoration: const InputDecoration(hintText: 'User token'),
+        decoration: InputDecoration(hintText: tr('integrations.lb_user_token')),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+          child: Text(tr('integrations.cancel')),
         ),
         TextButton(
           onPressed: () async {
@@ -118,12 +123,12 @@ class _ListenBrainzAuthRowState extends ConsumerState<ListenBrainzAuthRow> {
             if (user != null) {
               n.setListenBrainzToken(tokenCtrl.text.trim(), username: user);
             } else {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Invalid token.')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(tr('integrations.lb_invalid'))),
+              );
             }
           },
-          child: const Text('Save'),
+          child: Text(tr('eq.save')),
         ),
       ],
     );

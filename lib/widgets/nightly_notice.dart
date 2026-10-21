@@ -25,7 +25,7 @@ Future<void> maybeShowNightlyNotice(
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: Text(tr('OK')),
+        child: Text(tr('updates.ok')),
       ),
     ],
   );

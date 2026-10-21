@@ -83,13 +83,13 @@ class TrayService with TrayListener {
     await trayManager.setContextMenu(
       Menu(
         items: [
-          MenuItem(key: 'show', label: tr('Show Aqloss')),
+          MenuItem(key: 'show', label: tr('sidebar.show')),
           MenuItem.separator(),
           MenuItem(key: 'play_pause', label: trayPlayPauseLabel(playing)),
-          MenuItem(key: 'next', label: tr('Next')),
-          MenuItem(key: 'previous', label: tr('Previous')),
+          MenuItem(key: 'next', label: tr('player.next')),
+          MenuItem(key: 'previous', label: tr('player.previous')),
           MenuItem.separator(),
-          MenuItem(key: 'quit', label: tr('Quit')),
+          MenuItem(key: 'quit', label: tr('sidebar.quit')),
         ],
       ),
     );

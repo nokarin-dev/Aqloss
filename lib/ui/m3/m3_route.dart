@@ -33,13 +33,13 @@ abstract final class M3Route {
   };
 
   static String titleFor(int route) => switch (route) {
-    player => tr('Now Playing'),
-    library => tr('Library'),
-    albums => tr('Albums'),
-    settings => tr('Settings'),
-    history => tr('History'),
-    artists => tr('Artists'),
-    _ when route >= playlistBase => tr('Playlist'),
+    player => tr('sidebar.now_playing'),
+    library => tr('sidebar.library'),
+    albums => tr('sidebar.albums'),
+    settings => tr('sidebar.settings'),
+    history => tr('sidebar.history'),
+    artists => tr('sidebar.artists'),
+    _ when route >= playlistBase => tr('sidebar.playlist'),
     _ => 'Aqloss',
   };
 }

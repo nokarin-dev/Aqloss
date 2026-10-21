@@ -73,9 +73,9 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => InputDialog(
-        title: 'New playlist',
-        hint: 'Playlist name',
-        confirmLabel: 'Create',
+        title: tr('playlists.new'),
+        hint: tr('playlists.name'),
+        confirmLabel: tr('playlists.create'),
         controller: ctrl,
       ),
     );
@@ -94,15 +94,21 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Imported \'${result.playlist!.name}\''),
+            content: Text(
+              trFill("playlists.imported", {'name': result.playlist!.name}),
+            ),
             duration: const Duration(seconds: 3),
           ),
         );
       }
     } else if (result.error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Import failed: ${result.error}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            trFill('playlists.import_failed', {'error': '${result.error}'}),
+          ),
+        ),
+      );
     }
   }
 
@@ -111,9 +117,9 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => InputDialog(
-        title: 'Rename',
+        title: tr('playlists.rename'),
         hint: pl.name,
-        confirmLabel: 'Save',
+        confirmLabel: tr('eq.save'),
         controller: ctrl,
       ),
     );
@@ -127,8 +133,11 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
     QToast.show(
       context,
       tracks.length == 1
-          ? 'Added to "${pl.name}"'
-          : 'Added ${tracks.length} tracks to "${pl.name}"',
+          ? trFill('queue.added_playlist', {'name': pl.name})
+          : trFill('queue.added_playlist_count', {
+              'count': '${tracks.length}',
+              'name': pl.name,
+            }),
     );
   }
 
@@ -223,7 +232,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
                 ),
                 child: collapsed
                     ? Tooltip(
-                        message: 'New playlist',
+                        message: tr('playlists.new'),
                         child: IconButton.filledTonal(
                           icon: const Icon(Icons.add_rounded, size: 18),
                           visualDensity: VisualDensity.compact,
@@ -234,7 +243,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
                         children: [
                           Expanded(
                             child: Text(
-                              'Playlists',
+                              tr('sidebar.playlists'),
                               style: theme.textTheme.labelMedium?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 letterSpacing: 0.8,
@@ -247,13 +256,13 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
                               Icons.upload_file_rounded,
                               size: 18,
                             ),
-                            tooltip: 'Import playlist (.aqp)',
+                            tooltip: tr('playlists.import'),
                             visualDensity: VisualDensity.compact,
                             onPressed: _importPlaylist,
                           ),
                           IconButton.filledTonal(
                             icon: const Icon(Icons.add_rounded, size: 18),
-                            tooltip: 'New playlist',
+                            tooltip: tr('playlists.new'),
                             visualDensity: VisualDensity.compact,
                             onPressed: _createPlaylist,
                           ),
@@ -270,7 +279,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
                                   horizontal: 16,
                                 ),
                                 child: Text(
-                                  'No playlists yet',
+                                  tr('playlists.empty'),
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: cs.onSurfaceVariant,
@@ -354,7 +363,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               _NavDest(
                 icon: Icons.queue_music_outlined,
                 selectedIcon: Icons.queue_music_rounded,
-                label: 'Queue',
+                label: tr('sidebar.queue'),
                 selected: ref.watch(queuePanelOpenProvider),
                 collapsed: collapsed,
                 trailing: queueLen > 0
@@ -396,7 +405,9 @@ class _CollapseHeader extends StatelessWidget {
         onTap: onToggle,
         pressedScale: 0.97,
         haptic: M3EHapticFeedback.light,
-        semanticLabel: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+        semanticLabel: collapsed
+            ? tr('sidebar.expand')
+            : tr('sidebar.collapse'),
         builder: (context, state) {
           final hovered = state.hovered;
           return AnimatedContainer(
@@ -413,7 +424,9 @@ class _CollapseHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Tooltip(
-              message: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+              message: collapsed
+                  ? tr('sidebar.expand')
+                  : tr('sidebar.collapse'),
               preferBelow: false,
               child: collapsed
                   ? Center(
@@ -444,7 +457,7 @@ class _CollapseHeader extends StatelessWidget {
                               ),
                               if (trackCount > 0)
                                 Text(
-                                  trFill('{count} tracks', {
+                                  trFill('library.tracks', {
                                     'count': '$trackCount',
                                   }),
                                   style: theme.textTheme.labelSmall?.copyWith(
@@ -665,7 +678,7 @@ class _PlaylistRowState extends State<_PlaylistRow> {
                             ),
                           ),
                           Text(
-                            trFill('{count} tracks', {
+                            trFill('library.tracks', {
                               'count': '${widget.playlist.length}',
                             }),
                             style: theme.textTheme.labelSmall?.copyWith(
@@ -680,7 +693,7 @@ class _PlaylistRowState extends State<_PlaylistRow> {
                       if (widget.onPlay != null)
                         IconButton(
                           icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                          tooltip: tr('Play'),
+                          tooltip: tr('player.play'),
                           visualDensity: VisualDensity.compact,
                           constraints: const BoxConstraints(
                             minWidth: 28,
@@ -690,7 +703,7 @@ class _PlaylistRowState extends State<_PlaylistRow> {
                         ),
                       IconButton(
                         icon: const Icon(Icons.more_vert_rounded, size: 16),
-                        tooltip: tr('More'),
+                        tooltip: tr('sidebar.more'),
                         visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints(
                           minWidth: 28,
@@ -729,9 +742,9 @@ class _PlaylistRowState extends State<_PlaylistRow> {
       position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx + 1, pos.dy + 1),
       items: [
         if (widget.onPlay != null)
-          const PopupMenuItem(value: 'play', child: Text('Play')),
-        const PopupMenuItem(value: 'rename', child: Text('Rename')),
-        const PopupMenuItem(value: 'delete', child: Text('Delete')),
+          PopupMenuItem(value: 'play', child: Text(tr('player.play'))),
+        PopupMenuItem(value: 'rename', child: Text(tr('playlists.rename'))),
+        PopupMenuItem(value: 'delete', child: Text(tr('playlists.delete'))),
       ],
     );
     switch (action) {

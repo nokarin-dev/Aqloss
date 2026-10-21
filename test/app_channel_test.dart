@@ -1,4 +1,5 @@
 import 'package:aqloss/app_channel.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/widgets/nightly_notice.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +39,7 @@ void main() {
     );
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
-    expect(find.text(kNightlyBuildTitle), findsNothing);
+    expect(find.text(tr(kNightlyBuildTitle)), findsNothing);
   });
 
   testWidgets('nightly warning shows once then stays dismissed', (
@@ -58,15 +59,15 @@ void main() {
 
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
-    expect(find.text(kNightlyBuildTitle), findsOneWidget);
-    expect(find.text(kNightlyBuildMessage), findsOneWidget);
+    expect(find.text(tr(kNightlyBuildTitle)), findsOneWidget);
+    expect(find.text(tr(kNightlyBuildMessage)), findsOneWidget);
 
-    await tester.tap(find.text('OK'));
+    await tester.tap(find.text(tr('updates.ok')));
     await tester.pumpAndSettle();
-    expect(find.text(kNightlyBuildTitle), findsNothing);
+    expect(find.text(tr(kNightlyBuildTitle)), findsNothing);
 
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
-    expect(find.text(kNightlyBuildTitle), findsNothing);
+    expect(find.text(tr(kNightlyBuildTitle)), findsNothing);
   });
 }

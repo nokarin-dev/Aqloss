@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter/gestures.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 final miniPlayerActiveProvider = StateProvider<bool>((ref) => false);
 
@@ -48,7 +49,7 @@ Future<void> pushMiniPlayerState(PlayerState player) async {
       'state',
       jsonEncode({
         'title': track?.displayTitle ?? '',
-        'artist': track?.displayArtist ?? '',
+        'artist': track?.uiArtist ?? '',
         'isPlaying': player.status == PlayerStatus.playing,
         'positionMs': player.position.inMilliseconds,
         'durationMs': track?.duration.inMilliseconds ?? 0,
@@ -164,7 +165,7 @@ class MiniPlayerWindow {
         'state',
         jsonEncode({
           'title': track?.displayTitle ?? '',
-          'artist': track?.displayArtist ?? '',
+          'artist': track?.uiArtist ?? '',
           'isPlaying': player.status == PlayerStatus.playing,
           'positionMs': player.position.inMilliseconds,
           'durationMs': track?.duration.inMilliseconds ?? 0,
@@ -402,7 +403,7 @@ class _MiniCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            title.isEmpty ? 'Not playing' : title,
+                            title.isEmpty ? tr('player.not_playing') : title,
                             style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,

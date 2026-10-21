@@ -159,8 +159,12 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
         : allAlbums
               .where(
                 (a) =>
-                    a.name.toLowerCase().contains(_query.toLowerCase()) ||
-                    a.artist.toLowerCase().contains(_query.toLowerCase()),
+                    trMeta(
+                      a.name,
+                    ).toLowerCase().contains(_query.toLowerCase()) ||
+                    trMeta(
+                      a.artist,
+                    ).toLowerCase().contains(_query.toLowerCase()),
               )
               .toList();
 
@@ -183,18 +187,21 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: tr('Albums'),
+        title: tr('sidebar.albums'),
         subtitle: allAlbums.isEmpty
             ? null
             : _query.isEmpty
-            ? '${allAlbums.length} albums'
-            : '${albums.length} of ${allAlbums.length} albums',
+            ? trFill('albums.count', {'count': '${allAlbums.length}'})
+            : trFill('albums.count_of', {
+                'count': '${albums.length}',
+                'total': '${allAlbums.length}',
+              }),
         toolbar: Row(
           children: [
             Expanded(
               child: M3SearchField(
                 controller: _searchCtrl,
-                hintText: 'Search albums',
+                hintText: tr('albums.search'),
                 onChanged: (q) => setState(() => _query = q),
                 onClear: () {
                   _searchCtrl.clear();
@@ -225,7 +232,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
             : albums.isEmpty
             ? Center(
                 child: Text(
-                  'No results',
+                  tr('search.empty'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -291,8 +298,11 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
                 _query.isEmpty
-                    ? '${allAlbums.length} albums'
-                    : '${albums.length} of ${allAlbums.length} albums',
+                    ? trFill('albums.count', {'count': '${allAlbums.length}'})
+                    : trFill('albums.count_of', {
+                        'count': '${albums.length}',
+                        'total': '${allAlbums.length}',
+                      }),
                 style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurface.withValues(alpha: 0.28),
@@ -308,7 +318,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
                 : albums.isEmpty
                 ? Center(
                     child: Text(
-                      'No results',
+                      tr('search.empty'),
                       style: TextStyle(
                         fontSize: 12,
                         color: cs.onSurface.withValues(alpha: 0.24),
@@ -431,8 +441,8 @@ class _AlbumListTile extends ConsumerWidget {
       onSecondaryTapDown: onSecondaryTapDown,
       child: UiListTile(
         leading: _AlbumThumb(path: album.tracks.first.path, size: 56),
-        title: album.name,
-        subtitle: album.artist,
+        title: trMeta(album.name),
+        subtitle: trMeta(album.artist),
         onTap: onTap,
         trailing: PopupMenuButton<String>(
           icon: Icon(
@@ -448,24 +458,34 @@ class _AlbumListTile extends ConsumerWidget {
                 await player.loadWithQueue(album.tracks.first, album.tracks);
               case 'play_next':
                 await player.playAllNext(album.tracks);
-                if (context.mounted) QToast.show(context, 'Playing next');
+                if (context.mounted) {
+                  QToast.show(context, tr('player.playing_next'));
+                }
               case 'queue':
                 player.addAllToQueueLast(album.tracks);
                 if (context.mounted) {
                   QToast.show(
                     context,
-                    'Added ${album.tracks.length} tracks to queue',
+                    trFill('queue.added_count', {
+                      'count': '${album.tracks.length}',
+                    }),
                   );
                 }
               case 'show_artist':
                 requestShowArtist(context, ref, artist: album.artist);
             }
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'play', child: Text('Play album')),
-            PopupMenuItem(value: 'play_next', child: Text('Play next')),
-            PopupMenuItem(value: 'queue', child: Text('Add to queue')),
-            PopupMenuItem(value: 'show_artist', child: Text('Show artist')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'play', child: Text(tr('albums.play'))),
+            PopupMenuItem(
+              value: 'play_next',
+              child: Text(tr('player.play_next')),
+            ),
+            PopupMenuItem(value: 'queue', child: Text(tr('queue.add'))),
+            PopupMenuItem(
+              value: 'show_artist',
+              child: Text(tr('track.show_artist')),
+            ),
           ],
         ),
       ),
@@ -767,7 +787,7 @@ class _AlbumCardState extends State<_AlbumCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.album.name,
+                      trMeta(widget.album.name),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -780,7 +800,10 @@ class _AlbumCardState extends State<_AlbumCard>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      "${widget.album.artist} · ${widget.album.tracks.length} tracks",
+                      trFill('albums.artist_tracks', {
+                        'artist': trMeta(widget.album.artist),
+                        'count': '${widget.album.tracks.length}',
+                      }),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -840,7 +863,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'No albums yet',
+            tr('albums.empty'),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w300,
@@ -849,7 +872,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            'Add music from the Library tab',
+            tr('albums.empty_hint'),
             style: TextStyle(
               fontSize: 11,
               color: cs.onSurface.withValues(alpha: 0.18),
@@ -950,7 +973,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                   children: [
                     _BackButton(
                       onTap: () => Navigator.of(context).pop(),
-                      label: 'Albums',
+                      label: tr('sidebar.albums'),
                     ),
                     SizedBox(height: compact ? 10 : (_isDesktop ? 16 : 12)),
 
@@ -966,7 +989,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            album.name,
+                            trMeta(album.name),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 22,
@@ -988,7 +1011,10 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            '${album.tracks.length} tracks · ${album.durationLabel}',
+                            trFill('albums.tracks_duration', {
+                              'count': '${album.tracks.length}',
+                              'duration': album.durationLabel,
+                            }),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 11,
@@ -1001,7 +1027,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                             children: [
                               _ActionButton(
                                 icon: Icons.play_arrow_rounded,
-                                label: 'Play',
+                                label: tr('player.play'),
                                 filled: true,
                                 onTap: () => playerNotifier.loadWithQueue(
                                   album.tracks.first,
@@ -1011,7 +1037,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                               const SizedBox(width: 7),
                               _ActionButton(
                                 icon: Icons.shuffle_rounded,
-                                label: 'Shuffle',
+                                label: tr('player.shuffle'),
                                 filled: false,
                                 onTap: () {
                                   final shuffled = List<Track>.from(
@@ -1043,7 +1069,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 Text(
-                                  album.name,
+                                  trMeta(album.name),
                                   style: TextStyle(
                                     fontSize: _isDesktop ? 22 : 17,
                                     fontWeight: FontWeight.w600,
@@ -1063,7 +1089,10 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${album.tracks.length} tracks · ${album.durationLabel}',
+                                  trFill('albums.tracks_duration', {
+                                    'count': '${album.tracks.length}',
+                                    'duration': album.durationLabel,
+                                  }),
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     color: cs.onSurface.withValues(alpha: 0.26),
@@ -1074,7 +1103,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                                   children: [
                                     _ActionButton(
                                       icon: Icons.play_arrow_rounded,
-                                      label: 'Play',
+                                      label: tr('player.play'),
                                       filled: true,
                                       onTap: () => playerNotifier.loadWithQueue(
                                         album.tracks.first,
@@ -1084,7 +1113,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                                     const SizedBox(width: 7),
                                     _ActionButton(
                                       icon: Icons.shuffle_rounded,
-                                      label: 'Shuffle',
+                                      label: tr('player.shuffle'),
                                       filled: false,
                                       onTap: () {
                                         final shuffled = List<Track>.from(
@@ -1130,7 +1159,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                     ),
                     Expanded(
                       child: Text(
-                        'TITLE',
+                        tr('albums.title'),
                         style: TextStyle(
                           fontSize: 10,
                           letterSpacing: 0.6,
@@ -1140,7 +1169,7 @@ class _AlbumDetailScreenState extends ConsumerState<_AlbumDetailScreen>
                       ),
                     ),
                     Text(
-                      'TIME',
+                      tr('albums.time'),
                       style: TextStyle(
                         fontSize: 10,
                         letterSpacing: 0.6,
@@ -1467,7 +1496,7 @@ class _DetailTrackRowState extends State<_DetailTrackRow> {
                         widget.track.artist != widget.track.albumArtist) ...[
                       const SizedBox(height: 1),
                       Text(
-                        widget.track.displayArtist,
+                        widget.track.uiArtist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1680,7 +1709,7 @@ class _ArtistNameLink extends StatelessWidget {
           child: GestureDetector(
             onTap: () => requestShowArtist(context, ref, artist: artist),
             child: Text(
-              artist,
+              trMeta(artist),
               textAlign: textAlign,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

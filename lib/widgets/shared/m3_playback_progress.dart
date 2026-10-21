@@ -5,6 +5,7 @@ import 'package:aqloss/widgets/shared/m3_wave_paint.dart';
 import 'package:aqloss/widgets/shared/m3_wave_shaders.dart';
 import 'package:flutter/material.dart';
 import 'package:material_3_expressive/material_3_expressive.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 String m3FormatDuration(Duration d) {
   final h = d.inHours;
@@ -614,7 +615,7 @@ class M3PlayButton extends StatelessWidget {
         onTap: isLoading ? null : onTap,
         enabled: hasTrack && !isLoading,
         ink: false,
-        semanticLabel: isPlaying ? 'Pause' : 'Play',
+        semanticLabel: isPlaying ? tr('player.pause') : tr('player.play'),
         child: core,
       ),
       seed: accent,

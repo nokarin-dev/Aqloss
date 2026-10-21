@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:aqloss/l10n/english_copy.dart';
 import 'package:aqloss/l10n/l10n.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -6,7 +9,8 @@ void main() {
 
   test('a translation file is keyed by its language code', () {
     final catalog = L10nCatalog.parse({
-      'assets/l10n/de.json': '{"_name":"Deutsch","Library":"Bibliothek"}',
+      'assets/l10n/de.json':
+          '{"_name":"Deutsch","sidebar.library":"Bibliothek"}',
       'assets/l10n/en.json': '{}',
       'assets/l10n/it.json': '{',
       'assets/l10n/notes.txt': '{}',
@@ -14,7 +18,7 @@ void main() {
 
     expect(catalog.codes, {'de'});
     expect(catalog.nameOf('de'), 'Deutsch');
-    expect(catalog.tableFor('de'), {'Library': 'Bibliothek'});
+    expect(catalog.tableFor('de'), {'sidebar.library': 'Bibliothek'});
     expect(catalog.tableFor('en'), isEmpty);
   });
 
@@ -45,30 +49,61 @@ void main() {
   test('a bad line is dropped and the percent counts the rest', () {
     final catalog = L10nCatalog.parse({
       'assets/l10n/en.json':
-          '{"Library":"","Albums":"","Scanned {count} tracks":""}',
+          '{"sidebar.library":"Library","sidebar.albums":"Albums","library.scanned":"Scanned {count} tracks"}',
       'assets/l10n/de.json':
-          '{"_name":"Deutsch","Library":" Bibliothek ","Albums":"","Scanned {count} tracks":"Titel","Extra":"Ja","Broken":1}',
+          '{"_name":"Deutsch","sidebar.library":" Bibliothek ","sidebar.albums":"","library.scanned":"Titel","extra":"Ja","broken":1}',
     });
 
     expect(catalog.englishKeys, {
-      'Library',
-      'Albums',
-      'Scanned {count} tracks',
+      'sidebar.library',
+      'sidebar.albums',
+      'library.scanned',
     });
-    expect(catalog.tableFor('de'), {'Library': 'Bibliothek', 'Extra': 'Ja'});
+    expect(catalog.tableFor('de'), {
+      'sidebar.library': 'Bibliothek',
+      'extra': 'Ja',
+    });
     expect(catalog.percentOf('de'), 33);
     expect(catalog.labelFor('de'), 'Deutsch (33%)');
-    expect(catalog.tableFor('en'), isEmpty);
+    expect(catalog.tableFor('en'), {
+      'sidebar.library': 'Library',
+      'sidebar.albums': 'Albums',
+      'library.scanned': 'Scanned {count} tracks',
+    });
   });
 
   test('missing copy stays English and placeholders are filled', () {
-    AppCopy.apply(const {
-      'Library': 'Bibliothek',
-      'Scanned {count} tracks': '{count} Titel',
-    });
-    expect(tr('Library'), 'Bibliothek');
-    expect(tr('Albums'), 'Albums');
+    AppCopy.apply(
+      const {
+        'sidebar.library': 'Bibliothek',
+        'library.scanned': '{count} Titel',
+      },
+      english: const {
+        'sidebar.library': 'Library',
+        'sidebar.albums': 'Albums',
+        'library.scanned': 'Scanned {count} tracks',
+      },
+    );
+    expect(tr('sidebar.library'), 'Bibliothek');
+    expect(tr('sidebar.albums'), 'Albums');
     expect(tr(''), '');
-    expect(trFill('Scanned {count} tracks', {'count': '12'}), '12 Titel');
+    expect(trFill('library.scanned', {'count': '12'}), '12 Titel');
+  });
+
+  test('indonesian covers every english line', () {
+    final catalog = L10nCatalog.parse({
+      'assets/l10n/en.json': File('assets/l10n/en.json').readAsStringSync(),
+      'assets/l10n/id.json': File('assets/l10n/id.json').readAsStringSync(),
+    });
+    expect(catalog.percentOf('id'), 100);
+    expect(catalog.labelFor('id'), 'Bahasa Indonesia (100%)');
+    expect(catalog.tableFor('id').length, catalog.englishKeys.length);
+  });
+
+  test('english fallback matches en.json', () {
+    final catalog = L10nCatalog.parse({
+      'assets/l10n/en.json': File('assets/l10n/en.json').readAsStringSync(),
+    });
+    expect(catalog.tableFor('en'), kEnglishCopy);
   });
 }

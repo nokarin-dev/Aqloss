@@ -1,3 +1,5 @@
+import 'package:aqloss/l10n/l10n.dart';
+
 enum SleepTimerMode {
   off,
   minutes15,
@@ -16,12 +18,12 @@ Duration? sleepTimerDuration(SleepTimerMode mode) => switch (mode) {
 };
 
 String sleepTimerLabel(SleepTimerMode mode) => switch (mode) {
-  SleepTimerMode.off => 'Off',
-  SleepTimerMode.minutes15 => '15 minutes',
-  SleepTimerMode.minutes30 => '30 minutes',
-  SleepTimerMode.minutes45 => '45 minutes',
-  SleepTimerMode.minutes60 => '1 hour',
-  SleepTimerMode.endOfTrack => 'End of track',
+  SleepTimerMode.off => tr('playback.off'),
+  SleepTimerMode.minutes15 => tr('sleep.15'),
+  SleepTimerMode.minutes30 => tr('sleep.30'),
+  SleepTimerMode.minutes45 => tr('sleep.45'),
+  SleepTimerMode.minutes60 => tr('sleep.hour'),
+  SleepTimerMode.endOfTrack => tr('sleep.end'),
 };
 
 String formatSleepLeft(Duration d) {
@@ -41,12 +43,12 @@ String sleepTimerTooltip({
 }) {
   switch (mode) {
     case SleepTimerMode.off:
-      return 'Sleep timer';
+      return tr('sleep.title');
     case SleepTimerMode.endOfTrack:
-      return 'Sleep · end of track';
+      return tr('sleep.end_label');
     default:
       final left = until?.difference(now ?? DateTime.now());
-      if (left == null || left.isNegative) return 'Sleep timer';
-      return 'Sleep · ${formatSleepLeft(left)}';
+      if (left == null || left.isNegative) return tr('sleep.title');
+      return trFill('sleep.time', {'time': formatSleepLeft(left)});
   }
 }

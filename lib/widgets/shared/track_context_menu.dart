@@ -7,6 +7,7 @@ import 'package:aqloss/widgets/q_toast.dart';
 import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 bool get _isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -24,24 +25,34 @@ Future<void> showTrackContextMenu({
     context: context,
     globalPosition: globalPosition,
     items: [
-      _item(context, 'play_next', Icons.playlist_play_rounded, 'Play next'),
-      _item(context, 'queue', Icons.playlist_add_rounded, 'Add to queue'),
+      _item(
+        context,
+        'play_next',
+        Icons.playlist_play_rounded,
+        tr('player.play_next'),
+      ),
+      _item(context, 'queue', Icons.playlist_add_rounded, tr('queue.add')),
       const PopupMenuDivider(height: 8),
-      _item(context, 'show_album', Icons.album_outlined, 'Show album'),
+      _item(
+        context,
+        'show_album',
+        Icons.album_outlined,
+        tr('track.show_album'),
+      ),
       _item(
         context,
         'show_artist',
         Icons.person_outline_rounded,
-        'Show artist',
+        tr('track.show_artist'),
       ),
-      _item(context, 'info', Icons.info_outline_rounded, 'Track info'),
+      _item(context, 'info', Icons.info_outline_rounded, tr('track.info')),
       if (playlists.isNotEmpty) ...[
         const PopupMenuDivider(height: 8),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           enabled: false,
           height: 28,
           child: Text(
-            'Add to playlist',
+            tr('track.add_playlist'),
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
         ),
@@ -71,15 +82,20 @@ Future<void> showAlbumContextMenu({
     context: context,
     globalPosition: globalPosition,
     items: [
-      _item(context, 'play', Icons.play_arrow_rounded, 'Play'),
-      _item(context, 'play_next', Icons.playlist_play_rounded, 'Play next'),
-      _item(context, 'queue', Icons.playlist_add_rounded, 'Add to queue'),
+      _item(context, 'play', Icons.play_arrow_rounded, tr('player.play')),
+      _item(
+        context,
+        'play_next',
+        Icons.playlist_play_rounded,
+        tr('player.play_next'),
+      ),
+      _item(context, 'queue', Icons.playlist_add_rounded, tr('queue.add')),
       const PopupMenuDivider(height: 8),
       _item(
         context,
         'show_artist',
         Icons.person_outline_rounded,
-        'Show artist',
+        tr('track.show_artist'),
       ),
     ],
   );
@@ -91,15 +107,15 @@ Future<void> showAlbumContextMenu({
       await player.loadWithQueue(tracks.first, tracks);
     case 'play_next':
       await player.playAllNext(tracks);
-      if (context.mounted) QToast.show(context, 'Playing next');
+      if (context.mounted) QToast.show(context, tr('player.playing_next'));
     case 'queue':
       player.addAllToQueueLast(tracks);
       if (context.mounted) {
         QToast.show(
           context,
           tracks.length == 1
-              ? 'Added to queue'
-              : 'Added ${tracks.length} tracks to queue',
+              ? tr('queue.added')
+              : trFill('queue.added_count', {'count': '${tracks.length}'}),
         );
       }
     case 'show_artist':
@@ -120,9 +136,14 @@ Future<void> showArtistContextMenu({
     context: context,
     globalPosition: globalPosition,
     items: [
-      _item(context, 'play', Icons.play_arrow_rounded, 'Play'),
-      _item(context, 'play_next', Icons.playlist_play_rounded, 'Play next'),
-      _item(context, 'queue', Icons.playlist_add_rounded, 'Add to queue'),
+      _item(context, 'play', Icons.play_arrow_rounded, tr('player.play')),
+      _item(
+        context,
+        'play_next',
+        Icons.playlist_play_rounded,
+        tr('player.play_next'),
+      ),
+      _item(context, 'queue', Icons.playlist_add_rounded, tr('queue.add')),
     ],
   );
 
@@ -133,15 +154,15 @@ Future<void> showArtistContextMenu({
       await player.loadWithQueue(tracks.first, tracks);
     case 'play_next':
       await player.playAllNext(tracks);
-      if (context.mounted) QToast.show(context, 'Playing next');
+      if (context.mounted) QToast.show(context, tr('player.playing_next'));
     case 'queue':
       player.addAllToQueueLast(tracks);
       if (context.mounted) {
         QToast.show(
           context,
           tracks.length == 1
-              ? 'Added to queue'
-              : 'Added ${tracks.length} tracks to queue',
+              ? tr('queue.added')
+              : trFill('queue.added_count', {'count': '${tracks.length}'}),
         );
       }
   }
@@ -156,12 +177,12 @@ Future<void> _onTrackAction(
   final player = ref.read(playerProvider.notifier);
   if (selected == 'play_next') {
     await player.playNext(track);
-    if (context.mounted) QToast.show(context, 'Playing next');
+    if (context.mounted) QToast.show(context, tr('player.playing_next'));
     return;
   }
   if (selected == 'queue') {
     player.addToQueueLast(track);
-    if (context.mounted) QToast.show(context, 'Added to queue');
+    if (context.mounted) QToast.show(context, tr('queue.added'));
     return;
   }
   if (selected == 'show_album') {
@@ -187,7 +208,12 @@ Future<void> _onTrackAction(
     ref.read(playlistProvider.notifier).addTrack(id, track);
     if (!context.mounted) return;
     final pl = playlists.where((p) => p.id == id);
-    if (pl.isNotEmpty) QToast.show(context, 'Added to "${pl.first.name}"');
+    if (pl.isNotEmpty) {
+      QToast.show(
+        context,
+        trFill('queue.added_playlist', {'name': pl.first.name}),
+      );
+    }
   }
 }
 

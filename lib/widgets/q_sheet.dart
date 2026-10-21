@@ -1,6 +1,7 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/util/reduce_motion.dart';
 import 'package:flutter/material.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 Future<void> showQSheet({
   required BuildContext context,
@@ -27,7 +28,7 @@ class _QSheetRoute<T> extends PopupRoute<T> {
   bool get barrierDismissible => true;
 
   @override
-  String? get barrierLabel => 'Dismiss';
+  String? get barrierLabel => tr('sidebar.dismiss');
 
   @override
   Duration get transitionDuration => duration;

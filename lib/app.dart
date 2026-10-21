@@ -134,7 +134,11 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
       systemCode: View.of(context).platformDispatcher.locale.languageCode,
       available: catalog.codes,
     );
-    AppCopy.apply(catalog.tableFor(language));
+    final english = catalog.tableFor('en');
+    AppCopy.apply(
+      catalog.tableFor(language),
+      english: english.isEmpty ? null : english,
+    );
     final navKey = FileOpenService.instance.navigatorKey;
 
     final linuxFlush =

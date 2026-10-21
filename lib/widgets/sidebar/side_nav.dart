@@ -112,15 +112,21 @@ class _SideNavState extends ConsumerState<SideNav>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Imported \'${result.playlist!.name}\''),
+            content: Text(
+              trFill("playlists.imported", {'name': result.playlist!.name}),
+            ),
             duration: const Duration(seconds: 3),
           ),
         );
       }
     } else if (result.error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Import failed: ${result.error}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            trFill('playlists.import_failed', {'error': '${result.error}'}),
+          ),
+        ),
+      );
     }
   }
 
@@ -129,9 +135,9 @@ class _SideNavState extends ConsumerState<SideNav>
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => InputDialog(
-        title: 'New playlist',
-        hint: 'Playlist name',
-        confirmLabel: 'Create',
+        title: tr('playlists.new'),
+        hint: tr('playlists.name'),
+        confirmLabel: tr('playlists.create'),
         controller: ctrl,
       ),
     );
@@ -145,9 +151,9 @@ class _SideNavState extends ConsumerState<SideNav>
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => InputDialog(
-        title: 'Rename',
+        title: tr('playlists.rename'),
         hint: pl.name,
-        confirmLabel: 'Save',
+        confirmLabel: tr('eq.save'),
         controller: ctrl,
       ),
     );
@@ -196,8 +202,11 @@ class _SideNavState extends ConsumerState<SideNav>
             QToast.show(
               context,
               tracks.length == 1
-                  ? 'Added to "${pl.name}"'
-                  : 'Added ${tracks.length} tracks to "${pl.name}"',
+                  ? trFill('queue.added_playlist', {'name': pl.name})
+                  : trFill('queue.added_playlist_count', {
+                      'count': '${tracks.length}',
+                      'name': pl.name,
+                    }),
             );
           }
         },
@@ -283,12 +292,14 @@ class _SideNavBody extends StatelessWidget {
         ),
         const SizedBox(height: 6),
 
-        collapsed ? const SizedBox(height: 2) : _SectionLabel(tr('NAVIGATE')),
+        collapsed
+            ? const SizedBox(height: 2)
+            : _SectionLabel(tr('sidebar.navigate')),
 
         _NavItem(
           icon: Icons.play_circle_outline_rounded,
           activeIcon: Icons.play_circle_rounded,
-          label: tr('Now Playing'),
+          label: tr('sidebar.now_playing'),
           isActive: route == 0,
           collapsed: collapsed,
           trailing: player.currentTrack != null
@@ -299,7 +310,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.library_music_outlined,
           activeIcon: Icons.library_music_rounded,
-          label: tr('Library'),
+          label: tr('sidebar.library'),
           isActive: route == 1,
           collapsed: collapsed,
           onTap: () => onSelect(1),
@@ -307,7 +318,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.album_outlined,
           activeIcon: Icons.album_rounded,
-          label: tr('Albums'),
+          label: tr('sidebar.albums'),
           isActive: route == 2,
           collapsed: collapsed,
           onTap: () => onSelect(2),
@@ -315,7 +326,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.person_outline_rounded,
           activeIcon: Icons.person_rounded,
-          label: tr('Artists'),
+          label: tr('sidebar.artists'),
           isActive: route == 5,
           collapsed: collapsed,
           onTap: () => onSelect(5),
@@ -323,7 +334,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.history_rounded,
           activeIcon: Icons.history_rounded,
-          label: tr('History'),
+          label: tr('sidebar.history'),
           isActive: route == 4,
           collapsed: collapsed,
           onTap: () => onSelect(4),
@@ -333,7 +344,7 @@ class _SideNavBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 14, 0),
             child: Text(
-              trFill('{count} tracks', {'count': '${library.totalTracks}'}),
+              trFill('library.tracks', {'count': '${library.totalTracks}'}),
               style: TextStyle(
                 fontSize: 9.5,
                 color: p.onSurface.withValues(alpha: 0.20),
@@ -347,13 +358,13 @@ class _SideNavBody extends StatelessWidget {
         if (!collapsed)
           Row(
             children: [
-              _SectionLabel(tr('PLAYLISTS')),
+              _SectionLabel(tr('sidebar.playlists_label')),
               const Spacer(),
               Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: _IconBtn(
                   icon: Icons.upload_file_rounded,
-                  tooltip: 'Import playlist (.aqp)',
+                  tooltip: tr('playlists.import'),
                   onTap: onImportPlaylist,
                 ),
               ),
@@ -361,7 +372,7 @@ class _SideNavBody extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 8),
                 child: _IconBtn(
                   icon: Icons.add_rounded,
-                  tooltip: 'New playlist (Ctrl+N)',
+                  tooltip: tr('playlists.new_shortcut'),
                   onTap: onCreatePlaylist,
                 ),
               ),
@@ -370,7 +381,7 @@ class _SideNavBody extends StatelessWidget {
         else ...[
           const SizedBox(height: 2),
           Tooltip(
-            message: 'New playlist',
+            message: tr('playlists.new'),
             preferBelow: false,
             child: GestureDetector(
               onTap: onCreatePlaylist,
@@ -458,7 +469,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.settings_outlined,
           activeIcon: Icons.settings_rounded,
-          label: tr('Settings'),
+          label: tr('sidebar.settings'),
           isActive: route == 3,
           collapsed: collapsed,
           onTap: () => onSelect(3),
@@ -494,8 +505,8 @@ class _CollapseBtnState extends State<_CollapseBtn> {
       onExit: (_) => setState(() => _hovered = false),
       child: Tooltip(
         message: widget.collapsed
-            ? 'Expand sidebar (Ctrl+B)'
-            : 'Collapse sidebar (Ctrl+B)',
+            ? tr('sidebar.expand_shortcut')
+            : tr('sidebar.collapse_shortcut'),
         preferBelow: false,
         child: GestureDetector(
           onTap: widget.onTap,
@@ -687,7 +698,10 @@ class _PlaylistCollapsedIconState extends State<_PlaylistCollapsedIcon> {
   Widget build(BuildContext context) {
     final p = _NavPalette.of(context);
     return Tooltip(
-      message: '${widget.playlist.name} · ${widget.playlist.length} tracks',
+      message: trFill('playlists.row', {
+        'name': widget.playlist.name,
+        'count': '${widget.playlist.length}',
+      }),
       preferBelow: false,
       waitDuration: const Duration(milliseconds: 300),
       child: MouseRegion(
@@ -816,7 +830,7 @@ class _QueueToggleItem extends ConsumerWidget {
     return _NavItem(
       icon: Icons.queue_music_outlined,
       activeIcon: Icons.queue_music_rounded,
-      label: 'Queue',
+      label: tr('sidebar.queue'),
       isActive: open,
       collapsed: collapsed,
       trailing: open

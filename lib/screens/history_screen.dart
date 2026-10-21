@@ -35,17 +35,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: tr('History'),
+        title: tr('sidebar.history'),
         toolbar: SegmentedButton<_Tab>(
           segments: [
             ButtonSegment(
               value: _Tab.history,
-              label: Text(tr('History')),
+              label: Text(tr('sidebar.history')),
               icon: const Icon(Icons.history_rounded),
             ),
             ButtonSegment(
               value: _Tab.loved,
-              label: Text(tr('Loved')),
+              label: Text(tr('sidebar.loved')),
               icon: const Icon(Icons.favorite_rounded),
             ),
           ],
@@ -66,14 +66,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             child: Row(
               children: [
                 _TabPill(
-                  label: 'History',
+                  label: tr('sidebar.history'),
                   icon: Icons.history_rounded,
                   active: _tab == _Tab.history,
                   onTap: () => setState(() => _tab = _Tab.history),
                 ),
                 const SizedBox(width: 6),
                 _TabPill(
-                  label: 'Loved',
+                  label: tr('sidebar.loved'),
                   icon: Icons.favorite_rounded,
                   active: _tab == _Tab.loved,
                   onTap: () => setState(() => _tab = _Tab.loved),
@@ -110,8 +110,8 @@ class _HistoryTab extends ConsumerWidget {
     if (history.entries.isEmpty) {
       return _EmptyState(
         icon: Icons.history_rounded,
-        title: 'No plays yet',
-        subtitle: 'Tracks you listen to will appear here.',
+        title: tr('history.empty'),
+        subtitle: tr('history.empty_hint'),
       );
     }
 
@@ -156,24 +156,26 @@ class _HistoryTab extends ConsumerWidget {
     final today = DateTime(now.year, now.month, now.day);
     final d = DateTime(dt.year, dt.month, dt.day);
 
-    if (d == today) return 'Today';
-    if (d == today.subtract(const Duration(days: 1))) return 'Yesterday';
-    return '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
+    if (d == today) return tr('history.today');
+    if (d == today.subtract(const Duration(days: 1))) {
+      return tr('history.yesterday');
+    }
+    return '${dt.day} ${tr(_months[dt.month - 1])} ${dt.year}';
   }
 
   static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'history.jan',
+    'history.feb',
+    'history.mar',
+    'history.apr',
+    'history.may',
+    'history.jun',
+    'history.jul',
+    'history.aug',
+    'history.sep',
+    'history.oct',
+    'history.nov',
+    'history.dec',
   ];
 }
 
@@ -193,9 +195,9 @@ class _HistoryStats extends StatelessWidget {
         children: [
           _StatChip(label: 'today', value: '$todayCount'),
           const SizedBox(width: 6),
-          _StatChip(label: '7 days', value: '$weekCount'),
+          _StatChip(label: tr('history.days'), value: '$weekCount'),
           const SizedBox(width: 6),
-          _StatChip(label: 'all time', value: '$totalCount'),
+          _StatChip(label: tr('history.all_time'), value: '$totalCount'),
         ],
       ),
     );
@@ -316,7 +318,7 @@ class _HistoryTile extends ConsumerWidget {
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    track.displayArtist,
+                    track.uiArtist,
                     style: TextStyle(
                       fontSize: 11,
                       color: cs.onSurface.withValues(alpha: 0.34),
@@ -379,8 +381,8 @@ class _LovedTab extends ConsumerWidget {
     if (history.lovedPaths.isEmpty) {
       return _EmptyState(
         icon: Icons.favorite_rounded,
-        title: 'No loved tracks',
-        subtitle: 'Tap the heart on any track to love it.',
+        title: tr('history.loved_empty'),
+        subtitle: tr('history.loved_hint'),
       );
     }
 
@@ -476,7 +478,7 @@ class _LovedTile extends ConsumerWidget {
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    '${track.displayArtist}${track.album != null ? ' · ${track.album}' : ''}',
+                    '${track.uiArtist}${track.album != null ? ' · ${track.album}' : ''}',
                     style: TextStyle(
                       fontSize: 11,
                       color: cs.onSurface.withValues(alpha: 0.34),
@@ -513,7 +515,7 @@ class _GhostSection extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 5),
           child: Text(
-            'NOT IN LIBRARY',
+            tr('history.missing'),
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w700,
@@ -867,7 +869,7 @@ class _ClearHistoryButtonState extends State<_ClearHistoryButton> {
           ? Row(
               children: [
                 Text(
-                  'Clear all history?',
+                  tr('history.clear_title'),
                   style: TextStyle(
                     fontSize: 12,
                     color: cs.onSurface.withValues(alpha: 0.40),
@@ -875,7 +877,7 @@ class _ClearHistoryButtonState extends State<_ClearHistoryButton> {
                 ),
                 const SizedBox(width: 10),
                 _SmallBtn(
-                  label: 'Yes, clear',
+                  label: tr('history.clear_yes'),
                   danger: true,
                   onTap: () {
                     widget.onConfirm();
@@ -884,14 +886,14 @@ class _ClearHistoryButtonState extends State<_ClearHistoryButton> {
                 ),
                 const SizedBox(width: 6),
                 _SmallBtn(
-                  label: 'Cancel',
+                  label: tr('integrations.cancel'),
                   danger: false,
                   onTap: () => setState(() => _confirming = false),
                 ),
               ],
             )
           : _SmallBtn(
-              label: 'Clear history',
+              label: tr('history.clear'),
               danger: false,
               onTap: () => setState(() => _confirming = true),
             ),

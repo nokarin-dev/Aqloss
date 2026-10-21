@@ -1,3 +1,5 @@
+import 'package:aqloss/l10n/l10n.dart';
+
 class Track {
   final String path;
   final String? title;
@@ -112,19 +114,29 @@ class Track {
   String get displayTitle => title ?? path.split('/').last;
   String get displayArtist => artist ?? 'Unknown Artist';
   String get displayAlbum => album ?? 'Unknown Album';
+  String get uiArtist => artist ?? tr('library.unknown_artist');
+  String get uiAlbum => album ?? tr('library.unknown_album');
 
   bool matchesQuery(String query) {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return true;
     return displayTitle.toLowerCase().contains(q) ||
         displayArtist.toLowerCase().contains(q) ||
-        (album?.toLowerCase().contains(q) ?? false);
+        uiArtist.toLowerCase().contains(q) ||
+        (album?.toLowerCase().contains(q) ?? false) ||
+        (album == null && uiAlbum.toLowerCase().contains(q));
   }
 
   String get displayArtistAlbum {
     final albumName = album?.trim();
     if (albumName == null || albumName.isEmpty) return displayArtist;
     return '$displayArtist \u2014 $albumName';
+  }
+
+  String get uiArtistAlbum {
+    final albumName = album?.trim();
+    if (albumName == null || albumName.isEmpty) return uiArtist;
+    return '$uiArtist \u2014 $albumName';
   }
 
   Duration get duration =>
@@ -157,9 +169,9 @@ class Track {
 
   String get channelsLabel {
     if (channels <= 0) return '\u2014';
-    if (channels == 1) return 'Mono';
-    if (channels == 2) return 'Stereo';
-    return '$channels ch';
+    if (channels == 1) return tr('track.mono');
+    if (channels == 2) return tr('track.stereo');
+    return trFill('track.channels_count', {'count': '$channels'});
   }
 
   String get replayGainTrackLabel => formatReplayGainDb(replayGainTrack);

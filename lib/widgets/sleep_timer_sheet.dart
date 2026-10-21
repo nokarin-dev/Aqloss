@@ -4,6 +4,7 @@ import 'package:aqloss/widgets/q_sheet.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 Future<void> showSleepTimerSheet(BuildContext context) {
   return showQSheet(context: context, builder: (_) => const SleepTimerSheet());
@@ -34,7 +35,7 @@ class SleepTimerSheet extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Sleep timer',
+            tr('sleep.title'),
             style: TextStyle(
               color: cs.onSurface,
               fontSize: 14,
@@ -50,8 +51,11 @@ class SleepTimerSheet extends ConsumerWidget {
                   mode: player.sleepMode,
                   until: player.sleepUntil,
                 );
+                final prefix = tr('sleep.prefix');
                 return Text(
-                  text.replaceFirst('Sleep · ', ''),
+                  text.startsWith(prefix)
+                      ? text.substring(prefix.length)
+                      : text,
                   style: TextStyle(
                     color: cs.onSurface.withValues(alpha: 0.36),
                     fontSize: 11,

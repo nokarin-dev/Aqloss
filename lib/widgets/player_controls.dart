@@ -128,14 +128,14 @@ class PlayerControls extends ConsumerWidget {
                     icon: Icons.shuffle_rounded,
                     selectedIcon: Icons.shuffle_rounded,
                     selected: player.shuffle,
-                    tooltip: tr('Shuffle'),
+                    tooltip: tr('player.shuffle'),
                     onPressed: notifier.toggleShuffle,
                   )
                 else
                   _IconToggle(
                     icon: Icons.shuffle_rounded,
                     active: player.shuffle,
-                    tooltip: tr('Shuffle'),
+                    tooltip: tr('player.shuffle'),
                     onTap: notifier.toggleShuffle,
                   ),
                 _SleepTransportButton(
@@ -165,10 +165,10 @@ class PlayerControls extends ConsumerWidget {
                     },
                     selected: player.loopMode != LoopMode.off,
                     tooltip: switch (player.loopMode) {
-                      LoopMode.off => tr('Repeat'),
-                      LoopMode.track => tr('Repeat track'),
-                      LoopMode.album => tr('Repeat album'),
-                      LoopMode.playlist => tr('Repeat all'),
+                      LoopMode.off => tr('player.repeat'),
+                      LoopMode.track => tr('player.repeat_track'),
+                      LoopMode.album => tr('player.repeat_album'),
+                      LoopMode.playlist => tr('player.repeat_all'),
                     },
                     onPressed: notifier.cycleLoopMode,
                   )
@@ -193,7 +193,7 @@ class PlayerControls extends ConsumerWidget {
                   if (isM3)
                     M3TransportIcon(
                       icon: Icons.skip_previous_rounded,
-                      tooltip: tr('Previous'),
+                      tooltip: tr('player.previous'),
                       onPressed: player.currentTrack == null
                           ? null
                           : notifier.skipPrevious,
@@ -238,7 +238,7 @@ class PlayerControls extends ConsumerWidget {
                   if (isM3)
                     M3TransportIcon(
                       icon: Icons.skip_next_rounded,
-                      tooltip: tr('Next'),
+                      tooltip: tr('player.next'),
                       onPressed: player.currentTrack == null
                           ? null
                           : notifier.skipNext,
@@ -291,7 +291,7 @@ class PlayerControls extends ConsumerWidget {
                 );
                 if (isExclusive) {
                   row = Tooltip(
-                    message: kBitPerfectUnavailableHint,
+                    message: tr(kBitPerfectUnavailableHint),
                     child: row,
                   );
                 }
@@ -546,15 +546,15 @@ class _LoopButtonState extends State<_LoopButton> {
     Color onSurfaceAlpha(double a) => onSurface.withValues(alpha: a);
     final (icon, label, active) = switch (widget.mode) {
       LoopMode.off => (Icons.repeat_rounded, '', false),
-      LoopMode.track => (Icons.repeat_one_rounded, 'Track', true),
-      LoopMode.album => (Icons.repeat_rounded, 'Album', true),
-      LoopMode.playlist => (Icons.repeat_rounded, 'All', true),
+      LoopMode.track => (Icons.repeat_one_rounded, tr('library.track'), true),
+      LoopMode.album => (Icons.repeat_rounded, tr('library.album'), true),
+      LoopMode.playlist => (Icons.repeat_rounded, tr('library.all'), true),
     };
     final tooltip = switch (widget.mode) {
-      LoopMode.off => tr('Repeat'),
-      LoopMode.track => tr('Repeat track'),
-      LoopMode.album => tr('Repeat album'),
-      LoopMode.playlist => tr('Repeat all'),
+      LoopMode.off => tr('player.repeat'),
+      LoopMode.track => tr('player.repeat_track'),
+      LoopMode.album => tr('player.repeat_album'),
+      LoopMode.playlist => tr('player.repeat_all'),
     };
     return Tooltip(
       message: tooltip,
@@ -716,7 +716,7 @@ class _BitPerfectBadge extends StatelessWidget {
   const _BitPerfectBadge({required this.onSurface});
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'Exclusive / bit-perfect — audio is sent to the DAC unchanged',
+    message: tr('player.exclusive_hint'),
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
@@ -724,7 +724,7 @@ class _BitPerfectBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        'BIT-PERFECT',
+        tr('player.bit_perfect'),
         style: TextStyle(
           fontSize: 7.5,
           color: onSurface.withValues(alpha: 0.25),

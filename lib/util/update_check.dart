@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:aqloss/l10n/l10n.dart';
 
 const _kLatestReleaseUrl =
     'https://api.github.com/repos/nokarin-dev/aqloss/releases/latest';
@@ -8,7 +9,7 @@ const _kLatestReleaseUrl =
 String formatUpdateCheckError(Object e) {
   final s = e.toString().toLowerCase();
   if (s.contains('timed out') || s.contains('timeout')) {
-    return 'GitHub timed out. Try again.';
+    return tr('updates.timeout');
   }
   if (s.contains('failed host lookup') ||
       s.contains('no address associated') ||
@@ -16,9 +17,9 @@ String formatUpdateCheckError(Object e) {
       s.contains('socketexception') ||
       s.contains('connection refused') ||
       s.contains('connection reset')) {
-    return 'No network. Check the connection and try again.';
+    return tr('updates.offline');
   }
-  return 'Could not check for updates.';
+  return tr('updates.failed_sentence');
 }
 
 bool isNewerVersion(String remote, String local) {

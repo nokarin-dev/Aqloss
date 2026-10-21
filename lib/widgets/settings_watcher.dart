@@ -294,7 +294,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       return;
     }
     final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(const SnackBar(content: Text('Playback failed')));
+    messenger?.showSnackBar(SnackBar(content: Text(tr('player.failed'))));
   }
 
   void _restoreSession(LibraryState library) {

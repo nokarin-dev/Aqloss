@@ -18,12 +18,16 @@ class FloatingNavBar extends StatelessWidget {
     (
       Icons.play_circle_outline_rounded,
       Icons.play_circle_rounded,
-      'Now Playing',
+      'sidebar.now_playing',
     ),
-    (Icons.library_music_outlined, Icons.library_music_rounded, 'Library'),
-    (Icons.album_outlined, Icons.album_rounded, 'Albums'),
-    (Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
-    (Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More'),
+    (
+      Icons.library_music_outlined,
+      Icons.library_music_rounded,
+      'sidebar.library',
+    ),
+    (Icons.album_outlined, Icons.album_rounded, 'sidebar.albums'),
+    (Icons.settings_outlined, Icons.settings_rounded, 'sidebar.settings'),
+    (Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'sidebar.more'),
   ];
 
   @override

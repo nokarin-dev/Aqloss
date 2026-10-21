@@ -172,9 +172,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WindowListener {
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => InputDialog(
-        title: 'New playlist',
-        hint: 'Playlist name',
-        confirmLabel: 'Create',
+        title: tr('playlists.new'),
+        hint: tr('playlists.name'),
+        confirmLabel: tr('playlists.create'),
         controller: ctrl,
       ),
     );
@@ -508,7 +508,7 @@ class _MobileDrawer extends ConsumerWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.add_rounded),
-                    tooltip: tr('New playlist'),
+                    tooltip: tr('playlists.new'),
                     onPressed: () {
                       Navigator.pop(context);
                       onCreatePlaylist();
@@ -519,7 +519,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.search_rounded,
-              label: tr('Search'),
+              label: tr('sidebar.search'),
               selected: false,
               onTap: () {
                 Navigator.pop(context);
@@ -528,7 +528,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.queue_music_rounded,
-              label: tr('Queue'),
+              label: tr('sidebar.queue'),
               selected: false,
               onTap: () {
                 Navigator.pop(context);
@@ -537,7 +537,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.person_outline_rounded,
-              label: tr('Artists'),
+              label: tr('sidebar.artists'),
               selected: route == 5,
               onTap: () {
                 Navigator.pop(context);
@@ -546,7 +546,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.history_rounded,
-              label: tr('History'),
+              label: tr('sidebar.history'),
               selected: route == 4,
               onTap: () {
                 Navigator.pop(context);
@@ -557,7 +557,7 @@ class _MobileDrawer extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
               child: Text(
-                tr('PLAYLISTS'),
+                tr('sidebar.playlists_label'),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -570,7 +570,7 @@ class _MobileDrawer extends ConsumerWidget {
               child: playlists.isEmpty
                   ? Center(
                       child: Text(
-                        'No playlists yet',
+                        tr('playlists.empty'),
                         style: TextStyle(
                           fontSize: 13,
                           color: Theme.of(
@@ -586,7 +586,9 @@ class _MobileDrawer extends ConsumerWidget {
                         return _DrawerTile(
                           icon: Icons.queue_music_rounded,
                           label: pl.name,
-                          subtitle: '${pl.length} tracks',
+                          subtitle: trFill('library.tracks', {
+                            'count': '${pl.length}',
+                          }),
                           selected: route == i + 10,
                           onTap: () {
                             Navigator.pop(context);

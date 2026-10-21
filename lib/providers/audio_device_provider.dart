@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class AudioDeviceEntry {
   final String id;
@@ -115,8 +116,8 @@ class AudioDeviceNotifier extends AsyncNotifier<AudioDeviceState> {
       if (!ok) {
         throw Exception(
           saved == AudioOutputMode.exclusive
-              ? 'Could not open exclusive output. The device is in use by another app.'
-              : 'Could not switch output device.',
+              ? tr('output.busy')
+              : tr('output.switch_failed'),
         );
       }
       if (saved == AudioOutputMode.exclusive && !backend.isExclusiveMode()) {
@@ -161,8 +162,7 @@ final audioDeviceProvider =
       AudioDeviceNotifier.new,
     );
 
-const kBitPerfectUnavailableHint =
-    "Can't be used while exclusive mode is on. Audio is sent to the DAC unchanged.";
+const kBitPerfectUnavailableHint = 'player.exclusive_blocked';
 
 final exclusiveModeProvider = Provider<bool>((ref) {
   ref.watch(audioDeviceProvider);

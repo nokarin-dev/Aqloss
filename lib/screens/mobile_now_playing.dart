@@ -16,6 +16,7 @@ import 'package:aqloss/util/ab_loop.dart';
 import 'package:aqloss/util/sleep_timer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class MobileNowPlaying extends ConsumerStatefulWidget {
   const MobileNowPlaying({super.key});
@@ -250,7 +251,10 @@ class _MobileNowPlayingState extends ConsumerState<MobileNowPlaying> {
                     TextButton.icon(
                       onPressed: _openLyrics,
                       icon: Icon(Icons.lyrics_rounded, size: 18, color: muted),
-                      label: Text('Lyrics', style: TextStyle(color: muted)),
+                      label: Text(
+                        tr('lyrics.title'),
+                        style: TextStyle(color: muted),
+                      ),
                     ),
                   ] else
                     const SizedBox(height: 8),
@@ -326,8 +330,8 @@ class _Meta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = track?.displayTitle ?? 'Nothing playing';
-    final artist = track?.displayArtist ?? '';
+    final title = track?.displayTitle ?? tr('player.nothing');
+    final artist = track?.uiArtist ?? '';
     final format = track == null
         ? null
         : [
