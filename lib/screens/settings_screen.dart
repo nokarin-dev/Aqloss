@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/app_channel.dart';
 import 'package:aqloss/app_version.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
@@ -52,32 +53,31 @@ enum _SettingsPage {
 
 extension _SettingsPageX on _SettingsPage {
   String get label => switch (this) {
-    _SettingsPage.musicFolders => 'Music Folders',
-    _SettingsPage.audioOutput => 'Audio Output',
-    _SettingsPage.playback => 'Playback',
-    _SettingsPage.dsp => 'DSP / EQ',
-    _SettingsPage.display => 'Display',
-    _SettingsPage.integrations => 'Integrations',
-    _SettingsPage.shortcuts => 'Shortcuts',
-    _SettingsPage.plugins => 'Plugins',
-    _SettingsPage.updates => 'Updates',
-    _SettingsPage.support => 'Support',
-    _SettingsPage.about => 'About',
+    _SettingsPage.musicFolders => tr('settings.folders'),
+    _SettingsPage.audioOutput => tr('settings.output'),
+    _SettingsPage.playback => tr('settings.playback'),
+    _SettingsPage.dsp => tr('settings.dsp'),
+    _SettingsPage.display => tr('settings.display'),
+    _SettingsPage.integrations => tr('settings.integrations'),
+    _SettingsPage.shortcuts => tr('settings.shortcuts'),
+    _SettingsPage.plugins => tr('settings.plugins'),
+    _SettingsPage.updates => tr('settings.updates'),
+    _SettingsPage.support => tr('settings.support'),
+    _SettingsPage.about => tr('settings.about'),
   };
 
   String get subtitle => switch (this) {
-    _SettingsPage.musicFolders => 'Folders Aqloss scans for audio files',
-    _SettingsPage.audioOutput => 'Device and output mode selection',
-    _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
-    _SettingsPage.dsp => 'Equalizer, soft-clip, stereo width and depth',
-    _SettingsPage.display => 'Theme, spectrum analyser, album art',
-    _SettingsPage.integrations =>
-      'Manage external services, rich presence, and plugins',
-    _SettingsPage.shortcuts => 'Global keyboard shortcuts',
-    _SettingsPage.plugins => 'Installed third-party and built-in plugins',
-    _SettingsPage.updates => 'Check for new releases',
-    _SettingsPage.support => 'Ko-fi, Trakteer, and other ways to help',
-    _SettingsPage.about => 'Version, logs, and backup',
+    _SettingsPage.musicFolders => tr('settings.folders_sub'),
+    _SettingsPage.audioOutput => tr('settings.output_sub'),
+    _SettingsPage.playback => tr('settings.playback_sub'),
+    _SettingsPage.dsp => tr('settings.dsp_sub'),
+    _SettingsPage.display => tr('settings.display_sub'),
+    _SettingsPage.integrations => tr('settings.integrations_sub'),
+    _SettingsPage.shortcuts => tr('settings.shortcuts_sub'),
+    _SettingsPage.plugins => tr('settings.plugins_sub'),
+    _SettingsPage.updates => tr('settings.updates_sub'),
+    _SettingsPage.support => tr('settings.support_sub'),
+    _SettingsPage.about => tr('settings.about_sub'),
   };
 
   IconData get icon => switch (this) {
@@ -95,14 +95,16 @@ extension _SettingsPageX on _SettingsPage {
   };
 
   String get section => switch (this) {
-    _SettingsPage.musicFolders || _SettingsPage.audioOutput => 'LIBRARY',
-    _SettingsPage.playback || _SettingsPage.dsp => 'PLAYBACK',
-    _SettingsPage.display || _SettingsPage.integrations => 'APPEARANCE',
+    _SettingsPage.musicFolders ||
+    _SettingsPage.audioOutput => tr('sidebar.library_label'),
+    _SettingsPage.playback || _SettingsPage.dsp => tr('sidebar.playback_label'),
+    _SettingsPage.display ||
+    _SettingsPage.integrations => tr('sidebar.appearance_label'),
     _SettingsPage.shortcuts ||
     _SettingsPage.plugins ||
     _SettingsPage.updates ||
     _SettingsPage.support ||
-    _SettingsPage.about => 'SYSTEM',
+    _SettingsPage.about => tr('sidebar.system_label'),
   };
 }
 
@@ -215,14 +217,14 @@ class _SettingsSidebar extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Settings',
+                        tr('sidebar.settings'),
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Playback, library, and appearance',
+                        tr('settings.blurb'),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
@@ -272,7 +274,7 @@ class _SettingsSidebar extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Settings',
+                  tr('sidebar.settings'),
                   style: TextStyle(
                     color: aq.onSurface,
                     fontSize: 20,
@@ -282,7 +284,7 @@ class _SettingsSidebar extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Aqloss preferences',
+                  tr('settings.preferences'),
                   style: TextStyle(color: aq.onSurfaceMuted, fontSize: 10.5),
                 ),
               ],
@@ -565,7 +567,7 @@ class _NarrowSettings extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(28, 24, 16, 8),
               child: Text(
-                'Settings',
+                tr('sidebar.settings'),
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -858,7 +860,7 @@ class _MusicFoldersPane extends ConsumerWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      'No folders added yet',
+                      tr('folders.empty'),
                       style: TextStyle(
                         fontSize: 13,
                         color: cs.onSurface.withValues(alpha: 0.28),
@@ -893,7 +895,7 @@ class _MusicFoldersPane extends ConsumerWidget {
           children: [
             _ActionButton(
               icon: Icons.add_rounded,
-              label: 'Add Folder',
+              label: tr('folders.add'),
               disabled: isScanning,
               onTap: () => _addFolder(context, ref),
             ),
@@ -901,7 +903,7 @@ class _MusicFoldersPane extends ConsumerWidget {
             _ActionButton(
               icon: isScanning ? null : Icons.refresh_rounded,
               spinner: isScanning,
-              label: isScanning ? 'Scanning…' : 'Rescan Library',
+              label: isScanning ? tr('library.scanning') : tr('folders.rescan'),
               disabled: isScanning || folders.isEmpty,
               onTap: () => ref.read(libraryProvider.notifier).rescanAll(),
             ),
@@ -910,7 +912,7 @@ class _MusicFoldersPane extends ConsumerWidget {
         if (Platform.isIOS) ...[
           const SizedBox(height: 12),
           Text(
-            kIosMusicFolderHint,
+            tr(kIosMusicFolderHint),
             style: TextStyle(
               fontSize: 11,
               height: 1.4,
@@ -925,13 +927,13 @@ class _MusicFoldersPane extends ConsumerWidget {
             children: [
               _InfoRow(
                 icon: Icons.music_note_rounded,
-                title: 'Tracks indexed',
+                title: tr('folders.indexed'),
                 value: '${library.totalTracks}',
               ),
               _Div(),
               _InfoRow(
                 icon: Icons.folder_rounded,
-                title: 'Watched folders',
+                title: tr('folders.watched'),
                 value: '${folders.length}',
               ),
             ],
@@ -1088,7 +1090,7 @@ class _ActionButtonState extends State<_ActionButton> {
                   ),
                 const SizedBox(width: 7),
                 Text(
-                  widget.label,
+                  tr(widget.label),
                   style: TextStyle(
                     fontSize: 12,
                     color: cs.onSurface.withValues(alpha: 0.58),
@@ -1182,7 +1184,7 @@ class _AudioDeviceSection extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                'Exclusive / bit-perfect is only available on ALSA hardware devices (hw:). PipeWire and other mixer outputs stay in shared mode. Switching to exclusive pauses other apps on the sound card.',
+                tr('output.alsa'),
                 style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurface.withValues(alpha: 0.38),
@@ -1209,7 +1211,7 @@ class _AudioDeviceSection extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              'Scanning audio devices…',
+              tr('output.scanning'),
               style: TextStyle(
                 fontSize: 13,
                 color: cs.onSurface.withValues(alpha: 0.36),
@@ -1238,7 +1240,7 @@ class _AudioDeviceSection extends ConsumerWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Could not scan: $msg',
+            trFill('output.scan_failed', {'error': msg}),
             style: TextStyle(
               fontSize: 12,
               color: cs.error.withValues(alpha: 0.70),
@@ -1264,41 +1266,47 @@ class _PlaybackPane extends ConsumerWidget {
       page: _SettingsPage.playback,
       children: [
         if (bitPerfect) ...[
-          const _ExclusiveLockBanner(
-            'Exclusive mode is on. Crossfade, ReplayGain, skip silence, and playback speed can\'t be used.',
-          ),
+          _ExclusiveLockBanner(tr('playback.exclusive')),
           const SizedBox(height: 16),
         ],
         _SettingsCard(
           children: [
             _ToggleRow(
               icon: Icons.skip_next_rounded,
-              title: 'Gapless playback',
-              subtitle:
-                  'Removes silence between consecutive tracks for seamless album listening.',
+              title: tr('playback.gapless'),
+              subtitle: tr('playback.gapless_sub'),
               value: s.gaplessPlayback,
               onChanged: (_) => n.toggleGapless(),
             ),
             _Div(),
             _PickerRow(
               icon: Icons.compare_arrows_rounded,
-              title: 'Crossfade',
-              subtitle:
-                  'Fade the ending track out while fading the next one in. Disabled when gapless is on.',
-              options: const ['Off', '2s', '4s', '8s'],
+              title: tr('playback.crossfade'),
+              subtitle: tr('playback.crossfade_sub'),
+              options: [
+                tr('playback.off'),
+                tr('playback.s2'),
+                tr('playback.s4'),
+                tr('playback.s8'),
+              ],
               selected: s.crossfade.index,
               onChanged: (i) => n.setCrossfade(CrossfadeMode.values[i]),
               disabled: s.gaplessPlayback || bitPerfect,
               disabledHint: bitPerfect
                   ? kBitPerfectUnavailableHint
-                  : 'Disabled while gapless is on',
+                  : tr('playback.gapless_locked'),
             ),
             _Div(),
             _PickerRow(
               icon: Icons.graphic_eq_rounded,
-              title: 'ReplayGain',
-              subtitle: 'Normalises loudness using tags embedded in the file.',
-              options: const ['Off', 'Track', 'Album', 'Auto'],
+              title: tr('playback.replaygain'),
+              subtitle: tr('playback.replaygain_sub'),
+              options: [
+                tr('playback.off'),
+                tr('library.track'),
+                tr('library.album'),
+                tr('playback.auto'),
+              ],
               selected: s.replayGainMode.index,
               onChanged: (i) => n.setReplayGainMode(ReplayGainMode.values[i]),
               disabled: bitPerfect,
@@ -1308,9 +1316,8 @@ class _PlaybackPane extends ConsumerWidget {
               _Div(),
               _SliderRow(
                 icon: Icons.tune_rounded,
-                title: 'Pre-amp',
-                subtitle:
-                    'Boost or cut applied before ReplayGain. Negative values prevent clipping.',
+                title: tr('playback.preamp'),
+                subtitle: tr('playback.preamp_sub'),
                 value: s.replayGainPreamp,
                 min: -12,
                 max: 12,
@@ -1324,9 +1331,8 @@ class _PlaybackPane extends ConsumerWidget {
             _Div(),
             _ToggleRow(
               icon: Icons.fast_forward_rounded,
-              title: 'Skip silence',
-              subtitle:
-                  'Skips leading/trailing silence at track boundaries. Useful for live recordings.',
+              title: tr('playback.skip_silence'),
+              subtitle: tr('playback.skip_silence_sub'),
               value: s.skipSilence,
               onChanged: (_) => n.toggleSkipSilence(),
               disabled: bitPerfect,
@@ -1335,8 +1341,8 @@ class _PlaybackPane extends ConsumerWidget {
             _Div(),
             _PickerRow(
               icon: Icons.slow_motion_video_rounded,
-              title: 'Playback speed',
-              subtitle: 'Play faster or slower. Pitch follows the speed.',
+              title: tr('playback.speed'),
+              subtitle: tr('playback.speed_sub'),
               options: kPlaybackSpeedLabels,
               selected: playbackSpeedIndex(s.playbackSpeed),
               onChanged: (i) => n.setPlaybackSpeed(kPlaybackSpeeds[i]),
@@ -1346,10 +1352,13 @@ class _PlaybackPane extends ConsumerWidget {
             _Div(),
             _PickerRow(
               icon: Icons.stop_circle_outlined,
-              title: 'Stop after',
-              subtitle:
-                  'Automatically stops playback after the current track or album finishes.',
-              options: const ['Off', 'Track', 'Album'],
+              title: tr('playback.stop_after'),
+              subtitle: tr('playback.stop_after_sub'),
+              options: [
+                tr('playback.off'),
+                tr('library.track'),
+                tr('library.album'),
+              ],
               selected: s.stopAfter.index,
               onChanged: (i) => n.setStopAfter(StopAfterMode.values[i]),
             ),
@@ -1374,17 +1383,15 @@ class _DspPane extends ConsumerWidget {
       page: _SettingsPage.dsp,
       children: [
         if (bitPerfect) ...[
-          const _ExclusiveLockBanner(
-            'Exclusive mode is on. EQ, soft-clip, stereo width, and Haas delay can\'t be used.',
-          ),
+          _ExclusiveLockBanner(tr('dsp.exclusive')),
           const SizedBox(height: 16),
         ],
         _SettingsCard(
           children: [
             _ToggleRow(
               icon: Icons.bar_chart_rounded,
-              title: '10-band Equalizer',
-              subtitle: 'Per-frequency gain ±12 dB using peaking EQ filters.',
+              title: tr('eq.title'),
+              subtitle: tr('eq.subtitle'),
               value: s.eqEnabled,
               onChanged: (_) => n.toggleEq(),
               disabled: bitPerfect,
@@ -1394,9 +1401,8 @@ class _DspPane extends ConsumerWidget {
             _Div(),
             _ToggleRow(
               icon: Icons.compress_rounded,
-              title: 'Soft-clip limiter',
-              subtitle:
-                  'Prevents digital clipping above 0 dBFS. Recommended with ReplayGain pre-amp or EQ boosts.',
+              title: tr('dsp.soft_clip'),
+              subtitle: tr('dsp.soft_clip_sub'),
               value: s.notchFilter,
               onChanged: (_) => n.toggleNotchFilter(),
               disabled: bitPerfect,
@@ -1409,15 +1415,14 @@ class _DspPane extends ConsumerWidget {
           children: [
             _LiveSliderRow(
               icon: Icons.spatial_audio_off_rounded,
-              title: 'Stereo Width',
-              subtitle:
-                  'M/S expansion. Below 1.0 narrows the image; above 1.0 pushes instruments further apart. 1.0 = off.',
+              title: tr('dsp.width'),
+              subtitle: tr('dsp.width_sub'),
               value: s.stereoWidth,
               min: 0.0,
               max: 2.0,
               divisions: 40,
               label: (v) {
-                if ((v - 1.0).abs() < 0.025) return 'Off';
+                if ((v - 1.0).abs() < 0.025) return tr('playback.off');
                 return v.toStringAsFixed(2);
               },
               onCommit: (v) {
@@ -1430,14 +1435,14 @@ class _DspPane extends ConsumerWidget {
             _Div(),
             _LiveSliderRow(
               icon: Icons.spatial_audio_rounded,
-              title: 'Haas Delay',
-              subtitle:
-                  'Micro-delay on the right channel (0–25 ms) to create depth and front-back separation.',
+              title: tr('dsp.haas'),
+              subtitle: tr('dsp.haas_sub'),
               value: s.haasMs,
               min: 0.0,
               max: 25.0,
               divisions: 50,
-              label: (v) => v < 0.5 ? 'Off' : '${v.toStringAsFixed(0)} ms',
+              label: (v) =>
+                  v < 0.5 ? tr('playback.off') : '${v.toStringAsFixed(0)} ms',
               onCommit: (v) {
                 n.setHaasMs(v);
                 AudioService.setHaasMs(v);
@@ -1468,19 +1473,24 @@ class _DisplayPane extends ConsumerWidget {
           children: [
             _PickerRow(
               icon: Icons.dark_mode_outlined,
-              title: 'Theme',
-              subtitle: 'Colour scheme for the app.',
-              options: const ['Dark', 'Light', 'System'],
+              title: tr('display.theme'),
+              subtitle: tr('display.theme_sub'),
+              options: [
+                tr('display.dark'),
+                tr('display.light'),
+                tr('display.system'),
+              ],
               selected: s.themeMode.index,
               onChanged: (i) => n.setTheme(ThemeMode.values[i]),
             ),
             _Div(),
+            _LanguageMenu(language: s.language, onLanguage: n.setLanguage),
+            _Div(),
             _PickerRow(
               icon: Icons.layers_outlined,
-              title: 'UI framework',
-              subtitle:
-                  'Same layout. Default is the Aqloss look. Material 3 follows Google\'s design.',
-              options: const ['Default', 'Material Design 3'],
+              title: tr('display.framework'),
+              subtitle: tr('display.framework_sub'),
+              options: [tr('display.default'), tr('display.material')],
               selected: s.uiFramework.index,
               onChanged: (i) => n.setUiFramework(UiFramework.values[i]),
             ),
@@ -1488,9 +1498,9 @@ class _DisplayPane extends ConsumerWidget {
               _Div(),
               _PickerRow(
                 icon: Icons.palette_outlined,
-                title: 'Sidebar style',
-                subtitle: 'Legacy or Islands sidebar layout (default only).',
-                options: const ['Legacy', 'Islands'],
+                title: tr('display.sidebar'),
+                subtitle: tr('display.sidebar_sub'),
+                options: [tr('display.legacy'), tr('display.islands')],
                 selected: s.appStyle.index,
                 onChanged: (i) => n.setAppStyle(AppStyle.values[i]),
               ),
@@ -1499,9 +1509,8 @@ class _DisplayPane extends ConsumerWidget {
               _Div(),
               _ToggleRow(
                 icon: Icons.color_lens_outlined,
-                title: 'Dynamic colour',
-                subtitle:
-                    'Use system wallpaper colours (Android 12+, Windows 11, GNOME).',
+                title: tr('display.dynamic'),
+                subtitle: tr('display.dynamic_sub'),
                 value: s.materialYou,
                 onChanged: (_) => n.toggleMaterialYou(),
               ),
@@ -1509,18 +1518,16 @@ class _DisplayPane extends ConsumerWidget {
             _Div(),
             _ToggleRow(
               icon: Icons.speed_rounded,
-              title: 'Hardware acceleration',
-              subtitle:
-                  'GPU rendering for the interface. Turn off if the UI glitches or looks jagged; restart Aqloss after changing.',
+              title: tr('display.gpu'),
+              subtitle: tr('display.gpu_sub'),
               value: s.hardwareAcceleration,
               onChanged: (_) => n.toggleHardwareAcceleration(),
             ),
             _Div(),
             _ToggleRow(
               icon: Icons.motion_photos_off_outlined,
-              title: 'Reduce motion',
-              subtitle:
-                  'Skip waves, toasts, page motion, and the loading spinner. Also follows the system reduce-motion setting.',
+              title: tr('display.motion'),
+              subtitle: tr('display.motion_sub'),
               value: s.reduceMotion,
               onChanged: (_) => n.toggleReduceMotion(),
             ),
@@ -1528,9 +1535,8 @@ class _DisplayPane extends ConsumerWidget {
               _Div(),
               _ToggleRow(
                 icon: Icons.web_asset_outlined,
-                title: 'Show title bar',
-                subtitle:
-                    'In-app min, max, and close. Turn this off on a tiling window manager.',
+                title: tr('display.title_bar'),
+                subtitle: tr('display.title_bar_sub'),
                 value: s.showTitleBar,
                 onChanged: (_) => n.toggleShowTitleBar(),
               ),
@@ -1539,9 +1545,8 @@ class _DisplayPane extends ConsumerWidget {
               _Div(),
               _ToggleRow(
                 icon: Icons.desktop_windows_outlined,
-                title: 'Close to tray',
-                subtitle:
-                    'Closing the window keeps music playing. Quit from the tray icon to exit.',
+                title: tr('display.tray'),
+                subtitle: tr('display.tray_sub'),
                 value: s.closeToTray,
                 onChanged: (_) => n.toggleCloseToTray(),
               ),
@@ -1549,34 +1554,32 @@ class _DisplayPane extends ConsumerWidget {
             _Div(),
             _ToggleRow(
               icon: Icons.image_outlined,
-              title: 'Album art background',
-              subtitle:
-                  'Blurred album art behind the player. Disable on low-end devices to save GPU.',
+              title: tr('display.art'),
+              subtitle: tr('display.art_sub'),
               value: s.showAlbumArtBackground,
               onChanged: (_) => n.toggleAlbumArtBackground(),
             ),
             _Div(),
             _ToggleRow(
               icon: Icons.album_outlined,
-              title: 'Now playing card',
-              subtitle:
-                  'Large card at the top of library pages. Off by default; the bottom bar already shows the current track.',
+              title: tr('display.now_playing'),
+              subtitle: tr('display.now_playing_sub'),
               value: s.showNowPlayingHeader,
               onChanged: (_) => n.toggleNowPlayingHeader(),
             ),
             _Div(),
             _ToggleRow(
               icon: Icons.info_outline_rounded,
-              title: 'Format details in library',
-              subtitle: 'Shows bit depth and sample rate next to each track.',
+              title: tr('display.format'),
+              subtitle: tr('display.format_sub'),
               value: s.showBitDepthInLibrary,
               onChanged: (_) => n.toggleBitDepthDisplay(),
             ),
             _Div(),
             _ToggleRow(
               icon: Icons.show_chart_rounded,
-              title: 'Spectrum analyser',
-              subtitle: 'Real-time frequency display on the player screen.',
+              title: tr('display.spectrum'),
+              subtitle: tr('display.spectrum_sub'),
               value: s.spectrumEnabled,
               onChanged: (_) => n.toggleSpectrum(),
             ),
@@ -1584,9 +1587,14 @@ class _DisplayPane extends ConsumerWidget {
               _Div(),
               _PickerRow(
                 icon: Icons.auto_graph_rounded,
-                title: 'Spectrum style',
-                subtitle: 'Visual style of the analyser.',
-                options: const ['Bars', 'Wave', 'Dots', 'Classic'],
+                title: tr('display.spectrum_style'),
+                subtitle: tr('display.spectrum_style_sub'),
+                options: [
+                  tr('display.bars'),
+                  tr('display.wave'),
+                  tr('display.dots'),
+                  tr('display.classic'),
+                ],
                 selected: s.spectrumStyle,
                 onChanged: n.setSpectrumStyle,
               ),
@@ -1645,7 +1653,7 @@ class _AccentColorCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Accent colour',
+                          tr('display.accent'),
                           style: TextStyle(
                             fontSize: 13,
                             color: cs.onSurface.withValues(alpha: 0.88),
@@ -1653,7 +1661,7 @@ class _AccentColorCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Tints interactive elements. Auto picks from album art.',
+                          tr('display.accent_sub'),
                           style: TextStyle(
                             fontSize: 11,
                             color: cs.onSurface.withValues(alpha: 0.36),
@@ -1664,14 +1672,14 @@ class _AccentColorCard extends ConsumerWidget {
                   ),
                   // Mode toggle
                   _AccentModeChip(
-                    label: 'Off',
+                    label: tr('playback.off'),
                     selected: s.accentMode == AccentMode.off,
                     onTap: () => n.setAccentMode(AccentMode.off),
                     cs: cs,
                   ),
                   const SizedBox(width: 4),
                   _AccentModeChip(
-                    label: 'Auto',
+                    label: tr('playback.auto'),
                     selected: s.accentMode == AccentMode.auto,
                     onTap: () => n.setAccentMode(AccentMode.auto),
                     cs: cs,
@@ -1795,21 +1803,21 @@ class _ShortcutsPaneState extends ConsumerState<_ShortcutsPane> {
 
   // Group actions for display
   static const _groups = <String, List<ShortcutAction>>{
-    'PLAYBACK': [
+    'sidebar.playback_label': [
       ShortcutAction.playPause,
       ShortcutAction.skipNext,
       ShortcutAction.skipPrevious,
       ShortcutAction.volumeUp,
       ShortcutAction.volumeDown,
     ],
-    'APP': [
+    'shortcuts.app': [
       ShortcutAction.toggleSidebar,
       ShortcutAction.toggleQueue,
       ShortcutAction.search,
       ShortcutAction.miniPlayer,
       ShortcutAction.newPlaylist,
     ],
-    'NAVIGATE': [
+    'sidebar.navigate': [
       ShortcutAction.navPlayer,
       ShortcutAction.navLibrary,
       ShortcutAction.navAlbums,
@@ -1832,7 +1840,7 @@ class _ShortcutsPaneState extends ConsumerState<_ShortcutsPane> {
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: Text(
-              entry.key,
+              tr(entry.key),
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
@@ -1867,7 +1875,7 @@ class _ShortcutsPaneState extends ConsumerState<_ShortcutsPane> {
         const SizedBox(height: 16),
         _ActionButton(
           icon: Icons.refresh_rounded,
-          label: 'Reset all to defaults',
+          label: tr('display.reset'),
           onTap: () {
             ref.read(settingsProvider.notifier).resetAllShortcuts();
             _cancelCapture();
@@ -2146,7 +2154,7 @@ class _CaptureInputState extends State<_CaptureInput> {
             ),
             const SizedBox(width: 7),
             Text(
-              'Press a key…',
+              tr('shortcuts.press'),
               style: TextStyle(
                 fontSize: 11,
                 color: cs.onSurface.withValues(alpha: 0.46),
@@ -2239,7 +2247,7 @@ class _UpdatesPaneState extends State<_UpdatesPane> {
           children: [
             _InfoRow(
               icon: Icons.tag_rounded,
-              title: 'Installed version',
+              title: tr('updates.installed'),
               value: appVersionLabel(kAppVersion),
             ),
             _Div(),
@@ -2318,7 +2326,7 @@ class _UpdateStatusRow extends StatelessWidget {
           size: 14,
           color: cs.onSurface.withValues(alpha: 0.22),
         );
-        label = 'Not checked yet';
+        label = tr('updates.unchecked');
         labelColor = cs.onSurface.withValues(alpha: 0.36);
       case _UpdateStatus.checking:
         leading = QSpinner(
@@ -2326,7 +2334,7 @@ class _UpdateStatusRow extends StatelessWidget {
           color: cs.onSurface.withValues(alpha: 0.38),
           strokeWidth: 1.5,
         );
-        label = 'Checking for updates…';
+        label = tr('updates.checking');
         labelColor = cs.onSurface.withValues(alpha: 0.48);
       case _UpdateStatus.upToDate:
         leading = Container(
@@ -2339,8 +2347,8 @@ class _UpdateStatusRow extends StatelessWidget {
           ),
         );
         label = latestVersion != null
-            ? 'Up to date  ·  $latestVersion is the latest'
-            : "You're on the latest version";
+            ? trFill('updates.current', {'version': '$latestVersion'})
+            : tr("updates.latest");
         labelColor = cs.onSurface.withValues(alpha: 0.55);
       case _UpdateStatus.available:
         leading = Container(
@@ -2352,7 +2360,7 @@ class _UpdateStatusRow extends StatelessWidget {
             color: Color(0xFFFFB86C),
           ),
         );
-        label = 'v$latestVersion is available';
+        label = trFill('updates.available', {'version': '$latestVersion'});
         labelColor = const Color(0xFFFFB86C);
       case _UpdateStatus.error:
         leading = Icon(
@@ -2360,7 +2368,7 @@ class _UpdateStatusRow extends StatelessWidget {
           size: 14,
           color: cs.onSurface.withValues(alpha: 0.30),
         );
-        label = 'Could not check for updates';
+        label = tr('updates.failed');
         labelColor = cs.onSurface.withValues(alpha: 0.40);
     }
 
@@ -2377,7 +2385,7 @@ class _UpdateStatusRow extends StatelessWidget {
             ),
           ),
           if (status != _UpdateStatus.checking)
-            _HoverTextBtn(label: 'Check now', onTap: onRecheck),
+            _HoverTextBtn(label: tr('updates.check'), onTap: onRecheck),
         ],
       ),
     );
@@ -2407,7 +2415,7 @@ class _ReleaseNotesCard extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                'RELEASE NOTES',
+                tr('updates.notes'),
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
@@ -2537,7 +2545,7 @@ class _DownloadButtonState extends State<_DownloadButton> {
               ),
               const SizedBox(width: 8),
               Text(
-                'View release on GitHub  ·  v${widget.version}',
+                trFill('updates.github', {'version': widget.version}),
                 style: TextStyle(
                   fontSize: 13,
                   color: cs.onSurface.withValues(alpha: 0.70),
@@ -2572,7 +2580,7 @@ class _IntegrationsPane extends ConsumerWidget {
                   vertical: 14,
                 ),
                 child: Text(
-                  'No integrations available on this platform.',
+                  tr('integrations.none'),
                   style: TextStyle(
                     fontSize: 13,
                     color: Theme.of(
@@ -2594,9 +2602,8 @@ class _IntegrationsPane extends ConsumerWidget {
           children: [
             _ToggleRow(
               icon: Icons.videogame_asset_outlined,
-              title: 'Discord Rich Presence',
-              subtitle:
-                  'Shows the current track in your Discord status. Requires Discord to be running.',
+              title: tr('integrations.discord'),
+              subtitle: tr('integrations.discord_sub'),
               value: s.discordRpc,
               onChanged: (_) {
                 n.toggleDiscordRpc();
@@ -2606,9 +2613,8 @@ class _IntegrationsPane extends ConsumerWidget {
             _Div(),
             _ToggleRow(
               icon: Icons.radio_button_checked_rounded,
-              title: 'Scrobble to Last.fm',
-              subtitle:
-                  'Submit track plays to Last.fm after 50% played or 4 minutes.',
+              title: tr('integrations.lastfm'),
+              subtitle: tr('integrations.lastfm_sub'),
               value: s.scrobbleLastFm,
               onChanged: (_) => n.toggleScrobble(),
             ),
@@ -2616,9 +2622,8 @@ class _IntegrationsPane extends ConsumerWidget {
             _Div(),
             _ToggleRow(
               icon: Icons.library_music_outlined,
-              title: 'Scrobble to ListenBrainz',
-              subtitle:
-                  'Same threshold as Last.fm. You can enable both at once.',
+              title: tr('integrations.listenbrainz'),
+              subtitle: tr('integrations.listenbrainz_sub'),
               value: s.scrobbleListenBrainz,
               onChanged: (_) => n.toggleScrobbleListenBrainz(),
             ),
@@ -2654,8 +2659,11 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
     if (!mounted) return;
     setState(() => _busy = false);
     final msg = result.remoteCount == 0
-        ? 'No loved tracks found on Last.fm or ListenBrainz.'
-        : 'Loved ${result.imported} library tracks from ${result.remoteCount} remote likes.';
+        ? tr('integrations.loved_none')
+        : trFill('integrations.loved_count', {
+            'count': '${result.imported}',
+            'total': '${result.remoteCount}',
+          });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
@@ -2664,17 +2672,15 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
     if (context.isMaterial3Ui) {
       return ListTile(
         leading: const Icon(Icons.favorite_outline_rounded),
-        title: const Text('Sync loved tracks'),
-        subtitle: const Text(
-          'Mark local files as loved when they match likes on Last.fm or ListenBrainz.',
-        ),
+        title: Text(tr('integrations.sync_loved')),
+        subtitle: Text(tr('integrations.sync_loved_sub')),
         trailing: _busy
             ? const SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : TextButton(onPressed: _run, child: const Text('Sync')),
+            : TextButton(onPressed: _run, child: Text(tr('integrations.sync'))),
         onTap: _busy ? null : _run,
       );
     }
@@ -2698,7 +2704,7 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sync loved tracks',
+                  tr('integrations.sync_loved'),
                   style: TextStyle(
                     fontSize: 13,
                     color: context.stOnSurface(0.80),
@@ -2706,7 +2712,7 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Mark local files as loved when they match likes on Last.fm or ListenBrainz.',
+                  tr('integrations.sync_loved_sub'),
                   style: TextStyle(
                     fontSize: 11,
                     color: context.stMuted(),
@@ -2724,7 +2730,7 @@ class _SyncLovedRowState extends ConsumerState<_SyncLovedRow> {
               child: CircularProgressIndicator(strokeWidth: 1.5),
             )
           else
-            _HoverTextBtn(label: 'Sync', onTap: _run),
+            _HoverTextBtn(label: tr('integrations.sync'), onTap: _run),
         ],
       ),
     );
@@ -2739,7 +2745,7 @@ class _AboutPane extends ConsumerWidget {
   void _snack(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ).showSnackBar(SnackBar(content: Text(tr(message))));
   }
 
   Future<void> _export(BuildContext context, WidgetRef ref) async {
@@ -2767,16 +2773,16 @@ class _AboutPane extends ConsumerWidget {
     if (payload == null) return;
     final confirmed = await showUiDialog<bool>(
       context: context,
-      title: 'Restore backup?',
-      content: const Text('This replaces your current settings and playlists.'),
+      title: tr('support.restore_title'),
+      content: Text(tr('support.restore_body')),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(tr('integrations.cancel')),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Restore'),
+          child: Text(tr('support.restore')),
         ),
       ],
     );
@@ -2812,7 +2818,7 @@ class _AboutPane extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Support the project',
+                      tr('support.title'),
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(
@@ -2821,7 +2827,10 @@ class _AboutPane extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  _HoverTextBtn(label: 'Open', onTap: onOpenSupport),
+                  _HoverTextBtn(
+                    label: tr('support.open'),
+                    onTap: onOpenSupport,
+                  ),
                 ],
               ),
             ),
@@ -2840,7 +2849,7 @@ class _AboutPane extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Logs Folder',
+                      tr('support.logs'),
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(
@@ -2850,7 +2859,9 @@ class _AboutPane extends ConsumerWidget {
                     ),
                   ),
                   _HoverTextBtn(
-                    label: Platform.isIOS ? 'Share Logs' : 'Open Logs',
+                    label: Platform.isIOS
+                        ? tr('support.share_logs')
+                        : tr('support.open_logs'),
                     onTap: () async {
                       final logDir = await Logger.logDirectory();
                       if (Platform.isIOS) {
@@ -2882,7 +2893,7 @@ class _AboutPane extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Backup',
+                      tr('support.backup'),
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(
@@ -2892,12 +2903,12 @@ class _AboutPane extends ConsumerWidget {
                     ),
                   ),
                   _HoverTextBtn(
-                    label: 'Export',
+                    label: tr('support.export'),
                     onTap: () => _export(context, ref),
                   ),
                   const SizedBox(width: 8),
                   _HoverTextBtn(
-                    label: 'Restore',
+                    label: tr('support.restore'),
                     onTap: () => _restore(context, ref),
                   ),
                 ],
@@ -2907,19 +2918,21 @@ class _AboutPane extends ConsumerWidget {
             _InfoRow(
               icon: Icons.music_note_rounded,
               title: 'Aqloss',
-              value: 'Version ${appVersionLabel(kAppVersion)}',
+              value: trFill('support.version', {
+                'version': appVersionLabel(kAppVersion),
+              }),
             ),
             _Div(),
-            const _InfoRow(
+            _InfoRow(
               icon: Icons.memory_rounded,
-              title: 'Audio engine',
-              value: 'Rust · Symphonia',
+              title: tr('support.engine'),
+              value: tr('support.engine_value'),
             ),
             _Div(),
-            const _InfoRow(
+            _InfoRow(
               icon: Icons.headphones_rounded,
-              title: 'Output backends',
-              value: 'CPAL · WASAPI',
+              title: tr('support.backends'),
+              value: tr('support.backends_value'),
             ),
           ],
         ),
@@ -2944,7 +2957,7 @@ class _SupportPane extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'Aqloss is free software. If you want to help keep development going, pick a platform below.',
+            tr('support.body'),
             style: TextStyle(
               fontSize: 13,
               height: 1.4,
@@ -2978,7 +2991,7 @@ class _SupportGroupCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                group.title,
+                tr(group.title),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -2987,7 +3000,7 @@ class _SupportGroupCard extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                group.subtitle,
+                tr(group.subtitle),
                 style: TextStyle(
                   fontSize: 11,
                   color: context.stOnSurface(0.34),
@@ -3199,7 +3212,7 @@ class _ExclusiveLockBanner extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                text,
+                tr(text),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.4,
@@ -3232,7 +3245,7 @@ class _ExclusiveLockBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              text,
+              tr(text),
               style: TextStyle(
                 fontSize: 12,
                 height: 1.4,
@@ -3256,7 +3269,7 @@ class _UnavailableNote extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
-          text,
+          tr(text),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             height: 1.35,
@@ -3267,7 +3280,7 @@ class _UnavailableNote extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Text(
-        text,
+        tr(text),
         style: TextStyle(
           fontSize: 11,
           height: 1.35,
@@ -3307,11 +3320,11 @@ class _ToggleRowState extends State<_ToggleRow> {
     if (context.isMaterial3Ui) {
       return SwitchListTile(
         secondary: Icon(widget.icon),
-        title: Text(widget.title),
+        title: Text(tr(widget.title)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.subtitle),
+            Text(tr(widget.subtitle)),
             if (widget.disabled && widget.disabledHint != null)
               _UnavailableNote(widget.disabledHint!),
           ],
@@ -3355,7 +3368,7 @@ class _ToggleRowState extends State<_ToggleRow> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.title,
+                        tr(widget.title),
                         style: TextStyle(
                           fontSize: 13,
                           color: context.stOnSurface(0.80 * fade),
@@ -3363,7 +3376,7 @@ class _ToggleRowState extends State<_ToggleRow> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        widget.subtitle,
+                        tr(widget.subtitle),
                         style: TextStyle(
                           fontSize: 11,
                           color: widget.disabled
@@ -3392,6 +3405,120 @@ class _ToggleRowState extends State<_ToggleRow> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LanguageMenu extends ConsumerWidget {
+  final String language;
+  final ValueChanged<String> onLanguage;
+
+  const _LanguageMenu({required this.language, required this.onLanguage});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog =
+        ref.watch(l10nCatalogProvider).asData?.value ?? L10nCatalog.empty;
+    final codes = catalog.codes.toList()
+      ..sort((a, b) => catalog.nameOf(a).compareTo(catalog.nameOf(b)));
+    final selected = language == 'en' || codes.contains(language)
+        ? language
+        : '';
+    final isM3 = context.isMaterial3Ui;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isM3 ? 16 : 14,
+        vertical: isM3 ? 8 : 11,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: isM3 ? 0 : 1),
+                child: Icon(
+                  Icons.language_outlined,
+                  size: isM3 ? 24 : 16,
+                  color: isM3 ? null : context.stOnSurface(0.34),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('display.language'),
+                      style: isM3
+                          ? Theme.of(context).textTheme.bodyLarge
+                          : TextStyle(
+                              fontSize: 13,
+                              color: context.stOnSurface(0.80),
+                            ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      tr('display.language_sub'),
+                      style: TextStyle(
+                        fontSize: isM3 ? null : 11,
+                        color: context.stMuted(),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: context.stBorder()),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: selected,
+                  borderRadius: BorderRadius.circular(8),
+                  menuMaxHeight: 320,
+                  items: [
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text(
+                        tr('display.system'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'en',
+                      child: Text(
+                        tr('display.english'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    for (final code in codes)
+                      DropdownMenuItem(
+                        value: code,
+                        child: Text(
+                          catalog.labelFor(code),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (code) {
+                    if (code != null) onLanguage(code);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3428,11 +3555,11 @@ class _PickerRow extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(icon),
-              title: Text(title),
+              title: Text(tr(title)),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(subtitle),
+                  Text(tr(subtitle)),
                   if (disabled && disabledHint != null)
                     _UnavailableNote(disabledHint!),
                 ],
@@ -3445,7 +3572,7 @@ class _PickerRow extends StatelessWidget {
                   for (var i = 0; i < options.length; i++)
                     ButtonSegment<int>(
                       value: i,
-                      label: Text(options[i]),
+                      label: Text(tr(options[i])),
                       enabled: !disabled,
                     ),
                 ],
@@ -3496,7 +3623,7 @@ class _PickerRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      tr(title),
                       style: TextStyle(
                         fontSize: 13,
                         color: context.stOnSurface(0.80 * fade),
@@ -3504,7 +3631,7 @@ class _PickerRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      subtitle,
+                      tr(subtitle),
                       style: TextStyle(
                         fontSize: 11,
                         color: disabled
@@ -3567,17 +3694,17 @@ class _SliderRow extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(icon),
-              title: Text(title),
+              title: Text(tr(title)),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(subtitle),
+                  Text(tr(subtitle)),
                   if (disabled && disabledHint != null)
                     _UnavailableNote(disabledHint!),
                 ],
               ),
               trailing: Text(
-                label(value),
+                tr(label(value)),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -3586,7 +3713,7 @@ class _SliderRow extends StatelessWidget {
               min: min,
               max: max,
               divisions: divisions,
-              label: label(value),
+              label: tr(label(value)),
               onChanged: disabled ? null : onChanged,
             ),
           ],
@@ -3619,7 +3746,7 @@ class _SliderRow extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          title,
+                          tr(title),
                           style: TextStyle(
                             fontSize: 13,
                             color: context.stOnSurface(0.80 * fade),
@@ -3627,7 +3754,7 @@ class _SliderRow extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          label(value),
+                          tr(label(value)),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -3638,7 +3765,7 @@ class _SliderRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      subtitle,
+                      tr(subtitle),
                       style: TextStyle(
                         fontSize: 11,
                         color: disabled
@@ -3740,17 +3867,17 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(widget.icon),
-              title: Text(widget.title),
+              title: Text(tr(widget.title)),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.subtitle),
+                  Text(tr(widget.subtitle)),
                   if (widget.disabled && widget.disabledHint != null)
                     _UnavailableNote(widget.disabledHint!),
                 ],
               ),
               trailing: Text(
-                widget.label(_display),
+                tr(widget.label(_display)),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -3759,7 +3886,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
               min: widget.min,
               max: widget.max,
               divisions: widget.divisions,
-              label: widget.label(_display),
+              label: tr(widget.label(_display)),
               onChanged: widget.disabled
                   ? null
                   : (v) => _onDrag(
@@ -3810,7 +3937,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                     Row(
                       children: [
                         Text(
-                          widget.title,
+                          tr(widget.title),
                           style: TextStyle(
                             fontSize: 13,
                             color: context.stOnSurface(0.80 * fade),
@@ -3818,7 +3945,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                         ),
                         const Spacer(),
                         Text(
-                          widget.label(_display),
+                          tr(widget.label(_display)),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -3829,7 +3956,7 @@ class _LiveSliderRowState extends State<_LiveSliderRow> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      widget.subtitle,
+                      tr(widget.subtitle),
                       style: TextStyle(
                         fontSize: 11,
                         color: widget.disabled
@@ -3948,7 +4075,7 @@ class _InfoRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              title,
+              tr(title),
               style: TextStyle(fontSize: 13, color: context.stOnSurface(0.42)),
             ),
           ),
@@ -3996,7 +4123,7 @@ class _SegmentedPicker extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              e.value,
+              tr(e.value),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
@@ -4089,7 +4216,7 @@ class _HoverTextBtnState extends State<_HoverTextBtn> {
             border: Border.all(color: context.stBorder()),
           ),
           child: Text(
-            widget.label,
+            tr(widget.label),
             style: TextStyle(fontSize: 11, color: context.stOnSurface(0.60)),
           ),
         ),
@@ -4143,7 +4270,9 @@ class _ScanButtonState extends State<_ScanButton> {
                 ),
               const SizedBox(width: 7),
               Text(
-                widget.isScanning ? 'Switching…' : 'Rescan devices',
+                widget.isScanning
+                    ? tr('output.switching')
+                    : tr('output.rescan'),
                 style: TextStyle(
                   fontSize: 12,
                   color: context.stOnSurface(0.48),
@@ -4219,7 +4348,7 @@ class _DeviceRow extends StatelessWidget {
                     if (device.isDefault) ...[
                       const SizedBox(width: 6),
                       _Badge(
-                        label: 'Default',
+                        label: tr('display.default'),
                         color: cs.onSurface.withValues(alpha: 0.06),
                         textColor: cs.onSurface.withValues(alpha: 0.34),
                       ),
@@ -4259,7 +4388,9 @@ class _DeviceRow extends StatelessWidget {
               spacing: 5,
               children: [
                 _Badge(
-                  label: device.supportsExclusive ? 'EXCLUSIVE' : 'SHARED ONLY',
+                  label: device.supportsExclusive
+                      ? tr('output.exclusive_badge')
+                      : tr('output.shared_only'),
                   color: device.supportsExclusive
                       ? cs.onSurface.withValues(alpha: 0.07)
                       : cs.onSurface.withValues(alpha: 0.03),
@@ -4273,8 +4404,8 @@ class _DeviceRow extends StatelessWidget {
                     label:
                         device.supportsExclusive &&
                             currentMode == AudioOutputMode.exclusive
-                        ? 'bit-perfect'
-                        : 'system mixer',
+                        ? tr('player.bit_perfect_word')
+                        : tr('output.mixer'),
                     color: Colors.transparent,
                     textColor: cs.onSurface.withValues(alpha: 0.26),
                   ),
@@ -4317,7 +4448,7 @@ class _SelectBtnState extends State<_SelectBtn> {
           ),
         ),
         child: Text(
-          'Select',
+          tr('output.select'),
           style: TextStyle(
             fontSize: 11,
             color: widget.cs.onSurface.withValues(alpha: 0.42),
@@ -4349,8 +4480,8 @@ class _ModeToggle extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _pill('Shared', !exclusive, () => onChanged?.call(false)),
-        _pill('Exclusive', exclusive, () => onChanged?.call(true)),
+        _pill(tr('output.shared'), !exclusive, () => onChanged?.call(false)),
+        _pill(tr('output.exclusive'), exclusive, () => onChanged?.call(true)),
       ],
     ),
   );

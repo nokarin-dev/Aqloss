@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
@@ -47,9 +48,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: 'Library',
+        title: tr('sidebar.library'),
         subtitle: library.totalTracks > 0
-            ? '${library.totalTracks} tracks'
+            ? trFill('library.tracks', {'count': '${library.totalTracks}'})
             : null,
         toolbar: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -59,7 +60,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 Expanded(
                   child: M3SearchField(
                     controller: _searchController,
-                    hintText: 'Search library',
+                    hintText: tr('library.search'),
                     onChanged: (q) {
                       ref.read(libraryProvider.notifier).setQuery(q);
                       setState(() {});
@@ -103,7 +104,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         library.filteredTracks,
                       ),
                   icon: const Icon(Icons.playlist_play_rounded, size: 18),
-                  label: const Text('Play all'),
+                  label: Text(tr('library.play_all')),
                 ),
               ),
             ],
@@ -221,8 +222,15 @@ class _Stats extends StatelessWidget {
       color: cs.onSurface.withValues(alpha: 0.28),
     );
     return Text(
-      '${library.totalTracks} tracks · $time'
-      '${library.losslessTracks.isNotEmpty ? ' · ${library.losslessTracks.length} lossless' : ''}',
+      trFill('library.tracks_time', {
+            'count': '${library.totalTracks}',
+            'time': time,
+          }) +
+          (library.losslessTracks.isEmpty
+              ? ''
+              : trFill('library.lossless_count', {
+                  'count': '${library.losslessTracks.length}',
+                })),
       style: style,
     );
   }
@@ -250,17 +258,17 @@ class _SortBar extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           _FilterPill(
-            label: 'All',
+            label: tr('library.all'),
             selected: library.filter == LibraryFilter.all,
             onTap: () => n.setFilter(LibraryFilter.all),
           ),
           _FilterPill(
-            label: 'Lossless',
+            label: tr('library.lossless'),
             selected: library.filter == LibraryFilter.lossless,
             onTap: () => n.setFilter(LibraryFilter.lossless),
           ),
           _FilterPill(
-            label: 'Hi-Res',
+            label: tr('library.hi_res'),
             selected: library.filter == LibraryFilter.hiRes,
             onTap: () => n.setFilter(LibraryFilter.hiRes),
           ),
@@ -288,12 +296,12 @@ class _SortBar extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             _FilterPill(
-              label: '16-bit',
+              label: tr('library.bit_16'),
               selected: library.bitDepthFilter == BitDepthFilter.sixteen,
               onTap: () => n.setBitDepthFilter(BitDepthFilter.sixteen),
             ),
             _FilterPill(
-              label: '24-bit',
+              label: tr('library.bit_24'),
               selected: library.bitDepthFilter == BitDepthFilter.twentyFourPlus,
               onTap: () => n.setBitDepthFilter(BitDepthFilter.twentyFourPlus),
             ),
@@ -306,11 +314,11 @@ class _SortBar extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           ...[
-            (SortField.artist, 'Artist'),
-            (SortField.album, 'Album'),
-            (SortField.title, 'Title'),
-            (SortField.duration, 'Duration'),
-            (SortField.format, 'Format'),
+            (SortField.artist, tr('library.artist')),
+            (SortField.album, tr('library.album')),
+            (SortField.title, tr('library.title')),
+            (SortField.duration, tr('library.duration')),
+            (SortField.format, tr('library.format')),
           ].map(
             (e) => _SortPill(
               label: e.$2,
@@ -351,19 +359,19 @@ class _M3SortBar extends ConsumerWidget {
       child: Row(
         children: [
           FilterChip(
-            label: const Text('All'),
+            label: Text(tr('library.all')),
             selected: library.filter == LibraryFilter.all,
             onSelected: (_) => n.setFilter(LibraryFilter.all),
           ),
           const SizedBox(width: 6),
           FilterChip(
-            label: const Text('Lossless'),
+            label: Text(tr('library.lossless')),
             selected: library.filter == LibraryFilter.lossless,
             onSelected: (_) => n.setFilter(LibraryFilter.lossless),
           ),
           const SizedBox(width: 6),
           FilterChip(
-            label: const Text('Hi-Res'),
+            label: Text(tr('library.hi_res')),
             selected: library.filter == LibraryFilter.hiRes,
             onSelected: (_) => n.setFilter(LibraryFilter.hiRes),
           ),
@@ -381,27 +389,27 @@ class _M3SortBar extends ConsumerWidget {
           if (showDepth) ...[
             const SizedBox(width: 6),
             FilterChip(
-              label: const Text('16-bit'),
+              label: Text(tr('library.bit_16')),
               selected: library.bitDepthFilter == BitDepthFilter.sixteen,
               onSelected: (_) => n.setBitDepthFilter(BitDepthFilter.sixteen),
             ),
             const SizedBox(width: 6),
             FilterChip(
-              label: const Text('24-bit'),
+              label: Text(tr('library.bit_24')),
               selected: library.bitDepthFilter == BitDepthFilter.twentyFourPlus,
               onSelected: (_) =>
                   n.setBitDepthFilter(BitDepthFilter.twentyFourPlus),
             ),
           ],
           const SizedBox(width: 12),
-          Text('Sort', style: theme.textTheme.labelMedium),
+          Text(tr('library.sort'), style: theme.textTheme.labelMedium),
           const SizedBox(width: 8),
           ...[
-            (SortField.artist, 'Artist'),
-            (SortField.album, 'Album'),
-            (SortField.title, 'Title'),
-            (SortField.duration, 'Duration'),
-            (SortField.format, 'Format'),
+            (SortField.artist, tr('library.artist')),
+            (SortField.album, tr('library.album')),
+            (SortField.title, tr('library.title')),
+            (SortField.duration, tr('library.duration')),
+            (SortField.format, tr('library.format')),
           ].map((e) {
             final selected = library.sortField == e.$1;
             return Padding(
@@ -630,7 +638,7 @@ class _TrackListState extends ConsumerState<_TrackList> {
             QSpinner(size: 18, color: cs.onSurface.withValues(alpha: 0.24)),
             const SizedBox(height: 14),
             Text(
-              'Scanning…',
+              tr('library.scanning'),
               style: TextStyle(
                 color: cs.onSurface.withValues(alpha: 0.24),
                 fontSize: 12,
@@ -650,7 +658,7 @@ class _TrackListState extends ConsumerState<_TrackList> {
     if (tracks.isEmpty) {
       return Center(
         child: Text(
-          'No results',
+          tr('search.empty'),
           style: TextStyle(
             color: cs.onSurface.withValues(alpha: 0.24),
             fontSize: 12,
@@ -743,7 +751,7 @@ class _Empty extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No music yet',
+            tr('library.empty'),
             style: TextStyle(
               color: cs.onSurface.withValues(alpha: 0.36),
               fontSize: 14,
@@ -752,7 +760,7 @@ class _Empty extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Add folders in Settings → Library',
+            tr('library.empty_hint'),
             style: TextStyle(
               fontSize: 11,
               color: cs.onSurface.withValues(alpha: 0.18),
@@ -806,7 +814,7 @@ class _TrackOptions extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
           ),
           Text(
-            track.displayArtist,
+            track.uiArtist,
             style: TextStyle(
               color: cs.onSurface.withValues(alpha: 0.36),
               fontSize: 11,
@@ -816,23 +824,25 @@ class _TrackOptions extends ConsumerWidget {
           const UiDivider(),
           const SizedBox(height: 8),
           UiListTile(
-            title: 'Play next',
+            title: tr('player.play_next'),
             onTap: () async {
               Navigator.pop(context);
               await ref.read(playerProvider.notifier).playNext(track);
-              if (context.mounted) QToast.show(context, 'Playing next');
+              if (context.mounted) {
+                QToast.show(context, tr('player.playing_next'));
+              }
             },
           ),
           UiListTile(
-            title: 'Add to queue',
+            title: tr('queue.add'),
             onTap: () {
               ref.read(playerProvider.notifier).addToQueueLast(track);
               Navigator.pop(context);
-              QToast.show(context, 'Added to queue');
+              QToast.show(context, tr('queue.added'));
             },
           ),
           UiListTile(
-            title: 'Show album',
+            title: tr('track.show_album'),
             onTap: () {
               Navigator.pop(context);
               requestShowAlbum(
@@ -844,14 +854,14 @@ class _TrackOptions extends ConsumerWidget {
             },
           ),
           UiListTile(
-            title: 'Show artist',
+            title: tr('track.show_artist'),
             onTap: () {
               Navigator.pop(context);
               requestShowArtist(context, ref, artist: libraryArtistOf(track));
             },
           ),
           UiListTile(
-            title: 'Track info',
+            title: tr('track.info'),
             onTap: () {
               Navigator.pop(context);
               showTrackInfoSheet(context, track);
@@ -860,7 +870,7 @@ class _TrackOptions extends ConsumerWidget {
           if (playlists.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'Add to playlist',
+              tr('track.add_playlist'),
               style: TextStyle(
                 fontSize: 10,
                 color: cs.onSurface.withValues(alpha: 0.32),
@@ -876,7 +886,10 @@ class _TrackOptions extends ConsumerWidget {
               onTap: () {
                 notifier.addTrack(pl.id, track);
                 Navigator.pop(context);
-                QToast.show(context, 'Added to "${pl.name}"');
+                QToast.show(
+                  context,
+                  trFill('queue.added_playlist', {'name': pl.name}),
+                );
               },
             ),
           ),
@@ -895,7 +908,7 @@ class _PlaylistOptionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return UiListTile(
       title: pl.name,
-      subtitle: '${pl.length} tracks',
+      subtitle: trFill('library.tracks', {'count': '${pl.length}'}),
       onTap: onTap,
     );
   }
@@ -939,7 +952,7 @@ class _PlayAllBtnState extends State<_PlayAllBtn> {
               ),
               const SizedBox(width: 6),
               Text(
-                'Play all',
+                tr('library.play_all'),
                 style: TextStyle(
                   fontSize: 12,
                   color: cs.onSurface.withValues(alpha: 0.70),

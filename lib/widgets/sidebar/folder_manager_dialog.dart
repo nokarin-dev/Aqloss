@@ -4,6 +4,7 @@ import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/services/folder_picker.dart';
 import 'package:aqloss/services/ios_folder_access.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,7 +46,7 @@ class FolderManagerDialog extends ConsumerWidget {
             Row(
               children: [
                 Text(
-                  'Music Folders',
+                  tr('settings.folders'),
                   style: TextStyle(
                     color: onSurface,
                     fontSize: 15,
@@ -89,7 +90,7 @@ class FolderManagerDialog extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  'No folders added yet.',
+                  tr('folders.empty_sentence'),
                   style: TextStyle(color: a(0.32), fontSize: 13),
                 ),
               )
@@ -173,7 +174,7 @@ class FolderManagerDialog extends ConsumerWidget {
             const SizedBox(height: 14),
             if (Platform.isIOS) ...[
               Text(
-                kIosMusicFolderHint,
+                tr(kIosMusicFolderHint),
                 style: TextStyle(color: a(0.32), fontSize: 11, height: 1.4),
               ),
               const SizedBox(height: 14),
@@ -185,7 +186,10 @@ class FolderManagerDialog extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: isScanning ? null : () => _addFolder(context, ref),
                 icon: const Icon(Icons.add_rounded, size: 15),
-                label: const Text('Add folder', style: TextStyle(fontSize: 13)),
+                label: Text(
+                  tr('folders.add_short'),
+                  style: TextStyle(fontSize: 13),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: a(0.55),
                   side: BorderSide(color: a(0.12)),

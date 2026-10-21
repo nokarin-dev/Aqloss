@@ -4,6 +4,7 @@ import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:aqloss/l10n/l10n.dart';
 
 class FolderBrowserDialog extends StatefulWidget {
   final String title;
@@ -110,7 +111,7 @@ class _FolderBrowserDialogState extends State<FolderBrowserDialog> {
         _current = dir;
         _children = const [];
         _loading = false;
-        _error = 'Cannot open this folder';
+        _error = tr('browser.cannot_open');
         _pathController.text = dir.path;
       });
     }
@@ -126,7 +127,7 @@ class _FolderBrowserDialogState extends State<FolderBrowserDialog> {
     }
     final dir = Directory(trimmed);
     if (!dir.existsSync()) {
-      setState(() => _error = 'Folder does not exist');
+      setState(() => _error = tr('browser.missing'));
       return;
     }
     _load(dir);
@@ -159,14 +160,14 @@ class _FolderBrowserDialogState extends State<FolderBrowserDialog> {
             children: [
               _IconBtn(
                 icon: Icons.arrow_upward_rounded,
-                tooltip: 'Parent folder',
+                tooltip: tr('browser.parent'),
                 enabled: !_isRoot,
                 onTap: _goUp,
               ),
               const SizedBox(width: 4),
               _IconBtn(
                 icon: Icons.home_rounded,
-                tooltip: 'Home',
+                tooltip: tr('browser.home'),
                 onTap: _goHome,
               ),
               const SizedBox(width: 8),
@@ -177,7 +178,7 @@ class _FolderBrowserDialogState extends State<FolderBrowserDialog> {
                   style: TextStyle(color: onSurface, fontSize: 13),
                   decoration: InputDecoration(
                     isDense: true,
-                    hintText: 'Folder path',
+                    hintText: tr('browser.path'),
                     hintStyle: TextStyle(color: a(0.24)),
                     filled: true,
                     fillColor: isM3
@@ -230,7 +231,7 @@ class _FolderBrowserDialogState extends State<FolderBrowserDialog> {
                   : _children.isEmpty
                   ? Center(
                       child: Text(
-                        'No subfolders',
+                        tr('browser.empty'),
                         style: TextStyle(color: a(0.32), fontSize: 13),
                       ),
                     )
@@ -279,12 +280,15 @@ class _FolderBrowserDialogState extends State<FolderBrowserDialog> {
     final actions = [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text('Cancel', style: TextStyle(color: a(0.32), fontSize: 13)),
+        child: Text(
+          tr('integrations.cancel'),
+          style: TextStyle(color: a(0.32), fontSize: 13),
+        ),
       ),
       TextButton(
         onPressed: () => Navigator.pop(context, _current.path),
         child: Text(
-          'Use this folder',
+          tr('browser.use'),
           style: TextStyle(
             color: a(0.68),
             fontSize: 13,

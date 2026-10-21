@@ -10,8 +10,10 @@ import 'package:aqloss/theme/standalone_theme.dart';
 import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/reduce_motion.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:flutter/material.dart' hide ThemeMode;
 import 'package:flutter/material.dart' as theme;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
@@ -59,6 +61,11 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
     WidgetsBinding.instance.removeObserver(this);
     if (_isDesktop) windowManager.removeListener(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    setState(() {});
   }
 
   @override
@@ -120,6 +127,18 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    final catalog =
+        ref.watch(l10nCatalogProvider).asData?.value ?? L10nCatalog.empty;
+    final language = resolveLanguage(
+      preference: settings.language,
+      systemCode: View.of(context).platformDispatcher.locale.languageCode,
+      available: catalog.codes,
+    );
+    final english = catalog.tableFor('en');
+    AppCopy.apply(
+      catalog.tableFor(language),
+      english: english.isEmpty ? null : english,
+    );
     final navKey = FileOpenService.instance.navigatorKey;
 
     final linuxFlush =
@@ -139,6 +158,7 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
       accent: accent,
       navKey: navKey,
       isWindowedLinux: isWindowedLinux,
+      language: language,
     );
 
     if (!useDynamic) return app;
@@ -150,6 +170,7 @@ class _AqlossAppState extends ConsumerState<AqlossApp>
           accent: accent,
           navKey: navKey,
           isWindowedLinux: isWindowedLinux,
+          language: language,
           lightDynamic: toFlutterColorScheme(lightDynamic),
           darkDynamic: toFlutterColorScheme(darkDynamic),
         );
@@ -163,6 +184,7 @@ class _AqlossMaterialApp extends StatelessWidget {
   final Color? accent;
   final GlobalKey<NavigatorState> navKey;
   final bool isWindowedLinux;
+  final String language;
   final ColorScheme? lightDynamic;
   final ColorScheme? darkDynamic;
 
@@ -171,6 +193,7 @@ class _AqlossMaterialApp extends StatelessWidget {
     required this.accent,
     required this.navKey,
     required this.isWindowedLinux,
+    required this.language,
     this.lightDynamic,
     this.darkDynamic,
   });
@@ -210,6 +233,12 @@ class _AqlossMaterialApp extends StatelessWidget {
       color: Colors.transparent,
       title: 'Aqloss',
       debugShowCheckedModeBanner: false,
+      locale: _materialLocale(language),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       themeMode: materialThemeMode,
       theme: lightTheme,
       darkTheme: darkTheme,
@@ -267,4 +296,13 @@ class _AqlossMaterialApp extends StatelessWidget {
       ),
     );
   }
+}
+
+Locale _materialLocale(String language) {
+  final supported =
+      kMaterialSupportedLanguages.contains(language) &&
+      kCupertinoSupportedLanguages.contains(language) &&
+      kWidgetsSupportedLanguages.contains(language);
+  if (supported) return Locale(language);
+  return const Locale('en');
 }

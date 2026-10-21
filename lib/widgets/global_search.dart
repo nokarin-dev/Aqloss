@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 // Search result types
 sealed class SearchResult {}
@@ -132,7 +133,7 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
         .where(
           (t) =>
               t.value.first.displayTitle.toLowerCase().contains(q) ||
-              t.value.first.displayArtist.toLowerCase().contains(q),
+              t.value.first.uiArtist.toLowerCase().contains(q),
         )
         .take(6)
         .toList();
@@ -150,7 +151,7 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
         .where(
           (e) =>
               e.key.toLowerCase().contains(q) ||
-              (e.value.first.albumArtist ?? e.value.first.displayArtist)
+              (e.value.first.albumArtist ?? e.value.first.uiArtist)
                   .toLowerCase()
                   .contains(q),
         )
@@ -159,7 +160,7 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
       results.add(
         AlbumResult(
           album: e.key,
-          artist: e.value.first.albumArtist ?? e.value.first.displayArtist,
+          artist: e.value.first.albumArtist ?? e.value.first.uiArtist,
           coverPath: e.value.first.path,
           tracks: e.value,
         ),
@@ -169,7 +170,7 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
     // Artists
     final artistMap = <String, List<Track>>{};
     for (final t in tracks) {
-      artistMap.putIfAbsent(t.displayArtist, () => []).add(t);
+      artistMap.putIfAbsent(t.uiArtist, () => []).add(t);
     }
     final matchArtists = artistMap.entries
         .where((e) => e.key.toLowerCase().contains(q))
@@ -273,10 +274,10 @@ class _SearchModalState extends ConsumerState<_SearchModal> {
   }
 
   String _typeLabel(SearchResult r) => switch (r) {
-    TrackResult() => 'TRACKS',
-    AlbumResult() => 'ALBUMS',
-    ArtistResult() => 'ARTISTS',
-    PlaylistResult() => 'PLAYLISTS',
+    TrackResult() => tr('search.tracks'),
+    AlbumResult() => tr('search.albums'),
+    ArtistResult() => tr('search.artists'),
+    PlaylistResult() => tr('sidebar.playlists_label'),
   };
 }
 
@@ -352,7 +353,7 @@ class _SearchModalBody extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'No results for "$query"',
+                    trFill('search.empty_query', {'query': query}),
                     style: TextStyle(
                       fontSize: 12.5,
                       color: onSurfaceAlpha(0.32),
@@ -530,7 +531,7 @@ class _TrackTile extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  result.tracks.first.displayArtist,
+                  result.tracks.first.uiArtist,
                   style: TextStyle(
                     fontSize: 11,
                     color: cs.onSurface.withValues(alpha: 0.36),
@@ -611,7 +612,7 @@ class _AlbumTile extends ConsumerWidget {
             ),
           ),
           Text(
-            '${result.tracks.length} tracks',
+            trFill('library.tracks', {'count': '${result.tracks.length}'}),
             style: TextStyle(
               fontSize: 10.5,
               color: cs.onSurface.withValues(alpha: 0.22),
@@ -674,7 +675,7 @@ class _ArtistTile extends ConsumerWidget {
             ),
           ),
           Text(
-            '${result.trackCount} tracks',
+            trFill('library.tracks', {'count': '${result.trackCount}'}),
             style: TextStyle(
               fontSize: 10.5,
               color: cs.onSurface.withValues(alpha: 0.22),
@@ -734,7 +735,7 @@ class _PlaylistTile extends ConsumerWidget {
             ),
           ),
           Text(
-            '${result.trackCount} tracks',
+            trFill('library.tracks', {'count': '${result.trackCount}'}),
             style: TextStyle(
               fontSize: 10.5,
               color: cs.onSurface.withValues(alpha: 0.22),

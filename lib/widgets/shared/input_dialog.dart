@@ -1,6 +1,7 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter/material.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class InputDialog extends StatefulWidget {
   final String title;
@@ -80,7 +81,7 @@ class _InputDialogState extends State<InputDialog> {
       TextButton(
         onPressed: () => Navigator.pop(context),
         child: Text(
-          'Cancel',
+          tr('integrations.cancel'),
           style: TextStyle(
             color: onSurface.withValues(alpha: 0.32),
             fontSize: 13,

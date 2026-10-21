@@ -44,6 +44,7 @@ void main() {
       closeToTray: false,
       reduceMotion: true,
       showTitleBar: false,
+      language: 'de',
       loaded: true,
     );
     final playlists = [
@@ -82,6 +83,7 @@ void main() {
     expect(restored.closeToTray, isFalse);
     expect(restored.reduceMotion, isTrue);
     expect(restored.showTitleBar, isFalse);
+    expect(restored.language, 'de');
     expect(restored.playbackSpeed, 1.25);
     expect(restored.uiFramework, UiFramework.material3);
   });

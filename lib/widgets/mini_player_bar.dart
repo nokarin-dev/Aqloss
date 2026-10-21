@@ -12,6 +12,7 @@ import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/providers/audio_device_provider.dart';
 import 'package:aqloss/widgets/q_toast.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class _BarColors {
   final Color surface;
@@ -250,7 +251,7 @@ class _DesktopBarContent extends StatelessWidget {
                           ),
                           const SizedBox(height: 1),
                           Text(
-                            track.displayArtistAlbum,
+                            track.uiArtistAlbum,
                             style: TextStyle(
                               color: colors.onSurfaceAlpha(0.38),
                               fontSize: 11,
@@ -261,7 +262,7 @@ class _DesktopBarContent extends StatelessWidget {
                           const SizedBox(height: 3),
                           _InlineBadge(
                             isExclusive
-                                ? 'BIT-PERFECT'
+                                ? tr('player.bit_perfect')
                                 : '${track.format} · ${_khz(track.sampleRate)}',
                             colors,
                           ),
@@ -286,14 +287,14 @@ class _DesktopBarContent extends StatelessWidget {
                       icon: Icons.shuffle_rounded,
                       size: 15,
                       active: player.shuffle,
-                      tooltip: 'Shuffle',
+                      tooltip: tr('player.shuffle'),
                       onTap: notifier.toggleShuffle,
                     ),
                     const SizedBox(width: 4),
                     _MiniBtn(
                       icon: Icons.skip_previous_rounded,
                       size: 20,
-                      tooltip: 'Previous',
+                      tooltip: tr('player.previous'),
                       onTap: notifier.skipPrevious,
                     ),
                     const SizedBox(width: 6),
@@ -317,7 +318,7 @@ class _DesktopBarContent extends StatelessWidget {
                     _MiniBtn(
                       icon: Icons.skip_next_rounded,
                       size: 20,
-                      tooltip: 'Next',
+                      tooltip: tr('player.next'),
                       onTap: notifier.skipNext,
                     ),
                     const SizedBox(width: 4),
@@ -401,7 +402,7 @@ class _DesktopBarContent extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Tooltip(
-                message: 'Copy now playing',
+                message: tr('player.copy'),
                 preferBelow: false,
                 waitDuration: const Duration(milliseconds: 500),
                 child: _MiniBtn(
@@ -410,9 +411,9 @@ class _DesktopBarContent extends StatelessWidget {
                   tooltip: '',
                   onTap: () {
                     final t = track;
-                    final text = '${t.displayArtist} - ${t.displayTitle}';
+                    final text = '${t.uiArtist} - ${t.displayTitle}';
                     Clipboard.setData(ClipboardData(text: text));
-                    QToast.show(context, 'Copied to clipboard');
+                    QToast.show(context, tr('player.copied'));
                   },
                 ),
               ),
@@ -451,7 +452,7 @@ class _DesktopBarContent extends StatelessWidget {
                   );
                   if (isExclusive) {
                     row = Tooltip(
-                      message: kBitPerfectUnavailableHint,
+                      message: tr(kBitPerfectUnavailableHint),
                       child: row,
                     );
                   }
@@ -580,7 +581,7 @@ class _MobileBar extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          track.displayArtistAlbum,
+                          track.uiArtistAlbum,
                           style: TextStyle(
                             color: colors.onSurfaceAlpha(0.34),
                             fontSize: 11,
@@ -832,8 +833,10 @@ class _DragToQueueTargetState extends ConsumerState<_DragToQueueTarget> {
         }
         final count = details.data.length;
         final label = count == 1
-            ? '"${details.data.first.displayTitle}" added to queue'
-            : '$count tracks added to queue';
+            ? trFill('queue.added_title', {
+                'title': details.data.first.displayTitle,
+              })
+            : trFill('queue.added_tracks', {'count': '$count'});
         QToast.show(context, label);
       },
       builder: (ctx, candidates, _) {
@@ -889,7 +892,7 @@ class _DragToQueueTargetState extends ConsumerState<_DragToQueueTarget> {
                               ),
                               const SizedBox(width: 7),
                               Text(
-                                'Add to queue',
+                                tr('queue.add'),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: colors.onSurfaceAlpha(0.70),
@@ -991,10 +994,10 @@ class _MiniLoopBtnState extends State<_MiniLoopBtn> {
       LoopMode.playlist => (Icons.repeat_rounded, '∞', true),
     };
     final tip = switch (widget.mode) {
-      LoopMode.off => 'Loop: off',
-      LoopMode.track => 'Loop: track',
-      LoopMode.album => 'Loop: album',
-      LoopMode.playlist => 'Loop: all',
+      LoopMode.off => tr('player.loop_off'),
+      LoopMode.track => tr('player.loop_track'),
+      LoopMode.album => tr('player.loop_album'),
+      LoopMode.playlist => tr('player.loop_all'),
     };
     return Tooltip(
       message: tip,

@@ -15,6 +15,7 @@ import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/widgets/track_info_sheet.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/providers/audio_device_provider.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 // Cover layout breakpoint
 const _coverLayoutMaxWidth = 640.0;
@@ -186,7 +187,7 @@ class _PlaybackColumn extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  track?.displayTitle ?? 'Nothing playing',
+                  track?.displayTitle ?? tr('player.nothing'),
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w500,
                     letterSpacing: -0.3,
@@ -307,7 +308,7 @@ class _CoverNowPlayingState extends ConsumerState<_CoverNowPlaying> {
                   key: ValueKey(track?.path),
                   children: [
                     Text(
-                      track?.displayTitle ?? 'Nothing playing',
+                      track?.displayTitle ?? tr('player.nothing'),
                       textAlign: TextAlign.center,
                       style: widget.m3
                           ? theme.textTheme.titleLarge?.copyWith(
@@ -464,7 +465,7 @@ class _LyricsChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: open ? 'Hide lyrics' : 'Lyrics',
+      message: open ? tr('lyrics.hide') : tr('lyrics.title'),
       child: Material(
         color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
@@ -483,7 +484,7 @@ class _LyricsChip extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  open ? 'Close' : 'Lyrics',
+                  open ? tr('lyrics.close') : tr('lyrics.title'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -676,7 +677,7 @@ class _TrackInfo extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            track?.displayTitle ?? 'Nothing playing',
+            track?.displayTitle ?? tr('player.nothing'),
             style: TextStyle(
               fontSize: isWide ? 21 : 19,
               fontWeight: FontWeight.w400,
@@ -741,7 +742,7 @@ class _FormatRow extends ConsumerWidget {
             _Badge('${track.bitDepth}-bit', soft: soft),
           if (isExclusive)
             _Badge(
-              'BIT-PERFECT',
+              tr('player.bit_perfect'),
               color: Theme.of(
                 context,
               ).colorScheme.onSurface.withValues(alpha: 0.06),

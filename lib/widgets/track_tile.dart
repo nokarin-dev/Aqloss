@@ -9,6 +9,7 @@ import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/providers/accent_provider.dart';
 import 'package:aqloss/widgets/shared/mini_album_art.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class TrackTile extends ConsumerWidget {
   final Track track;
@@ -412,7 +413,7 @@ class _M3TileBodyState extends ConsumerState<_M3TileBody> {
                         minWidth: 32,
                         minHeight: 32,
                       ),
-                      tooltip: isLoved ? 'Unlove' : 'Love',
+                      tooltip: isLoved ? tr('track.unlove') : tr('track.love'),
                       onPressed: () => ref
                           .read(historyProvider.notifier)
                           .toggleLove(widget.track),
@@ -439,7 +440,7 @@ class _M3TileBodyState extends ConsumerState<_M3TileBody> {
                     minWidth: 32,
                     minHeight: 32,
                   ),
-                  tooltip: 'Add to queue',
+                  tooltip: tr('queue.add'),
                   onPressed: () => ref
                       .read(playerProvider.notifier)
                       .addToQueueLast(widget.track),

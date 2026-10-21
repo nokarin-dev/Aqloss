@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/lastfm_service.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class LastFmAuthRow extends ConsumerStatefulWidget {
   const LastFmAuthRow({super.key});
@@ -43,7 +44,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'API Key required',
+                    tr('integrations.api_required'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -52,9 +53,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'This build doesn\'t include a Last.fm API key. '
-                    'Get a free key at https://last.fm/api/account/create, '
-                    'then enter it below.',
+                    tr("integrations.api_missing"),
                     style: TextStyle(fontSize: 11, height: 1.4, color: a(0.40)),
                   ),
                   const SizedBox(height: 8),
@@ -71,7 +70,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                         border: Border.all(color: a(0.14)),
                       ),
                       child: Text(
-                        'Enter API key',
+                        tr('integrations.enter_api'),
                         style: TextStyle(fontSize: 11, color: a(0.70)),
                       ),
                     ),
@@ -93,20 +92,22 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                     children: [
                       Text(
                         hasSession
-                            ? 'Signed in as ${s.lastFmUsername ?? ''}'
+                            ? trFill('integrations.signed_in', {
+                                'name': s.lastFmUsername ?? '',
+                              })
                             : (s.lastFmUsername?.isNotEmpty == true
                                   ? s.lastFmUsername!
-                                  : 'Not signed in'),
+                                  : tr('integrations.signed_out')),
                         style: TextStyle(fontSize: 13, color: a(0.70)),
                       ),
                       if (hasSession)
                         Text(
-                          'Scrobbling active',
+                          tr('integrations.scrobbling'),
                           style: TextStyle(fontSize: 11, color: a(0.30)),
                         ),
                       if (!hasSession && !needsKey && s.hasBuiltInKey)
                         Text(
-                          'Using built-in API key',
+                          tr('integrations.builtin_key'),
                           style: TextStyle(
                             fontSize: 10,
                             fontStyle: FontStyle.italic,
@@ -115,7 +116,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                         ),
                       if (s.lastFmApiKey?.isNotEmpty == true)
                         Text(
-                          'Using your API key',
+                          tr('integrations.custom_key'),
                           style: TextStyle(
                             fontSize: 10,
                             fontStyle: FontStyle.italic,
@@ -139,7 +140,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                   GestureDetector(
                     onTap: n.clearLastFmSession,
                     child: _Chip(
-                      label: 'Sign out',
+                      label: tr('integrations.sign_out'),
                       onSurface: onSurface,
                       filled: false,
                     ),
@@ -148,7 +149,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                   GestureDetector(
                     onTap: () => _showLoginDialog(context, n, s),
                     child: _Chip(
-                      label: 'Sign in',
+                      label: tr('integrations.sign_in'),
                       onSurface: onSurface,
                       filled: true,
                     ),
@@ -167,15 +168,15 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
                   Expanded(
                     child: Text(
                       s.lastFmApiKey?.isNotEmpty == true
-                          ? 'Custom API key set'
-                          : 'Using built-in API key',
+                          ? tr('integrations.custom_set')
+                          : tr('integrations.builtin_key'),
                       style: TextStyle(fontSize: 12, color: a(0.44)),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => _showApiKeyDialog(context, n, s),
                     child: Text(
-                      'Change',
+                      tr('integrations.change'),
                       style: TextStyle(fontSize: 11, color: a(0.36)),
                     ),
                   ),
@@ -198,19 +199,23 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
 
     await showUiDialog<void>(
       context: ctx,
-      title: 'Sign in to Last.fm',
+      title: tr('integrations.lastfm_sign_in'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Field(controller: userCtrl, hint: 'Username'),
+          _Field(controller: userCtrl, hint: tr('integrations.username')),
           const SizedBox(height: 10),
-          _Field(controller: passCtrl, hint: 'Password', obscure: true),
+          _Field(
+            controller: passCtrl,
+            hint: tr('integrations.password'),
+            obscure: true,
+          ),
         ],
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+          child: Text(tr('integrations.cancel')),
         ),
         TextButton(
           onPressed: () async {
@@ -232,15 +237,11 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
               n.setLastFmSession(key);
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Sign-in failed. Check credentials or API key.',
-                  ),
-                ),
+                SnackBar(content: Text(tr('integrations.sign_in_failed'))),
               );
             }
           },
-          child: const Text('Sign in'),
+          child: Text(tr('integrations.sign_in')),
         ),
       ],
     );
@@ -256,13 +257,13 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
 
     await showUiDialog<void>(
       context: ctx,
-      title: 'Last.fm API Key',
+      title: tr('integrations.lastfm_key'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Get a free key at last.fm/api/account/create',
+            tr('integrations.lastfm_key_hint'),
             style: TextStyle(
               fontSize: 11,
               color: ctx.isMaterial3Ui
@@ -271,15 +272,15 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
             ),
           ),
           const SizedBox(height: 12),
-          _Field(controller: keyCtrl, hint: 'API Key'),
+          _Field(controller: keyCtrl, hint: tr('integrations.api_key')),
           const SizedBox(height: 10),
-          _Field(controller: secretCtrl, hint: 'Shared Secret'),
+          _Field(controller: secretCtrl, hint: tr('integrations.secret')),
         ],
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+          child: Text(tr('integrations.cancel')),
         ),
         if (s.lastFmApiKey?.isNotEmpty == true)
           TextButton(
@@ -289,7 +290,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
               n.clearLastFmSession();
               Navigator.pop(ctx);
             },
-            child: const Text('Clear'),
+            child: Text(tr('integrations.clear')),
           ),
         TextButton(
           onPressed: () {
@@ -298,7 +299,7 @@ class _LastFmAuthRowState extends ConsumerState<LastFmAuthRow> {
             n.clearLastFmSession();
             Navigator.pop(ctx);
           },
-          child: const Text('Save'),
+          child: Text(tr('eq.save')),
         ),
       ],
     );

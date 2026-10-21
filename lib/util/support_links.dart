@@ -32,8 +32,8 @@ const kTrakteerUrl = 'https://trakteer.id/nokarin';
 const kTakoUrl = 'https://tako.id/nokarin';
 
 const kInternationalSupport = SupportGroup(
-  title: 'International',
-  subtitle: 'Cards and most currencies.',
+  title: 'support.international',
+  subtitle: 'support.international_sub',
   links: [
     SupportLink(name: 'Ko-fi', url: kKoFiUrl, primary: true),
     SupportLink(name: 'Buy Me a Coffee', url: kBuyMeACoffeeUrl),
@@ -43,8 +43,8 @@ const kInternationalSupport = SupportGroup(
 );
 
 const kIndonesiaSupport = SupportGroup(
-  title: 'Indonesia',
-  subtitle: 'QRIS, bank transfer, and local wallets.',
+  title: 'support.indonesia',
+  subtitle: 'support.indonesia_sub',
   links: [
     SupportLink(name: 'Trakteer', url: kTrakteerUrl, primary: true),
     SupportLink(name: 'Tako', url: kTakoUrl),

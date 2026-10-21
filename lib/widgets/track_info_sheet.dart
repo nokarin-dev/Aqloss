@@ -7,6 +7,7 @@ import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 Future<void> showTrackInfoSheet(BuildContext context, Track track) {
   return showQSheet(
@@ -53,7 +54,7 @@ class TrackInfoSheet extends ConsumerWidget {
               ),
             ),
             Text(
-              track.displayArtistAlbum,
+              track.uiArtistAlbum,
               style: TextStyle(
                 color: cs.onSurface.withValues(alpha: 0.36),
                 fontSize: 11,
@@ -62,34 +63,43 @@ class TrackInfoSheet extends ConsumerWidget {
             const SizedBox(height: 14),
             const UiDivider(),
             const SizedBox(height: 8),
-            if (number != null) _InfoRow(label: 'Track', value: '$number'),
-            _InfoRow(label: 'Album', value: track.displayAlbum),
-            _InfoRow(label: 'Format', value: track.format),
-            _InfoRow(label: 'Sample rate', value: track.sampleRateLabel),
-            _InfoRow(label: 'Bit depth', value: track.bitDepthLabel),
-            _InfoRow(label: 'Channels', value: track.channelsLabel),
-            _InfoRow(label: 'Duration', value: track.durationLabel),
-            _InfoRow(label: 'File size', value: track.fileSizeLabel),
+            if (number != null)
+              _InfoRow(label: tr('library.track'), value: '$number'),
+            _InfoRow(label: tr('library.album'), value: track.uiAlbum),
+            _InfoRow(label: tr('library.format'), value: track.format),
             _InfoRow(
-              label: 'ReplayGain track',
+              label: tr('track.sample_rate'),
+              value: track.sampleRateLabel,
+            ),
+            _InfoRow(label: tr('track.bit_depth'), value: track.bitDepthLabel),
+            _InfoRow(label: tr('track.channels'), value: track.channelsLabel),
+            _InfoRow(label: tr('library.duration'), value: track.durationLabel),
+            _InfoRow(label: tr('track.file_size'), value: track.fileSizeLabel),
+            _InfoRow(
+              label: tr('track.replaygain'),
               value: track.replayGainTrackLabel,
             ),
             _InfoRow(
-              label: 'ReplayGain album',
+              label: tr('track.replaygain_album'),
               value: track.replayGainAlbumLabel,
             ),
-            _InfoRow(label: 'Play count', value: plays == 0 ? '0' : '$plays'),
+            _InfoRow(
+              label: tr('track.play_count'),
+              value: plays == 0 ? '0' : '$plays',
+            ),
             const SizedBox(height: 8),
             const UiDivider(),
             const SizedBox(height: 8),
-            _InfoRow(label: 'Path', value: track.path),
+            _InfoRow(label: tr('track.path'), value: track.path),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: track.path));
-                  if (context.mounted) QToast.show(context, 'Path copied');
+                  if (context.mounted) {
+                    QToast.show(context, tr('track.path_copied'));
+                  }
                 },
                 icon: Icon(
                   Icons.copy_rounded,
@@ -97,7 +107,7 @@ class TrackInfoSheet extends ConsumerWidget {
                   color: cs.onSurface.withValues(alpha: 0.50),
                 ),
                 label: Text(
-                  'Copy path',
+                  tr('track.copy_path'),
                   style: TextStyle(
                     color: cs.onSurface.withValues(alpha: 0.50),
                     fontSize: 12,

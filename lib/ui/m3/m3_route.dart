@@ -1,3 +1,5 @@
+import 'package:aqloss/l10n/l10n.dart';
+
 abstract final class M3Route {
   static const player = 0;
   static const library = 1;
@@ -31,13 +33,13 @@ abstract final class M3Route {
   };
 
   static String titleFor(int route) => switch (route) {
-    player => 'Now Playing',
-    library => 'Library',
-    albums => 'Albums',
-    settings => 'Settings',
-    history => 'History',
-    artists => 'Artists',
-    _ when route >= playlistBase => 'Playlist',
+    player => tr('sidebar.now_playing'),
+    library => tr('sidebar.library'),
+    albums => tr('sidebar.albums'),
+    settings => tr('sidebar.settings'),
+    history => tr('sidebar.history'),
+    artists => tr('sidebar.artists'),
+    _ when route >= playlistBase => tr('sidebar.playlist'),
     _ => 'Aqloss',
   };
 }

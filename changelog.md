@@ -26,6 +26,7 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Frontend|Playlists] Missing files are marked so you can remove them; play skips them
 - [Frontend|Settings] Export and restore settings, playlists, and music folders as one file
 - [Frontend|Settings] Support page with Ko-fi, Buy Me a Coffee, Open Collective, thanks.dev, Trakteer, and Tako
+- [Frontend|Settings] Added l10n translation (#47)
 
 - [Backend|Audio] Support Dolby Digital Plus (AC-3/E-AC-3).
 

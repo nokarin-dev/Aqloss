@@ -1,3 +1,5 @@
+import 'package:aqloss/l10n/l10n.dart';
+
 String trayTooltip({String? title, String? artist}) {
   final t = title?.trim() ?? '';
   if (t.isEmpty) return 'Aqloss';
@@ -6,4 +8,5 @@ String trayTooltip({String? title, String? artist}) {
   return '$t — $a';
 }
 
-String trayPlayPauseLabel(bool playing) => playing ? 'Pause' : 'Play';
+String trayPlayPauseLabel(bool playing) =>
+    playing ? tr('player.pause') : tr('player.play');

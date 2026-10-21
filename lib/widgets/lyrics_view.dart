@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/lyrics_provider.dart';
 import 'package:aqloss/providers/player_provider.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class LyricsView extends ConsumerStatefulWidget {
   final bool onDark;
@@ -87,12 +88,12 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
             ),
             const SizedBox(height: 12),
             Text(
-              'No lyrics found',
+              tr('lyrics.empty'),
               style: TextStyle(fontSize: 13, color: onSurfaceAlpha(0.24)),
             ),
             const SizedBox(height: 6),
             Text(
-              'Embed lyrics in the audio file tags,\nor add a .lrc file next to it',
+              tr('lyrics.hint'),
               style: TextStyle(fontSize: 11, color: onSurfaceAlpha(0.14)),
               textAlign: TextAlign.center,
             ),
@@ -278,9 +279,9 @@ class _SourceBadge extends StatelessWidget {
     if (source == LyricsSource.none) return const SizedBox.shrink();
 
     final (icon, label) = switch (source) {
-      LyricsSource.embedded => (Icons.music_note, 'Embedded'),
-      LyricsSource.lrcFile => (Icons.text_snippet_outlined, '.lrc file'),
-      LyricsSource.txtFile => (Icons.text_fields, '.txt file'),
+      LyricsSource.embedded => (Icons.music_note, tr('lyrics.embedded')),
+      LyricsSource.lrcFile => (Icons.text_snippet_outlined, tr('lyrics.lrc')),
+      LyricsSource.txtFile => (Icons.text_fields, tr('lyrics.txt')),
       LyricsSource.lrclib => (Icons.cloud_outlined, 'lrclib'),
       LyricsSource.none => (Icons.close, ''),
     };

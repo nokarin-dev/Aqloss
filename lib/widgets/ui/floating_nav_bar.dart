@@ -1,3 +1,4 @@
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:flutter/material.dart';
@@ -17,12 +18,16 @@ class FloatingNavBar extends StatelessWidget {
     (
       Icons.play_circle_outline_rounded,
       Icons.play_circle_rounded,
-      'Now Playing',
+      'sidebar.now_playing',
     ),
-    (Icons.library_music_outlined, Icons.library_music_rounded, 'Library'),
-    (Icons.album_outlined, Icons.album_rounded, 'Albums'),
-    (Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
-    (Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More'),
+    (
+      Icons.library_music_outlined,
+      Icons.library_music_rounded,
+      'sidebar.library',
+    ),
+    (Icons.album_outlined, Icons.album_rounded, 'sidebar.albums'),
+    (Icons.settings_outlined, Icons.settings_rounded, 'sidebar.settings'),
+    (Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'sidebar.more'),
   ];
 
   @override
@@ -43,7 +48,7 @@ class FloatingNavBar extends StatelessWidget {
                 M3ENavigationBarDestination(
                   icon: Icon(d.$1),
                   selectedIcon: Icon(d.$2),
-                  label: d.$3,
+                  label: tr(d.$3),
                 ),
             ],
             selectedIndex: selectedIndex,
@@ -101,8 +106,8 @@ class FloatingNavBar extends StatelessWidget {
                   NavigationDestination(
                     icon: Icon(d.$1),
                     selectedIcon: Icon(d.$2),
-                    label: d.$3,
-                    tooltip: d.$3,
+                    label: tr(d.$3),
+                    tooltip: tr(d.$3),
                   ),
               ],
             ),

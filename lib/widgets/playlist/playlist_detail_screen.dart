@@ -16,6 +16,7 @@ import 'package:aqloss/widgets/shared/track_context_menu.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
@@ -143,10 +144,13 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
         title: current.name,
-        subtitle: '${current.length} tracks · ${current.durationLabel}',
+        subtitle: trFill('albums.tracks_duration', {
+          'count': '${current.length}',
+          'duration': current.durationLabel,
+        }),
         actions: [
           IconButton(
-            tooltip: 'Export playlist',
+            tooltip: tr('playlists.export'),
             icon: const Icon(Icons.upload_rounded),
             onPressed: () async {
               final result = await PlaylistIOService.export(current);
@@ -156,14 +160,22 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     SnackBar(
                       content: Text(
                         result.savedPath != null
-                            ? 'Exported to ${result.savedPath}'
-                            : 'Exported',
+                            ? trFill('playlists.exported_path', {
+                                'path': '${result.savedPath}',
+                              })
+                            : tr('playlists.exported'),
                       ),
                     ),
                   );
                 } else if (result.error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Export failed: ${result.error}')),
+                    SnackBar(
+                      content: Text(
+                        trFill('playlists.export_failed', {
+                          'error': '${result.error}',
+                        }),
+                      ),
+                    ),
                   );
                 }
               }
@@ -176,7 +188,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 current.tracks,
               ),
               icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Play'),
+              label: Text(tr('player.play')),
             ),
         ],
         body: missingBar == null
@@ -218,7 +230,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${current.length} tracks · ${current.durationLabel}',
+                        trFill('albums.tracks_duration', {
+                          'count': '${current.length}',
+                          'duration': current.durationLabel,
+                        }),
                         style: TextStyle(
                           fontSize: 11,
                           color: cs.onSurface.withValues(alpha: 0.32),
@@ -230,7 +245,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 // Export button
                 _PlaylistHeaderBtn(
                   icon: Icons.upload_rounded,
-                  tooltip: 'Export playlist',
+                  tooltip: tr('playlists.export'),
                   onTap: () async {
                     final result = await PlaylistIOService.export(current);
                     if (context.mounted) {
@@ -239,8 +254,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                           SnackBar(
                             content: Text(
                               result.savedPath != null
-                                  ? 'Exported to ${result.savedPath}'
-                                  : 'Exported',
+                                  ? trFill('playlists.exported_path', {
+                                      'path': '${result.savedPath}',
+                                    })
+                                  : tr('playlists.exported'),
                             ),
                             duration: const Duration(seconds: 3),
                           ),
@@ -248,7 +265,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       } else if (result.error != null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Export failed: ${result.error}'),
+                            content: Text(
+                              trFill('playlists.export_failed', {
+                                'error': '${result.error}',
+                              }),
+                            ),
                           ),
                         );
                       }
@@ -320,7 +341,7 @@ class _MissingFilesBar extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(onPressed: onRemove, child: const Text('Remove')),
+          TextButton(onPressed: onRemove, child: Text(tr('playlists.remove'))),
         ],
       ),
     );
@@ -344,7 +365,7 @@ class _EmptyPlaylist extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'No tracks yet',
+            tr('playlists.tracks_empty'),
             style: TextStyle(
               color: cs.onSurface.withValues(alpha: 0.32),
               fontSize: 13,
@@ -352,7 +373,7 @@ class _EmptyPlaylist extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Drag tracks here from Library',
+            tr('playlists.drop_hint'),
             style: TextStyle(
               fontSize: 11,
               color: cs.onSurface.withValues(alpha: 0.18),
@@ -441,7 +462,9 @@ class _PlaylistTrackTileState extends ConsumerState<PlaylistTrackTile> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      widget.missing ? 'Missing' : widget.track.displayArtist,
+                      widget.missing
+                          ? tr('playlists.missing')
+                          : widget.track.uiArtist,
                       style: TextStyle(
                         color: cs.onSurface.withValues(
                           alpha: widget.missing ? 0.40 : 0.28,

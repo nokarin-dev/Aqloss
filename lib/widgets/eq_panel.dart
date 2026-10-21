@@ -7,6 +7,7 @@ import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/settings_provider.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 const _eqFreqLabels = [
   '31',
@@ -20,6 +21,23 @@ const _eqFreqLabels = [
   '8k',
   '16k',
 ];
+
+String _eqPresetLabel(String? name) {
+  switch (name) {
+    case null:
+      return tr('eq.presets');
+    case 'Flat':
+      return tr('eq.flat');
+    case 'Rock':
+      return tr('eq.rock');
+    case 'Classical':
+      return tr('eq.classical');
+    case 'Vocal':
+      return tr('eq.vocal');
+    default:
+      return name;
+  }
+}
 
 class EqPanel extends ConsumerWidget {
   const EqPanel({super.key});
@@ -68,7 +86,7 @@ class EqPanel extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '0 dB',
+                tr('eq.zero'),
                 style: TextStyle(
                   fontSize: 9,
                   color: onSurface.withValues(alpha: 0.24),
@@ -89,16 +107,19 @@ class EqPanel extends ConsumerWidget {
             runSpacing: 8,
             children: [
               _EqAction(
-                label:
-                    matchingEqPresetName(s.eqGains, s.eqUserPresets) ??
-                    'Presets',
+                label: _eqPresetLabel(
+                  matchingEqPresetName(s.eqGains, s.eqUserPresets),
+                ),
                 onTap: () => showQSheet(
                   context: context,
                   builder: (_) => const _EqPresetSheet(),
                 ),
               ),
-              _EqAction(label: 'Save', onTap: () => _savePreset(context, ref)),
-              _EqAction(label: 'Reset', onTap: n.resetEq),
+              _EqAction(
+                label: tr('eq.save'),
+                onTap: () => _savePreset(context, ref),
+              ),
+              _EqAction(label: tr('eq.reset'), onTap: n.resetEq),
             ],
           ),
         ],
@@ -120,9 +141,9 @@ Future<void> _savePreset(BuildContext context, WidgetRef ref) async {
   final raw = await showDialog<String>(
     context: context,
     builder: (ctx) => InputDialog(
-      title: 'Save EQ preset',
-      hint: 'Preset name',
-      confirmLabel: 'Save',
+      title: tr('eq.save_title'),
+      hint: tr('eq.preset_name'),
+      confirmLabel: tr('eq.save'),
       controller: ctrl,
     ),
   );
@@ -130,10 +151,10 @@ Future<void> _savePreset(BuildContext context, WidgetRef ref) async {
   if (raw == null || !context.mounted) return;
   final result = ref.read(settingsProvider.notifier).saveEqPreset(raw);
   final message = switch (result) {
-    EqPresetSaveResult.ok => 'Saved',
-    EqPresetSaveResult.emptyName => 'Name required',
-    EqPresetSaveResult.builtInName => 'That name is a built-in preset',
-    EqPresetSaveResult.full => 'Remove a saved preset first',
+    EqPresetSaveResult.ok => tr('eq.saved'),
+    EqPresetSaveResult.emptyName => tr('eq.name_required'),
+    EqPresetSaveResult.builtInName => tr('eq.builtin'),
+    EqPresetSaveResult.full => tr('eq.remove_first'),
   };
   if (context.mounted) QToast.show(context, message);
 }
@@ -205,7 +226,7 @@ class _EqPresetSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              'EQ presets',
+              tr('eq.presets_title'),
               style: TextStyle(
                 color: cs.onSurface,
                 fontSize: 14,
@@ -217,7 +238,7 @@ class _EqPresetSheet extends ConsumerWidget {
             const SizedBox(height: 8),
             for (final p in kBuiltInEqPresets)
               UiListTile(
-                title: p.name,
+                title: _eqPresetLabel(p.name),
                 selected: selected == p.name,
                 onTap: () => apply(p),
               ),
@@ -230,7 +251,7 @@ class _EqPresetSheet extends ConsumerWidget {
                   title: p.name,
                   selected: selected == p.name,
                   trailing: IconButton(
-                    tooltip: 'Delete',
+                    tooltip: tr('playlists.delete'),
                     icon: Icon(
                       Icons.delete_outline_rounded,
                       size: 18,

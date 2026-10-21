@@ -106,6 +106,12 @@ Lua/webhook plugins: see [docs/plugin.md](docs/plugin.md).
 
 ---
 
+## Translations
+
+Read [translations.md](docs/translations.md).
+
+---
+
 ## Support
 
 - International: [Ko-fi](https://ko-fi.com/nokarin), [Buy Me a Coffee](https://www.buymeacoffee.com/nokarin), [Open Collective](https://opencollective.com/nokarin), [thanks.dev](https://thanks.dev/u/gh/nokarin-dev)

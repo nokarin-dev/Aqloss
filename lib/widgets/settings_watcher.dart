@@ -14,6 +14,7 @@ import 'package:aqloss/services/notifier/media_control_service.dart';
 import 'package:aqloss/services/scrobble_controller.dart';
 import 'package:aqloss/services/tray_service.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/util/update_check.dart';
 import 'package:aqloss/widgets/nightly_notice.dart';
@@ -48,6 +49,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   bool _exclusiveCorrected = false;
   String? _trayTrack;
   bool? _trayPlaying;
+  String? _trayLanguage;
 
   static const _kUpdateNotified = 'aqloss_update_notified';
 
@@ -292,7 +294,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       return;
     }
     final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(const SnackBar(content: Text('Playback failed')));
+    messenger?.showSnackBar(SnackBar(content: Text(tr('player.failed'))));
   }
 
   void _restoreSession(LibraryState library) {
@@ -301,6 +303,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   }
 
   void _notice(String message) {
+    message = tr(message);
     if (!mounted) return;
     if (Overlay.maybeOf(context) == null) {
       ScaffoldMessenger.maybeOf(
@@ -402,9 +405,14 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
 
     final playing = player.status == PlayerStatus.playing;
     final path = player.currentTrack?.path;
-    if (path == _trayTrack && playing == _trayPlaying) return;
+    if (path == _trayTrack &&
+        playing == _trayPlaying &&
+        s.language == _trayLanguage) {
+      return;
+    }
     _trayTrack = path;
     _trayPlaying = playing;
+    _trayLanguage = s.language;
     unawaited(
       TrayService.instance.sync(
         playing: playing,

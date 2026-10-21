@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/util/tray.dart';
@@ -82,13 +83,13 @@ class TrayService with TrayListener {
     await trayManager.setContextMenu(
       Menu(
         items: [
-          MenuItem(key: 'show', label: 'Show Aqloss'),
+          MenuItem(key: 'show', label: tr('sidebar.show')),
           MenuItem.separator(),
           MenuItem(key: 'play_pause', label: trayPlayPauseLabel(playing)),
-          MenuItem(key: 'next', label: 'Next'),
-          MenuItem(key: 'previous', label: 'Previous'),
+          MenuItem(key: 'next', label: tr('player.next')),
+          MenuItem(key: 'previous', label: tr('player.previous')),
           MenuItem.separator(),
-          MenuItem(key: 'quit', label: 'Quit'),
+          MenuItem(key: 'quit', label: tr('sidebar.quit')),
         ],
       ),
     );

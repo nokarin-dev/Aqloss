@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -125,7 +126,10 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
     final artists = _query.isEmpty
         ? all
         : all
-              .where((a) => a.name.toLowerCase().contains(_query.toLowerCase()))
+              .where(
+                (a) =>
+                    trMeta(a.name).toLowerCase().contains(_query.toLowerCase()),
+              )
               .toList();
 
     final body = library.tracks.isEmpty
@@ -133,7 +137,7 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
         : artists.isEmpty
         ? Center(
             child: Text(
-              'No results',
+              tr('search.empty'),
               style: TextStyle(
                 fontSize: 12,
                 color: cs.onSurface.withValues(alpha: 0.24),
@@ -170,15 +174,18 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: 'Artists',
+        title: tr('sidebar.artists'),
         subtitle: all.isEmpty
             ? null
             : _query.isEmpty
-            ? '${all.length} artists'
-            : '${artists.length} of ${all.length} artists',
+            ? trFill('artists.count', {'count': '${all.length}'})
+            : trFill('artists.count_of', {
+                'count': '${artists.length}',
+                'total': '${all.length}',
+              }),
         toolbar: M3SearchField(
           controller: _searchCtrl,
-          hintText: 'Search artists',
+          hintText: tr('artists.search'),
           onChanged: (q) => setState(() => _query = q),
           onClear: () {
             _searchCtrl.clear();
@@ -209,8 +216,11 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Text(
               _query.isEmpty
-                  ? '${all.length} artists'
-                  : '${artists.length} of ${all.length} artists',
+                  ? trFill('artists.count', {'count': '${all.length}'})
+                  : trFill('artists.count_of', {
+                      'count': '${artists.length}',
+                      'total': '${all.length}',
+                    }),
               style: TextStyle(
                 fontSize: 11,
                 color: cs.onSurface.withValues(alpha: 0.28),
@@ -330,7 +340,7 @@ class _ArtistCardState extends State<_ArtistCard> {
               Center(child: _ArtistAvatar(artist: widget.artist, size: 64)),
               const SizedBox(height: 10),
               Text(
-                widget.artist.name,
+                trMeta(widget.artist.name),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -341,8 +351,14 @@ class _ArtistCardState extends State<_ArtistCard> {
               ),
               const SizedBox(height: 2),
               Text(
-                '${widget.artist.tracks.length} tracks'
-                '${widget.artist.albums.isNotEmpty ? ' · ${widget.artist.albums.length} albums' : ''}',
+                trFill('library.tracks', {
+                      'count': '${widget.artist.tracks.length}',
+                    }) +
+                    (widget.artist.albums.isEmpty
+                        ? ''
+                        : trFill('albums.more', {
+                            'count': '${widget.artist.albums.length}',
+                          })),
                 style: TextStyle(
                   fontSize: 10,
                   color: cs.onSurface.withValues(alpha: 0.32),
@@ -372,14 +388,16 @@ class _ArtistRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final subtitle =
-        '${artist.tracks.length} tracks'
-        '${artist.albums.isNotEmpty ? ' · ${artist.albums.length} albums' : ''}';
+        trFill('library.tracks', {'count': '${artist.tracks.length}'}) +
+        (artist.albums.isEmpty
+            ? ''
+            : trFill('albums.more', {'count': '${artist.albums.length}'}));
 
     return GestureDetector(
       onSecondaryTapDown: onSecondaryTapDown,
       child: UiListTile(
         leading: _ArtistAvatar(artist: artist, size: 44),
-        title: artist.name,
+        title: trMeta(artist.name),
         subtitle: subtitle,
         onTap: onTap,
         trailing: Icon(
@@ -611,7 +629,7 @@ class _ArtistHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  artist.name,
+                  trMeta(artist.name),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w300,
@@ -622,9 +640,13 @@ class _ArtistHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   [
-                    '${artist.tracks.length} tracks',
+                    trFill('library.tracks', {
+                      'count': '${artist.tracks.length}',
+                    }),
                     if (artist.albums.isNotEmpty)
-                      '${artist.albums.length} albums',
+                      trFill('albums.count', {
+                        'count': '${artist.albums.length}',
+                      }),
                     artist.durationLabel,
                   ].join(' · '),
                   style: TextStyle(
@@ -678,10 +700,10 @@ class _ArtistStatsRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _StatItem(label: 'total plays', value: '$totalPlays'),
+            _StatItem(label: tr('artists.total_plays'), value: '$totalPlays'),
             _StatDivider(),
             _StatItem(
-              label: 'most played',
+              label: tr('artists.most_played'),
               value: topEntry?.key.displayTitle ?? '-',
               sub: topEntry != null ? '${topEntry.value}×' : null,
               flex: 2,
@@ -803,7 +825,7 @@ class _AlbumSection extends ConsumerWidget {
                     artist: libraryArtistOf(tracks.first),
                   ),
                   child: Text(
-                    albumName,
+                    trMeta(albumName),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -815,7 +837,7 @@ class _AlbumSection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '${tracks.length} tracks',
+                trFill('library.tracks', {'count': '${tracks.length}'}),
                 style: TextStyle(
                   fontSize: 10.5,
                   color: cs.onSurface.withValues(alpha: 0.26),
@@ -1011,7 +1033,7 @@ class _PlayAllBtnState extends State<_PlayAllBtn> {
               ),
               const SizedBox(width: 6),
               Text(
-                'Play all',
+                tr('library.play_all'),
                 style: TextStyle(
                   fontSize: 12,
                   color: cs.onSurface.withValues(alpha: 0.70),
@@ -1061,7 +1083,7 @@ class _BackBtnState extends State<_BackBtn> {
               ),
               const SizedBox(width: 5),
               Text(
-                'Artists',
+                tr('sidebar.artists'),
                 style: TextStyle(
                   fontSize: 12,
                   color: cs.onSurface.withValues(alpha: 0.44),
@@ -1090,7 +1112,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'No artists yet',
+            tr('artists.empty'),
             style: TextStyle(
               fontSize: 13,
               color: cs.onSurface.withValues(alpha: 0.28),
@@ -1098,7 +1120,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Add music folders in Settings to get started.',
+            tr('artists.empty_hint'),
             style: TextStyle(
               fontSize: 11.5,
               color: cs.onSurface.withValues(alpha: 0.18),

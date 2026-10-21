@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
+import 'package:aqloss/l10n/l10n.dart';
 
 class NowPlayingHeader extends ConsumerStatefulWidget {
   const NowPlayingHeader({super.key});
@@ -130,7 +131,7 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'NOW PLAYING',
+                            tr('sidebar.now_playing_label'),
                             style: TextStyle(
                               fontSize: 14,
                               letterSpacing: 1.4,
@@ -152,7 +153,7 @@ class _NowPlayingHeaderState extends ConsumerState<NowPlayingHeader> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${track.displayArtist} \u2014 ${track.displayAlbum}',
+                            '${track.uiArtist} \u2014 ${track.uiAlbum}',
                             style: TextStyle(
                               color: onSurface.withValues(alpha: 0.46),
                               fontSize: 12,

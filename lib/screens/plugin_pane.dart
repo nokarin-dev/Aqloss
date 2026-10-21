@@ -5,6 +5,7 @@ import 'package:aqloss/widgets/q_toast.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class PluginsPane extends ConsumerWidget {
   const PluginsPane({super.key});
@@ -34,7 +35,7 @@ class PluginsPane extends ConsumerWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Plugins',
+                          tr('settings.plugins'),
                           style: TextStyle(
                             color: cs.onSurface.withValues(alpha: 0.88),
                             fontSize: 18,
@@ -48,7 +49,9 @@ class PluginsPane extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(left: 24),
                       child: Text(
-                        '${state.manifests.length} plugin${state.manifests.length == 1 ? '' : 's'} installed',
+                        trFill('plugins.count', {
+                          'count': '${state.manifests.length}',
+                        }),
                         style: TextStyle(
                           color: cs.onSurface.withValues(alpha: 0.26),
                           fontSize: 11,
@@ -135,7 +138,9 @@ class _InstallButton extends ConsumerWidget {
                 ),
               const SizedBox(width: 6),
               Text(
-                installing ? 'Installing…' : 'Install .aqx',
+                installing
+                    ? tr('plugins.installing')
+                    : tr('plugins.install_aqx'),
                 style: TextStyle(
                   fontSize: 12,
                   color: cs.onSurface.withValues(alpha: 0.55),
@@ -240,7 +245,7 @@ class _PluginRowState extends ConsumerState<_PluginRow> {
                         _VersionChip(version: m.version, cs: cs),
                         const SizedBox(width: 5),
                         Text(
-                          'by ${m.author}',
+                          trFill('plugins.by', {'author': m.author}),
                           style: TextStyle(
                             fontSize: 11,
                             color: cs.onSurface.withValues(alpha: 0.22),
@@ -334,13 +339,13 @@ class _MoreMenu extends ConsumerWidget {
         _menuItem(
           _MenuAction.export,
           Icons.ios_share_rounded,
-          'Export .aqx',
+          tr('plugins.export_aqx'),
           cs,
         ),
         _menuItem(
           _MenuAction.uninstall,
           Icons.delete_outline_rounded,
-          'Uninstall',
+          tr('plugins.uninstall'),
           cs,
           destructive: true,
         ),
@@ -374,9 +379,9 @@ class _MoreMenu extends ConsumerWidget {
   Future<void> _confirmUninstall(BuildContext context, WidgetRef ref) async {
     final confirmed = await showUiDialog<bool>(
       context: context,
-      title: 'Uninstall "${manifest.name}"?',
+      title: trFill('plugins.uninstall_title', {'name': manifest.name}),
       content: Text(
-        'The plugin and all of its files will be removed from disk.',
+        tr('plugins.uninstall_body'),
         style: TextStyle(
           fontSize: 13,
           color: Theme.of(
@@ -387,12 +392,12 @@ class _MoreMenu extends ConsumerWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+          child: Text(tr('integrations.cancel')),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
-          child: const Text(
-            'Uninstall',
+          child: Text(
+            tr('plugins.uninstall'),
             style: TextStyle(color: Colors.redAccent),
           ),
         ),
@@ -405,8 +410,8 @@ class _MoreMenu extends ConsumerWidget {
         QToast.show(
           context,
           ok
-              ? '"${manifest.name}" uninstalled.'
-              : 'Could not uninstall "${manifest.name}".',
+              ? trFill('plugins.uninstalled', {'name': manifest.name})
+              : trFill('plugins.uninstall_failed', {'name': manifest.name}),
         );
       }
     }
@@ -415,7 +420,7 @@ class _MoreMenu extends ConsumerWidget {
   Future<void> _export(BuildContext context) async {
     final ok = await PluginIOService.exportPlugin(manifest.id);
     if (context.mounted && ok) {
-      QToast.show(context, '"${manifest.name}" exported.');
+      QToast.show(context, trFill('plugins.exported', {'name': manifest.name}));
     }
   }
 }
@@ -460,7 +465,7 @@ class _PermissionReviewSheet extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Install “${manifest.name}”?',
+                trFill('plugins.install_ask', {'name': manifest.name}),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -472,8 +477,8 @@ class _PermissionReviewSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             manifest.permissions.isEmpty
-                ? 'This plugin does not request any extra permissions.'
-                : 'This plugin requests the permissions below. Only install plugins from sources you trust.',
+                ? tr('plugins.no_permissions')
+                : tr('plugins.permissions'),
             style: TextStyle(
               fontSize: 12,
               color: cs.onSurface.withValues(alpha: 0.45),
@@ -485,21 +490,21 @@ class _PermissionReviewSheet extends StatelessWidget {
             _InfoRow(
               icon: Icons.wifi_outlined,
               label: 'network',
-              desc: 'Outgoing HTTP requests',
+              desc: tr('plugins.perm_http'),
               cs: cs,
             ),
           if (manifest.permissions.contains(PluginPermission.filesystem))
             _InfoRow(
               icon: Icons.folder_outlined,
               label: 'filesystem',
-              desc: 'Read files inside the plugin folder',
+              desc: tr('plugins.perm_files'),
               cs: cs,
             ),
           if (manifest.permissions.contains(PluginPermission.theme))
             _InfoRow(
               icon: Icons.palette_outlined,
               label: 'theme',
-              desc: 'Change the window title bar color',
+              desc: tr('plugins.perm_titlebar'),
               cs: cs,
             ),
           const SizedBox(height: 20),
@@ -516,7 +521,7 @@ class _PermissionReviewSheet extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      'Cancel',
+                      tr('integrations.cancel'),
                       style: TextStyle(
                         fontSize: 13,
                         color: cs.onSurface.withValues(alpha: 0.55),
@@ -536,8 +541,8 @@ class _PermissionReviewSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,
-                    child: const Text(
-                      'Install',
+                    child: Text(
+                      tr('plugins.install'),
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.white,
@@ -757,7 +762,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No plugins installed',
+            tr('plugins.empty'),
             style: TextStyle(
               fontSize: 13,
               color: cs.onSurface.withValues(alpha: 0.28),
@@ -765,7 +770,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Click “Install .aqx” above to add the plugin.',
+            tr('plugins.empty_hint'),
             style: TextStyle(
               fontSize: 11,
               color: cs.onSurface.withValues(alpha: 0.18),

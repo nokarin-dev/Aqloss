@@ -1,4 +1,5 @@
 import 'package:aqloss/app_channel.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -19,12 +20,12 @@ Future<void> maybeShowNightlyNotice(
   if (!context.mounted) return;
   await showUiDialog<void>(
     context: context,
-    title: kNightlyBuildTitle,
-    content: const Text(kNightlyBuildMessage),
+    title: tr(kNightlyBuildTitle),
+    content: Text(tr(kNightlyBuildMessage)),
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('OK'),
+        child: Text(tr('updates.ok')),
       ),
     ],
   );

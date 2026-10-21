@@ -72,6 +72,7 @@ Map<String, dynamic> settingsToJson(SettingsState s) => {
   'closeToTray': s.closeToTray,
   'reduceMotion': s.reduceMotion,
   'showTitleBar': s.showTitleBar,
+  'language': s.language,
 };
 
 SettingsState settingsFromJson(
@@ -181,6 +182,7 @@ SettingsState settingsFromJson(
     closeToTray: json['closeToTray'] as bool? ?? true,
     reduceMotion: json['reduceMotion'] as bool? ?? false,
     showTitleBar: json['showTitleBar'] as bool? ?? true,
+    language: json['language'] as String? ?? '',
     loaded: true,
   );
 }

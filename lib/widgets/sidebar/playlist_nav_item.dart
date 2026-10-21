@@ -2,6 +2,7 @@ import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/widgets/playlist/playlist_art_icon.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class PlaylistNavItem extends StatefulWidget {
   final Playlist playlist;
@@ -79,7 +80,9 @@ class _PlaylistNavItemState extends State<PlaylistNavItem> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${widget.playlist.length} tracks',
+                      trFill('library.tracks', {
+                        'count': '${widget.playlist.length}',
+                      }),
                       style: TextStyle(
                         fontSize: 9.5,
                         color: onSurface.withValues(alpha: 0.20),
@@ -112,8 +115,7 @@ class _PlaylistNavItemState extends State<PlaylistNavItem> {
     );
   }
 
-  List<PopupMenuEntry<String>> _menuItems(
-    BuildContext context) {
+  List<PopupMenuEntry<String>> _menuItems(BuildContext context) {
     final isM3 = context.isMaterial3Ui;
     final cs = Theme.of(context).colorScheme;
     final aq = context.aq;
@@ -124,7 +126,7 @@ class _PlaylistNavItemState extends State<PlaylistNavItem> {
           value: 'play',
           height: 36,
           child: Text(
-            'Play',
+            tr('player.play'),
             style: TextStyle(
               color: onSurface.withValues(alpha: 0.68),
               fontSize: 12.5,
@@ -135,18 +137,18 @@ class _PlaylistNavItemState extends State<PlaylistNavItem> {
         value: 'rename',
         height: 36,
         child: Text(
-          'Rename',
+          tr('playlists.rename'),
           style: TextStyle(
             color: onSurface.withValues(alpha: 0.68),
             fontSize: 12.5,
           ),
         ),
       ),
-      const PopupMenuItem(
+      PopupMenuItem(
         value: 'delete',
         height: 36,
         child: Text(
-          'Delete',
+          tr('playlists.delete'),
           style: TextStyle(color: Color(0xFFFF6B6B), fontSize: 12.5),
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
 import 'package:flutter/material.dart';
+import 'package:aqloss/l10n/l10n.dart';
 
 class SearchBox extends StatefulWidget {
   final TextEditingController controller;
@@ -43,7 +44,7 @@ class _SearchBoxState extends State<SearchBox> {
         focusNode: _focusNode,
         onChanged: widget.onChanged,
         decoration: InputDecoration(
-          hintText: 'Search',
+          hintText: tr('sidebar.search'),
           prefixIcon: const Icon(Icons.search_rounded, size: 20),
           suffixIcon: widget.controller.text.isNotEmpty
               ? IconButton(

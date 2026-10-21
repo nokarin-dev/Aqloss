@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/playlist.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -51,7 +52,7 @@ class PlaylistIOService {
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         final uri = await FilePicker.saveFile(
           bytes: utf8.encode(json),
-          dialogTitle: 'Export playlist',
+          dialogTitle: tr('playlists.export'),
           fileName: fileName,
           type: FileType.custom,
           allowedExtensions: [_kExtension],

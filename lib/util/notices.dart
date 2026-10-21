@@ -1,47 +1,39 @@
-String libraryScanFinishedMessage(int trackCount) {
-  if (trackCount == 1) return 'Scanned 1 track';
-  return 'Scanned $trackCount tracks';
-}
+import 'package:aqloss/l10n/l10n.dart';
 
-const kLibraryScanFailedMessage = 'Library scan failed';
+String libraryScanFinishedMessage(int trackCount) =>
+    trFill('library.scanned', {'count': '$trackCount'});
 
-const kScrobbleFailedMessage = 'Scrobble failed';
+const kLibraryScanFailedMessage = 'library.scan_failed';
+
+const kScrobbleFailedMessage = 'integrations.scrobble_failed';
 
 String updateAvailableMessage(String version) =>
-    'Version $version is available';
+    trFill('updates.available', {'version': version});
 
-String missingFilesRemovedMessage(int count) {
-  if (count == 1) return 'Removed 1 missing file';
-  return 'Removed $count missing files';
-}
+String missingFilesRemovedMessage(int count) =>
+    trFill('playlists.removed_count', {'count': '$count'});
 
-String missingPlaylistFilesMessage(int count) {
-  if (count == 1) return '1 file missing';
-  return '$count files missing';
-}
+String missingPlaylistFilesMessage(int count) =>
+    trFill('playlists.missing_count', {'count': '$count'});
 
-const kBackupSavedMessage = 'Backup saved';
+const kBackupSavedMessage = 'support.saved';
 
-const kBackupRestoredMessage = 'Backup restored';
+const kBackupRestoredMessage = 'support.restored';
 
-const kBackupSaveFailedMessage = 'Could not save backup';
+const kBackupSaveFailedMessage = 'support.save_failed';
 
-const kBackupFailedMessage = 'Could not restore backup';
+const kBackupFailedMessage = 'support.restore_failed';
 
-const kBackupInvalidMessage = 'This is not an Aqloss backup';
+const kBackupInvalidMessage = 'support.invalid';
 
-const kStoragePermissionRequiredMessage =
-    'Storage permission is required to scan music folders';
+const kStoragePermissionRequiredMessage = 'folders.permission';
 
-const kFolderPickFailedMessage = 'Could not open that folder';
+const kFolderPickFailedMessage = 'folders.open_failed';
 
-const kAndroidFolderUnusableMessage =
-    'This folder cannot be scanned. Pick a folder on internal storage, such as Music.';
+const kAndroidFolderUnusableMessage = 'folders.android_unusable';
 
-const kIosMusicFolderHint =
-    'Copy tracks into Files, On My iPhone, Aqloss. Add Folder only works for folders you pick in Files.';
+const kIosMusicFolderHint = 'folders.ios_hint';
 
-const kNightlyBuildTitle = 'Nightly build';
+const kNightlyBuildTitle = 'updates.nightly';
 
-const kNightlyBuildMessage =
-    'This is a rolling build from main. Features may be unfinished or break. Use a GitHub or Flathub release if you want something stable.';
+const kNightlyBuildMessage = 'updates.nightly_body';
