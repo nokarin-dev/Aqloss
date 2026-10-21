@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
   aqloss_rust_core:
@@ -69,6 +71,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
+    - assets/l10n/
   shaders:
     - shaders/m3_wave_track.frag
     - shaders/m3_wave_ring.frag

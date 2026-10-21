@@ -39,6 +39,8 @@ rust/src/           → Audio backend (Rust)
 
 Check issues labeled `good first issue` or `help wanted`. If you want to work on something, leave a comment first so we don't duplicate effort.
 
+Translations: copy the JSON in [docs/translations.md](../docs/translations.md) to `assets/l10n/<code>.json` and replace the values. The English key stays as it is.
+
 ## Reporting bugs
 
 Use the bug report template. Logs are really helpful - especially backend logs and `RUST_BACKTRACE=1` output for panics.

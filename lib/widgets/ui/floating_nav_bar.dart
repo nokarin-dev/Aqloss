@@ -1,3 +1,4 @@
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/shared/m3_playback_progress.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,7 @@ class FloatingNavBar extends StatelessWidget {
                 M3ENavigationBarDestination(
                   icon: Icon(d.$1),
                   selectedIcon: Icon(d.$2),
-                  label: d.$3,
+                  label: tr(d.$3),
                 ),
             ],
             selectedIndex: selectedIndex,
@@ -101,8 +102,8 @@ class FloatingNavBar extends StatelessWidget {
                   NavigationDestination(
                     icon: Icon(d.$1),
                     selectedIcon: Icon(d.$2),
-                    label: d.$3,
-                    tooltip: d.$3,
+                    label: tr(d.$3),
+                    tooltip: tr(d.$3),
                   ),
               ],
             ),

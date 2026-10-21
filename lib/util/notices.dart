@@ -1,6 +1,8 @@
+import 'package:aqloss/l10n/l10n.dart';
+
 String libraryScanFinishedMessage(int trackCount) {
-  if (trackCount == 1) return 'Scanned 1 track';
-  return 'Scanned $trackCount tracks';
+  if (trackCount == 1) return tr('Scanned 1 track');
+  return trFill('Scanned {count} tracks', {'count': '$trackCount'});
 }
 
 const kLibraryScanFailedMessage = 'Library scan failed';
@@ -8,16 +10,16 @@ const kLibraryScanFailedMessage = 'Library scan failed';
 const kScrobbleFailedMessage = 'Scrobble failed';
 
 String updateAvailableMessage(String version) =>
-    'Version $version is available';
+    trFill('Version {version} is available', {'version': version});
 
 String missingFilesRemovedMessage(int count) {
-  if (count == 1) return 'Removed 1 missing file';
-  return 'Removed $count missing files';
+  if (count == 1) return tr('Removed 1 missing file');
+  return trFill('Removed {count} missing files', {'count': '$count'});
 }
 
 String missingPlaylistFilesMessage(int count) {
-  if (count == 1) return '1 file missing';
-  return '$count files missing';
+  if (count == 1) return tr('1 file missing');
+  return trFill('{count} files missing', {'count': '$count'});
 }
 
 const kBackupSavedMessage = 'Backup saved';

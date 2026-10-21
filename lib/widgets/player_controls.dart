@@ -1,3 +1,4 @@
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -127,14 +128,14 @@ class PlayerControls extends ConsumerWidget {
                     icon: Icons.shuffle_rounded,
                     selectedIcon: Icons.shuffle_rounded,
                     selected: player.shuffle,
-                    tooltip: 'Shuffle',
+                    tooltip: tr('Shuffle'),
                     onPressed: notifier.toggleShuffle,
                   )
                 else
                   _IconToggle(
                     icon: Icons.shuffle_rounded,
                     active: player.shuffle,
-                    tooltip: 'Shuffle',
+                    tooltip: tr('Shuffle'),
                     onTap: notifier.toggleShuffle,
                   ),
                 _SleepTransportButton(
@@ -164,10 +165,10 @@ class PlayerControls extends ConsumerWidget {
                     },
                     selected: player.loopMode != LoopMode.off,
                     tooltip: switch (player.loopMode) {
-                      LoopMode.off => 'Repeat',
-                      LoopMode.track => 'Repeat track',
-                      LoopMode.album => 'Repeat album',
-                      LoopMode.playlist => 'Repeat all',
+                      LoopMode.off => tr('Repeat'),
+                      LoopMode.track => tr('Repeat track'),
+                      LoopMode.album => tr('Repeat album'),
+                      LoopMode.playlist => tr('Repeat all'),
                     },
                     onPressed: notifier.cycleLoopMode,
                   )
@@ -192,7 +193,7 @@ class PlayerControls extends ConsumerWidget {
                   if (isM3)
                     M3TransportIcon(
                       icon: Icons.skip_previous_rounded,
-                      tooltip: 'Previous',
+                      tooltip: tr('Previous'),
                       onPressed: player.currentTrack == null
                           ? null
                           : notifier.skipPrevious,
@@ -237,7 +238,7 @@ class PlayerControls extends ConsumerWidget {
                   if (isM3)
                     M3TransportIcon(
                       icon: Icons.skip_next_rounded,
-                      tooltip: 'Next',
+                      tooltip: tr('Next'),
                       onPressed: player.currentTrack == null
                           ? null
                           : notifier.skipNext,
@@ -550,10 +551,10 @@ class _LoopButtonState extends State<_LoopButton> {
       LoopMode.playlist => (Icons.repeat_rounded, 'All', true),
     };
     final tooltip = switch (widget.mode) {
-      LoopMode.off => 'Repeat',
-      LoopMode.track => 'Repeat track',
-      LoopMode.album => 'Repeat album',
-      LoopMode.playlist => 'Repeat all',
+      LoopMode.off => tr('Repeat'),
+      LoopMode.track => tr('Repeat track'),
+      LoopMode.album => tr('Repeat album'),
+      LoopMode.playlist => tr('Repeat all'),
     };
     return Tooltip(
       message: tooltip,

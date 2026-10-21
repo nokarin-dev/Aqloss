@@ -4,6 +4,7 @@ import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:aqloss/widgets/ui/ui_kit.dart';
 import 'package:aqloss/services/folder_picker.dart';
 import 'package:aqloss/services/ios_folder_access.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -173,7 +174,7 @@ class FolderManagerDialog extends ConsumerWidget {
             const SizedBox(height: 14),
             if (Platform.isIOS) ...[
               Text(
-                kIosMusicFolderHint,
+                tr(kIosMusicFolderHint),
                 style: TextStyle(color: a(0.32), fontSize: 11, height: 1.4),
               ),
               const SizedBox(height: 14),

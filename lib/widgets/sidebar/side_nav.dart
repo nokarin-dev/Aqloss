@@ -1,6 +1,7 @@
 import 'package:aqloss/theme/aqloss_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -282,12 +283,12 @@ class _SideNavBody extends StatelessWidget {
         ),
         const SizedBox(height: 6),
 
-        collapsed ? const SizedBox(height: 2) : _SectionLabel('NAVIGATE'),
+        collapsed ? const SizedBox(height: 2) : _SectionLabel(tr('NAVIGATE')),
 
         _NavItem(
           icon: Icons.play_circle_outline_rounded,
           activeIcon: Icons.play_circle_rounded,
-          label: 'Now Playing',
+          label: tr('Now Playing'),
           isActive: route == 0,
           collapsed: collapsed,
           trailing: player.currentTrack != null
@@ -298,7 +299,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.library_music_outlined,
           activeIcon: Icons.library_music_rounded,
-          label: 'Library',
+          label: tr('Library'),
           isActive: route == 1,
           collapsed: collapsed,
           onTap: () => onSelect(1),
@@ -306,7 +307,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.album_outlined,
           activeIcon: Icons.album_rounded,
-          label: 'Albums',
+          label: tr('Albums'),
           isActive: route == 2,
           collapsed: collapsed,
           onTap: () => onSelect(2),
@@ -314,7 +315,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.person_outline_rounded,
           activeIcon: Icons.person_rounded,
-          label: 'Artists',
+          label: tr('Artists'),
           isActive: route == 5,
           collapsed: collapsed,
           onTap: () => onSelect(5),
@@ -322,7 +323,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.history_rounded,
           activeIcon: Icons.history_rounded,
-          label: 'History',
+          label: tr('History'),
           isActive: route == 4,
           collapsed: collapsed,
           onTap: () => onSelect(4),
@@ -332,7 +333,7 @@ class _SideNavBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 14, 0),
             child: Text(
-              '${library.totalTracks} tracks',
+              trFill('{count} tracks', {'count': '${library.totalTracks}'}),
               style: TextStyle(
                 fontSize: 9.5,
                 color: p.onSurface.withValues(alpha: 0.20),
@@ -346,7 +347,7 @@ class _SideNavBody extends StatelessWidget {
         if (!collapsed)
           Row(
             children: [
-              _SectionLabel('PLAYLISTS'),
+              _SectionLabel(tr('PLAYLISTS')),
               const Spacer(),
               Padding(
                 padding: const EdgeInsets.only(right: 4),
@@ -457,7 +458,7 @@ class _SideNavBody extends StatelessWidget {
         _NavItem(
           icon: Icons.settings_outlined,
           activeIcon: Icons.settings_rounded,
-          label: 'Settings',
+          label: tr('Settings'),
           isActive: route == 3,
           collapsed: collapsed,
           onTap: () => onSelect(3),

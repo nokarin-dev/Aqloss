@@ -1,3 +1,4 @@
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -171,7 +172,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               _NavDest(
                 icon: Icons.play_circle_outline_rounded,
                 selectedIcon: Icons.play_circle_rounded,
-                label: 'Now Playing',
+                label: M3Route.titleFor(M3Route.player),
                 selected: widget.route == M3Route.player,
                 collapsed: collapsed,
                 trailing: player.currentTrack != null
@@ -184,7 +185,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               _NavDest(
                 icon: Icons.library_music_outlined,
                 selectedIcon: Icons.library_music_rounded,
-                label: 'Library',
+                label: M3Route.titleFor(M3Route.library),
                 selected: widget.route == M3Route.library,
                 collapsed: collapsed,
                 onTap: () => widget.onSelect(M3Route.library),
@@ -192,7 +193,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               _NavDest(
                 icon: Icons.album_outlined,
                 selectedIcon: Icons.album_rounded,
-                label: 'Albums',
+                label: M3Route.titleFor(M3Route.albums),
                 selected: widget.route == M3Route.albums,
                 collapsed: collapsed,
                 onTap: () => widget.onSelect(M3Route.albums),
@@ -200,7 +201,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               _NavDest(
                 icon: Icons.person_outline_rounded,
                 selectedIcon: Icons.person_rounded,
-                label: 'Artists',
+                label: M3Route.titleFor(M3Route.artists),
                 selected: widget.route == M3Route.artists,
                 collapsed: collapsed,
                 onTap: () => widget.onSelect(M3Route.artists),
@@ -208,7 +209,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               _NavDest(
                 icon: Icons.history_rounded,
                 selectedIcon: Icons.history_rounded,
-                label: 'History',
+                label: M3Route.titleFor(M3Route.history),
                 selected: widget.route == M3Route.history,
                 collapsed: collapsed,
                 onTap: () => widget.onSelect(M3Route.history),
@@ -345,7 +346,7 @@ class _M3DesktopNavState extends ConsumerState<M3DesktopNav>
               _NavDest(
                 icon: Icons.settings_outlined,
                 selectedIcon: Icons.settings_rounded,
-                label: 'Settings',
+                label: M3Route.titleFor(M3Route.settings),
                 selected: widget.route == M3Route.settings,
                 collapsed: collapsed,
                 onTap: () => widget.onSelect(M3Route.settings),
@@ -443,7 +444,9 @@ class _CollapseHeader extends StatelessWidget {
                               ),
                               if (trackCount > 0)
                                 Text(
-                                  '$trackCount tracks',
+                                  trFill('{count} tracks', {
+                                    'count': '$trackCount',
+                                  }),
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: cs.onSurfaceVariant,
                                   ),
@@ -662,7 +665,9 @@ class _PlaylistRowState extends State<_PlaylistRow> {
                             ),
                           ),
                           Text(
-                            '${widget.playlist.length} tracks',
+                            trFill('{count} tracks', {
+                              'count': '${widget.playlist.length}',
+                            }),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: cs.onSurfaceVariant,
                               fontSize: 10,
@@ -675,7 +680,7 @@ class _PlaylistRowState extends State<_PlaylistRow> {
                       if (widget.onPlay != null)
                         IconButton(
                           icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                          tooltip: 'Play',
+                          tooltip: tr('Play'),
                           visualDensity: VisualDensity.compact,
                           constraints: const BoxConstraints(
                             minWidth: 28,
@@ -685,7 +690,7 @@ class _PlaylistRowState extends State<_PlaylistRow> {
                         ),
                       IconButton(
                         icon: const Icon(Icons.more_vert_rounded, size: 16),
-                        tooltip: 'More',
+                        tooltip: tr('More'),
                         visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints(
                           minWidth: 28,

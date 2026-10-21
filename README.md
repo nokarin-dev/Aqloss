@@ -106,6 +106,14 @@ Lua/webhook plugins: see [docs/plugin.md](docs/plugin.md).
 
 ---
 
+## Translations
+
+English in the app is both the text and the translation key. Copy [assets/l10n/en.json](assets/l10n/en.json) to `assets/l10n/<code>.json` (`it.json`, `id.json`, `de.json`). `_name` is the name shown in Settings, Display, Language. Fill the other values. Keep `{count}` and `{version}` in the value. An empty value, or a value whose `{tokens}` do not match the key, is not loaded and that line stays English. The menu shows how many lines replaced English.
+
+Details and a short example: [docs/translations.md](docs/translations.md).
+
+---
+
 ## Support
 
 - International: [Ko-fi](https://ko-fi.com/nokarin), [Buy Me a Coffee](https://www.buymeacoffee.com/nokarin), [Open Collective](https://opencollective.com/nokarin), [thanks.dev](https://thanks.dev/u/gh/nokarin-dev)

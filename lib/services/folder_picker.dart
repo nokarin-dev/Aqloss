@@ -4,6 +4,7 @@ import 'package:android_file_picker/android_file_picker.dart';
 import 'package:aqloss/services/ios_folder_access.dart';
 import 'package:aqloss/util/android_path_helper.dart';
 import 'package:aqloss/util/logger.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/widgets/folder_browser_dialog.dart';
 import 'package:aqloss/widgets/q_toast.dart';
@@ -26,7 +27,7 @@ Future<void> addMusicFolderFromPicker(
     final granted = await requestAndroidStoragePermission();
     if (!granted) {
       if (context.mounted) {
-        QToast.show(context, kStoragePermissionRequiredMessage);
+        QToast.show(context, tr(kStoragePermissionRequiredMessage));
       }
       return;
     }
@@ -37,7 +38,7 @@ Future<void> addMusicFolderFromPicker(
     if (path == null) return;
     await onAdded(path);
   } on DirectoryPickerException catch (e) {
-    if (context.mounted) QToast.show(context, e.message);
+    if (context.mounted) QToast.show(context, tr(e.message));
   }
 }
 

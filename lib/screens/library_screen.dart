@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/widgets/shared/now_playing_header.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
@@ -47,9 +48,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: 'Library',
+        title: tr('Library'),
         subtitle: library.totalTracks > 0
-            ? '${library.totalTracks} tracks'
+            ? trFill('{count} tracks', {'count': '${library.totalTracks}'})
             : null,
         toolbar: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

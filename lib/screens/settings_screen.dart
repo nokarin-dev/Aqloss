@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/app_channel.dart';
 import 'package:aqloss/app_version.dart';
 import 'package:aqloss/util/search_focus_tracker.dart';
@@ -52,32 +53,37 @@ enum _SettingsPage {
 
 extension _SettingsPageX on _SettingsPage {
   String get label => switch (this) {
-    _SettingsPage.musicFolders => 'Music Folders',
-    _SettingsPage.audioOutput => 'Audio Output',
-    _SettingsPage.playback => 'Playback',
-    _SettingsPage.dsp => 'DSP / EQ',
-    _SettingsPage.display => 'Display',
-    _SettingsPage.integrations => 'Integrations',
-    _SettingsPage.shortcuts => 'Shortcuts',
-    _SettingsPage.plugins => 'Plugins',
-    _SettingsPage.updates => 'Updates',
-    _SettingsPage.support => 'Support',
-    _SettingsPage.about => 'About',
+    _SettingsPage.musicFolders => tr('Music Folders'),
+    _SettingsPage.audioOutput => tr('Audio Output'),
+    _SettingsPage.playback => tr('Playback'),
+    _SettingsPage.dsp => tr('DSP / EQ'),
+    _SettingsPage.display => tr('Display'),
+    _SettingsPage.integrations => tr('Integrations'),
+    _SettingsPage.shortcuts => tr('Shortcuts'),
+    _SettingsPage.plugins => tr('Plugins'),
+    _SettingsPage.updates => tr('Updates'),
+    _SettingsPage.support => tr('Support'),
+    _SettingsPage.about => tr('About'),
   };
 
   String get subtitle => switch (this) {
-    _SettingsPage.musicFolders => 'Folders Aqloss scans for audio files',
-    _SettingsPage.audioOutput => 'Device and output mode selection',
-    _SettingsPage.playback => 'Gapless, crossfade, ReplayGain, skip silence',
-    _SettingsPage.dsp => 'Equalizer, soft-clip, stereo width and depth',
-    _SettingsPage.display => 'Theme, spectrum analyser, album art',
-    _SettingsPage.integrations =>
+    _SettingsPage.musicFolders => tr('Folders Aqloss scans for audio files'),
+    _SettingsPage.audioOutput => tr('Device and output mode selection'),
+    _SettingsPage.playback => tr(
+      'Gapless, crossfade, ReplayGain, skip silence',
+    ),
+    _SettingsPage.dsp => tr('Equalizer, soft-clip, stereo width and depth'),
+    _SettingsPage.display => tr(
+      'Theme, language, spectrum analyser, album art',
+    ),
+    _SettingsPage.integrations => tr(
       'Manage external services, rich presence, and plugins',
-    _SettingsPage.shortcuts => 'Global keyboard shortcuts',
-    _SettingsPage.plugins => 'Installed third-party and built-in plugins',
-    _SettingsPage.updates => 'Check for new releases',
-    _SettingsPage.support => 'Ko-fi, Trakteer, and other ways to help',
-    _SettingsPage.about => 'Version, logs, and backup',
+    ),
+    _SettingsPage.shortcuts => tr('Global keyboard shortcuts'),
+    _SettingsPage.plugins => tr('Installed third-party and built-in plugins'),
+    _SettingsPage.updates => tr('Check for new releases'),
+    _SettingsPage.support => tr('Ko-fi, Trakteer, and other ways to help'),
+    _SettingsPage.about => tr('Version, logs, and backup'),
   };
 
   IconData get icon => switch (this) {
@@ -95,14 +101,14 @@ extension _SettingsPageX on _SettingsPage {
   };
 
   String get section => switch (this) {
-    _SettingsPage.musicFolders || _SettingsPage.audioOutput => 'LIBRARY',
-    _SettingsPage.playback || _SettingsPage.dsp => 'PLAYBACK',
-    _SettingsPage.display || _SettingsPage.integrations => 'APPEARANCE',
+    _SettingsPage.musicFolders || _SettingsPage.audioOutput => tr('LIBRARY'),
+    _SettingsPage.playback || _SettingsPage.dsp => tr('PLAYBACK'),
+    _SettingsPage.display || _SettingsPage.integrations => tr('APPEARANCE'),
     _SettingsPage.shortcuts ||
     _SettingsPage.plugins ||
     _SettingsPage.updates ||
     _SettingsPage.support ||
-    _SettingsPage.about => 'SYSTEM',
+    _SettingsPage.about => tr('SYSTEM'),
   };
 }
 
@@ -910,7 +916,7 @@ class _MusicFoldersPane extends ConsumerWidget {
         if (Platform.isIOS) ...[
           const SizedBox(height: 12),
           Text(
-            kIosMusicFolderHint,
+            tr(kIosMusicFolderHint),
             style: TextStyle(
               fontSize: 11,
               height: 1.4,
@@ -1468,12 +1474,14 @@ class _DisplayPane extends ConsumerWidget {
           children: [
             _PickerRow(
               icon: Icons.dark_mode_outlined,
-              title: 'Theme',
-              subtitle: 'Colour scheme for the app.',
-              options: const ['Dark', 'Light', 'System'],
+              title: tr('Theme'),
+              subtitle: tr('Colour scheme for the app.'),
+              options: [tr('Dark'), tr('Light'), tr('System')],
               selected: s.themeMode.index,
               onChanged: (i) => n.setTheme(ThemeMode.values[i]),
             ),
+            _Div(),
+            _LanguageMenu(language: s.language, onLanguage: n.setLanguage),
             _Div(),
             _PickerRow(
               icon: Icons.layers_outlined,
@@ -2739,7 +2747,7 @@ class _AboutPane extends ConsumerWidget {
   void _snack(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ).showSnackBar(SnackBar(content: Text(tr(message))));
   }
 
   Future<void> _export(BuildContext context, WidgetRef ref) async {
@@ -3392,6 +3400,122 @@ class _ToggleRowState extends State<_ToggleRow> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LanguageMenu extends ConsumerWidget {
+  final String language;
+  final ValueChanged<String> onLanguage;
+
+  const _LanguageMenu({required this.language, required this.onLanguage});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog =
+        ref.watch(l10nCatalogProvider).asData?.value ?? L10nCatalog.empty;
+    final codes = catalog.codes.toList()
+      ..sort((a, b) => catalog.nameOf(a).compareTo(catalog.nameOf(b)));
+    final selected = language == 'en' || codes.contains(language)
+        ? language
+        : '';
+    final isM3 = context.isMaterial3Ui;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isM3 ? 16 : 14,
+        vertical: isM3 ? 8 : 11,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: isM3 ? 0 : 1),
+                child: Icon(
+                  Icons.language_outlined,
+                  size: isM3 ? 24 : 16,
+                  color: isM3 ? null : context.stOnSurface(0.34),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('Language'),
+                      style: isM3
+                          ? Theme.of(context).textTheme.bodyLarge
+                          : TextStyle(
+                              fontSize: 13,
+                              color: context.stOnSurface(0.80),
+                            ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      tr(
+                        'System, English, or a translation file. The percent is how many lines replaced English.',
+                      ),
+                      style: TextStyle(
+                        fontSize: isM3 ? null : 11,
+                        color: context.stMuted(),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: context.stBorder()),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: selected,
+                  borderRadius: BorderRadius.circular(8),
+                  menuMaxHeight: 320,
+                  items: [
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text(
+                        tr('System'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'en',
+                      child: Text(
+                        tr('English'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    for (final code in codes)
+                      DropdownMenuItem(
+                        value: code,
+                        child: Text(
+                          catalog.labelFor(code),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (code) {
+                    if (code != null) onLanguage(code);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

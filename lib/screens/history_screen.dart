@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -34,18 +35,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: 'History',
+        title: tr('History'),
         toolbar: SegmentedButton<_Tab>(
-          segments: const [
+          segments: [
             ButtonSegment(
               value: _Tab.history,
-              label: Text('History'),
-              icon: Icon(Icons.history_rounded),
+              label: Text(tr('History')),
+              icon: const Icon(Icons.history_rounded),
             ),
             ButtonSegment(
               value: _Tab.loved,
-              label: Text('Loved'),
-              icon: Icon(Icons.favorite_rounded),
+              label: Text(tr('Loved')),
+              icon: const Icon(Icons.favorite_rounded),
             ),
           ],
           selected: {_tab},

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/providers/playlist_provider.dart';
 import 'package:aqloss/providers/settings_provider.dart';
@@ -507,7 +508,7 @@ class _MobileDrawer extends ConsumerWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.add_rounded),
-                    tooltip: 'New playlist',
+                    tooltip: tr('New playlist'),
                     onPressed: () {
                       Navigator.pop(context);
                       onCreatePlaylist();
@@ -518,7 +519,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.search_rounded,
-              label: 'Search',
+              label: tr('Search'),
               selected: false,
               onTap: () {
                 Navigator.pop(context);
@@ -527,7 +528,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.queue_music_rounded,
-              label: 'Queue',
+              label: tr('Queue'),
               selected: false,
               onTap: () {
                 Navigator.pop(context);
@@ -536,7 +537,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.person_outline_rounded,
-              label: 'Artists',
+              label: tr('Artists'),
               selected: route == 5,
               onTap: () {
                 Navigator.pop(context);
@@ -545,7 +546,7 @@ class _MobileDrawer extends ConsumerWidget {
             ),
             _DrawerTile(
               icon: Icons.history_rounded,
-              label: 'History',
+              label: tr('History'),
               selected: route == 4,
               onTap: () {
                 Navigator.pop(context);
@@ -556,7 +557,7 @@ class _MobileDrawer extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
               child: Text(
-                'PLAYLISTS',
+                tr('PLAYLISTS'),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,

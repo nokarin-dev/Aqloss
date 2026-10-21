@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -182,7 +183,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: 'Albums',
+        title: tr('Albums'),
         subtitle: allAlbums.isEmpty
             ? null
             : _query.isEmpty

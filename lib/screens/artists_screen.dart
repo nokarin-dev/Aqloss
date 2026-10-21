@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/history_provider.dart';
 import 'package:aqloss/providers/library_provider.dart';
@@ -170,7 +171,7 @@ class _ArtistsScreenState extends ConsumerState<ArtistsScreen> {
 
     if (context.isMaterial3Ui) {
       return M3PageScaffold(
-        title: 'Artists',
+        title: tr('Artists'),
         subtitle: all.isEmpty
             ? null
             : _query.isEmpty

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 
+import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/services/gpu_pref.dart';
 import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/eq_presets.dart';
@@ -28,24 +29,24 @@ enum ShortcutAction {
 }
 
 extension ShortcutActionX on ShortcutAction {
-  String get label => const {
-    ShortcutAction.playPause: 'Play / Pause',
-    ShortcutAction.skipNext: 'Next track',
-    ShortcutAction.skipPrevious: 'Previous track',
-    ShortcutAction.volumeUp: 'Volume up 5%',
-    ShortcutAction.volumeDown: 'Volume down 5%',
-    ShortcutAction.toggleSidebar: 'Toggle sidebar',
-    ShortcutAction.toggleQueue: 'Toggle queue panel',
-    ShortcutAction.search: 'Open search',
-    ShortcutAction.miniPlayer: 'Toggle mini player',
-    ShortcutAction.navPlayer: 'Go to Now Playing',
-    ShortcutAction.navLibrary: 'Go to Library',
-    ShortcutAction.navAlbums: 'Go to Albums',
-    ShortcutAction.navArtists: 'Go to Artists',
-    ShortcutAction.navHistory: 'Go to History',
-    ShortcutAction.navSettings: 'Go to Settings',
-    ShortcutAction.newPlaylist: 'New playlist',
-  }[this]!;
+  String get label => switch (this) {
+    ShortcutAction.playPause => tr('Play / Pause'),
+    ShortcutAction.skipNext => tr('Next track'),
+    ShortcutAction.skipPrevious => tr('Previous track'),
+    ShortcutAction.volumeUp => tr('Volume up 5%'),
+    ShortcutAction.volumeDown => tr('Volume down 5%'),
+    ShortcutAction.toggleSidebar => tr('Toggle sidebar'),
+    ShortcutAction.toggleQueue => tr('Toggle queue panel'),
+    ShortcutAction.search => tr('Open search'),
+    ShortcutAction.miniPlayer => tr('Toggle mini player'),
+    ShortcutAction.navPlayer => tr('Go to Now Playing'),
+    ShortcutAction.navLibrary => tr('Go to Library'),
+    ShortcutAction.navAlbums => tr('Go to Albums'),
+    ShortcutAction.navArtists => tr('Go to Artists'),
+    ShortcutAction.navHistory => tr('Go to History'),
+    ShortcutAction.navSettings => tr('Go to Settings'),
+    ShortcutAction.newPlaylist => tr('New playlist'),
+  };
 
   String get defaultKey => const {
     ShortcutAction.playPause: 'Space',
@@ -136,6 +137,7 @@ const _kHwAccel = 'aqloss_hw_accel';
 const _kCloseToTray = 'aqloss_close_to_tray';
 const _kReduceMotion = 'aqloss_reduce_motion';
 const _kShowTitleBar = 'aqloss_show_titlebar';
+const _kLanguage = 'aqloss_language';
 
 bool showInAppTitleBar({required bool linux, required bool showTitleBar}) =>
     !linux || showTitleBar;
@@ -184,6 +186,7 @@ class SettingsState {
   final bool closeToTray;
   final bool reduceMotion;
   final bool showTitleBar;
+  final String language;
   final bool loaded;
 
   const SettingsState({
@@ -230,6 +233,7 @@ class SettingsState {
     this.closeToTray = true,
     this.reduceMotion = false,
     this.showTitleBar = true,
+    this.language = '',
     this.loaded = false,
   });
 
@@ -315,6 +319,7 @@ class SettingsState {
     bool? closeToTray,
     bool? reduceMotion,
     bool? showTitleBar,
+    String? language,
     bool? loaded,
   }) => SettingsState(
     outputMode: outputMode ?? this.outputMode,
@@ -369,6 +374,7 @@ class SettingsState {
     closeToTray: closeToTray ?? this.closeToTray,
     reduceMotion: reduceMotion ?? this.reduceMotion,
     showTitleBar: showTitleBar ?? this.showTitleBar,
+    language: language ?? this.language,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -450,6 +456,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       closeToTray: p.getBool(_kCloseToTray) ?? true,
       reduceMotion: p.getBool(_kReduceMotion) ?? false,
       showTitleBar: p.getBool(_kShowTitleBar) ?? true,
+      language: p.getString(_kLanguage) ?? '',
       loaded: true,
     );
     GpuPref.write(state.hardwareAcceleration);
@@ -519,6 +526,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       p.setBool(_kCloseToTray, state.closeToTray),
       p.setBool(_kReduceMotion, state.reduceMotion),
       p.setBool(_kShowTitleBar, state.showTitleBar),
+      p.setString(_kLanguage, state.language),
     ]);
   }
 
@@ -630,6 +638,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void setTheme(ThemeMode m) {
     state = state.copyWith(themeMode: m);
+    _save();
+  }
+
+  void setLanguage(String code) {
+    state = state.copyWith(language: code);
     _save();
   }
 
