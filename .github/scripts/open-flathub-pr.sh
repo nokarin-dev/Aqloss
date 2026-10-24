@@ -101,6 +101,7 @@ text = upsert_tag(text, aqloss_url, aqloss_tag)
 text = upsert_tag(text, "https://github.com/flutter/flutter.git", flutter_tag)
 # The tray icon registers with the host StatusNotifier watcher
 text = add_finish_arg(text, "--talk-name=org.kde.StatusNotifierWatcher")
+text = text.replace("- mkdir /app/lib\n", "- mkdir -p /app/lib\n")
 path.write_text(text)
 print(f"generate from {aqloss_url} {aqloss_tag}, Flutter {flutter_tag}")
 PY
