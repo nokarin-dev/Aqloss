@@ -46,15 +46,15 @@
 
     <screenshots>
         <screenshot type="default">
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9da7ae977168f0c2d697d4d8329fa3b418ee307a/assets/preview/playing.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/a116131eaaf6673484a46a37221100bcd2afd0b2/assets/preview/playing.png</image>
             <caption>Playing</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9da7ae977168f0c2d697d4d8329fa3b418ee307a/assets/preview/library_detail.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/a116131eaaf6673484a46a37221100bcd2afd0b2/assets/preview/library_detail.png</image>
             <caption>Library - Detail View</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/9da7ae977168f0c2d697d4d8329fa3b418ee307a/assets/preview/library_grid.png</image>
+            <image>https://raw.githubusercontent.com/nokarin-dev/Aqloss/a116131eaaf6673484a46a37221100bcd2afd0b2/assets/preview/library_grid.png</image>
             <caption>Library - Grid View</caption>
         </screenshot>
     </screenshots>
@@ -63,7 +63,21 @@
         <release version="1.1.0" date="2026-08-27">
             <url type="details">https://github.com/nokarin-dev/aqloss/releases/tag/v1.1.0</url>
             <description>
-                <p>Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, and Linux shuffle/repeat from media controls.</p>
+                <p>Sleep timer, resume position, EQ presets, track info, notices, missing files, settings backup, A-B loop, system tray, library sort, playback speed, library filters, exclusive DAC, Android lock screen, Android folders, reduce motion, Support, an Arch Linux package, search spaces, a per-user Windows installer, a shared ui layout between default and material 3, Linux shuffle/repeat from media controls, a nightly warning, a Material 3 Light title bar, a first-launch folder picker, Lua title bar color, and a Linux option to hide the in-app title bar.</p>
+                <ul>
+                    <li>Added sleep timer.</li>
+                    <li>Resume position on app restart.</li>
+                    <li>Added EQ presets.</li>
+                    <li>Added track info overlay.</li>
+                    <li>Added notices for new features and changes.</li>
+                    <li>Added missing files detection and handling.</li>
+                    <li>Added settings backup and restore.</li>
+                    <li>Added A-B loop functionality.</li>
+                    <li>Added system tray support.</li>
+                    <li>Added library sort options.</li>
+                    <li>Added playback speed control.</li>
+                    <li>Added library filters.</li>
+                    <li>And more.</li>
             </description>
         </release>
         <release version="1.0.1" date="2026-08-27">
