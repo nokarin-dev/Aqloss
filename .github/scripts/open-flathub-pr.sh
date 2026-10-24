@@ -46,7 +46,7 @@ rm -rf "${WORKDIR}"
 mkdir -p "$(dirname "${WORKDIR}")"
 
 gh auth setup-git
-gh repo clone "${FLATHUB_REPO}" "${WORKDIR}" -- --branch "${FLATHUB_BASE}" --single-branch
+gh repo clone "${FLATHUB_REPO}" "${WORKDIR}" -- --branch "${FLATHUB_BASE}"
 cd "${WORKDIR}"
 
 if git ls-remote --exit-code origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
