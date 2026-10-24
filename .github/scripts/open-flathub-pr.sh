@@ -60,11 +60,18 @@ if ! grep -qs 'path = shared-modules' .gitmodules; then
   git submodule add --depth 1 https://github.com/flathub/shared-modules.git shared-modules
 fi
 
-python3 - "${AQLOSS_GIT}" "${TAG}" "${FLUTTER_TAG}" <<'PY'
+METAINFO="xyz.nokarin.aqloss.metainfo.xml"
+if ! python3 -c 'import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])' "${ROOT}/linux/${METAINFO}"; then
+  echo "linux/${METAINFO} is not well-formed XML" >&2
+  exit 1
+fi
+cp "${ROOT}/linux/${METAINFO}" "${METAINFO}"
+
+python3 - "${AQLOSS_GIT}" "${TAG}" "${FLUTTER_TAG}" "${METAINFO}" <<'PY'
 import sys
 from pathlib import Path
 
-aqloss_url, aqloss_tag, flutter_tag = sys.argv[1], sys.argv[2], sys.argv[3]
+aqloss_url, aqloss_tag, flutter_tag, metainfo = sys.argv[1:5]
 path = Path("flatpak-flutter.yaml")
 text = path.read_text()
 
@@ -97,11 +104,31 @@ def add_finish_arg(text: str, arg: str) -> str:
     return text[:end] + f"  - {arg}\n" + text[end:]
 
 
+def add_file_source(text: str, module: str, file: str, dest: str) -> str:
+    if f"path: {file}\n" in text:
+        return text
+    start = text.find(f"  - name: {module}\n")
+    if start < 0:
+        raise SystemExit(f"module not found in flatpak-flutter.yaml: {module}")
+    header = "    sources:\n"
+    start = text.find(header, start)
+    if start < 0:
+        raise SystemExit(f"sources not found for module {module}")
+    end = start + len(header)
+    for line in text[end:].splitlines(keepends=True):
+        if not line.startswith("      "):
+            break
+        end += len(line)
+    source = f"      - type: file\n        path: {file}\n        dest: {dest}\n"
+    return text[:end] + source + text[end:]
+
+
 text = upsert_tag(text, aqloss_url, aqloss_tag)
 text = upsert_tag(text, "https://github.com/flutter/flutter.git", flutter_tag)
 # The tray icon registers with the host StatusNotifier watcher
 text = add_finish_arg(text, "--talk-name=org.kde.StatusNotifierWatcher")
 text = text.replace("- mkdir /app/lib\n", "- mkdir -p /app/lib\n")
+text = add_file_source(text, "Aqloss", metainfo, "linux")
 path.write_text(text)
 print(f"generate from {aqloss_url} {aqloss_tag}, Flutter {flutter_tag}")
 PY
@@ -208,7 +235,7 @@ PY
 find generated -name '*.orig' -delete
 find generated -name '*.rej' -delete
 
-git add xyz.nokarin.aqloss.yaml flatpak-flutter.yaml generated foreign.json .gitmodules shared-modules
+git add xyz.nokarin.aqloss.yaml flatpak-flutter.yaml "${METAINFO}" generated foreign.json .gitmodules shared-modules
 if git diff --cached --quiet; then
   echo "Flathub repo already matches ${TAG}; nothing to commit."
   existing="$(gh pr list --repo "${FLATHUB_REPO}" --head "${BRANCH}" --json url --jq '.[0].url // empty')"
