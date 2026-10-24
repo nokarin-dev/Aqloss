@@ -56,6 +56,10 @@ else
   git checkout -B "${BRANCH}" "${FLATHUB_BASE}"
 fi
 
+if ! grep -qs 'path = shared-modules' .gitmodules; then
+  git submodule add --depth 1 https://github.com/flathub/shared-modules.git shared-modules
+fi
+
 python3 - "${AQLOSS_GIT}" "${TAG}" "${FLUTTER_TAG}" <<'PY'
 import sys
 from pathlib import Path
@@ -78,8 +82,25 @@ def upsert_tag(text: str, url: str, tag: str) -> str:
     return text[:after] + f"\n        tag: {tag}" + rest
 
 
+def add_finish_arg(text: str, arg: str) -> str:
+    if arg in text:
+        return text
+    header = "finish-args:\n"
+    start = text.find(header)
+    if start < 0:
+        raise SystemExit("finish-args not found in flatpak-flutter.yaml")
+    end = start + len(header)
+    for line in text[end:].splitlines(keepends=True):
+        if not line.startswith("  - "):
+            break
+        end += len(line)
+    return text[:end] + f"  - {arg}\n" + text[end:]
+
+
 text = upsert_tag(text, aqloss_url, aqloss_tag)
 text = upsert_tag(text, "https://github.com/flutter/flutter.git", flutter_tag)
+# The tray icon registers with the host StatusNotifier watcher
+text = add_finish_arg(text, "--talk-name=org.kde.StatusNotifierWatcher")
 path.write_text(text)
 print(f"generate from {aqloss_url} {aqloss_tag}, Flutter {flutter_tag}")
 PY
@@ -129,18 +150,18 @@ from pathlib import Path
 
 path = Path("xyz.nokarin.aqloss.yaml")
 text = path.read_text()
-if "name: ffmpeg\n" in text:
-    print("ffmpeg module already present")
-else:
-    marker = "modules:\n"
-    idx = text.find(marker)
-    if idx < 0:
-        raise SystemExit("modules: not found in xyz.nokarin.aqloss.yaml")
-    block = """  - name: ffmpeg
+marker = "modules:\n"
+idx = text.find(marker)
+if idx < 0:
+    raise SystemExit("modules: not found in xyz.nokarin.aqloss.yaml")
+head, tail = text[: idx + len(marker)], text[idx + len(marker) :]
+
+tray = "  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json\n"
+# flatpak-builder strips the archive's top directory, so configure runs in place
+ffmpeg = """  - name: ffmpeg
     buildsystem: simple
     build-commands:
       - |
-        cd ffmpeg-*
         ./configure --disable-everything --disable-autodetect --disable-doc --disable-network --disable-debug --disable-avdevice --disable-swscale --disable-postproc --disable-asm --enable-small --enable-static --disable-shared --enable-ffmpeg --disable-ffprobe --enable-avcodec --enable-avformat --enable-avutil --enable-swresample --enable-avfilter --enable-protocol=file,pipe --enable-demuxer=mov --enable-decoder=ac3,eac3 --enable-muxer=pcm_f32le --enable-encoder=pcm_f32le --enable-filter=aresample --extra-cflags=-Os
         make -j$(nproc)
         install -Dm755 ffmpeg /app/bin/ffmpeg
@@ -149,8 +170,19 @@ else:
         url: https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz
         sha256: 733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1
 """
-    path.write_text(text[: idx + len(marker)] + block + text[idx + len(marker) :])
+
+extra = ""
+if tray in tail:
+    print("tray indicator module already present")
+else:
+    extra += tray
+    print("added tray indicator module")
+if "name: ffmpeg\n" in tail:
+    print("ffmpeg module already present")
+else:
+    extra += ffmpeg
     print("added ffmpeg module")
+path.write_text(head + extra + tail)
 PY
 
 python3 - "${AQLOSS_GIT}" <<'PY'
@@ -175,7 +207,7 @@ PY
 find generated -name '*.orig' -delete
 find generated -name '*.rej' -delete
 
-git add xyz.nokarin.aqloss.yaml flatpak-flutter.yaml generated foreign.json
+git add xyz.nokarin.aqloss.yaml flatpak-flutter.yaml generated foreign.json .gitmodules shared-modules
 if git diff --cached --quiet; then
   echo "Flathub repo already matches ${TAG}; nothing to commit."
   existing="$(gh pr list --repo "${FLATHUB_REPO}" --head "${BRANCH}" --json url --jq '.[0].url // empty')"
