@@ -16,23 +16,48 @@ import 'util.dart';
 
 final _log = Logger('build_pod');
 
-String? _findVendoredLuaStaticLib(String staticLibPath) {
+const _luaArchiveNames = ['liblua5.4.a', 'liblua.a'];
+
+bool _isMluaSysDir(String dirPath) {
+  final base = path.basename(dirPath);
+  return base == 'mlua-sys' || base.startsWith('mlua-sys-');
+}
+
+String? _luaArchiveIn(String dirPath) {
+  for (final name in _luaArchiveNames) {
+    final luaLib = path.join(dirPath, 'out', 'lib', name);
+    if (File(luaLib).existsSync()) {
+      return luaLib;
+    }
+    final nested = path.join(dirPath, 'run', 'out', 'lib', name);
+    if (File(nested).existsSync()) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+String? findVendoredLuaStaticLib(String staticLibPath) {
   final buildRoot = path.join(path.dirname(staticLibPath), 'build');
   if (!Directory(buildRoot).existsSync()) {
     return null;
   }
 
   for (final entry in Directory(buildRoot).listSync()) {
-    if (entry is! Directory) {
+    if (entry is! Directory || !_isMluaSysDir(entry.path)) {
       continue;
     }
-    if (!path.basename(entry.path).startsWith('mlua-sys-')) {
-      continue;
+    final direct = _luaArchiveIn(entry.path);
+    if (direct != null) {
+      return direct;
     }
-    for (final name in ['liblua5.4.a', 'liblua.a']) {
-      final luaLib = path.join(entry.path, 'out', 'lib', name);
-      if (File(luaLib).existsSync()) {
-        return luaLib;
+    for (final child in Directory(entry.path).listSync()) {
+      if (child is! Directory) {
+        continue;
+      }
+      final nested = _luaArchiveIn(child.path);
+      if (nested != null) {
+        return nested;
       }
     }
   }
@@ -40,11 +65,12 @@ String? _findVendoredLuaStaticLib(String staticLibPath) {
 }
 
 String _mergeWithVendoredLuaStaticLib(String staticLibPath) {
-  final luaLib = _findVendoredLuaStaticLib(staticLibPath);
+  final luaLib = findVendoredLuaStaticLib(staticLibPath);
   if (luaLib == null) {
     throw Exception(
       'Vendored Lua static library not found next to $staticLibPath '
-      '(expected build/mlua-sys-*/out/lib/liblua5.4.a). '
+      '(expected build/mlua-sys-*/out/lib/liblua5.4.a '
+      'or build/mlua-sys/*/out/lib/liblua5.4.a). '
       'macOS/iOS would crash on launch with missing _luaopen_* symbols.',
     );
   }
