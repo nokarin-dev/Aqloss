@@ -113,7 +113,6 @@ class Track {
 
   String get displayTitle => title ?? path.split('/').last;
   String get displayArtist => artist ?? 'Unknown Artist';
-  String get displayAlbum => album ?? 'Unknown Album';
   String get uiArtist => artist ?? tr('library.unknown_artist');
   String get uiAlbum => album ?? tr('library.unknown_album');
 
@@ -127,60 +126,15 @@ class Track {
         (album == null && uiAlbum.toLowerCase().contains(q));
   }
 
-  String get displayArtistAlbum {
-    final albumName = album?.trim();
-    if (albumName == null || albumName.isEmpty) return displayArtist;
-    return '$displayArtist \u2014 $albumName';
-  }
-
-  String get uiArtistAlbum {
-    final albumName = album?.trim();
-    if (albumName == null || albumName.isEmpty) return uiArtist;
-    return '$uiArtist \u2014 $albumName';
-  }
-
   Duration get duration =>
       Duration(milliseconds: (durationSecs * 1000).round());
 
   Track copyWithDuration(Duration d) =>
       copyWith(durationSecs: d.inMilliseconds / 1000.0);
 
-  String get formatLabel {
-    final khz =
-        '${(sampleRate / 1000).toStringAsFixed(sampleRate % 1000 == 0 ? 0 : 1)}kHz';
-    final bits = bitDepth != null ? ' · ${bitDepth}bit' : '';
-    return '$format · $khz$bits';
-  }
-
   String get durationLabel {
     final m = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
   }
-
-  String get fileSizeLabel =>
-      '${(fileSizeBytes / 1024 / 1024).toStringAsFixed(1)} MB';
-
-  bool get hasReplayGain => replayGainTrack != null || replayGainAlbum != null;
-
-  String get sampleRateLabel => sampleRate > 0 ? '$sampleRate Hz' : '\u2014';
-
-  String get bitDepthLabel => bitDepth != null ? '$bitDepth-bit' : '\u2014';
-
-  String get channelsLabel {
-    if (channels <= 0) return '\u2014';
-    if (channels == 1) return tr('track.mono');
-    if (channels == 2) return tr('track.stereo');
-    return trFill('track.channels_count', {'count': '$channels'});
-  }
-
-  String get replayGainTrackLabel => formatReplayGainDb(replayGainTrack);
-
-  String get replayGainAlbumLabel => formatReplayGainDb(replayGainAlbum);
-}
-
-String formatReplayGainDb(double? db) {
-  if (db == null) return '\u2014';
-  final sign = db > 0 ? '+' : '';
-  return '$sign${db.toStringAsFixed(2)} dB';
 }

@@ -9,17 +9,14 @@ import 'package:aqloss/services/notifier/media_control_mobile.dart'
     as media_mobile;
 
 class AudioService {
-  // Volume cache
   static double _cachedVolume = 1.0;
   static bool _engineReady = false;
   static bool get engineReady => _engineReady;
 
-  // Freeze watchdog
   static Timer? _watchdog;
   static bool _recovering = false;
   static void Function()? onFreezeDetected;
 
-  // Device-change watchdog
   static void Function(String? newDefaultDeviceId)? onDeviceChanged;
   static Timer? _deviceWatchdog;
   static bool _reinitingForDevice = false;
@@ -133,7 +130,6 @@ class AudioService {
     }, onError: (_) {});
   }
 
-  // Init
   static Future<void> init({
     String? deviceId,
     bool exclusive = true,
@@ -235,7 +231,6 @@ class AudioService {
     }
   }
 
-  // Playback
   static Future<void> loadTrack(String path) async {
     if (!_engineReady) {
       for (int i = 0; i < 10; i++) {
@@ -349,7 +344,6 @@ class AudioService {
     }
   }
 
-  // Internal
   static Future<void> _applyVolume() async {
     try {
       await backend.setVolume(volume: _cachedVolume);

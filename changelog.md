@@ -6,7 +6,35 @@ What changed in each Aqloss release, written for people who use the app.
 
 ## [Unreleased]
 
-No changes yet.
+UI Rework on Aqloss. Mostly feature still same as like 1.1.0. Just a minor changes (maybe).
+
+### Added
+
+- [Frontend|UI] Liquid glass shell
+- [Frontend|Player] Phone Lyrics button. Swaps the cover for the lyrics
+- [Frontend|Player] Love button on library, album, playlist, and artist rows
+- [Frontend|Playlists] Drag tracks inside a playlist to reorder
+- [Frontend] Window buttons. Tiling (Hyprland, Sway, i3, and the like) gets Close only. GNOME, Windows, and other stacking desktops get minimize, maximize, and close. macOS keeps the system buttons
+
+### Changed
+
+- [Frontend|Library] Library and Albums share the grid / list toggle
+
+### Fixed
+
+- [Frontend|Player] Lyrics match on title and artist
+- [Frontend|Player] Lyrics vanished on loop, and again after relaunch
+
+### Removed
+
+- [Frontend|UI] Material 3, the wave shaders, and title bar
+- [Frontend|Player] Mini player window, and Ctrl+M shortcut
+- [Frontend|Library] Format and bit-depth filter
+- [Frontend|Player] Track info sheet
+- [Frontend|Player] Spectrum view. The analyser in the engine is still there
+- [Frontend|Settings] Linux "hide the title bar". The window is undecorated anyway
+- [Frontend|Plugins] Title-bar color from plugins
+- [Frontend] Global search shortcut. Search is still in the header
 
 ---
 

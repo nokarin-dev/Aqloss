@@ -3,10 +3,9 @@ import 'dart:io' show Platform;
 import 'package:aqloss/services/file_open_service.dart';
 import 'package:aqloss/src/rust/frb_generated.dart';
 import 'package:aqloss/util/logger.dart';
-import 'package:aqloss/widgets/mini_player_window.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -22,17 +21,12 @@ final _container = ProviderContainer();
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  await LiquidGlassShaders.ensureLoaded();
 
   final isDesktop = !Platform.isAndroid && !Platform.isIOS;
 
   if (isDesktop) {
     await windowManager.ensureInitialized();
-
-    final windowController = await WindowController.fromCurrentEngine();
-    if (windowController.arguments == 'mini_player') {
-      runApp(const ProviderScope(child: MiniPlayerStandalone()));
-      return;
-    }
 
     if (Platform.isWindows) {
       await MediaControlPlatform.initialize();
@@ -44,7 +38,7 @@ void main(List<String> args) async {
         minimumSize: const Size(800, 600),
         center: true,
         titleBarStyle: TitleBarStyle.hidden,
-        windowButtonVisibility: Platform.isMacOS ? false : null,
+        windowButtonVisibility: Platform.isMacOS,
         skipTaskbar: false,
         title: 'Aqloss',
         backgroundColor: Platform.isLinux ? Colors.transparent : null,
@@ -80,7 +74,6 @@ void main(List<String> args) async {
       );
       DiscordService.enabled = isDesktop && settings.discordRpc;
 
-      // Wire plugin registry
       await PluginRegistry.instance.init();
       _container.read(pluginProvider.notifier).refresh();
       FileOpenService.instance.init();

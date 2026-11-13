@@ -150,6 +150,7 @@ class AndroidEnvironment {
     final toolTempDir =
         Platform.environment['CARGOKIT_TOOL_TEMP_DIR'] ?? targetTempDir;
 
+    // opusic-sys and CMake only find the NDK under these names.
     return {
       arKey: arValue,
       ccKey: ccValue,
@@ -163,6 +164,10 @@ class AndroidEnvironment {
       '_CARGOKIT_NDK_LINK_TARGET': targetArg,
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
+      'ANDROID_NDK': ndkPath,
+      'ANDROID_NDK_HOME': ndkPath,
+      'ANDROID_NDK_ROOT': ndkPath,
+      'ANDROID_PLATFORM': 'android-$minSdkVersion',
     };
   }
 

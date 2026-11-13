@@ -1,8 +1,8 @@
 name: aqloss
 description: "Aqloss is a cross-platform music player engineered for bit-perfect, lossless, and hi-res audio playback."
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none"
 
-version: 1.1.0+1
+version: 1.2.0+1
 
 environment:
   sdk: ^3.11.3
@@ -13,65 +13,61 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
+  # Engine
   aqloss_rust_core:
     path: rust_builder
   flutter_rust_bridge: 2.13.0
 
-  # State management
+  # State
   flutter_riverpod: ^3.3.1
-  riverpod_annotation: ^4.0.2
 
-  # Data models
+  # Models
   freezed_annotation: ^3.1.0
-  json_annotation: ^4.9.0
 
-  # File picking
+  # Files
   file_picker: ^12.1.3
   android_file_picker: ^1.0.3
-
-  # Audio focus / media keys (mobile)
-  audio_service: ^0.18.13
-
-  # Utilities
   path: ^1.9.0
   path_provider: ^2.1.3
-  shared_preferences: ^2.5.5
-  window_manager: ^0.5.1
-  http: ^1.6.0
-  crypto: ^3.0.7
   open_file: ^4.0.0
-  device_info_plus: ^13.1.0
-  permission_handler: ^13.0.1
+  archive: ^4.2.0
+
+  # Network
+  http: ^1.6.0
+  url_launcher: ^6.3.2
+
+  # Desktop
+  window_manager: ^0.5.1
+  tray_manager: ^0.5.3
   dbus: ^0.7.12
   smtc_windows: ^1.1.0
-  collection: ^1.19.1
-  desktop_multi_window: ^0.3.1
-  archive: ^4.2.0
-  dynamic_color: ^2.1.0
-  material_ui: ^1.1.0
-  material_3_expressive: ^1.1.1
-  url_launcher: ^6.3.2
-  tray_manager: ^0.5.3
+
+  # Device
+  device_info_plus: ^13.1.0
+  permission_handler: ^13.0.1
+  shared_preferences: ^2.5.5
+
+  # Interface
+  cupertino_icons: ^1.0.8
+  liquid_glass_easy: ^5.1.0
+
+  # Utilities
+  crypto: ^3.0.7
 
 dev_dependencies:
+  # Test
   flutter_test:
     sdk: flutter
-  build_runner: ^2.4.9
-  freezed: ^4.0.1
-  json_serializable: ^6.8.0
-  riverpod_generator: ^4.0.3
-  drift_dev: ^2.18.0
-
-  flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Codegen
+  build_runner: ^2.4.9
+  freezed: ^4.0.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/icons/
     - assets/l10n/
-  shaders:
-    - shaders/m3_wave_track.frag
-    - shaders/m3_wave_ring.frag

@@ -8,16 +8,16 @@ void main() {
     final groups = supportGroups(
       indonesiaFirst: preferIndonesianSupport(const Locale('id')),
     );
-    expect(groups.first.title, 'Indonesia');
+    expect(groups.first.title, 'support.indonesia');
     expect(groups.first.links.first.name, 'Trakteer');
-    expect(groups.last.title, 'International');
+    expect(groups.last.title, 'support.international');
   });
 
   test('other locales list Ko-fi first', () {
     final groups = supportGroups(
       indonesiaFirst: preferIndonesianSupport(const Locale('en')),
     );
-    expect(groups.first.title, 'International');
+    expect(groups.first.title, 'support.international');
     expect(groups.first.links.first.name, 'Ko-fi');
     expect(groups.last.links.map((l) => l.name), ['Trakteer', 'Tako']);
   });

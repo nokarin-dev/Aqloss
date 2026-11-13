@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:aqloss/util/logger.dart';
+import 'package:aqloss/util/lyrics_match.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:http/http.dart' as http;
 import 'package:aqloss/providers/player_provider.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 
-// LRC parser
 class LrcLine {
   final Duration timestamp;
   final String text;
@@ -60,7 +60,6 @@ class LrcDocument {
   }
 }
 
-// State
 class LyricsState {
   final LrcDocument? document;
   final String? rawText;
@@ -80,9 +79,29 @@ class LyricsState {
   bool get hasSynced => document != null;
 }
 
+// Lines around the playhead. The start of a loop is the first lines.
+({int start, int end}) lyricLineWindow(int current, int length) {
+  if (length <= 0) return (start: 0, end: 0);
+  var index = current;
+  if (index < 0) index = 0;
+  if (index >= length) index = length - 1;
+  final start = (index - 2).clamp(0, length - 1).toInt();
+  final end = (index + 3).clamp(start + 1, length).toInt();
+  return (start: start, end: end);
+}
+
+// Keep lyrics on screen when the same song restarts.
+LyricsState pickShownLyrics(LyricsState shown, LyricsState live, String? path) {
+  if (path != null && live.trackPath == path && live.hasLyrics) return live;
+  if (shown.hasLyrics && (path == null || shown.trackPath == path)) {
+    return shown;
+  }
+  if (path != null && live.trackPath == path && live.isLoading) return live;
+  return const LyricsState();
+}
+
 enum LyricsSource { none, embedded, lrcFile, txtFile, lrclib }
 
-// Artist / title normalisation
 List<String> _artistCandidates(String raw) {
   final candidates = <String>{};
 
@@ -94,14 +113,11 @@ List<String> _artistCandidates(String raw) {
     return candidates.where((s) => s.isNotEmpty).toList();
   }
 
-  // Normal single-artist cleanup
   candidates.add(_cleanSingleArtist(raw));
 
-  // Remove "feat." component
   final noFeat = _removeFeat(raw);
   if (noFeat != raw) candidates.add(_cleanSingleArtist(noFeat));
 
-  // Empty string
   candidates.add('');
 
   return candidates
@@ -111,15 +127,10 @@ List<String> _artistCandidates(String raw) {
 
 String _cleanSingleArtist(String s) {
   var out = s;
-  // Remove (CV. ...) or (CV: ...) blocks
   out = out.replaceAll(RegExp(r'\(CV[.:][^)]*\)', caseSensitive: false), '');
-  // Remove (voice: ...) blocks
   out = out.replaceAll(RegExp(r'\(voice[^)]*\)', caseSensitive: false), '');
-  // Remove feat./ft./with/x collaborators
   out = _removeFeat(out);
-  // Collapse whitespace
   out = out.replaceAll(RegExp(r'\s+'), ' ').trim();
-  // Remove trailing punctuation
   out = out.replaceAll(RegExp(r'[,;/&|]+$'), '').trim();
   return out;
 }
@@ -133,10 +144,8 @@ String _removeFeat(String s) {
       .trim();
 }
 
-// Normalise track title
 List<String> _titleCandidates(String raw) {
   final candidates = [raw];
-  // Strip common suffixes
   final stripped = raw
       .replaceAll(
         RegExp(
@@ -150,14 +159,12 @@ List<String> _titleCandidates(String raw) {
   return candidates;
 }
 
-// lrclib helpers
 class _LrclibResult {
   final LrcDocument? document;
   final String? rawText;
   const _LrclibResult({this.document, this.rawText});
 }
 
-// /api/get endpoint
 Future<_LrclibResult?> _getExact({
   required String artist,
   required String title,
@@ -186,10 +193,10 @@ Future<_LrclibResult?> _getExact({
   }
 }
 
-// /api/search endpoint
 Future<_LrclibResult?> _searchFuzzy({
   required String artist,
   required String title,
+  int? duration,
 }) async {
   final params = <String, String>{
     'q': artist.isNotEmpty ? '$artist $title' : title,
@@ -209,18 +216,26 @@ Future<_LrclibResult?> _searchFuzzy({
     final list = jsonDecode(res.body) as List<dynamic>;
     if (list.isEmpty) return null;
 
-    // Pick the first result whose track name matches closely
-    final titleNorm = _norm(title);
-    for (final item in list) {
-      final obj = item as Map<String, dynamic>;
-      final trackName = (obj['trackName'] as String? ?? '').trim();
-      if (_norm(trackName) == titleNorm ||
-          _norm(trackName).contains(titleNorm)) {
-        return _parseLrclibMap(obj);
-      }
-    }
-    // Accept first result as last resort
-    return _parseLrclibMap(list.first as Map<String, dynamic>);
+    final rows = [for (final item in list) item as Map<String, dynamic>];
+    final index = pickLyricsHit(
+      [
+        for (final obj in rows)
+          LyricsSearchHit(
+            artist: (obj['artistName'] as String? ?? '').trim(),
+            title: (obj['trackName'] as String? ?? '').trim(),
+            duration: (obj['duration'] as num?)?.round(),
+          ),
+      ],
+      artist: artist,
+      title: title,
+      duration: duration,
+    );
+    if (index == null) return null;
+    final picked = rows[index];
+    Logger.infoFrontend(
+      '"$title" hit artist="${picked['artistName'] ?? ''}" title="${picked['trackName'] ?? ''}"',
+    );
+    return _parseLrclibMap(picked);
   } catch (_) {
     return null;
   }
@@ -248,13 +263,6 @@ _LrclibResult? _parseLrclibMap(Map<String, dynamic> json) {
   return null;
 }
 
-// Normalise string for fuzzy comparison
-String _norm(String s) => s
-    .toLowerCase()
-    .replaceAll(RegExp(r"[^\w\s]"), '')
-    .replaceAll(RegExp(r'\s+'), ' ')
-    .trim();
-
 Future<_LrclibResult?> _fetchFromLrclib({
   required String artist,
   required String title,
@@ -263,7 +271,6 @@ Future<_LrclibResult?> _fetchFromLrclib({
   final artists = _artistCandidates(artist);
   final titles = _titleCandidates(title);
 
-  // strict /api/get
   for (final t in titles) {
     for (final a in artists) {
       final result = await _getExact(artist: a, title: t, duration: duration);
@@ -274,10 +281,15 @@ Future<_LrclibResult?> _fetchFromLrclib({
     }
   }
 
-  // fuzzy /api/search
+  // fuzzy /api/search stays on the tagged artist
+  final named = artists.where((a) => a.isNotEmpty).toList();
   for (final t in titles) {
-    for (final a in [artists.first, '']) {
-      final result = await _searchFuzzy(artist: a, title: t);
+    for (final a in named.isEmpty ? [''] : named) {
+      final result = await _searchFuzzy(
+        artist: a,
+        title: t,
+        duration: duration,
+      );
       if (result != null) {
         Logger.infoFrontend(
           '"$title" ok=true via search (artist="$a", title="$t")',
@@ -291,9 +303,19 @@ Future<_LrclibResult?> _fetchFromLrclib({
   return null;
 }
 
-// Notifier
 class LyricsNotifier extends StateNotifier<LyricsState> {
   LyricsNotifier() : super(const LyricsState());
+
+  final Map<String, LyricsState> _saved = {};
+  int _ticket = 0;
+
+  // Saved lyrics count only while that copy is on screen.
+  bool covers(String path) {
+    if (_saved.containsKey(path)) {
+      return state.trackPath == path && state.hasLyrics;
+    }
+    return state.trackPath == path;
+  }
 
   Future<void> loadForTrack(
     String trackPath, {
@@ -301,94 +323,42 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
     String? title,
     int? duration,
   }) async {
-    if (state.trackPath == trackPath) return;
+    final saved = _saved[trackPath];
+    if (saved != null) {
+      _ticket++;
+      if (state.trackPath != trackPath || !state.hasLyrics) state = saved;
+      return;
+    }
+    // Same track already showing lyrics. A loop must not wipe them.
+    if (state.trackPath == trackPath && (state.hasLyrics || state.isLoading)) {
+      return;
+    }
+    final ticket = ++_ticket;
     state = LyricsState(isLoading: true, trackPath: trackPath);
 
     try {
-      // Embedded lyrics
-      final embedded = await backend.readEmbeddedLyrics(path: trackPath);
-      if (embedded != null && embedded.trim().isNotEmpty) {
-        if (LrcDocument.looksLikeLrc(embedded)) {
-          final doc = LrcDocument.parse(embedded);
-          if (doc != null) {
-            state = LyricsState(
-              document: doc,
-              trackPath: trackPath,
-              source: LyricsSource.embedded,
-            );
-            return;
-          }
-        }
-        state = LyricsState(
-          rawText: embedded.trim(),
-          trackPath: trackPath,
-          source: LyricsSource.embedded,
-        );
+      final next = await _fetchLyrics(
+        trackPath,
+        artist: artist,
+        title: title,
+        duration: duration,
+      );
+      if (ticket != _ticket) return;
+      if (next == null) {
+        if (state.trackPath == trackPath && state.hasLyrics) return;
+        state = LyricsState(trackPath: trackPath);
         return;
       }
-
-      // Sidecar .lrc file
-      final base = trackPath.replaceAll(RegExp(r'\.[^.]+$'), '');
-      final lrcFile = File('$base.lrc');
-      if (await lrcFile.exists()) {
-        final content = await lrcFile.readAsString();
-        final doc = LrcDocument.parse(content);
-        if (doc != null) {
-          state = LyricsState(
-            document: doc,
-            trackPath: trackPath,
-            source: LyricsSource.lrcFile,
-          );
-          return;
-        }
-        final plain = content
-            .split('\n')
-            .where((l) => !l.startsWith('[') && l.trim().isNotEmpty)
-            .join('\n');
-        if (plain.isNotEmpty) {
-          state = LyricsState(
-            rawText: plain,
-            trackPath: trackPath,
-            source: LyricsSource.lrcFile,
-          );
-          return;
-        }
-      }
-
-      // Sidecar .txt file
-      final txtFile = File('$base.txt');
-      if (await txtFile.exists()) {
-        final content = await txtFile.readAsString();
-        if (content.trim().isNotEmpty) {
-          state = LyricsState(
-            rawText: content.trim(),
-            trackPath: trackPath,
-            source: LyricsSource.txtFile,
-          );
-          return;
-        }
-      }
-
-      // lrclib
-      if (artist != null && title != null) {
-        final result = await _fetchFromLrclib(
-          artist: artist,
-          title: title,
-          duration: duration,
-        );
-        if (result != null) {
-          state = LyricsState(
-            document: result.document,
-            rawText: result.rawText,
-            trackPath: trackPath,
-            source: LyricsSource.lrclib,
-          );
-          return;
-        }
-      }
-
-      state = LyricsState(trackPath: trackPath);
+      _saved[trackPath] = next;
+      state = next;
     } catch (_) {
+      if (ticket != _ticket) return;
+      final kept = _saved[trackPath];
+      if (kept != null) {
+        state = kept;
+        return;
+      }
+      if (state.trackPath == trackPath && state.hasLyrics) return;
       state = LyricsState(trackPath: trackPath);
     }
   }
@@ -396,23 +366,106 @@ class LyricsNotifier extends StateNotifier<LyricsState> {
   void clear() => state = const LyricsState();
 }
 
-// Provider
+Future<LyricsState?> _fetchLyrics(
+  String trackPath, {
+  String? artist,
+  String? title,
+  int? duration,
+}) async {
+  final embedded = await backend.readEmbeddedLyrics(path: trackPath);
+  if (embedded != null && embedded.trim().isNotEmpty) {
+    if (LrcDocument.looksLikeLrc(embedded)) {
+      final doc = LrcDocument.parse(embedded);
+      if (doc != null) {
+        return LyricsState(
+          document: doc,
+          trackPath: trackPath,
+          source: LyricsSource.embedded,
+        );
+      }
+    }
+    return LyricsState(
+      rawText: embedded.trim(),
+      trackPath: trackPath,
+      source: LyricsSource.embedded,
+    );
+  }
+
+  final base = trackPath.replaceAll(RegExp(r'\.[^.]+$'), '');
+  final lrcFile = File('$base.lrc');
+  if (await lrcFile.exists()) {
+    final content = await lrcFile.readAsString();
+    final doc = LrcDocument.parse(content);
+    if (doc != null) {
+      return LyricsState(
+        document: doc,
+        trackPath: trackPath,
+        source: LyricsSource.lrcFile,
+      );
+    }
+    final plain = content
+        .split('\n')
+        .where((l) => !l.startsWith('[') && l.trim().isNotEmpty)
+        .join('\n');
+    if (plain.isNotEmpty) {
+      return LyricsState(
+        rawText: plain,
+        trackPath: trackPath,
+        source: LyricsSource.lrcFile,
+      );
+    }
+  }
+
+  final txtFile = File('$base.txt');
+  if (await txtFile.exists()) {
+    final content = await txtFile.readAsString();
+    if (content.trim().isNotEmpty) {
+      return LyricsState(
+        rawText: content.trim(),
+        trackPath: trackPath,
+        source: LyricsSource.txtFile,
+      );
+    }
+  }
+
+  if (artist != null && title != null) {
+    final result = await _fetchFromLrclib(
+      artist: artist,
+      title: title,
+      duration: duration,
+    );
+    if (result != null) {
+      return LyricsState(
+        document: result.document,
+        rawText: result.rawText,
+        trackPath: trackPath,
+        source: LyricsSource.lrclib,
+      );
+    }
+  }
+  return null;
+}
+
 final lyricsProvider = StateNotifierProvider<LyricsNotifier, LyricsState>((
   ref,
 ) {
   final notifier = LyricsNotifier();
+  // The song already playing counts, including the one restored at launch.
   ref.listen<PlayerState>(playerProvider, (prev, next) {
     final path = next.currentTrack?.path;
-    if (path != null && path != prev?.currentTrack?.path) {
+    if (path == null) {
+      if (next.status != PlayerStatus.loading) notifier.clear();
+      return;
+    }
+    final changed = path != prev?.currentTrack?.path;
+    if (changed || !notifier.covers(path)) {
       notifier.loadForTrack(
         path,
         artist: next.currentTrack?.artist,
         title: next.currentTrack?.title,
         duration: next.currentTrack?.duration.inSeconds,
       );
-    } else if (path == null) {
-      notifier.clear();
     }
-  });
+  }, fireImmediately: true);
   return notifier;
 });

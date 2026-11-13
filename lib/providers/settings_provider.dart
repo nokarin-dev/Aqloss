@@ -3,7 +3,6 @@ import 'dart:io' show Platform;
 
 import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/services/gpu_pref.dart';
-import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/eq_presets.dart';
 import 'package:aqloss/util/playback_speed.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -17,8 +16,6 @@ enum ShortcutAction {
   volumeDown,
   toggleSidebar,
   toggleQueue,
-  search,
-  miniPlayer,
   navPlayer,
   navLibrary,
   navAlbums,
@@ -37,8 +34,6 @@ extension ShortcutActionX on ShortcutAction {
     ShortcutAction.volumeDown => tr('player.volume_down'),
     ShortcutAction.toggleSidebar => tr('sidebar.toggle'),
     ShortcutAction.toggleQueue => tr('queue.toggle'),
-    ShortcutAction.search => tr('search.open'),
-    ShortcutAction.miniPlayer => tr('player.mini'),
     ShortcutAction.navPlayer => tr('sidebar.go_now_playing'),
     ShortcutAction.navLibrary => tr('sidebar.go_library'),
     ShortcutAction.navAlbums => tr('sidebar.go_albums'),
@@ -56,8 +51,6 @@ extension ShortcutActionX on ShortcutAction {
     ShortcutAction.volumeDown: 'Ctrl+ArrowDown',
     ShortcutAction.toggleSidebar: 'Ctrl+B',
     ShortcutAction.toggleQueue: 'Ctrl+Q',
-    ShortcutAction.search: 'Ctrl+F',
-    ShortcutAction.miniPlayer: 'Ctrl+M',
     ShortcutAction.navPlayer: 'Ctrl+1',
     ShortcutAction.navLibrary: 'Ctrl+2',
     ShortcutAction.navAlbums: 'Ctrl+3',
@@ -66,6 +59,35 @@ extension ShortcutActionX on ShortcutAction {
     ShortcutAction.navSettings: 'Ctrl+6',
     ShortcutAction.newPlaylist: 'Ctrl+N',
   }[this]!;
+}
+
+// Old saves kept search at 7 and the mini player at 8.
+Map<ShortcutAction, String> decodeStoredShortcuts(Map<dynamic, dynamic> map) {
+  final result = <ShortcutAction, String>{};
+  final numeric =
+      map.isNotEmpty && map.keys.every((key) => int.tryParse('$key') != null);
+  if (numeric) {
+    for (final entry in map.entries) {
+      final idx = int.tryParse('${entry.key}');
+      final value = entry.value;
+      if (idx == null || value is! String || value.isEmpty) continue;
+      if (idx == 7 || idx == 8) continue;
+      final mapped = idx > 8 ? idx - 2 : idx;
+      if (mapped < 0 || mapped >= ShortcutAction.values.length) continue;
+      result[ShortcutAction.values[mapped]] = value;
+    }
+    return result;
+  }
+  for (final entry in map.entries) {
+    final value = entry.value;
+    if (value is! String || value.isEmpty) continue;
+    for (final action in ShortcutAction.values) {
+      if (action.name != entry.key) continue;
+      result[action] = value;
+      break;
+    }
+  }
+  return result;
 }
 
 enum AudioOutputMode { system, exclusive }
@@ -81,14 +103,6 @@ bool platformDefaultDiscordRpc({bool? desktop}) {
   return isDesktop;
 }
 
-enum ThemeMode { dark, light, system }
-
-enum AppStyle { legacy, islands }
-
-enum AccentMode { off, auto, custom }
-
-enum LibraryViewMode { detail, grid }
-
 enum ReplayGainMode { off, track, album, auto }
 
 enum CrossfadeMode { off, short, medium, long }
@@ -103,13 +117,6 @@ const _kReplayGainPreamp = 'aqloss_replay_gain_preamp';
 const _kGapless = 'aqloss_gapless';
 const _kCrossfade = 'aqloss_crossfade';
 const _kStopAfter = 'aqloss_stop_after';
-const _kTheme = 'aqloss_theme';
-const _kUiFramework = 'aqloss_ui_framework';
-const _kAppStyle = 'aqloss_app_style';
-const _kLibraryViewMode = 'aqloss_library_view_mode';
-const _kAlbumViewMode = 'aqloss_album_view_mode';
-const _kShowBitDepth = 'aqloss_show_bit_depth';
-const _kShowNowPlayingHeader = 'aqloss_show_now_playing_header';
 const _kScrobble = 'aqloss_scrobble';
 const _kLastFmUser = 'aqloss_lastfm_user';
 const _kLastFmApiKey = 'aqloss_lastfm_api_key';
@@ -125,27 +132,17 @@ const _kNotchFilter = 'aqloss_notch_filter';
 const _kSkipSilence = 'aqloss_skip_silence';
 const _kPlaybackSpeed = 'aqloss_playback_speed';
 const _kShowAlbumArtBg = 'aqloss_album_art_bg';
-const _kSpectrumEnabled = 'aqloss_spectrum';
-const _kSpectrumStyle = 'aqloss_spectrum_style';
-const _kAccentMode = 'aqloss_accent_mode';
-const _kAccentColor = 'aqloss_accent_color';
 const _kStereoWidth = 'aqloss_stereo_width';
 const _kHaasMs = 'aqloss_haas_ms';
 const _kDiscordRpc = 'aqloss_discord_rpc';
-const _kMaterialYou = 'aqloss_material_you';
 const _kHwAccel = 'aqloss_hw_accel';
 const _kCloseToTray = 'aqloss_close_to_tray';
 const _kReduceMotion = 'aqloss_reduce_motion';
-const _kShowTitleBar = 'aqloss_show_titlebar';
 const _kLanguage = 'aqloss_language';
-
-bool showInAppTitleBar({required bool linux, required bool showTitleBar}) =>
-    !linux || showTitleBar;
 
 class SettingsState {
   final AudioOutputMode outputMode;
   final String? selectedDeviceId;
-  final double volume;
   final bool gaplessPlayback;
   final CrossfadeMode crossfade;
   final ReplayGainMode replayGainMode;
@@ -157,17 +154,8 @@ class SettingsState {
   final List<double> eqGains;
   final List<EqPreset> eqUserPresets;
   final bool notchFilter;
-  final ThemeMode themeMode;
-  final AppStyle appStyle;
-  final UiFramework uiFramework;
-  final LibraryViewMode libraryViewMode;
-  final LibraryViewMode albumViewMode;
-  final bool showBitDepthInLibrary;
-  final bool showNowPlayingHeader;
   final Map<ShortcutAction, String> shortcuts;
   final bool showAlbumArtBackground;
-  final bool spectrumEnabled;
-  final int spectrumStyle;
   final bool scrobbleLastFm;
   final String? lastFmUsername;
   final String? lastFmApiKey;
@@ -176,23 +164,18 @@ class SettingsState {
   final bool scrobbleListenBrainz;
   final String? listenBrainzToken;
   final String? listenBrainzUsername;
-  final AccentMode accentMode;
-  final int? accentColor;
   final double stereoWidth;
   final double haasMs;
   final bool discordRpc;
-  final bool materialYou;
   final bool hardwareAcceleration;
   final bool closeToTray;
   final bool reduceMotion;
-  final bool showTitleBar;
   final String language;
   final bool loaded;
 
   const SettingsState({
     this.outputMode = AudioOutputMode.system,
     this.selectedDeviceId,
-    this.volume = 1.0,
     this.gaplessPlayback = true,
     this.crossfade = CrossfadeMode.off,
     this.replayGainMode = ReplayGainMode.off,
@@ -204,17 +187,8 @@ class SettingsState {
     this.eqGains = const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     this.eqUserPresets = const [],
     this.notchFilter = true,
-    this.themeMode = ThemeMode.dark,
-    this.appStyle = AppStyle.legacy,
-    this.uiFramework = UiFramework.standalone,
-    this.libraryViewMode = LibraryViewMode.detail,
-    this.albumViewMode = LibraryViewMode.detail,
-    this.showBitDepthInLibrary = true,
-    this.showNowPlayingHeader = false,
     this.shortcuts = const {},
     this.showAlbumArtBackground = true,
-    this.spectrumEnabled = true,
-    this.spectrumStyle = 0,
     this.scrobbleLastFm = false,
     this.lastFmUsername,
     this.lastFmApiKey,
@@ -223,16 +197,12 @@ class SettingsState {
     this.scrobbleListenBrainz = false,
     this.listenBrainzToken,
     this.listenBrainzUsername,
-    this.accentMode = AccentMode.off,
-    this.accentColor,
     this.stereoWidth = 1.0,
     this.haasMs = 0.0,
     this.discordRpc = true,
-    this.materialYou = false,
     this.hardwareAcceleration = true,
     this.closeToTray = true,
     this.reduceMotion = false,
-    this.showTitleBar = true,
     this.language = '',
     this.loaded = false,
   });
@@ -275,7 +245,6 @@ class SettingsState {
     AudioOutputMode? outputMode,
     String? selectedDeviceId,
     bool clearDeviceId = false,
-    double? volume,
     bool? gaplessPlayback,
     CrossfadeMode? crossfade,
     ReplayGainMode? replayGainMode,
@@ -287,17 +256,8 @@ class SettingsState {
     List<double>? eqGains,
     List<EqPreset>? eqUserPresets,
     bool? notchFilter,
-    ThemeMode? themeMode,
-    AppStyle? appStyle,
-    UiFramework? uiFramework,
-    LibraryViewMode? libraryViewMode,
-    LibraryViewMode? albumViewMode,
-    bool? showBitDepthInLibrary,
-    bool? showNowPlayingHeader,
     Map<ShortcutAction, String>? shortcuts,
     bool? showAlbumArtBackground,
-    bool? spectrumEnabled,
-    int? spectrumStyle,
     bool? scrobbleLastFm,
     String? lastFmUsername,
     String? lastFmApiKey,
@@ -308,17 +268,12 @@ class SettingsState {
     String? listenBrainzToken,
     String? listenBrainzUsername,
     bool clearListenBrainz = false,
-    AccentMode? accentMode,
-    int? accentColor,
-    bool clearAccentColor = false,
     double? stereoWidth,
     double? haasMs,
     bool? discordRpc,
-    bool? materialYou,
     bool? hardwareAcceleration,
     bool? closeToTray,
     bool? reduceMotion,
-    bool? showTitleBar,
     String? language,
     bool? loaded,
   }) => SettingsState(
@@ -326,7 +281,6 @@ class SettingsState {
     selectedDeviceId: clearDeviceId
         ? null
         : (selectedDeviceId ?? this.selectedDeviceId),
-    volume: volume ?? this.volume,
     gaplessPlayback: gaplessPlayback ?? this.gaplessPlayback,
     crossfade: crossfade ?? this.crossfade,
     replayGainMode: replayGainMode ?? this.replayGainMode,
@@ -338,18 +292,9 @@ class SettingsState {
     eqGains: eqGains ?? this.eqGains,
     eqUserPresets: eqUserPresets ?? this.eqUserPresets,
     notchFilter: notchFilter ?? this.notchFilter,
-    themeMode: themeMode ?? this.themeMode,
-    appStyle: appStyle ?? this.appStyle,
-    uiFramework: uiFramework ?? this.uiFramework,
-    libraryViewMode: libraryViewMode ?? this.libraryViewMode,
-    albumViewMode: albumViewMode ?? this.albumViewMode,
-    showBitDepthInLibrary: showBitDepthInLibrary ?? this.showBitDepthInLibrary,
-    showNowPlayingHeader: showNowPlayingHeader ?? this.showNowPlayingHeader,
     shortcuts: shortcuts ?? this.shortcuts,
     showAlbumArtBackground:
         showAlbumArtBackground ?? this.showAlbumArtBackground,
-    spectrumEnabled: spectrumEnabled ?? this.spectrumEnabled,
-    spectrumStyle: spectrumStyle ?? this.spectrumStyle,
     scrobbleLastFm: scrobbleLastFm ?? this.scrobbleLastFm,
     lastFmUsername: lastFmUsername ?? this.lastFmUsername,
     lastFmApiKey: lastFmApiKey ?? this.lastFmApiKey,
@@ -364,16 +309,12 @@ class SettingsState {
     listenBrainzUsername: clearListenBrainz
         ? null
         : (listenBrainzUsername ?? this.listenBrainzUsername),
-    accentMode: accentMode ?? this.accentMode,
-    accentColor: clearAccentColor ? null : (accentColor ?? this.accentColor),
     stereoWidth: stereoWidth ?? this.stereoWidth,
     haasMs: haasMs ?? this.haasMs,
     discordRpc: discordRpc ?? this.discordRpc,
-    materialYou: materialYou ?? this.materialYou,
     hardwareAcceleration: hardwareAcceleration ?? this.hardwareAcceleration,
     closeToTray: closeToTray ?? this.closeToTray,
     reduceMotion: reduceMotion ?? this.reduceMotion,
-    showTitleBar: showTitleBar ?? this.showTitleBar,
     language: language ?? this.language,
     loaded: loaded ?? this.loaded,
   );
@@ -409,35 +350,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       eqGains: normalizeEqGains(eqGains),
       eqUserPresets: decodeEqUserPresets(p.getString(_kEqUserPresets)),
       notchFilter: p.getBool(_kNotchFilter) ?? true,
-      themeMode: ThemeMode.values[(p.getInt(_kTheme) ?? 0).clamp(0, 2)],
-      appStyle:
-          AppStyle.values[(p.getInt(_kAppStyle) ?? 0).clamp(
-            0,
-            AppStyle.values.length - 1,
-          )],
-      uiFramework: () {
-        final stored = p.getInt(_kUiFramework);
-        if (stored != null) {
-          return UiFramework.values[stored.clamp(
-            0,
-            UiFramework.values.length - 1,
-          )];
-        }
-        if (p.getBool(_kMaterialYou) == true) {
-          return UiFramework.material3;
-        }
-        return UiFramework.standalone;
-      }(),
-      libraryViewMode: LibraryViewMode
-          .values[(p.getInt(_kLibraryViewMode) ?? 0).clamp(0, 1)],
-      albumViewMode:
-          LibraryViewMode.values[(p.getInt(_kAlbumViewMode) ?? 0).clamp(0, 1)],
-      showBitDepthInLibrary: p.getBool(_kShowBitDepth) ?? true,
-      showNowPlayingHeader: p.getBool(_kShowNowPlayingHeader) ?? false,
       shortcuts: _loadShortcuts(p),
       showAlbumArtBackground: p.getBool(_kShowAlbumArtBg) ?? true,
-      spectrumEnabled: p.getBool(_kSpectrumEnabled) ?? true,
-      spectrumStyle: (p.getInt(_kSpectrumStyle) ?? 0).clamp(0, 3),
       scrobbleLastFm: p.getBool(_kScrobble) ?? false,
       lastFmUsername: p.getString(_kLastFmUser),
       lastFmApiKey: p.getString(_kLastFmApiKey),
@@ -446,16 +360,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       scrobbleListenBrainz: p.getBool(_kScrobbleListenBrainz) ?? false,
       listenBrainzToken: p.getString(_kListenBrainzToken),
       listenBrainzUsername: p.getString(_kListenBrainzUser),
-      accentMode: AccentMode.values[(p.getInt(_kAccentMode) ?? 0).clamp(0, 2)],
-      accentColor: p.getInt(_kAccentColor),
       stereoWidth: (p.getDouble(_kStereoWidth) ?? 1.0).clamp(0.0, 2.0),
       haasMs: (p.getDouble(_kHaasMs) ?? 0.0).clamp(0.0, 25.0),
       discordRpc: p.getBool(_kDiscordRpc) ?? platformDefaultDiscordRpc(),
-      materialYou: p.getBool(_kMaterialYou) ?? false,
       hardwareAcceleration: p.getBool(_kHwAccel) ?? true,
       closeToTray: p.getBool(_kCloseToTray) ?? true,
       reduceMotion: p.getBool(_kReduceMotion) ?? false,
-      showTitleBar: p.getBool(_kShowTitleBar) ?? true,
       language: p.getString(_kLanguage) ?? '',
       loaded: true,
     );
@@ -483,17 +393,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       ),
       p.setString(_kEqUserPresets, encodeEqUserPresets(state.eqUserPresets)),
       p.setBool(_kNotchFilter, state.notchFilter),
-      p.setInt(_kTheme, state.themeMode.index),
-      p.setInt(_kAppStyle, state.appStyle.index),
-      p.setInt(_kUiFramework, state.uiFramework.index),
-      p.setInt(_kLibraryViewMode, state.libraryViewMode.index),
-      p.setInt(_kAlbumViewMode, state.albumViewMode.index),
-      p.setBool(_kShowBitDepth, state.showBitDepthInLibrary),
-      p.setBool(_kShowNowPlayingHeader, state.showNowPlayingHeader),
       _saveShortcuts(p, state.shortcuts),
       p.setBool(_kShowAlbumArtBg, state.showAlbumArtBackground),
-      p.setBool(_kSpectrumEnabled, state.spectrumEnabled),
-      p.setInt(_kSpectrumStyle, state.spectrumStyle),
       p.setBool(_kScrobble, state.scrobbleLastFm),
       state.lastFmUsername != null
           ? p.setString(_kLastFmUser, state.lastFmUsername!)
@@ -514,18 +415,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       state.listenBrainzUsername != null
           ? p.setString(_kListenBrainzUser, state.listenBrainzUsername!)
           : p.remove(_kListenBrainzUser),
-      p.setInt(_kAccentMode, state.accentMode.index),
-      state.accentColor != null
-          ? p.setInt(_kAccentColor, state.accentColor!)
-          : p.remove(_kAccentColor),
       p.setDouble(_kStereoWidth, state.stereoWidth),
       p.setDouble(_kHaasMs, state.haasMs),
       p.setBool(_kDiscordRpc, state.discordRpc),
-      p.setBool(_kMaterialYou, state.materialYou),
       p.setBool(_kHwAccel, state.hardwareAcceleration),
       p.setBool(_kCloseToTray, state.closeToTray),
       p.setBool(_kReduceMotion, state.reduceMotion),
-      p.setBool(_kShowTitleBar, state.showTitleBar),
       p.setString(_kLanguage, state.language),
     ]);
   }
@@ -538,10 +433,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void setOutputMode(AudioOutputMode m) {
     state = state.copyWith(outputMode: m);
     _save();
-  }
-
-  void setVolume(double v) {
-    state = state.copyWith(volume: v.clamp(0, 1));
   }
 
   void toggleGapless() {
@@ -597,15 +488,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final raw = p.getString(_kShortcuts);
     if (raw == null) return {};
     try {
-      final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final result = <ShortcutAction, String>{};
-      for (final entry in map.entries) {
-        final idx = int.tryParse(entry.key);
-        if (idx != null && idx < ShortcutAction.values.length) {
-          result[ShortcutAction.values[idx]] = entry.value as String;
-        }
-      }
-      return result;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return {};
+      return decodeStoredShortcuts(decoded);
     } catch (_) {
       return {};
     }
@@ -616,7 +501,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     Map<ShortcutAction, String> shortcuts,
   ) async {
     final raw = jsonEncode({
-      for (final e in shortcuts.entries) '${e.key.index}': e.value,
+      for (final e in shortcuts.entries) e.key.name: e.value,
     });
     await p.setString(_kShortcuts, raw);
   }
@@ -636,43 +521,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _save();
   }
 
-  void setTheme(ThemeMode m) {
-    state = state.copyWith(themeMode: m);
-    _save();
-  }
-
   void setLanguage(String code) {
     state = state.copyWith(language: code);
-    _save();
-  }
-
-  void setAppStyle(AppStyle s) {
-    state = state.copyWith(appStyle: s);
-    _save();
-  }
-
-  void setUiFramework(UiFramework f) {
-    state = state.copyWith(uiFramework: f);
-    _save();
-  }
-
-  void setLibraryViewMode(LibraryViewMode m) {
-    state = state.copyWith(libraryViewMode: m);
-    _save();
-  }
-
-  void setAlbumViewMode(LibraryViewMode m) {
-    state = state.copyWith(albumViewMode: m);
-    _save();
-  }
-
-  void toggleBitDepthDisplay() {
-    state = state.copyWith(showBitDepthInLibrary: !state.showBitDepthInLibrary);
-    _save();
-  }
-
-  void toggleNowPlayingHeader() {
-    state = state.copyWith(showNowPlayingHeader: !state.showNowPlayingHeader);
     _save();
   }
 
@@ -680,16 +530,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(
       showAlbumArtBackground: !state.showAlbumArtBackground,
     );
-    _save();
-  }
-
-  void toggleSpectrum() {
-    state = state.copyWith(spectrumEnabled: !state.spectrumEnabled);
-    _save();
-  }
-
-  void setSpectrumStyle(int s) {
-    state = state.copyWith(spectrumStyle: s.clamp(0, 3));
     _save();
   }
 
@@ -738,21 +578,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void clearListenBrainz() {
     state = state.copyWith(clearListenBrainz: true);
-    _save();
-  }
-
-  void setAccentMode(AccentMode m) {
-    state = state.copyWith(accentMode: m);
-    _save();
-  }
-
-  void setAccentColor(int argb) {
-    state = state.copyWith(accentColor: argb, accentMode: AccentMode.custom);
-    _save();
-  }
-
-  void clearAccentColor() {
-    state = state.copyWith(clearAccentColor: true, accentMode: AccentMode.off);
     _save();
   }
 
@@ -817,12 +642,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _save();
   }
 
-  void toggleMaterialYou() {
-    if (state.uiFramework != UiFramework.material3) return;
-    state = state.copyWith(materialYou: !state.materialYou);
-    _save();
-  }
-
   void toggleHardwareAcceleration() {
     state = state.copyWith(hardwareAcceleration: !state.hardwareAcceleration);
     _save();
@@ -836,11 +655,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   void toggleReduceMotion() {
     state = state.copyWith(reduceMotion: !state.reduceMotion);
-    _save();
-  }
-
-  void toggleShowTitleBar() {
-    state = state.copyWith(showTitleBar: !state.showTitleBar);
     _save();
   }
 

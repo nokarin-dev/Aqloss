@@ -1,6 +1,5 @@
 import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/providers/settings_provider.dart';
-import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/eq_presets.dart';
 import 'package:aqloss/util/playback_speed.dart';
 
@@ -43,17 +42,8 @@ Map<String, dynamic> settingsToJson(SettingsState s) => {
     for (final p in s.eqUserPresets) {'name': p.name, 'gains': p.gains},
   ],
   'notchFilter': s.notchFilter,
-  'themeMode': s.themeMode.name,
-  'appStyle': s.appStyle.name,
-  'uiFramework': s.uiFramework.name,
-  'libraryViewMode': s.libraryViewMode.name,
-  'albumViewMode': s.albumViewMode.name,
-  'showBitDepthInLibrary': s.showBitDepthInLibrary,
-  'showNowPlayingHeader': s.showNowPlayingHeader,
   'shortcuts': {for (final e in s.shortcuts.entries) e.key.name: e.value},
   'showAlbumArtBackground': s.showAlbumArtBackground,
-  'spectrumEnabled': s.spectrumEnabled,
-  'spectrumStyle': s.spectrumStyle,
   'scrobbleLastFm': s.scrobbleLastFm,
   'lastFmUsername': s.lastFmUsername,
   'lastFmApiKey': s.lastFmApiKey,
@@ -62,16 +52,12 @@ Map<String, dynamic> settingsToJson(SettingsState s) => {
   'scrobbleListenBrainz': s.scrobbleListenBrainz,
   'listenBrainzToken': s.listenBrainzToken,
   'listenBrainzUsername': s.listenBrainzUsername,
-  'accentMode': s.accentMode.name,
-  'accentColor': s.accentColor,
   'stereoWidth': s.stereoWidth,
   'haasMs': s.haasMs,
   'discordRpc': s.discordRpc,
-  'materialYou': s.materialYou,
   'hardwareAcceleration': s.hardwareAcceleration,
   'closeToTray': s.closeToTray,
   'reduceMotion': s.reduceMotion,
-  'showTitleBar': s.showTitleBar,
   'language': s.language,
 };
 
@@ -142,24 +128,8 @@ SettingsState settingsFromJson(
     eqGains: normalizeEqGains(eqGains),
     eqUserPresets: presets,
     notchFilter: json['notchFilter'] as bool? ?? true,
-    themeMode:
-        enumByName(ThemeMode.values, json['themeMode']) ?? ThemeMode.dark,
-    appStyle: enumByName(AppStyle.values, json['appStyle']) ?? AppStyle.legacy,
-    uiFramework:
-        enumByName(UiFramework.values, json['uiFramework']) ??
-        UiFramework.standalone,
-    libraryViewMode:
-        enumByName(LibraryViewMode.values, json['libraryViewMode']) ??
-        LibraryViewMode.detail,
-    albumViewMode:
-        enumByName(LibraryViewMode.values, json['albumViewMode']) ??
-        LibraryViewMode.detail,
-    showBitDepthInLibrary: json['showBitDepthInLibrary'] as bool? ?? true,
-    showNowPlayingHeader: json['showNowPlayingHeader'] as bool? ?? false,
     shortcuts: shortcuts,
     showAlbumArtBackground: json['showAlbumArtBackground'] as bool? ?? true,
-    spectrumEnabled: json['spectrumEnabled'] as bool? ?? true,
-    spectrumStyle: ((json['spectrumStyle'] as num?)?.toInt() ?? 0).clamp(0, 3),
     scrobbleLastFm: json['scrobbleLastFm'] as bool? ?? false,
     lastFmUsername: json['lastFmUsername'] as String?,
     lastFmApiKey: json['lastFmApiKey'] as String?,
@@ -168,20 +138,15 @@ SettingsState settingsFromJson(
     scrobbleListenBrainz: json['scrobbleListenBrainz'] as bool? ?? false,
     listenBrainzToken: json['listenBrainzToken'] as String?,
     listenBrainzUsername: json['listenBrainzUsername'] as String?,
-    accentMode:
-        enumByName(AccentMode.values, json['accentMode']) ?? AccentMode.off,
-    accentColor: (json['accentColor'] as num?)?.toInt(),
     stereoWidth: ((json['stereoWidth'] as num?)?.toDouble() ?? 1.0).clamp(
       0.0,
       2.0,
     ),
     haasMs: ((json['haasMs'] as num?)?.toDouble() ?? 0.0).clamp(0.0, 25.0),
     discordRpc: json['discordRpc'] as bool? ?? platformDefaultDiscordRpc(),
-    materialYou: json['materialYou'] as bool? ?? false,
     hardwareAcceleration: json['hardwareAcceleration'] as bool? ?? true,
     closeToTray: json['closeToTray'] as bool? ?? true,
     reduceMotion: json['reduceMotion'] as bool? ?? false,
-    showTitleBar: json['showTitleBar'] as bool? ?? true,
     language: json['language'] as String? ?? '',
     loaded: true,
   );
