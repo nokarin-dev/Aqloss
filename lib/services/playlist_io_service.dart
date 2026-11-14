@@ -34,7 +34,6 @@ class PlaylistImportResult {
 class PlaylistIOService {
   PlaylistIOService._();
 
-  // Export
   static Future<PlaylistExportResult> export(Playlist playlist) async {
     try {
       final json = jsonEncode({
@@ -47,7 +46,8 @@ class PlaylistIOService {
       final safeName = playlist.name
           .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
           .trim();
-      final fileName = '$safeName.$_kExtension';
+      final base = safeName.isEmpty ? 'playlist' : safeName;
+      final fileName = '$base-playlist.$_kExtension';
 
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         final uri = await FilePicker.saveFile(
@@ -77,7 +77,6 @@ class PlaylistIOService {
     }
   }
 
-  // Import
   static Future<PlaylistImportResult> import() async {
     try {
       final file = await FilePicker.pickFile(
@@ -100,7 +99,6 @@ class PlaylistIOService {
         return const PlaylistImportResult.fail('File is not valid JSON.');
       }
 
-      // Validate format
       if (envelope['format'] != _kFormatKey) {
         return const PlaylistImportResult.fail(
           'Not a valid .aqp playlist file.',
@@ -132,7 +130,6 @@ class PlaylistIOService {
     }
   }
 
-  // Import from a known path
   static Future<PlaylistImportResult> importFromPath(String path) async {
     try {
       final raw = await File(path).readAsString();

@@ -29,13 +29,13 @@ On Windows, **WASAPI Exclusive** can send the stream straight to the device (no 
 ## Screenshot
 <div align="center">
 
-| Playing (Default) | Library Detail (Default) | Library Grid (Default)
+| Playing | Library | Albums
 | --- | --- | --- |
-| ![Playing](assets/preview/playing.png) | ![Library_Detail](assets/preview/library_detail.png) | ![Library_Grid](assets/preview/library_grid.png) |
+| ![Playing](assets/preview/playing.png) | ![Library](assets/preview/library.png) | ![Albums](assets/preview/albums.png) |
 
-| Playing (M3) | Library Detail (M3) | Library Grid (M3) |
+| Playlists | Artists | History
 | --- | --- | --- |
-| ![Playing-M3](assets/preview/playing-M3.png) | ![Library_Detail-M3](assets/preview/library_detail-M3.png) | ![Library_Grid-M3](assets/preview/library_grid-M3.png) |
+| ![Playlists](assets/preview/playlists.png) | ![Artists](assets/preview/artists.png) | ![History](assets/preview/history.png)
 
 </div>
 

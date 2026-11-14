@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:aqloss/plugins/plugin_api.dart';
-import 'package:aqloss/plugins/plugin_theme.dart';
 import 'package:aqloss/plugins/webhook_dispatcher.dart';
 import 'package:aqloss/src/rust/api.dart' as backend;
 import 'package:aqloss/util/logger.dart';
@@ -115,7 +114,6 @@ class PluginRegistry {
       await backend.pluginSetEnabled(id: loadedId, enabled: enabled);
       _luaPlugins.add(manifest);
       _installDirs[manifest.id] = dir;
-      PluginTheme.syncFromEngine();
       Logger.debugFrontend('[plugins] lua loaded: $loadedId');
     } catch (e) {
       Logger.errorPlayerProvider('[plugins] lua load error ${manifest.id}: $e');
@@ -140,7 +138,6 @@ class PluginRegistry {
       try {
         await backend.pluginSetEnabled(id: pluginId, enabled: enabled);
         await _persistEnabled(pluginId, enabled);
-        PluginTheme.syncFromEngine();
       } catch (e) {
         Logger.errorPlayerProvider('[plugins/lua] setEnabled($pluginId): $e');
       }
@@ -161,7 +158,6 @@ class PluginRegistry {
         Logger.errorPlayerProvider('[plugins/lua] unload($pluginId): $e');
       }
       _luaPlugins.removeWhere((m) => m.id == pluginId);
-      PluginTheme.syncFromEngine();
     }
 
     final dir = await findInstallDir(pluginId);
@@ -233,7 +229,6 @@ class PluginRegistry {
     _webhooks.clear();
     _luaPlugins.clear();
     _installDirs.clear();
-    PluginTheme.clear();
   }
 
   Future<void> dispatchTrackStart(TrackStartEvent event) async {
@@ -365,7 +360,6 @@ class PluginRegistry {
     if (_luaPlugins.isEmpty) return;
     try {
       await call();
-      PluginTheme.syncFromEngine();
     } catch (e) {
       Logger.errorPlayerProvider('[plugins/lua] dispatch failed: $e');
     }

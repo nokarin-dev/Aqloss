@@ -38,10 +38,10 @@ class Playlist {
   }
 
   Playlist reorder(int oldIndex, int newIndex) {
-    final corrected = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    if (oldIndex == newIndex) return this;
     final updated = List<Track>.from(tracks);
     final item = updated.removeAt(oldIndex);
-    updated.insert(corrected, item);
+    updated.insert(newIndex, item);
     return copyWith(tracks: updated);
   }
 

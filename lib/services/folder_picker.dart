@@ -6,10 +6,8 @@ import 'package:aqloss/util/android_path_helper.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
-import 'package:aqloss/widgets/folder_browser_dialog.dart';
-import 'package:aqloss/widgets/q_toast.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 class DirectoryPickerException implements Exception {
   final String message;
@@ -27,7 +25,7 @@ Future<void> addMusicFolderFromPicker(
     final granted = await requestAndroidStoragePermission();
     if (!granted) {
       if (context.mounted) {
-        QToast.show(context, tr(kStoragePermissionRequiredMessage));
+        _tell(context, tr(kStoragePermissionRequiredMessage));
       }
       return;
     }
@@ -38,7 +36,7 @@ Future<void> addMusicFolderFromPicker(
     if (path == null) return;
     await onAdded(path);
   } on DirectoryPickerException catch (e) {
-    if (context.mounted) QToast.show(context, tr(e.message));
+    if (context.mounted) _tell(context, tr(e.message));
   }
 }
 
@@ -60,7 +58,6 @@ Future<String?> pickLibraryFolder(BuildContext context) async {
   return path;
 }
 
-// Linux: in-app picker. zenity/portal sit behind the window or use a dark GTK bar.
 Future<String?> pickDirectory(
   BuildContext context, {
   String dialogTitle = 'Select folder',
@@ -69,33 +66,30 @@ Future<String?> pickDirectory(
   if (Platform.isIOS) {
     return IosFolderAccess.pickFolder();
   }
+  if (!context.mounted) return null;
 
-  if (!Platform.isLinux) {
-    try {
-      return await FilePicker.getDirectoryPath(
-        dialogTitle: dialogTitle,
-        initialDirectory: initialDirectory,
-        androidOptions: const FilePickerAndroidOptions(
-          safOptions: AndroidSAFOptions(
-            grant: AndroidSAFGrant.lifetime,
-            persistGrant: true,
-          ),
+  try {
+    return await FilePicker.getDirectoryPath(
+      dialogTitle: dialogTitle,
+      initialDirectory: initialDirectory,
+      androidOptions: const FilePickerAndroidOptions(
+        safOptions: AndroidSAFOptions(
+          grant: AndroidSAFGrant.lifetime,
+          persistGrant: true,
         ),
-      );
-    } catch (e, st) {
-      Logger.errorFrontend('Native directory picker failed: $e\n$st');
-      if (Platform.isAndroid) {
-        throw const DirectoryPickerException(kFolderPickFailedMessage);
-      }
+      ),
+    );
+  } catch (e, st) {
+    Logger.errorFrontend('Native directory picker failed: $e\n$st');
+    if (Platform.isAndroid) {
+      throw const DirectoryPickerException(kFolderPickFailedMessage);
     }
   }
+  return null;
+}
 
-  if (!context.mounted) return null;
-  if (Platform.isAndroid || Platform.isIOS) return null;
-
-  return FolderBrowserDialog.show(
+void _tell(BuildContext context, String message) {
+  ScaffoldMessenger.maybeOf(
     context,
-    title: dialogTitle,
-    initialDirectory: initialDirectory,
-  );
+  )?.showSnackBar(SnackBar(content: Text(message)));
 }

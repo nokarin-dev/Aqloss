@@ -127,7 +127,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _restoreVolume();
     unawaited(PositionStore.instance.ensureLoaded());
 
-    // Freeze recovery
     AudioService.onFreezeDetected = () async {
       final track = state.currentTrack;
       if (track == null) return;
@@ -727,7 +726,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await _loadAndPlay(s.queue[idx]);
   }
 
-  // Queue mutation
   void addToQueueNext(Track track) {
     addAllToQueueNext([track]);
   }
@@ -776,23 +774,23 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     state = state.copyWith(queue: q, queueIndex: newIdx);
   }
 
-  // Reorder the queue
+  // Move a queue row. newIndex is where it lands.
   void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
     final q = List<Track>.from(state.queue);
+    if (oldIndex < 0 || oldIndex >= q.length) return;
+    if (newIndex < 0 || newIndex >= q.length) return;
     final cur = state.queueIndex;
-    if (oldIndex < newIndex) newIndex -= 1;
     final track = q.removeAt(oldIndex);
     q.insert(newIndex, track);
-
-    int newCurrent = cur;
+    var newCurrent = cur;
     if (oldIndex == cur) {
       newCurrent = newIndex;
     } else if (oldIndex < cur && newIndex >= cur) {
-      newCurrent = cur - 1;
-    } else if (oldIndex > cur && newIndex < cur) {
-      newCurrent = cur + 1;
+      newCurrent -= 1;
+    } else if (oldIndex > cur && newIndex <= cur) {
+      newCurrent += 1;
     }
-
     state = state.copyWith(queue: q, queueIndex: newCurrent);
   }
 
@@ -1008,7 +1006,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
     }
 
-    // Loop mode
     switch (s.loopMode) {
       case LoopMode.track:
         final track = s.currentTrack;

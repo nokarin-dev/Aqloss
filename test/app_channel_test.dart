@@ -1,7 +1,7 @@
 import 'package:aqloss/app_channel.dart';
 import 'package:aqloss/l10n/l10n.dart';
 import 'package:aqloss/util/notices.dart';
-import 'package:aqloss/widgets/nightly_notice.dart';
+import 'package:aqloss/util/nightly_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

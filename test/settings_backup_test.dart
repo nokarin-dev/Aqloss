@@ -4,7 +4,6 @@ import 'package:aqloss/models/playlist.dart';
 import 'package:aqloss/models/track.dart';
 import 'package:aqloss/providers/settings_provider.dart';
 import 'package:aqloss/services/settings_backup_service.dart';
-import 'package:aqloss/theme/ui_framework.dart';
 import 'package:aqloss/util/eq_presets.dart';
 import 'package:aqloss/util/notices.dart';
 import 'package:aqloss/util/settings_backup.dart';
@@ -35,15 +34,12 @@ void main() {
       eqUserPresets: const [
         EqPreset(name: 'Night', gains: [2, 1, 0, 0, 0, 0, 0, 0, 1, 2]),
       ],
-      themeMode: ThemeMode.light,
-      uiFramework: UiFramework.material3,
-      shortcuts: const {ShortcutAction.search: 'Ctrl+K'},
+      shortcuts: const {ShortcutAction.playPause: 'Ctrl+K'},
       lastFmSessionKey: 'sess',
       listenBrainzToken: 'tok',
       hardwareAcceleration: false,
       closeToTray: false,
       reduceMotion: true,
-      showTitleBar: false,
       language: 'de',
       loaded: true,
     );
@@ -76,16 +72,14 @@ void main() {
     expect(restored.replayGainMode, ReplayGainMode.album);
     expect(restored.replayGainPreamp, -3.5);
     expect(restored.eqUserPresets.single.name, 'Night');
-    expect(restored.shortcuts[ShortcutAction.search], 'Ctrl+K');
+    expect(restored.shortcuts[ShortcutAction.playPause], 'Ctrl+K');
     expect(restored.lastFmSessionKey, 'sess');
     expect(restored.listenBrainzToken, 'tok');
     expect(restored.hardwareAcceleration, isFalse);
     expect(restored.closeToTray, isFalse);
     expect(restored.reduceMotion, isTrue);
-    expect(restored.showTitleBar, isFalse);
     expect(restored.language, 'de');
     expect(restored.playbackSpeed, 1.25);
-    expect(restored.uiFramework, UiFramework.material3);
   });
 
   test('decodeBackup rejects the wrong format', () {
@@ -124,6 +118,5 @@ void main() {
     expect(restored.eqGains.first, 12.0);
     expect(restored.eqGains[1], -12.0);
     expect(restored.closeToTray, isTrue);
-    expect(restored.showTitleBar, isTrue);
   });
 }
